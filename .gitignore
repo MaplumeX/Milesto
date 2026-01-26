@@ -1,0 +1,76 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Vite / bundler caches
+.vite/
+.eslintcache
+
+# Build outputs
+dist/
+dist-electron/
+out/
+release/
+
+# Electron Builder artifacts (in case output dir changes)
+*.dmg
+*.dmg.blockmap
+*.exe
+*.exe.blockmap
+*.AppImage
+*.AppImage.blockmap
+*.snap
+*.zip
+*.tar.gz
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Env files (keep an example checked in)
+.env*
+!.env.example
+!.env.sample
+
+# TypeScript
+*.tsbuildinfo
+
+# Coverage
+coverage/
+
+# Local temp files
+.cache/
+.tmp/
+tmp/
+*.swp
+*.swo
+*~
+
+# IDEs / editors
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Code signing / certificates (do not commit)
+*.p12
+*.pfx
+*.cer
+*.crt
+*.der
+*.key
+*.pem
