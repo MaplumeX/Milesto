@@ -60,7 +60,7 @@
 
 ## 5. 隐私与同步安全（强制）
 
-来源：`docs/prd/03-v0.3-sync.md`「安全与隐私」「同步原则」。
+来源：`docs/prd/00-overview.md`（隐私原则）与 `docs/tech-framework.md`（同步就绪/冲突可解释原则）。
 
 - 禁止默认收集行为数据：不得加入 telemetry/analytics 之类默认上报；同步日志仅本地可见。
 - 禁止明文传输同步数据：传输加密（HTTPS/WebDAV TLS）是最低要求。

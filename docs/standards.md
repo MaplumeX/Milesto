@@ -86,7 +86,7 @@
 
 ## 9. 隐私与数据治理
 
-来源：`docs/prd/03-v0.3-sync.md`。
+来源：`docs/prd/00-overview.md` 与 `docs/tech-framework.md`。
 
 - 必须：默认不收集行为数据；如未来需要遥测/分析，必须采用显式 opt-in，并提供关闭入口。
 - 必须：同步传输最低要求为 HTTPS/WebDAV TLS；敏感日志仅本地可见。

@@ -62,10 +62,6 @@ Milesto 的愿景是成为一个面向个人用户的开源替代品：覆盖“
 - Anytime
 - Someday
 - Logbook（已完成/归档）
-- Projects
-- Areas（领域/责任区，可选）
-- Tags
-- Search
 - Settings
 
 ## 7. 核心对象（概念模型）
@@ -75,7 +71,7 @@ Milesto 的愿景是成为一个面向个人用户的开源替代品：覆盖“
 - id
 - title
 - notes（支持 Markdown）
-- status: open | done | cancelled
+- status: open | done 
 - project_id（可空）
 - area_id（可空）
 - tag_ids（可空）
@@ -91,15 +87,18 @@ Milesto 的愿景是成为一个面向个人用户的开源替代品：覆盖“
 - title
 - notes
 - area_id（可空）
-- status: active | on_hold | done
-- sections（分组/标题）
+- tag_ids（可空）
+- scheduled_at（计划出现/开始日期; 决定它何时出现在 Today/Upcoming）
+- due_at（截止日期; 用于提醒与风险标识）
+- status: open | done
+- sections（标题）
 
 ### 7.3 Area（领域）
 
 - id
 - title
 - notes
-
+- tags_ids(可空)
 ### 7.4 Tag（标签）
 
 - id
