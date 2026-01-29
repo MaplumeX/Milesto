@@ -1,5 +1,6 @@
 :root {
   color-scheme: light;
+  --bottom-bar-height: 56px;
   --bg: #f7f6f3;
   --panel: #ffffff;
   --text: #1d1d1b;
@@ -37,7 +38,6 @@ body {
 
 .sidebar {
   width: 280px;
-  padding: 18px;
   border-right: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(10px);
@@ -47,6 +47,7 @@ body {
 }
 
 .sidebar-top {
+  padding: 18px 18px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -59,7 +60,9 @@ body {
 
 .nav {
   overflow: auto;
-  padding-right: 8px;
+  /* Apply the sidebar insets here, not on `.sidebar`.
+     Extra right padding helps keep text off the scrollbar. */
+  padding: 0 26px 12px 18px;
 }
 
 .nav-sep {
@@ -131,13 +134,61 @@ body {
 
 .sidebar-create {
   margin: 10px 0 14px;
+  padding: 0 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+.create-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.create-toggle-item {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+}
+
+.create-toggle-item.is-active {
+  background: rgba(29, 29, 27, 0.08);
+}
+
 .sidebar-bottom {
   margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--bottom-bar-height);
+  border-top: 1px solid var(--border);
+  padding: 0 18px;
+}
+
+/* Bottom actions: Settings on the right; borders only on hover/focus. */
+.sidebar-bottom .nav-item {
+  margin-left: auto;
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sidebar-bottom > .button {
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sidebar-bottom .nav-item:hover,
+.sidebar-bottom .nav-item:focus-visible,
+.sidebar-bottom > .button:hover,
+.sidebar-bottom > .button:focus-visible {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.65);
+  box-shadow: 0 1px 0 var(--shadow);
 }
 
 .content {
@@ -152,7 +203,31 @@ body {
 
 .content-main {
   flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-scroll {
+  flex: 1;
   overflow: auto;
+}
+
+.content-bottom-bar {
+  height: var(--bottom-bar-height);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(10px);
+}
+
+.content-bottom-left,
+.content-bottom-right {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .detail {
@@ -601,6 +676,9 @@ body {
   }
   .page {
     padding: 18px;
+  }
+  .content-bottom-bar {
+    padding: 0 18px;
   }
   .detail {
     position: fixed;

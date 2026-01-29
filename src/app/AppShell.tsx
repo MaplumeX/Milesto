@@ -115,71 +115,6 @@ export function AppShell() {
           <div className="nav-sep" />
           <div className="nav-section-title">Projects</div>
 
-          <div className="row" style={{ justifyContent: 'flex-start' }}>
-            <button
-              type="button"
-              className="button button-ghost"
-              onClick={() => {
-                setCreateMode((m) => (m === 'project' ? null : 'project'))
-                setCreateTitle('')
-              }}
-            >
-              + Project
-            </button>
-            <button
-              type="button"
-              className="button button-ghost"
-              onClick={() => {
-                setCreateMode((m) => (m === 'area' ? null : 'area'))
-                setCreateTitle('')
-              }}
-            >
-              + Area
-            </button>
-          </div>
-
-          {createMode ? (
-            <div className="sidebar-create">
-              <input
-                className="input"
-                value={createTitle}
-                onChange={(e) => setCreateTitle(e.target.value)}
-                placeholder={createMode === 'project' ? 'Project title…' : 'Area title…'}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    setCreateMode(null)
-                    setCreateTitle('')
-                  }
-                  if (e.key === 'Enter') {
-                    void handleCreate()
-                  }
-                }}
-                disabled={isCreating}
-              />
-              <div className="row" style={{ justifyContent: 'flex-start' }}>
-                <button
-                  type="button"
-                  className="button"
-                  onClick={() => void handleCreate()}
-                  disabled={isCreating}
-                >
-                  Create
-                </button>
-                <button
-                  type="button"
-                  className="button button-ghost"
-                  onClick={() => {
-                    setCreateMode(null)
-                    setCreateTitle('')
-                  }}
-                  disabled={isCreating}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : null}
-
           {sidebarError ? <div className="sidebar-error">{sidebarError}</div> : null}
 
           {unassignedProjects.map((p) => (
@@ -203,15 +138,92 @@ export function AppShell() {
           ))}
         </nav>
 
+        {createMode ? (
+          <div className="sidebar-create">
+            <div className="create-toggle">
+              <button
+                type="button"
+                className={`create-toggle-item${createMode === 'project' ? ' is-active' : ''}`}
+                onClick={() => setCreateMode('project')}
+              >
+                Project
+              </button>
+              <button
+                type="button"
+                className={`create-toggle-item${createMode === 'area' ? ' is-active' : ''}`}
+                onClick={() => setCreateMode('area')}
+              >
+                Area
+              </button>
+            </div>
+
+            <input
+              className="input"
+              value={createTitle}
+              onChange={(e) => setCreateTitle(e.target.value)}
+              placeholder={createMode === 'project' ? 'Project title…' : 'Area title…'}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setCreateMode(null)
+                  setCreateTitle('')
+                }
+                if (e.key === 'Enter') {
+                  void handleCreate()
+                }
+              }}
+              disabled={isCreating}
+            />
+
+            <div className="row" style={{ justifyContent: 'flex-start' }}>
+              <button
+                type="button"
+                className="button"
+                onClick={() => void handleCreate()}
+                disabled={isCreating}
+              >
+                Create
+              </button>
+              <button
+                type="button"
+                className="button button-ghost"
+                onClick={() => {
+                  setCreateMode(null)
+                  setCreateTitle('')
+                }}
+                disabled={isCreating}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="sidebar-bottom">
+          <button
+            type="button"
+            className="button button-ghost"
+            onClick={() => {
+              setCreateMode((m) => (m ? null : 'project'))
+              setCreateTitle('')
+            }}
+          >
+            + New
+          </button>
+
           <NavItem to="/settings" label="Settings" />
         </div>
-        </aside>
+      </aside>
 
         <main className="content" aria-label="Content">
           <div className="content-grid">
             <div className="content-main">
-              <Outlet />
+              <div className="content-scroll">
+                <Outlet />
+              </div>
+              <div className="content-bottom-bar">
+                <div className="content-bottom-left">Cmd/Ctrl + K</div>
+                <div className="content-bottom-right">Local, offline</div>
+              </div>
             </div>
             <TaskDetailPanel />
           </div>
