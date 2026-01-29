@@ -10,7 +10,21 @@ export default defineConfig({
     electron({
       main: {
         // Shortcut of `build.lib.entry`.
-        entry: 'electron/main.ts',
+        entry: {
+          main: 'electron/main.ts',
+          'workers/db/db-worker': 'electron/workers/db/db-worker.ts',
+        },
+        vite: {
+          build: {
+            rollupOptions: {
+              // Native modules must be externalized (built/rebuilt per target OS).
+              external: ['better-sqlite3'],
+              output: {
+                entryFileNames: '[name].js',
+              },
+            },
+          },
+        },
       },
       preload: {
         // Shortcut of `build.rollupOptions.input`.
