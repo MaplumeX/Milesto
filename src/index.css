@@ -206,11 +206,17 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .content-scroll {
   flex: 1;
   overflow: auto;
+}
+
+.content-scroll.is-locked {
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .content-bottom-bar {
@@ -414,6 +420,89 @@ body {
   justify-content: center;
   padding: 9vh 16px 16px;
   z-index: 50;
+}
+
+.overlay-paper-overlay {
+  position: absolute;
+  inset: 0 0 var(--bottom-bar-height) 0;
+  z-index: 30;
+}
+
+.overlay-paper-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 18, 16, 0.35);
+}
+
+.overlay-paper-scroll {
+  position: relative;
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 28px 18px;
+}
+
+.overlay-paper {
+  width: min(820px, 100%);
+  border: 1px solid rgba(29, 29, 27, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.05),
+    0 2px 2px rgba(0, 0, 0, 0.05),
+    0 6px 10px rgba(0, 0, 0, 0.08),
+    0 18px 40px rgba(0, 0, 0, 0.18);
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+  animation: overlay-paper-in 160ms ease-out;
+}
+
+.overlay-paper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 140 140' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+
+.overlay-paper-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.overlay-paper-title {
+  font-weight: 700;
+}
+
+.overlay-paper-status {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+@keyframes overlay-paper-in {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay-paper {
+    animation: none;
+  }
 }
 
 .palette {

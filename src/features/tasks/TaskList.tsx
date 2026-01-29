@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
 import type { TaskListItem } from '../../../shared/schemas/task-list'
@@ -18,7 +18,7 @@ export function TaskList({
   onRestore?: (taskId: string) => Promise<void>
   headerActions?: React.ReactNode
 }) {
-  const { selectedTaskId, selectTask } = useTaskSelection()
+  const { selectedTaskId, selectTask, openTask } = useTaskSelection()
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const rowVirtualizer = useVirtualizer({
@@ -29,6 +29,27 @@ export function TaskList({
   })
 
   const openTasks = useMemo(() => tasks.filter((t) => t.status === 'open'), [tasks])
+
+  const lastSelectedIndexRef = useRef(0)
+  useEffect(() => {
+    if (!selectedTaskId) return
+
+    const idx = tasks.findIndex((t) => t.id === selectedTaskId)
+    if (idx >= 0) {
+      lastSelectedIndexRef.current = idx
+      return
+    }
+
+    // If the selected task disappeared after a refresh (e.g. moved lists), pick a neighbor.
+    if (tasks.length === 0) {
+      selectTask(null)
+      return
+    }
+
+    const fallbackIdx = Math.min(lastSelectedIndexRef.current, tasks.length - 1)
+    const fallback = tasks[fallbackIdx]
+    selectTask(fallback?.id ?? null)
+  }, [tasks, selectedTaskId, selectTask])
 
   return (
     <div className="page">
@@ -86,8 +107,7 @@ export function TaskList({
           if (e.key === 'Enter') {
             e.preventDefault()
             if (!selectedTaskId) return
-            // Selection already opens detail panel.
-            return
+            openTask(selectedTaskId)
           }
         }}
       >
@@ -121,10 +141,13 @@ export function TaskList({
                   />
                 </label>
 
-              <button
+                <button
                   type="button"
                   className="task-title task-title-button"
+                  data-task-focus-target="true"
+                  data-task-id={t.id}
                   onClick={() => selectTask(t.id)}
+                  onDoubleClick={() => openTask(t.id)}
                 >
                   <span className={t.title.trim() ? undefined : 'task-title-placeholder'}>
                     {t.title.trim() ? t.title : '新建任务'}

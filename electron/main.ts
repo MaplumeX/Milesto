@@ -72,6 +72,16 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 
 let win: BrowserWindow | null
 
+const IS_SELF_TEST = process.env.MILESTO_SELF_TEST === '1'
+const SELF_TEST_USER_DATA_DIR = IS_SELF_TEST
+  ? path.join(process.env.APP_ROOT ?? __dirname, '.tmp', 'milesto-selftest', `${Date.now()}-${process.pid}`)
+  : null
+
+if (IS_SELF_TEST && SELF_TEST_USER_DATA_DIR) {
+  // Keep self-tests isolated from real user data (separate DB file).
+  app.setPath('userData', SELF_TEST_USER_DATA_DIR)
+}
+
 let isCspInstalled = false
 
 function installCspOnce() {
@@ -153,10 +163,51 @@ function createWindow() {
   })
 
   if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL)
+    const url = new URL(VITE_DEV_SERVER_URL)
+    if (IS_SELF_TEST) url.searchParams.set('selfTest', '1')
+    win.loadURL(url.toString())
   } else {
     // win.loadFile('dist/index.html')
-    win.loadFile(path.join(RENDERER_DIST, 'index.html'))
+    const htmlPath = path.join(RENDERER_DIST, 'index.html')
+    if (IS_SELF_TEST) {
+      win.loadFile(htmlPath, { query: { selfTest: '1' } })
+    } else {
+      win.loadFile(htmlPath)
+    }
+  }
+
+  if (IS_SELF_TEST) {
+    win.webContents.once('did-finish-load', async () => {
+      if (!win) return
+      try {
+        const result = (await win.webContents.executeJavaScript(
+          `
+            (async () => {
+              const start = Date.now()
+              while (typeof window.__milestoRunSelfTest !== 'function') {
+                if (Date.now() - start > 15000) {
+                  throw new Error('window.__milestoRunSelfTest not registered (timeout)')
+                }
+                await new Promise((r) => setTimeout(r, 50))
+              }
+              return window.__milestoRunSelfTest()
+            })()
+          `
+        )) as unknown
+
+        const parsed = result as { ok?: unknown; failures?: unknown }
+        const ok = parsed && parsed.ok === true
+        const failures = Array.isArray(parsed.failures) ? parsed.failures : []
+
+        // Report to stdout so CLI can assert success.
+        console.log('[MILESTO_SELF_TEST]', JSON.stringify({ ok, failures }))
+
+        app.exit(ok ? 0 : 1)
+      } catch (e) {
+        console.error('[MILESTO_SELF_TEST] failed', e)
+        app.exit(1)
+      }
+    })
   }
 }
 
@@ -449,7 +500,12 @@ if (!gotTheLock) {
     win.focus()
   })
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
+    if (IS_SELF_TEST && SELF_TEST_USER_DATA_DIR) {
+      // Ensure the userData directory exists before the DB worker opens the file.
+      await fs.mkdir(SELF_TEST_USER_DATA_DIR, { recursive: true })
+    }
+
     const dbPath = path.join(app.getPath('userData'), 'milesto.db')
     const workerScriptPath = path.join(__dirname, 'workers', 'db', 'db-worker.js')
     const dbWorker = new DbWorkerClient(workerScriptPath, dbPath)

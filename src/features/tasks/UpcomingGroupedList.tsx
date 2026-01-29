@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
 import type { TaskListItem } from '../../../shared/schemas/task-list'
@@ -22,8 +22,28 @@ export function UpcomingGroupedList({
   nextWeekStart: string
   nextMonthStart: string
 }) {
-  const { selectedTaskId, selectTask } = useTaskSelection()
+  const { selectedTaskId, selectTask, openTask } = useTaskSelection()
   const scrollRef = useRef<HTMLDivElement | null>(null)
+
+  const lastSelectedIndexRef = useRef(0)
+  useEffect(() => {
+    if (!selectedTaskId) return
+
+    const idx = tasks.findIndex((t) => t.id === selectedTaskId)
+    if (idx >= 0) {
+      lastSelectedIndexRef.current = idx
+      return
+    }
+
+    if (tasks.length === 0) {
+      selectTask(null)
+      return
+    }
+
+    const fallbackIdx = Math.min(lastSelectedIndexRef.current, tasks.length - 1)
+    const fallback = tasks[fallbackIdx]
+    selectTask(fallback?.id ?? null)
+  }, [tasks, selectedTaskId, selectTask])
 
   const { rows, headerIndexByDate } = useMemo(() => {
     const rows: Row[] = []
@@ -120,6 +140,43 @@ export function UpcomingGroupedList({
         tabIndex={0}
         role="listbox"
         aria-label="Upcoming tasks"
+        onKeyDown={(e) => {
+          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') return
+
+          const rowIndex = selectedTaskId
+            ? rows.findIndex((r) => r.type === 'task' && r.task.id === selectedTaskId)
+            : -1
+
+          if (e.key === 'ArrowDown') {
+            e.preventDefault()
+            for (let i = rowIndex + 1; i < rows.length; i++) {
+              const r = rows[i]
+              if (r?.type !== 'task') continue
+              selectTask(r.task.id)
+              rowVirtualizer.scrollToIndex(i)
+              return
+            }
+            return
+          }
+
+          if (e.key === 'ArrowUp') {
+            e.preventDefault()
+            for (let i = rowIndex <= 0 ? rows.length : rowIndex; i >= 0; i--) {
+              const r = rows[i]
+              if (r?.type !== 'task') continue
+              selectTask(r.task.id)
+              rowVirtualizer.scrollToIndex(i)
+              return
+            }
+            return
+          }
+
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            if (!selectedTaskId) return
+            openTask(selectedTaskId)
+          }
+        }}
       >
         <ul className="task-list" style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
           {rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -172,7 +229,10 @@ export function UpcomingGroupedList({
                 <button
                   type="button"
                   className="task-title task-title-button"
+                  data-task-focus-target="true"
+                  data-task-id={t.id}
                   onClick={() => selectTask(t.id)}
+                  onDoubleClick={() => openTask(t.id)}
                 >
                   {t.title}
                 </button>

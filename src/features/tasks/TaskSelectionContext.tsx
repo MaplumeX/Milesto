@@ -3,6 +3,10 @@ import { createContext, useContext } from 'react'
 export type TaskSelection = {
   selectedTaskId: string | null
   selectTask: (taskId: string | null) => void
+  // "Selection" (highlight/navigation) is separate from "open" (editing).
+  openTaskId: string | null
+  openTask: (taskId: string) => void
+  closeTask: () => void
 }
 
 const TaskSelectionContext = createContext<TaskSelection | null>(null)

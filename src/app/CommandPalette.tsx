@@ -10,7 +10,7 @@ type Mode = 'commands' | 'search'
 
 export function CommandPalette() {
   const navigate = useNavigate()
-  const { selectTask } = useTaskSelection()
+  const { selectTask, openTaskId } = useTaskSelection()
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   const [isOpen, setIsOpen] = useState(false)
@@ -26,6 +26,7 @@ export function CommandPalette() {
       const key = e.key.toLowerCase()
       if ((e.metaKey || e.ctrlKey) && key === 'k') {
         e.preventDefault()
+        if (openTaskId) return
         setIsOpen((v) => !v)
       }
 
@@ -36,7 +37,7 @@ export function CommandPalette() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [openTaskId])
 
   useEffect(() => {
     if (!isOpen) return

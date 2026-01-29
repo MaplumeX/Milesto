@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 import type { Area } from '../../shared/schemas/area'
@@ -6,7 +6,7 @@ import type { Project } from '../../shared/schemas/project'
 
 import { useAppEvents } from './AppEventsContext'
 import { TaskSelectionProvider } from '../features/tasks/TaskSelectionContext'
-import { TaskDetailPanel } from '../features/tasks/TaskDetailPanel'
+import { TaskEditorOverlayPaper } from '../features/tasks/TaskEditorOverlayPaper'
 import { CommandPalette } from './CommandPalette'
 import { formatLocalDate } from '../lib/dates'
 
@@ -22,9 +22,49 @@ export function AppShell() {
   const [sidebar, setSidebar] = useState<SidebarModel>({ areas: [], openProjects: [] })
   const [sidebarError, setSidebarError] = useState<string | null>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null)
   const [createMode, setCreateMode] = useState<'project' | 'area' | null>(null)
   const [createTitle, setCreateTitle] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+
+  const lastFocusTargetRef = useRef<{ element: HTMLElement | null; taskId: string } | null>(null)
+
+  const openTask = useCallback((taskId: string) => {
+    lastFocusTargetRef.current = {
+      element: document.activeElement instanceof HTMLElement ? document.activeElement : null,
+      taskId,
+    }
+    setSelectedTaskId(taskId)
+    setOpenTaskId(taskId)
+  }, [])
+
+  const closeTask = useCallback(() => {
+    if (!openTaskId) return
+    setOpenTaskId(null)
+    bumpRevision()
+  }, [bumpRevision, openTaskId])
+
+  useEffect(() => {
+    if (openTaskId !== null) return
+    const last = lastFocusTargetRef.current
+    if (!last) return
+
+    // Wait for overlay unmount.
+    const handle = setTimeout(() => {
+      const selector = `[data-task-focus-target="true"][data-task-id="${last.taskId}"]`
+      const fallback = document.querySelector<HTMLElement>(selector)
+      if (fallback) {
+        fallback.focus()
+        return
+      }
+
+      if (last.element && last.element.isConnected) {
+        last.element.focus()
+      }
+    }, 0)
+
+    return () => clearTimeout(handle)
+  }, [openTaskId])
 
   async function handleAddTask() {
     // Task titles can be empty strings; we want a new task to start blank.
@@ -70,7 +110,7 @@ export function AppShell() {
     }
 
     bumpRevision()
-    setSelectedTaskId(res.data.id)
+    openTask(res.data.id)
     if (shouldNavigateTo) navigate(shouldNavigateTo)
   }
 
@@ -146,7 +186,15 @@ export function AppShell() {
   }
 
   return (
-    <TaskSelectionProvider value={{ selectedTaskId, selectTask: setSelectedTaskId }}>
+    <TaskSelectionProvider
+      value={{
+        selectedTaskId,
+        selectTask: setSelectedTaskId,
+        openTaskId,
+        openTask,
+        closeTask,
+      }}
+    >
       <div className="app-shell">
         <aside className="sidebar" aria-label="Sidebar">
         <div className="sidebar-top">
@@ -268,9 +316,12 @@ export function AppShell() {
         <main className="content" aria-label="Content">
           <div className="content-grid">
             <div className="content-main">
-              <div className="content-scroll">
+              <div className={`content-scroll${openTaskId ? ' is-locked' : ''}`}>
                 <Outlet />
               </div>
+
+              {openTaskId ? <TaskEditorOverlayPaper taskId={openTaskId} onClose={closeTask} /> : null}
+
               <div className="content-bottom-bar">
                 <div className="content-bottom-left">
                   <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
@@ -281,7 +332,6 @@ export function AppShell() {
                 <div className="content-bottom-right">Local, offline</div>
               </div>
             </div>
-            <TaskDetailPanel />
           </div>
         </main>
 
