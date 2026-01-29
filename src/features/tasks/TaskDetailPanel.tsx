@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { AppError } from '../../../shared/app-error'
 import type { Area } from '../../../shared/schemas/area'
@@ -36,6 +36,9 @@ const TAG_COLOR_PRESETS: Array<{ name: string; value: string | null; hex: string
 export function TaskDetailPanel() {
   const { selectedTaskId, selectTask } = useTaskSelection()
   const { revision, bumpRevision } = useAppEvents()
+
+  const titleInputRef = useRef<HTMLInputElement | null>(null)
+  const lastAutoFocusTaskId = useRef<string | null>(null)
 
   const [detail, setDetail] = useState<TaskDetail | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -97,6 +100,23 @@ export function TaskDetailPanel() {
       })
     })()
   }, [selectedTaskId, revision])
+
+  useEffect(() => {
+    if (!selectedTaskId) return
+    if (!draft) return
+
+    // Auto-focus title for newly created tasks (visually empty title).
+    if (draft.title.trim() !== '') return
+    if (lastAutoFocusTaskId.current === selectedTaskId) return
+    lastAutoFocusTaskId.current = selectedTaskId
+
+    const handle = setTimeout(() => {
+      titleInputRef.current?.focus()
+      titleInputRef.current?.select()
+    }, 0)
+
+    return () => clearTimeout(handle)
+  }, [selectedTaskId, draft])
 
   useEffect(() => {
     const projectId = draft?.project_id
@@ -185,6 +205,7 @@ export function TaskDetailPanel() {
         </label>
         <input
           id="task-title"
+          ref={titleInputRef}
           className="input"
           value={draft.title}
           onChange={(e) => setDraft({ ...draft, title: e.target.value })}
