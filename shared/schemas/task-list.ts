@@ -5,7 +5,7 @@ import { BaseListSchema, IdSchema, IsoDateTimeSchema, LocalDateSchema, TaskStatu
 // List views must avoid loading large fields (notes, checklist, etc.).
 export const TaskListItemSchema = z.object({
   id: IdSchema,
-  title: z.string().min(1),
+  title: z.string(),
   status: TaskStatusSchema,
   base_list: BaseListSchema,
   project_id: IdSchema.nullable(),

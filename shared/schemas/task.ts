@@ -10,7 +10,7 @@ import {
 
 export const TaskSchema = z.object({
   id: IdSchema,
-  title: z.string().min(1),
+  title: z.string(),
   notes: z.string(),
   status: TaskStatusSchema,
   base_list: BaseListSchema,
@@ -28,7 +28,7 @@ export const TaskSchema = z.object({
 export type Task = z.infer<typeof TaskSchema>
 
 export const TaskCreateInputSchema = z.object({
-  title: z.string().min(1),
+  title: z.string(),
   notes: z.string().optional(),
   base_list: BaseListSchema.optional(),
   project_id: IdSchema.nullable().optional(),
@@ -42,7 +42,7 @@ export type TaskCreateInput = z.infer<typeof TaskCreateInputSchema>
 
 export const TaskUpdateInputSchema = z.object({
   id: IdSchema,
-  title: z.string().min(1).optional(),
+  title: z.string().optional(),
   notes: z.string().optional(),
   base_list: BaseListSchema.optional(),
   project_id: IdSchema.nullable().optional(),
