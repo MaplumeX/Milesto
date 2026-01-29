@@ -1,32 +1,24 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
 import type { TaskListItem } from '../../../shared/schemas/task-list'
-import type { AppError } from '../../../shared/app-error'
 
 import { useTaskSelection } from './TaskSelectionContext'
 
 export function TaskList({
   title,
   tasks,
-  onCreate,
   onToggleDone,
   onRestore,
-  showCreate,
   headerActions,
 }: {
   title: string
   tasks: TaskListItem[]
-  onCreate?: (title: string) => Promise<void>
   onToggleDone?: (taskId: string, done: boolean) => Promise<void>
   onRestore?: (taskId: string) => Promise<void>
-  showCreate?: boolean
   headerActions?: React.ReactNode
 }) {
   const { selectedTaskId, selectTask } = useTaskSelection()
-  const [draftTitle, setDraftTitle] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [actionError, setActionError] = useState<AppError | null>(null)
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const rowVirtualizer = useVirtualizer({
@@ -38,23 +30,6 @@ export function TaskList({
 
   const openTasks = useMemo(() => tasks.filter((t) => t.status === 'open'), [tasks])
 
-  async function handleSubmit() {
-    if (!onCreate) return
-    const title = draftTitle.trim()
-    if (!title) return
-
-    setIsSubmitting(true)
-    setActionError(null)
-    try {
-      await onCreate(title)
-      setDraftTitle('')
-    } catch (e) {
-      setActionError({ code: 'UI_ACTION_FAILED', message: String(e) })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
   return (
     <div className="page">
       <header className="page-header">
@@ -64,31 +39,6 @@ export function TaskList({
           <div className="page-meta">{openTasks.length} open</div>
         </div>
       </header>
-
-      {showCreate !== false && onCreate ? (
-        <div className="task-create">
-          <input
-            className="input"
-            value={draftTitle}
-            onChange={(e) => setDraftTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void handleSubmit()
-            }}
-            placeholder="Add a task…"
-            disabled={isSubmitting}
-          />
-          <button type="button" className="button" onClick={() => void handleSubmit()} disabled={isSubmitting}>
-            Add
-          </button>
-        </div>
-      ) : null}
-
-      {actionError ? (
-        <div className="error">
-          <div className="error-code">{actionError.code}</div>
-          <div>{actionError.message}</div>
-        </div>
-      ) : null}
 
       <div
         ref={scrollRef}
@@ -171,12 +121,14 @@ export function TaskList({
                   />
                 </label>
 
-                <button
+              <button
                   type="button"
                   className="task-title task-title-button"
                   onClick={() => selectTask(t.id)}
                 >
-                  {t.title}
+                  <span className={t.title.trim() ? undefined : 'task-title-placeholder'}>
+                    {t.title.trim() ? t.title : '新建任务'}
+                  </span>
                 </button>
 
                 {t.status === 'done' && onRestore ? (

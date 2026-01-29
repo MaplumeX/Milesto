@@ -188,7 +188,9 @@ export function CommandPalette() {
                   className={`palette-item${idx === highlight ? ' is-active' : ''}`}
                   onClick={() => jumpToTask(item)}
                 >
-                  <div className="palette-item-title">{item.title}</div>
+                  <div className={item.title.trim() ? 'palette-item-title' : 'palette-item-title palette-item-placeholder'}>
+                    {item.title.trim() ? item.title : '新建任务'}
+                  </div>
                   <div className="palette-item-hint">{item.snippet ?? item.base_list}</div>
                 </button>
               ))}

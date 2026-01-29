@@ -74,7 +74,9 @@ export function SearchPage() {
               className="task-title task-title-button"
               onClick={() => selectTask(r.id)}
             >
-              {r.title}
+              <span className={r.title.trim() ? undefined : 'task-title-placeholder'}>
+                {r.title.trim() ? r.title : '新建任务'}
+              </span>
             </button>
             <div className="mono">{r.snippet ?? ''}</div>
           </li>
