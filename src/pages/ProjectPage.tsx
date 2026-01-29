@@ -117,6 +117,8 @@ export function ProjectPage() {
                       setError(res.error)
                       return
                     }
+                    // Keep sidebar grouping in sync.
+                    bumpRevision()
                     await refresh()
                   })()
                 }}

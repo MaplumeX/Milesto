@@ -19,6 +19,9 @@ export function AppShell() {
   const [sidebar, setSidebar] = useState<SidebarModel>({ areas: [], openProjects: [] })
   const [sidebarError, setSidebarError] = useState<string | null>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [createMode, setCreateMode] = useState<'project' | 'area' | null>(null)
+  const [createTitle, setCreateTitle] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
 
   const refreshSidebar = useCallback(async () => {
     const [areasRes, projectsRes] = await Promise.all([
@@ -61,6 +64,36 @@ export function AppShell() {
     return map
   }, [sidebar.openProjects])
 
+  async function handleCreate() {
+    const title = createTitle.trim()
+    if (!title || !createMode) return
+
+    setIsCreating(true)
+    try {
+      if (createMode === 'project') {
+        const res = await window.api.project.create({ title })
+        if (!res.ok) {
+          setSidebarError(`${res.error.code}: ${res.error.message}`)
+          return
+        }
+      }
+
+      if (createMode === 'area') {
+        const res = await window.api.area.create({ title })
+        if (!res.ok) {
+          setSidebarError(`${res.error.code}: ${res.error.message}`)
+          return
+        }
+      }
+
+      setCreateMode(null)
+      setCreateTitle('')
+      bumpRevision()
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   return (
     <TaskSelectionProvider value={{ selectedTaskId, selectTask: setSelectedTaskId }}>
       <div className="app-shell">
@@ -87,16 +120,8 @@ export function AppShell() {
               type="button"
               className="button button-ghost"
               onClick={() => {
-                const title = prompt('New project title')
-                if (!title) return
-                void (async () => {
-                  const res = await window.api.project.create({ title })
-                  if (!res.ok) {
-                    alert(`${res.error.code}: ${res.error.message}`)
-                    return
-                  }
-                  bumpRevision()
-                })()
+                setCreateMode((m) => (m === 'project' ? null : 'project'))
+                setCreateTitle('')
               }}
             >
               + Project
@@ -105,21 +130,55 @@ export function AppShell() {
               type="button"
               className="button button-ghost"
               onClick={() => {
-                const title = prompt('New area title')
-                if (!title) return
-                void (async () => {
-                  const res = await window.api.area.create({ title })
-                  if (!res.ok) {
-                    alert(`${res.error.code}: ${res.error.message}`)
-                    return
-                  }
-                  bumpRevision()
-                })()
+                setCreateMode((m) => (m === 'area' ? null : 'area'))
+                setCreateTitle('')
               }}
             >
               + Area
             </button>
           </div>
+
+          {createMode ? (
+            <div className="sidebar-create">
+              <input
+                className="input"
+                value={createTitle}
+                onChange={(e) => setCreateTitle(e.target.value)}
+                placeholder={createMode === 'project' ? 'Project title…' : 'Area title…'}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setCreateMode(null)
+                    setCreateTitle('')
+                  }
+                  if (e.key === 'Enter') {
+                    void handleCreate()
+                  }
+                }}
+                disabled={isCreating}
+              />
+              <div className="row" style={{ justifyContent: 'flex-start' }}>
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => void handleCreate()}
+                  disabled={isCreating}
+                >
+                  Create
+                </button>
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => {
+                    setCreateMode(null)
+                    setCreateTitle('')
+                  }}
+                  disabled={isCreating}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {sidebarError ? <div className="sidebar-error">{sidebarError}</div> : null}
 

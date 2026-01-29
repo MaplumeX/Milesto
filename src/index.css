@@ -129,6 +129,13 @@ body {
   margin: 8px 0;
 }
 
+.sidebar-create {
+  margin: 10px 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .sidebar-bottom {
   margin-top: auto;
 }
