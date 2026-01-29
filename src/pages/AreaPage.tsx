@@ -133,11 +133,6 @@ export function AreaPage() {
             </button>
           </>
         }
-        onCreate={async (title) => {
-          const created = await window.api.task.create({ title, base_list: 'anytime', area_id: aid })
-          if (!created.ok) throw new Error(`${created.error.code}: ${created.error.message}`)
-          await refresh()
-        }}
         onToggleDone={async (taskId, done) => {
           const updated = await window.api.task.toggleDone(taskId, done)
           if (!updated.ok) throw new Error(`${updated.error.code}: ${updated.error.message}`)

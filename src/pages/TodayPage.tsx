@@ -89,16 +89,6 @@ export function TodayPage() {
             </button>
           </>
         }
-        onCreate={async (title) => {
-          const today = formatLocalDate(new Date())
-          const created = await window.api.task.create({
-            title,
-            base_list: 'anytime',
-            scheduled_at: today,
-          })
-          if (!created.ok) throw new Error(`${created.error.code}: ${created.error.message}`)
-          await refresh()
-        }}
         onToggleDone={async (taskId, done) => {
           const updated = await window.api.task.toggleDone(taskId, done)
           if (!updated.ok) throw new Error(`${updated.error.code}: ${updated.error.message}`)

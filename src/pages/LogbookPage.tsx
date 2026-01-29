@@ -44,7 +44,6 @@ export function LogbookPage() {
       <TaskList
         title="Logbook"
         tasks={tasks}
-        showCreate={false}
         onToggleDone={undefined}
         onRestore={async (taskId) => {
           const restored = await window.api.task.restore(taskId)

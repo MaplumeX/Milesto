@@ -31,11 +31,6 @@ export function AnytimePage() {
       <TaskList
         title="Anytime"
         tasks={tasks}
-        onCreate={async (title) => {
-          const created = await window.api.task.create({ title, base_list: 'anytime' })
-          if (!created.ok) throw new Error(`${created.error.code}: ${created.error.message}`)
-          await refresh()
-        }}
         onToggleDone={async (taskId, done) => {
           const updated = await window.api.task.toggleDone(taskId, done)
           if (!updated.ok) throw new Error(`${updated.error.code}: ${updated.error.message}`)
