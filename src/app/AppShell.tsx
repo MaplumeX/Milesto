@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 import type { Area } from '../../shared/schemas/area'
 import type { Project } from '../../shared/schemas/project'
@@ -8,6 +8,7 @@ import { useAppEvents } from './AppEventsContext'
 import { TaskSelectionProvider } from '../features/tasks/TaskSelectionContext'
 import { TaskDetailPanel } from '../features/tasks/TaskDetailPanel'
 import { CommandPalette } from './CommandPalette'
+import { formatLocalDate } from '../lib/dates'
 
 type SidebarModel = {
   areas: Area[]
@@ -16,12 +17,62 @@ type SidebarModel = {
 
 export function AppShell() {
   const { revision, bumpRevision } = useAppEvents()
+  const navigate = useNavigate()
+  const location = useLocation()
   const [sidebar, setSidebar] = useState<SidebarModel>({ areas: [], openProjects: [] })
   const [sidebarError, setSidebarError] = useState<string | null>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [createMode, setCreateMode] = useState<'project' | 'area' | null>(null)
   const [createTitle, setCreateTitle] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+
+  async function handleAddTask() {
+    // Task titles can be empty strings; we want a new task to start blank.
+    const emptyTitle = ''
+    const today = formatLocalDate(new Date())
+
+    const path = location.pathname
+
+    let input:
+      | { title: string; base_list: 'inbox' | 'anytime' | 'someday'; scheduled_at?: string | null; project_id?: string | null; area_id?: string | null }
+      | { title: string; base_list: 'inbox' | 'anytime' | 'someday' } = {
+      title: emptyTitle,
+      base_list: 'inbox',
+    }
+
+    let shouldNavigateTo: string | null = null
+
+    const projectMatch = path.match(/^\/projects\/([^/]+)$/)
+    const areaMatch = path.match(/^\/areas\/([^/]+)$/)
+
+    if (path === '/inbox') {
+      input = { title: emptyTitle, base_list: 'inbox' }
+    } else if (path === '/anytime') {
+      input = { title: emptyTitle, base_list: 'anytime' }
+    } else if (path === '/someday') {
+      input = { title: emptyTitle, base_list: 'someday' }
+    } else if (path === '/today') {
+      input = { title: emptyTitle, base_list: 'anytime', scheduled_at: today }
+    } else if (projectMatch) {
+      input = { title: emptyTitle, base_list: 'anytime', project_id: projectMatch[1] ?? null }
+    } else if (areaMatch) {
+      input = { title: emptyTitle, base_list: 'anytime', area_id: areaMatch[1] ?? null }
+    } else {
+      // Non-task-focused pages: create in Inbox and navigate there.
+      input = { title: emptyTitle, base_list: 'inbox' }
+      shouldNavigateTo = '/inbox'
+    }
+
+    const res = await window.api.task.create(input)
+    if (!res.ok) {
+      setSidebarError(`${res.error.code}: ${res.error.message}`)
+      return
+    }
+
+    bumpRevision()
+    setSelectedTaskId(res.data.id)
+    if (shouldNavigateTo) navigate(shouldNavigateTo)
+  }
 
   const refreshSidebar = useCallback(async () => {
     const [areasRes, projectsRes] = await Promise.all([
@@ -221,7 +272,12 @@ export function AppShell() {
                 <Outlet />
               </div>
               <div className="content-bottom-bar">
-                <div className="content-bottom-left">Cmd/Ctrl + K</div>
+                <div className="content-bottom-left">
+                  <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
+                    + Task
+                  </button>
+                  <span className="content-bottom-hint">Cmd/Ctrl + K</span>
+                </div>
                 <div className="content-bottom-right">Local, offline</div>
               </div>
             </div>
