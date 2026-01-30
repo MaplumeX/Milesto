@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useLayoutEffect, useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useTaskSelection } from './TaskSelectionContext'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
+import { useContentScrollRef } from '../../app/ContentScrollContext'
 
 type Row =
   | { type: 'header'; date: string; label: string }
@@ -24,7 +25,29 @@ export function UpcomingGroupedList({
   nextMonthStart: string
 }) {
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
-  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const contentScrollRef = useContentScrollRef()
+  const listboxRef = useRef<HTMLDivElement | null>(null)
+  const [scrollMargin, setScrollMargin] = useState(0)
+
+  useLayoutEffect(() => {
+    const scrollEl = contentScrollRef.current
+    const listboxEl = listboxRef.current
+    if (!scrollEl || !listboxEl) return
+
+    const compute = () => {
+      const se = contentScrollRef.current
+      const le = listboxRef.current
+      if (!se || !le) return
+
+      const scrollRect = se.getBoundingClientRect()
+      const listRect = le.getBoundingClientRect()
+      setScrollMargin(listRect.top - scrollRect.top + se.scrollTop)
+    }
+
+    compute()
+    window.addEventListener('resize', compute)
+    return () => window.removeEventListener('resize', compute)
+  }, [contentScrollRef])
 
   const lastSelectedIndexRef = useRef(0)
   useEffect(() => {
@@ -86,7 +109,7 @@ export function UpcomingGroupedList({
 
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
-    getScrollElement: () => scrollRef.current,
+    getScrollElement: () => contentScrollRef.current,
     estimateSize: (index) => {
       const row = rows[index]
       if (!row) return 44
@@ -94,6 +117,7 @@ export function UpcomingGroupedList({
       if (openTaskId && row.type === 'task' && row.task.id === openTaskId) return 360
       return 44
     },
+    scrollMargin,
     overscan: 12,
     getItemKey: (index) => {
       const row = rows[index]
@@ -145,7 +169,7 @@ export function UpcomingGroupedList({
       </header>
 
       <div
-        ref={scrollRef}
+        ref={listboxRef}
         className="task-scroll"
         tabIndex={0}
         role="listbox"
@@ -208,7 +232,7 @@ export function UpcomingGroupedList({
                     top: 0,
                     left: 0,
                     width: '100%',
-                    transform: `translateY(${virtualRow.start}px)`,
+                    transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
                   }}
                 >
                   {row.label}
@@ -236,7 +260,7 @@ export function UpcomingGroupedList({
                     top: 0,
                     left: 0,
                     width: '100%',
-                    transform: `translateY(${virtualRow.start}px)`,
+                    transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
                   }}
                 >
                   <TaskInlineEditorRow taskId={t.id} />
@@ -261,7 +285,7 @@ export function UpcomingGroupedList({
                   top: 0,
                   left: 0,
                   width: '100%',
-                  transform: `translateY(${virtualRow.start}px)`,
+                  transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
                 }}
               >
                 <label className="task-checkbox">

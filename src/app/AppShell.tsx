@@ -5,6 +5,7 @@ import type { Area } from '../../shared/schemas/area'
 import type { Project } from '../../shared/schemas/project'
 
 import { useAppEvents } from './AppEventsContext'
+import { ContentScrollProvider } from './ContentScrollContext'
 import { type OpenEditorHandle, TaskSelectionProvider } from '../features/tasks/TaskSelectionContext'
 import { CommandPalette } from './CommandPalette'
 import { formatLocalDate } from '../lib/dates'
@@ -25,6 +26,8 @@ export function AppShell() {
   const [createMode, setCreateMode] = useState<'project' | 'area' | null>(null)
   const [createTitle, setCreateTitle] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+
+  const contentScrollRef = useRef<HTMLDivElement | null>(null)
 
   const lastFocusTargetRef = useRef<{ element: HTMLElement | null; taskId: string } | null>(null)
   const openEditorHandleRef = useRef<OpenEditorHandle | null>(null)
@@ -205,16 +208,17 @@ export function AppShell() {
   }
 
   return (
-      <TaskSelectionProvider
-        value={{
-          selectedTaskId,
-          selectTask: setSelectedTaskId,
-          openTaskId,
-          openTask,
-          closeTask,
-          registerOpenEditor,
-        }}
-      >
+    <TaskSelectionProvider
+      value={{
+        selectedTaskId,
+        selectTask: setSelectedTaskId,
+        openTaskId,
+        openTask,
+        closeTask,
+        registerOpenEditor,
+      }}
+    >
+      <ContentScrollProvider scrollRef={contentScrollRef}>
       <div className="app-shell">
         <aside className="sidebar" aria-label="Sidebar">
         <div className="sidebar-top">
@@ -336,7 +340,7 @@ export function AppShell() {
         <main className="content" aria-label="Content">
           <div className="content-grid">
             <div className="content-main">
-              <div className="content-scroll">
+              <div ref={contentScrollRef} className="content-scroll">
                 <Outlet />
               </div>
 
@@ -355,6 +359,7 @@ export function AppShell() {
 
         <CommandPalette />
       </div>
+      </ContentScrollProvider>
     </TaskSelectionProvider>
   )
 }

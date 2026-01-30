@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useLayoutEffect, useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useTaskSelection } from './TaskSelectionContext'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
+import { useContentScrollRef } from '../../app/ContentScrollContext'
 
 export function TaskList({
   title,
@@ -21,6 +22,8 @@ export function TaskList({
 }) {
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
 
+  const contentScrollRef = useContentScrollRef()
+
   const taskIndexById = useMemo(() => {
     const map = new Map<string, number>()
     for (let i = 0; i < tasks.length; i++) {
@@ -31,15 +34,38 @@ export function TaskList({
     return map
   }, [tasks])
 
-  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const listboxRef = useRef<HTMLDivElement | null>(null)
+  const [scrollMargin, setScrollMargin] = useState(0)
+
+  useLayoutEffect(() => {
+    const scrollEl = contentScrollRef.current
+    const listboxEl = listboxRef.current
+    if (!scrollEl || !listboxEl) return
+
+    const compute = () => {
+      const se = contentScrollRef.current
+      const le = listboxRef.current
+      if (!se || !le) return
+
+      const scrollRect = se.getBoundingClientRect()
+      const listRect = le.getBoundingClientRect()
+      // listRect.top changes with scroll; adding scrollTop yields a stable margin.
+      setScrollMargin(listRect.top - scrollRect.top + se.scrollTop)
+    }
+
+    compute()
+    window.addEventListener('resize', compute)
+    return () => window.removeEventListener('resize', compute)
+  }, [contentScrollRef])
   const rowVirtualizer = useVirtualizer({
     count: tasks.length,
-    getScrollElement: () => scrollRef.current,
+    getScrollElement: () => contentScrollRef.current,
     estimateSize: (index) => {
       const t = tasks[index]
       if (!t) return 44
       return openTaskId && t.id === openTaskId ? 360 : 44
     },
+    scrollMargin,
     overscan: 12,
     getItemKey: (index) => {
       const t = tasks[index]
@@ -82,7 +108,7 @@ export function TaskList({
       </header>
 
       <div
-        ref={scrollRef}
+        ref={listboxRef}
         className="task-scroll"
         tabIndex={0}
         role="listbox"
@@ -149,14 +175,14 @@ export function TaskList({
                     rowVirtualizer.measureElement(el)
                   }}
                   data-index={virtualRow.index}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
-                >
+                   style={{
+                     position: 'absolute',
+                     top: 0,
+                     left: 0,
+                     width: '100%',
+                    transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
+                   }}
+                 >
                   <TaskInlineEditorRow taskId={t.id} />
                 </li>
               )
@@ -174,14 +200,14 @@ export function TaskList({
                   rowVirtualizer.measureElement(el)
                 }}
                 data-index={virtualRow.index}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  transform: `translateY(${virtualRow.start}px)`,
-                }}
-              >
+                 style={{
+                   position: 'absolute',
+                   top: 0,
+                   left: 0,
+                   width: '100%',
+                  transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
+                 }}
+               >
                 <label className="task-checkbox">
                   <input
                     type="checkbox"

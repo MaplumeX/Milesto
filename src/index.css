@@ -213,6 +213,8 @@ body {
 .content-scroll {
   flex: 1;
   overflow: auto;
+  /* Avoid scroll anchoring jumps when inline editor height changes. */
+  overflow-anchor: none;
 }
 
 .content-scroll.is-locked {
@@ -642,12 +644,15 @@ body {
 }
 
 .task-scroll {
-  overflow: auto;
-  overflow-anchor: none;
-  max-height: 60vh;
-  border: 1px solid rgba(29, 29, 27, 0.08);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.65);
+  /* Listbox/keyboard surface only. Scrolling is handled by .content-scroll. */
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.task-scroll:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .task-row {

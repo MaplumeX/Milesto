@@ -92,11 +92,19 @@ function getInlinePaper(): HTMLElement | null {
   return document.querySelector<HTMLElement>('.task-inline-paper')
 }
 
+function getContentScroller(): HTMLElement {
+  const el = document.querySelector<HTMLElement>('.content-scroll')
+  if (!el) throw new Error('Missing .content-scroll')
+  return el
+}
+
 function assertNoOverlap(listbox: HTMLElement, label: string) {
   const list = listbox.querySelector<HTMLElement>('ul.task-list')
   if (!list) throw new Error(`Missing ul.task-list (${label})`)
 
-  const boxRect = listbox.getBoundingClientRect()
+  // After migrating to a single main scroller, listbox is no longer the scroll viewport.
+  // Use the main content scroller for visibility bounds.
+  const boxRect = getContentScroller().getBoundingClientRect()
   const items = Array.from(list.querySelectorAll<HTMLElement>('li'))
     .map((el) => ({ el, rect: el.getBoundingClientRect() }))
     .filter(
@@ -116,13 +124,13 @@ function assertNoOverlap(listbox: HTMLElement, label: string) {
   }
 }
 
-function assertEditorInView(listbox: HTMLElement, paper: HTMLElement, label: string) {
+function assertEditorInView(_listbox: HTMLElement, paper: HTMLElement, label: string) {
   let el = paper
   if (!el.isConnected) {
     const current = getInlinePaper()
     if (current) el = current
   }
-  const boxRect = listbox.getBoundingClientRect()
+  const boxRect = getContentScroller().getBoundingClientRect()
   const paperRect = el.getBoundingClientRect()
   if (paperRect.bottom < boxRect.top || paperRect.top > boxRect.bottom) {
     throw new Error(`${label}: editor jumped out of view`)
@@ -313,8 +321,27 @@ async function runSelfTest(): Promise<SelfTestResult> {
       throw new Error('window.api is missing (preload not available).')
     }
 
+    const contentScroller = await waitFor('Content scroller', () =>
+      document.querySelector<HTMLElement>('.content-scroll')
+    )
+
     const today = formatLocalDate(new Date())
     const tomorrow = formatLocalDate(addDays(new Date(), 1))
+
+    const nextWeekStart = (() => {
+      const d = new Date()
+      const day = d.getDay() // 0=Sun
+      let delta = (8 - day) % 7
+      if (delta === 0) delta = 7
+      d.setDate(d.getDate() + delta)
+      d.setHours(0, 0, 0, 0)
+      return formatLocalDate(d)
+    })()
+
+    const nextMonthStart = (() => {
+      const now = new Date()
+      return formatLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 1))
+    })()
 
     // Seed tasks for Inbox/Today/Upcoming flows.
     const inboxARes = await window.api.task.create({ title: `${token} Inbox A`, base_list: 'inbox' })
@@ -353,8 +380,22 @@ async function runSelfTest(): Promise<SelfTestResult> {
       base_list: 'anytime',
       scheduled_at: tomorrow,
     })
+
+    // Add tasks to enable Upcoming jump buttons (Next Week / Next Month).
+    const upcomingWeekRes = await window.api.task.create({
+      title: `${token} Upcoming Next Week`,
+      base_list: 'anytime',
+      scheduled_at: nextWeekStart,
+    })
+    const upcomingMonthRes = await window.api.task.create({
+      title: `${token} Upcoming Next Month`,
+      base_list: 'anytime',
+      scheduled_at: nextMonthStart,
+    })
     if (!upcomingARes.ok) throw new Error(`task.create upcomingA failed: ${upcomingARes.error.code}: ${upcomingARes.error.message}`)
     if (!upcomingBRes.ok) throw new Error(`task.create upcomingB failed: ${upcomingBRes.error.code}: ${upcomingBRes.error.message}`)
+    if (!upcomingWeekRes.ok) throw new Error(`task.create upcomingWeek failed: ${upcomingWeekRes.error.code}: ${upcomingWeekRes.error.message}`)
+    if (!upcomingMonthRes.ok) throw new Error(`task.create upcomingMonth failed: ${upcomingMonthRes.error.code}: ${upcomingMonthRes.error.message}`)
 
     const inboxAId = inboxARes.data.id
     const inboxBId = inboxBRes.data.id
@@ -399,7 +440,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
     assertNoOverlap(inboxListbox, 'Inbox A: after checklist add/remove')
 
     // Notes growth should not overlap other rows.
-    const scrollBeforeNotes = inboxListbox.scrollTop
+    const scrollBeforeNotes = contentScroller.scrollTop
     openedA.notesInput.focus()
     setNativeInputValue(
       openedA.notesInput,
@@ -410,7 +451,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
     await sleep(700)
     assertNoOverlap(inboxListbox, 'Inbox A: after notes growth')
     assertEditorInView(inboxListbox, openedA.paper, 'Inbox A')
-    if (Math.abs(inboxListbox.scrollTop - scrollBeforeNotes) > 320) {
+    if (Math.abs(contentScroller.scrollTop - scrollBeforeNotes) > 320) {
       throw new Error('Inbox A: scroll jumped too much while editing notes')
     }
 
@@ -495,7 +536,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
       return btns.length > 0 ? true : null
     })
 
-    inboxListboxNow.scrollTop = Math.floor(inboxListboxNow.scrollHeight / 2)
+    contentScroller.scrollTop = Math.floor(contentScroller.scrollHeight / 2)
     const visibleButtons = await waitFor('Inbox visible rows after scroll', () => {
       const btns = Array.from(
         inboxListboxNow.querySelectorAll<HTMLButtonElement>('.task-title-button[data-task-id]')
@@ -507,7 +548,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
     const midTaskId = midButton.getAttribute('data-task-id')
     if (!midTaskId) throw new Error('Inbox scroll test: missing data-task-id')
 
-    const beforeScroll = inboxListboxNow.scrollTop
+    const beforeScroll = contentScroller.scrollTop
     const openedMid = await openEditorByDoubleClick({
       taskId: midTaskId,
       button: midButton,
@@ -517,14 +558,14 @@ async function runSelfTest(): Promise<SelfTestResult> {
     await sleep(700)
     assertNoOverlap(inboxListboxNow, 'Inbox mid: after notes growth')
     assertEditorInView(inboxListboxNow, openedMid.paper, 'Inbox mid')
-    const midDelta = Math.abs(inboxListboxNow.scrollTop - beforeScroll)
+    const midDelta = Math.abs(contentScroller.scrollTop - beforeScroll)
     if (midDelta > 360) {
       throw new Error(`Inbox mid: scroll jumped too much while editing notes (delta=${midDelta})`)
     }
     await closeEditorWithEscape(midTaskId, 'Inbox mid')
 
     // Scroll back to the top so Inbox A is rendered again (virtualization).
-    inboxListboxNow.scrollTop = 0
+    contentScroller.scrollTop = 0
     await sleep(150)
     const inboxAButtonTop = await waitFor('Inbox A row button (post-scroll)', () => findTaskButton(inboxAId))
 
@@ -584,6 +625,14 @@ async function runSelfTest(): Promise<SelfTestResult> {
     dispatchKey(todayListboxNow, 'ArrowDown')
     await waitFor('Today selects B after ArrowDown', () => (getSelectedTaskId() === todayBId ? true : null))
 
+    // Regression: keyboard navigation scrolling should affect the main scroller.
+    const navScrollBefore = contentScroller.scrollTop
+    for (let i = 0; i < 40; i++) dispatchKey(todayListboxNow, 'ArrowDown')
+    await sleep(100)
+    if (contentScroller.scrollTop === navScrollBefore) {
+      throw new Error('Today: ArrowDown navigation did not scroll the main content container')
+    }
+
     // Upcoming (virtualized UpcomingGroupedList with headers)
     window.location.hash = '/upcoming'
     const upcomingListbox = await waitFor('Upcoming listbox', () =>
@@ -591,6 +640,37 @@ async function runSelfTest(): Promise<SelfTestResult> {
     )
     const upcomingAButton = await waitFor('Upcoming A row button', () => findTaskButton(upcomingAId))
     await waitFor('Upcoming B row button', () => findTaskButton(upcomingBId))
+
+    // Regression: jump buttons should align headers correctly with content above the list.
+    const nextWeekBtn = findButtonByText(document, 'Next Week')
+    const nextMonthBtn = findButtonByText(document, 'Next Month')
+    if (!nextWeekBtn) throw new Error('Upcoming: missing Next Week button')
+    if (!nextMonthBtn) throw new Error('Upcoming: missing Next Month button')
+
+    nextWeekBtn.click()
+    await sleep(250)
+    await waitFor('Upcoming scrolled to next week header', () => {
+      const header = Array.from(document.querySelectorAll<HTMLElement>('.upcoming-header')).find(
+        (h) => (h.textContent ?? '').trim() === nextWeekStart
+      )
+      if (!header) return null
+      const view = contentScroller.getBoundingClientRect()
+      const rect = header.getBoundingClientRect()
+      // Allow a little slack for borders/spacing.
+      return rect.top >= view.top - 6 && rect.top <= view.top + 80 ? true : null
+    })
+
+    nextMonthBtn.click()
+    await sleep(250)
+    await waitFor('Upcoming scrolled to next month header', () => {
+      const header = Array.from(document.querySelectorAll<HTMLElement>('.upcoming-header')).find(
+        (h) => (h.textContent ?? '').trim() === nextMonthStart
+      )
+      if (!header) return null
+      const view = contentScroller.getBoundingClientRect()
+      const rect = header.getBoundingClientRect()
+      return rect.top >= view.top - 6 && rect.top <= view.top + 80 ? true : null
+    })
 
     // Arrow navigation should skip non-task rows.
     upcomingAButton.click()
