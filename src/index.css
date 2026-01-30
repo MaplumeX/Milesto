@@ -10,6 +10,7 @@
   --focus: rgba(29, 29, 27, 0.35);
 
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
   line-height: 1.4;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -72,7 +73,7 @@ body {
 }
 
 .nav-section-title {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--muted);
   margin: 10px 0 6px;
   text-transform: uppercase;
@@ -106,7 +107,7 @@ body {
 }
 
 .nav-area-title {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--muted);
   margin: 8px 0 4px;
   text-decoration: none;
@@ -118,7 +119,7 @@ body {
 }
 
 .nav-muted {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--muted);
   margin: 6px 10px;
 }
@@ -232,7 +233,7 @@ body {
 
 .content-bottom-left,
 .content-bottom-right {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--muted);
 }
 
@@ -243,7 +244,7 @@ body {
 }
 
 .content-bottom-hint {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--muted);
 }
 
@@ -289,7 +290,7 @@ body {
 }
 
 .badge {
-  font-size: 12px;
+  font-size: 10px;
   padding: 4px 8px;
   border-radius: 999px;
   border: 1px solid var(--border);
@@ -310,7 +311,7 @@ body {
 
 .label {
   display: block;
-  font-size: 12px;
+  font-size: 10px;
   color: var(--muted);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -397,7 +398,7 @@ body {
 
 .upcoming-header {
   padding: 10px 12px;
-  font-size: 12px;
+  font-size: 10px;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -484,7 +485,7 @@ body {
 }
 
 .overlay-paper-status {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--muted);
 }
 
@@ -522,7 +523,7 @@ body {
   border-radius: 0;
   padding: 14px 16px;
   background: transparent;
-  font-size: 16px;
+  font-size: 12px;
 }
 
 .palette-list {
@@ -553,7 +554,7 @@ body {
 }
 
 .palette-item-hint {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   max-width: 50%;
@@ -577,14 +578,14 @@ body {
 }
 
 .page-title {
-  font-size: 28px;
+  font-size: 21px;
   letter-spacing: -0.03em;
   margin: 0;
 }
 
 .page-meta {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .task-create {
@@ -705,7 +706,7 @@ body {
 }
 
 .task-inline-status {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--muted);
 }
 
@@ -787,7 +788,7 @@ body {
   background: transparent;
   padding: 0;
   font: inherit;
-  font-size: 12px;
+  font-size: 10px;
   color: var(--text);
   cursor: pointer;
 }
@@ -796,7 +797,7 @@ body {
   border: 0;
   background: transparent;
   padding: 0;
-  font-size: 14px;
+  font-size: 11px;
   line-height: 1;
   color: var(--muted);
   cursor: pointer;
@@ -823,7 +824,7 @@ body {
 
 .task-inline-popover-title {
   font-weight: 650;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .task-inline-action-bar-right {
@@ -884,7 +885,7 @@ body {
 
 .error-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  font-size: 12px;
+  font-size: 10px;
   color: rgba(120, 50, 40, 0.9);
   margin-bottom: 6px;
 }
@@ -905,7 +906,7 @@ body {
 
 .card-title {
   margin: 0 0 10px;
-  font-size: 14px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
@@ -921,7 +922,7 @@ body {
 
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  font-size: 12px;
+  font-size: 10px;
   color: var(--muted);
   word-break: break-all;
 }
