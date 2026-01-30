@@ -38,14 +38,20 @@ export function TaskList({
   const [scrollMargin, setScrollMargin] = useState(0)
 
   useLayoutEffect(() => {
-    const scrollEl = contentScrollRef.current
-    const listboxEl = listboxRef.current
-    if (!scrollEl || !listboxEl) return
+    let cancelled = false
 
     const compute = () => {
+      if (cancelled) return
       const se = contentScrollRef.current
       const le = listboxRef.current
-      if (!se || !le) return
+
+      // On some mounts (especially during route switches), refs may not be ready
+      // on the first layout pass. Retry on the next tick to avoid a stuck 0 margin,
+      // which breaks scrollToIndex alignment.
+      if (!se || !le) {
+        window.setTimeout(compute, 0)
+        return
+      }
 
       const scrollRect = se.getBoundingClientRect()
       const listRect = le.getBoundingClientRect()
@@ -55,7 +61,10 @@ export function TaskList({
 
     compute()
     window.addEventListener('resize', compute)
-    return () => window.removeEventListener('resize', compute)
+    return () => {
+      cancelled = true
+      window.removeEventListener('resize', compute)
+    }
   }, [contentScrollRef])
   const rowVirtualizer = useVirtualizer({
     count: tasks.length,
@@ -63,7 +72,8 @@ export function TaskList({
     estimateSize: (index) => {
       const t = tasks[index]
       if (!t) return 44
-      return openTaskId && t.id === openTaskId ? 360 : 44
+      // Expanded rows are measured, but the estimate should be close to reduce initial jump.
+      return openTaskId && t.id === openTaskId ? 400 : 44
     },
     scrollMargin,
     overscan: 12,

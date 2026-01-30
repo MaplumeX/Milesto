@@ -660,21 +660,17 @@ body {
   align-items: center;
   gap: 10px;
   padding: 10px 8px;
-  border-bottom: 1px solid rgba(29, 29, 27, 0.08);
+  /* Keep 1px row height parity for virtual scroll stability, but don't show a separator. */
+  border-bottom: 1px solid transparent;
 }
 
 /* Open state: the row becomes the editor container (no separate editor row). */
 .task-row.is-open {
   display: block;
-}
-
-/* De-skin the inline paper so the editor visually merges into the row. */
-.task-row.is-open .task-inline-paper {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  padding: 0;
+  /* Extra breathing room around the focused editor card.
+     Use padding (not margin) so react-virtual measurement stays correct. */
+  padding: 16px 0;
+  border-bottom: 0;
 }
 
 .task-editor-row {
@@ -683,11 +679,15 @@ body {
 }
 
 .task-inline-paper {
-  border: 1px solid rgba(29, 29, 27, 0.08);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 1px 0 var(--shadow);
-  padding: 12px;
+  /* Border via box-shadow avoids shifting content (no border width). */
+  box-shadow:
+    0 0 0 1px rgba(29, 29, 27, 0.12),
+    0 1px 0 var(--shadow),
+    0 12px 18px rgba(0, 0, 0, 0.08);
+  /* Keep title/notes aligned with collapsed rows (8px left padding). */
+  padding: 12px 8px;
   --task-inline-indent: 26px;
 }
 
@@ -873,6 +873,7 @@ body {
 
 .task-row.is-selected {
   background: rgba(29, 29, 27, 0.05);
+  border-radius: 12px;
 }
 
 /* When a row is expanded into the inline editor, avoid the selection highlight wash. */

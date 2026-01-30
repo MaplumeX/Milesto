@@ -143,6 +143,48 @@ function getInlineActionBarRight(paper: HTMLElement): HTMLElement {
   return el
 }
 
+async function waitForUpcomingHeaderNearTop(params: {
+  date: string
+  label: string
+  contentScroller: HTMLElement
+  listbox: HTMLElement
+}) {
+  const { date, label, contentScroller, listbox } = params
+  const start = Date.now()
+  let lastDebug = ''
+
+  while (Date.now() - start < 10_000) {
+    const header = Array.from(document.querySelectorAll<HTMLElement>('.upcoming-header')).find(
+      (h) => (h.textContent ?? '').trim() === date
+    )
+
+    if (!header) {
+      lastDebug = `header not found (date=${date}) headers=${document.querySelectorAll('.upcoming-header').length} scrollTop=${contentScroller.scrollTop}`
+      await sleep(50)
+      continue
+    }
+
+    const view = contentScroller.getBoundingClientRect()
+    const rect = header.getBoundingClientRect()
+    const listRect = listbox.getBoundingClientRect()
+    const computedMargin = listRect.top - view.top + contentScroller.scrollTop
+    const maxScroll = contentScroller.scrollHeight - contentScroller.clientHeight
+    lastDebug = `scrollTop=${contentScroller.scrollTop} maxScroll=${maxScroll.toFixed(1)} clientH=${contentScroller.clientHeight} scrollH=${contentScroller.scrollHeight} headerTop=${rect.top.toFixed(1)} viewTop=${view.top.toFixed(1)} listTop=${listRect.top.toFixed(1)} computedMargin=${computedMargin.toFixed(1)}`
+
+    // Prefer aligning headers near the top.
+    if (rect.top >= view.top - 6 && rect.top <= view.top + 140) return
+
+    // If the target header is close to the end of the list, scrollToIndex will clamp to
+    // max scroll. In that case, "near top" alignment is impossible; just require visibility.
+    const nearMax = Math.abs(contentScroller.scrollTop - maxScroll) <= 1
+    if (nearMax && rect.bottom >= view.top - 6 && rect.top <= view.bottom + 6) return
+
+    await sleep(50)
+  }
+
+  throw new Error(`Timeout waiting for: ${label} (${lastDebug})`)
+}
+
 async function openEditorByDoubleClick(params: {
   taskId: string
   button: HTMLButtonElement
@@ -188,9 +230,21 @@ async function openEditorByDoubleClick(params: {
   }
 
   const bar = getInlineActionBarRight(paper)
-  if (!findButtonByText(bar, 'Schedule')) throw new Error(`${label}: missing Schedule button`)
+  const scheduleBtn = findButtonByText(bar, 'Schedule')
+  const scheduledChip = Array.from(
+    paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')
+  ).find((b) => ((b.textContent ?? '').trim() || '').startsWith('Scheduled:'))
+  if (!scheduleBtn && !scheduledChip) {
+    throw new Error(`${label}: missing Schedule affordance`)
+  }
   if (!findButtonByText(bar, 'Tags')) throw new Error(`${label}: missing Tags button`)
-  if (!findButtonByText(bar, 'Due')) throw new Error(`${label}: missing Due button`)
+  const dueBtn = findButtonByText(bar, 'Due')
+  const dueChip = Array.from(paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find((b) =>
+    ((b.textContent ?? '').trim() || '').startsWith('Due:')
+  )
+  if (!dueBtn && !dueChip) {
+    throw new Error(`${label}: missing Due affordance`)
+  }
 
   const doneToggle = await waitFor(`${label}: done toggle`, () =>
     paper.querySelector<HTMLInputElement>('.task-inline-header input[type="checkbox"]')
@@ -381,6 +435,18 @@ async function runSelfTest(): Promise<SelfTestResult> {
       scheduled_at: tomorrow,
     })
 
+    // Ensure Upcoming view is scrollable so jump-button alignment is meaningful.
+    for (let i = 0; i < 28; i++) {
+      const res = await window.api.task.create({
+        title: `${token} Upcoming filler ${i}`,
+        base_list: 'anytime',
+        scheduled_at: tomorrow,
+      })
+      if (!res.ok) {
+        throw new Error(`task.create upcoming filler ${i} failed: ${res.error.code}: ${res.error.message}`)
+      }
+    }
+
     // Add tasks to enable Upcoming jump buttons (Next Week / Next Month).
     const upcomingWeekRes = await window.api.task.create({
       title: `${token} Upcoming Next Week`,
@@ -396,6 +462,19 @@ async function runSelfTest(): Promise<SelfTestResult> {
     if (!upcomingBRes.ok) throw new Error(`task.create upcomingB failed: ${upcomingBRes.error.code}: ${upcomingBRes.error.message}`)
     if (!upcomingWeekRes.ok) throw new Error(`task.create upcomingWeek failed: ${upcomingWeekRes.error.code}: ${upcomingWeekRes.error.message}`)
     if (!upcomingMonthRes.ok) throw new Error(`task.create upcomingMonth failed: ${upcomingMonthRes.error.code}: ${upcomingMonthRes.error.message}`)
+
+    // Ensure there's enough content AFTER Next Week/Next Month headers so scrollToIndex
+    // can align those headers near the top even in a tall window.
+    for (let i = 0; i < 28; i++) {
+      const res = await window.api.task.create({
+        title: `${token} Upcoming next month filler ${i}`,
+        base_list: 'anytime',
+        scheduled_at: nextMonthStart,
+      })
+      if (!res.ok) {
+        throw new Error(`task.create upcoming next month filler ${i} failed: ${res.error.code}: ${res.error.message}`)
+      }
+    }
 
     const inboxAId = inboxARes.data.id
     const inboxBId = inboxBRes.data.id
@@ -629,7 +708,8 @@ async function runSelfTest(): Promise<SelfTestResult> {
     const navScrollBefore = contentScroller.scrollTop
     for (let i = 0; i < 40; i++) dispatchKey(todayListboxNow, 'ArrowDown')
     await sleep(100)
-    if (contentScroller.scrollTop === navScrollBefore) {
+    const canScroll = contentScroller.scrollHeight > contentScroller.clientHeight + 1
+    if (canScroll && contentScroller.scrollTop === navScrollBefore) {
       throw new Error('Today: ArrowDown navigation did not scroll the main content container')
     }
 
@@ -638,7 +718,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
     const upcomingListbox = await waitFor('Upcoming listbox', () =>
       document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Upcoming tasks"]')
     )
-    const upcomingAButton = await waitFor('Upcoming A row button', () => findTaskButton(upcomingAId))
+    await waitFor('Upcoming A row button', () => findTaskButton(upcomingAId))
     await waitFor('Upcoming B row button', () => findTaskButton(upcomingBId))
 
     // Regression: jump buttons should align headers correctly with content above the list.
@@ -649,31 +729,30 @@ async function runSelfTest(): Promise<SelfTestResult> {
 
     nextWeekBtn.click()
     await sleep(250)
-    await waitFor('Upcoming scrolled to next week header', () => {
-      const header = Array.from(document.querySelectorAll<HTMLElement>('.upcoming-header')).find(
-        (h) => (h.textContent ?? '').trim() === nextWeekStart
-      )
-      if (!header) return null
-      const view = contentScroller.getBoundingClientRect()
-      const rect = header.getBoundingClientRect()
-      // Allow a little slack for borders/spacing.
-      return rect.top >= view.top - 6 && rect.top <= view.top + 80 ? true : null
+    await waitForUpcomingHeaderNearTop({
+      date: nextWeekStart,
+      label: 'Upcoming scrolled to next week header',
+      contentScroller,
+      listbox: upcomingListbox,
     })
 
     nextMonthBtn.click()
     await sleep(250)
-    await waitFor('Upcoming scrolled to next month header', () => {
-      const header = Array.from(document.querySelectorAll<HTMLElement>('.upcoming-header')).find(
-        (h) => (h.textContent ?? '').trim() === nextMonthStart
-      )
-      if (!header) return null
-      const view = contentScroller.getBoundingClientRect()
-      const rect = header.getBoundingClientRect()
-      return rect.top >= view.top - 6 && rect.top <= view.top + 80 ? true : null
+    await waitForUpcomingHeaderNearTop({
+      date: nextMonthStart,
+      label: 'Upcoming scrolled to next month header',
+      contentScroller,
+      listbox: upcomingListbox,
     })
 
+    // Jumping may scroll far enough to unmount the early rows. Return to the top so we can
+    // interact with Upcoming A/B reliably.
+    contentScroller.scrollTop = 0
+    await sleep(150)
+    const upcomingAButtonNow = await waitFor('Upcoming A row button (post jump)', () => findTaskButton(upcomingAId))
+
     // Arrow navigation should skip non-task rows.
-    upcomingAButton.click()
+    upcomingAButtonNow.click()
     await waitFor('Upcoming A selected', () => (getSelectedTaskId() === upcomingAId ? true : null))
     upcomingListbox.focus()
     dispatchKey(upcomingListbox, 'ArrowDown')

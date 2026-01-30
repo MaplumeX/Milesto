@@ -8,6 +8,8 @@ TBD - created by archiving change inline-task-editor-row-expand. Update Purpose 
 
 展开态的第一行（header）MUST 呈现为 row-like：在同一行内同时提供 done toggle 与标题输入框；标题输入框 MUST 与任务列表的标题区域对齐，视觉上保持“原 row 展开的样子”。
 
+展开态 MUST 提供轻微的“聚焦卡片”视觉反馈：编辑器容器 MUST 具有可见边框与轻微阴影，并且在该任务与相邻任务行之间 MUST 留出上下空间，以便用户清晰识别当前正在编辑的条目。
+
 #### Scenario: Open expands inline within the task row
 - **WHEN** 用户对某条任务触发“打开编辑”（例如 Return 或双击）
 - **THEN** 该任务在列表中原地展开编辑器，展开后的编辑内容位于同一条 task row 内（该 row 变高）
@@ -18,7 +20,7 @@ TBD - created by archiving change inline-task-editor-row-expand. Update Purpose 
 #### Scenario: Expanded editor does not require a separate editor row
 - **WHEN** 用户打开某条任务的行内编辑器
 - **THEN** 渲染结构中 MUST NOT 依赖“额外插入一条 editor row（单独列表项）”来呈现编辑内容
-- **THEN** 展开态的视觉层级 MUST 与 task row 融合（不出现第二层卡片/纸张容器感）
+- **THEN** 展开态 MUST 呈现轻微聚焦卡片（可见边框 + 轻微阴影 + 上下留白），但其视觉层级 MUST 仍被理解为“该 task row 的展开态”，而不是独立的第二层弹层/模态
 
 ### Requirement: Notes are borderless and visually part of the title block
 展开态的 Notes 输入 MUST 无边框、无底色，视觉上与标题区域属于同一个内容块；Notes placeholder MUST 显示为“备注”，且以提示色呈现。

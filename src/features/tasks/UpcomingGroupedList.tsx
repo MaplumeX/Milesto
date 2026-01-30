@@ -30,14 +30,19 @@ export function UpcomingGroupedList({
   const [scrollMargin, setScrollMargin] = useState(0)
 
   useLayoutEffect(() => {
-    const scrollEl = contentScrollRef.current
-    const listboxEl = listboxRef.current
-    if (!scrollEl || !listboxEl) return
+    let cancelled = false
 
     const compute = () => {
+      if (cancelled) return
       const se = contentScrollRef.current
       const le = listboxRef.current
-      if (!se || !le) return
+
+      // Refs can be temporarily null during initial mount / route switches.
+      // Retry next tick to avoid a stuck 0 margin, which breaks scroll alignment.
+      if (!se || !le) {
+        window.setTimeout(compute, 0)
+        return
+      }
 
       const scrollRect = se.getBoundingClientRect()
       const listRect = le.getBoundingClientRect()
@@ -46,7 +51,10 @@ export function UpcomingGroupedList({
 
     compute()
     window.addEventListener('resize', compute)
-    return () => window.removeEventListener('resize', compute)
+    return () => {
+      cancelled = true
+      window.removeEventListener('resize', compute)
+    }
   }, [contentScrollRef])
 
   const lastSelectedIndexRef = useRef(0)
@@ -114,7 +122,8 @@ export function UpcomingGroupedList({
       const row = rows[index]
       if (!row) return 44
       if (row.type === 'header') return 34
-      if (openTaskId && row.type === 'task' && row.task.id === openTaskId) return 360
+      // Expanded rows are measured, but the estimate should be close to reduce initial jump.
+      if (openTaskId && row.type === 'task' && row.task.id === openTaskId) return 400
       return 44
     },
     scrollMargin,
