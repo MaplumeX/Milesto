@@ -1,12 +1,22 @@
 import { createContext, useContext } from 'react'
 
+export type OpenEditorHandle = {
+  taskId: string
+  flushPendingChanges: () => Promise<boolean>
+  focusTitle: () => void
+  focusLastErrorTarget: () => void
+}
+
 export type TaskSelection = {
   selectedTaskId: string | null
   selectTask: (taskId: string | null) => void
   // "Selection" (highlight/navigation) is separate from "open" (editing).
   openTaskId: string | null
-  openTask: (taskId: string) => void
+  openTask: (taskId: string) => Promise<void>
   closeTask: () => void
+
+  // Allows the shell to flush before switching tasks.
+  registerOpenEditor: (handle: OpenEditorHandle | null) => void
 }
 
 const TaskSelectionContext = createContext<TaskSelection | null>(null)

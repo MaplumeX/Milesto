@@ -4,6 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useTaskSelection } from './TaskSelectionContext'
+import { TaskInlineEditorRow } from './TaskInlineEditorRow'
 
 export function TaskList({
   title,
@@ -18,14 +19,33 @@ export function TaskList({
   onRestore?: (taskId: string) => Promise<void>
   headerActions?: React.ReactNode
 }) {
-  const { selectedTaskId, selectTask, openTask } = useTaskSelection()
+  const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
+
+  const taskIndexById = useMemo(() => {
+    const map = new Map<string, number>()
+    for (let i = 0; i < tasks.length; i++) {
+      const t = tasks[i]
+      if (!t) continue
+      map.set(t.id, i)
+    }
+    return map
+  }, [tasks])
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const rowVirtualizer = useVirtualizer({
     count: tasks.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 44,
+    estimateSize: (index) => {
+      const t = tasks[index]
+      if (!t) return 44
+      return openTaskId && t.id === openTaskId ? 360 : 44
+    },
     overscan: 12,
+    getItemKey: (index) => {
+      const t = tasks[index]
+      if (!t) return index
+      return `t:${t.id}`
+    },
   })
 
   const openTasks = useMemo(() => tasks.filter((t) => t.status === 'open'), [tasks])
@@ -71,12 +91,12 @@ export function TaskList({
           // Keyboard-first list navigation (ArrowUp/Down, Enter to open, Space to toggle).
           if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== ' ') return
 
-          const idx = selectedTaskId ? tasks.findIndex((t) => t.id === selectedTaskId) : -1
+          const idx = selectedTaskId ? taskIndexById.get(selectedTaskId) ?? -1 : -1
 
           if (e.key === 'ArrowDown') {
             e.preventDefault()
             if (tasks.length === 0) return
-            const nextIdx = Math.min(idx + 1, tasks.length - 1)
+            const nextIdx = Math.min((idx < 0 ? -1 : idx) + 1, tasks.length - 1)
             const next = tasks[nextIdx]
             if (!next) return
             selectTask(next.id)
@@ -107,7 +127,7 @@ export function TaskList({
           if (e.key === 'Enter') {
             e.preventDefault()
             if (!selectedTaskId) return
-            openTask(selectedTaskId)
+            void openTask(selectedTaskId)
           }
         }}
       >
@@ -116,12 +136,44 @@ export function TaskList({
             const t = tasks[virtualRow.index]
             if (!t) return null
 
+            if (openTaskId && t.id === openTaskId) {
+              return (
+                <li
+                  key={t.id}
+                  className={`task-row is-open${t.status === 'done' ? ' is-done' : ''}${
+                    selectedTaskId === t.id ? ' is-selected' : ''
+                  }`}
+                  data-task-id={t.id}
+                  ref={(el) => {
+                    if (!el) return
+                    rowVirtualizer.measureElement(el)
+                  }}
+                  data-index={virtualRow.index}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <TaskInlineEditorRow taskId={t.id} />
+                </li>
+              )
+            }
+
             return (
               <li
                 key={t.id}
                 className={`task-row${t.status === 'done' ? ' is-done' : ''}${
                   selectedTaskId === t.id ? ' is-selected' : ''
                 }`}
+                data-task-id={t.id}
+                ref={(el) => {
+                  if (!el) return
+                  rowVirtualizer.measureElement(el)
+                }}
+                data-index={virtualRow.index}
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -147,7 +199,7 @@ export function TaskList({
                   data-task-focus-target="true"
                   data-task-id={t.id}
                   onClick={() => selectTask(t.id)}
-                  onDoubleClick={() => openTask(t.id)}
+                  onDoubleClick={() => void openTask(t.id)}
                 >
                   <span className={t.title.trim() ? undefined : 'task-title-placeholder'}>
                     {t.title.trim() ? t.title : '新建任务'}

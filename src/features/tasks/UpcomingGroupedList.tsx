@@ -4,6 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useTaskSelection } from './TaskSelectionContext'
+import { TaskInlineEditorRow } from './TaskInlineEditorRow'
 
 type Row =
   | { type: 'header'; date: string; label: string }
@@ -22,7 +23,7 @@ export function UpcomingGroupedList({
   nextWeekStart: string
   nextMonthStart: string
 }) {
-  const { selectedTaskId, selectTask, openTask } = useTaskSelection()
+  const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   const lastSelectedIndexRef = useRef(0)
@@ -64,7 +65,9 @@ export function UpcomingGroupedList({
       rows.push({ type: 'header', date, label })
 
       const list = byDate.get(date) ?? []
-      for (const task of list) rows.push({ type: 'task', task })
+      for (const task of list) {
+        rows.push({ type: 'task', task })
+      }
     }
 
     return { rows, headerIndexByDate }
@@ -84,12 +87,19 @@ export function UpcomingGroupedList({
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: (index) => (rows[index]?.type === 'header' ? 34 : 44),
+    estimateSize: (index) => {
+      const row = rows[index]
+      if (!row) return 44
+      if (row.type === 'header') return 34
+      if (openTaskId && row.type === 'task' && row.task.id === openTaskId) return 360
+      return 44
+    },
     overscan: 12,
     getItemKey: (index) => {
       const row = rows[index]
       if (!row) return index
-      return row.type === 'header' ? `h:${row.date}` : `t:${row.task.id}`
+      if (row.type === 'header') return `h:${row.date}`
+      return `t:${row.task.id}`
     },
   })
 
@@ -174,7 +184,7 @@ export function UpcomingGroupedList({
           if (e.key === 'Enter') {
             e.preventDefault()
             if (!selectedTaskId) return
-            openTask(selectedTaskId)
+            void openTask(selectedTaskId)
           }
         }}
       >
@@ -188,6 +198,11 @@ export function UpcomingGroupedList({
                 <li
                   key={`h:${row.date}`}
                   className="upcoming-header"
+                  ref={(el) => {
+                    if (!el) return
+                    rowVirtualizer.measureElement(el)
+                  }}
+                  data-index={virtualRow.index}
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -202,12 +217,45 @@ export function UpcomingGroupedList({
             }
 
             const t = row.task
+
+            if (openTaskId && t.id === openTaskId) {
+              return (
+                <li
+                  key={t.id}
+                  className={`task-row is-open${t.status === 'done' ? ' is-done' : ''}${
+                    selectedTaskId === t.id ? ' is-selected' : ''
+                  }`}
+                  data-task-id={t.id}
+                  ref={(el) => {
+                    if (!el) return
+                    rowVirtualizer.measureElement(el)
+                  }}
+                  data-index={virtualRow.index}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <TaskInlineEditorRow taskId={t.id} />
+                </li>
+              )
+            }
+
             return (
               <li
                 key={t.id}
                 className={`task-row${t.status === 'done' ? ' is-done' : ''}${
                   selectedTaskId === t.id ? ' is-selected' : ''
                 }`}
+                data-task-id={t.id}
+                ref={(el) => {
+                  if (!el) return
+                  rowVirtualizer.measureElement(el)
+                }}
+                data-index={virtualRow.index}
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -232,7 +280,7 @@ export function UpcomingGroupedList({
                   data-task-focus-target="true"
                   data-task-id={t.id}
                   onClick={() => selectTask(t.id)}
-                  onDoubleClick={() => openTask(t.id)}
+                  onDoubleClick={() => void openTask(t.id)}
                 >
                   {t.title}
                 </button>

@@ -642,6 +642,7 @@ body {
 
 .task-scroll {
   overflow: auto;
+  overflow-anchor: none;
   max-height: 60vh;
   border: 1px solid rgba(29, 29, 27, 0.08);
   border-radius: 12px;
@@ -654,6 +655,181 @@ body {
   gap: 10px;
   padding: 10px 8px;
   border-bottom: 1px solid rgba(29, 29, 27, 0.08);
+}
+
+/* Open state: the row becomes the editor container (no separate editor row). */
+.task-row.is-open {
+  display: block;
+}
+
+/* De-skin the inline paper so the editor visually merges into the row. */
+.task-row.is-open .task-inline-paper {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.task-editor-row {
+  padding: 0 8px 12px 34px;
+  border-bottom: 1px solid rgba(29, 29, 27, 0.08);
+}
+
+.task-inline-paper {
+  border: 1px solid rgba(29, 29, 27, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 0 var(--shadow);
+  padding: 12px;
+  --task-inline-indent: 26px;
+}
+
+.task-inline-content {
+  /* Align content blocks under the title column, leaving space for the checkbox column. */
+  padding-left: var(--task-inline-indent);
+}
+
+.task-inline-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.task-inline-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.task-inline-status {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.task-inline-title {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 2px 0;
+  font: inherit;
+  font-weight: inherit;
+}
+
+.task-inline-title:focus {
+  /* Keep title/notes visually borderless even when focused. */
+  outline: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.task-inline-notes {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+  resize: none;
+  overflow: hidden;
+  min-height: 44px;
+}
+
+.task-inline-notes:focus {
+  /* Keep title/notes visually borderless even when focused. */
+  outline: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.task-inline-notes::placeholder {
+  color: var(--muted);
+}
+
+.task-inline-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(29, 29, 27, 0.08);
+}
+
+.task-inline-action-bar {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.task-inline-action-bar-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.task-inline-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(29, 29, 27, 0.1);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.task-inline-chip-main {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.task-inline-chip-close {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.task-inline-chip-close:hover {
+  color: var(--text);
+}
+
+.task-inline-popover {
+  border: 1px solid rgba(29, 29, 27, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.05),
+    0 2px 2px rgba(0, 0, 0, 0.05),
+    0 10px 22px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.task-inline-popover-body {
+  padding: 10px;
+}
+
+.task-inline-popover-title {
+  font-weight: 650;
+  font-size: 13px;
+}
+
+.task-inline-action-bar-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .task-row.is-done .task-title {
@@ -691,6 +867,11 @@ body {
 
 .task-row.is-selected {
   background: rgba(29, 29, 27, 0.05);
+}
+
+/* When a row is expanded into the inline editor, avoid the selection highlight wash. */
+.task-row.is-open.is-selected {
+  background: transparent;
 }
 
 .error {

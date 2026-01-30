@@ -4,9 +4,10 @@ import type { AppError } from '../../shared/app-error'
 import type { TaskSearchResultItem } from '../../shared/schemas/search'
 
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
+import { TaskInlineEditorRow } from '../features/tasks/TaskInlineEditorRow'
 
 export function SearchPage() {
-  const { selectedTaskId, selectTask, openTask } = useTaskSelection()
+  const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
   const [query, setQuery] = useState('')
   const [includeLogbook, setIncludeLogbook] = useState(false)
   const [results, setResults] = useState<TaskSearchResultItem[]>([])
@@ -98,28 +99,46 @@ export function SearchPage() {
           if (e.key === 'Enter') {
             e.preventDefault()
             if (!selectedTaskId) return
-            openTask(selectedTaskId)
+            void openTask(selectedTaskId)
           }
         }}
       >
         <ul className="task-list">
-          {results.map((r) => (
-            <li key={r.id} className={`task-row${selectedTaskId === r.id ? ' is-selected' : ''}`}>
-              <button
-                type="button"
-                className="task-title task-title-button"
-                data-task-focus-target="true"
+          {results.map((r) => {
+            if (openTaskId && r.id === openTaskId) {
+              return (
+                <li
+                  key={r.id}
+                  className={`task-row is-open${selectedTaskId === r.id ? ' is-selected' : ''}`}
+                  data-task-id={r.id}
+                >
+                  <TaskInlineEditorRow taskId={r.id} />
+                </li>
+              )
+            }
+
+            return (
+              <li
+                key={r.id}
+                className={`task-row${selectedTaskId === r.id ? ' is-selected' : ''}`}
                 data-task-id={r.id}
-                onClick={() => selectTask(r.id)}
-                onDoubleClick={() => openTask(r.id)}
               >
-                <span className={r.title.trim() ? undefined : 'task-title-placeholder'}>
-                  {r.title.trim() ? r.title : '新建任务'}
-                </span>
-              </button>
-              <div className="mono">{r.snippet ?? ''}</div>
-            </li>
-          ))}
+                <button
+                  type="button"
+                  className="task-title task-title-button"
+                  data-task-focus-target="true"
+                  data-task-id={r.id}
+                  onClick={() => selectTask(r.id)}
+                  onDoubleClick={() => void openTask(r.id)}
+                >
+                  <span className={r.title.trim() ? undefined : 'task-title-placeholder'}>
+                    {r.title.trim() ? r.title : '新建任务'}
+                  </span>
+                </button>
+                <div className="mono">{r.snippet ?? ''}</div>
+              </li>
+            )
+          })}
           {results.length === 0 && query.trim() ? <li className="nav-muted">No results</li> : null}
         </ul>
       </div>

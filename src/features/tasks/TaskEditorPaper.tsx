@@ -1,4 +1,5 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import type { AppError } from '../../../shared/app-error'
 import type { Area } from '../../../shared/schemas/area'
@@ -24,7 +25,16 @@ type Draft = {
 export type TaskEditorPaperHandle = {
   flushPendingChanges: () => Promise<boolean>
   focusTitle: () => void
+  focusLastErrorTarget: () => void
 }
+
+type TaskEditorVariant = 'overlay' | 'inline'
+
+type PickerKind = 'schedule' | 'due' | 'tags'
+type ActivePicker = {
+  kind: PickerKind
+  anchorEl: HTMLElement
+} | null
 
 const TITLE_NOTES_DEBOUNCE_MS = 450
 const OTHER_FIELDS_DEBOUNCE_MS = 120
@@ -93,9 +103,20 @@ function getDevTaskUpdateDelayMs(): number {
   return v
 }
 
-export const TaskEditorPaper = forwardRef<TaskEditorPaperHandle, { taskId: string; onRequestClose: () => void }>(
-  function TaskEditorPaper({ taskId, onRequestClose }, ref) {
+export const TaskEditorPaper = forwardRef<
+  TaskEditorPaperHandle,
+  { taskId: string; onRequestClose: () => void; variant?: TaskEditorVariant }
+  >(function TaskEditorPaper({ taskId, onRequestClose, variant = 'overlay' }, ref) {
     const titleInputRef = useRef<HTMLInputElement | null>(null)
+    const notesInputRef = useRef<HTMLTextAreaElement | null>(null)
+
+    const inlineRootRef = useRef<HTMLDivElement | null>(null)
+    const popoverRef = useRef<HTMLDivElement | null>(null)
+    const tagsButtonRef = useRef<HTMLButtonElement | null>(null)
+
+    const schedulePopoverInputRef = useRef<HTMLInputElement | null>(null)
+    const duePopoverInputRef = useRef<HTMLInputElement | null>(null)
+
     const taskIdRef = useRef(taskId)
     useEffect(() => {
       taskIdRef.current = taskId
@@ -107,6 +128,7 @@ export const TaskEditorPaper = forwardRef<TaskEditorPaperHandle, { taskId: strin
 
     const [loadError, setLoadError] = useState<AppError | null>(null)
     const [actionError, setActionError] = useState<AppError | null>(null)
+    const [tagsError, setTagsError] = useState<AppError | null>(null)
     const [saveError, setSaveError] = useState<AppError | null>(null)
     const saveErrorRef = useRef<AppError | null>(null)
     useEffect(() => {
@@ -114,6 +136,24 @@ export const TaskEditorPaper = forwardRef<TaskEditorPaperHandle, { taskId: strin
     }, [saveError])
 
     const [savePhase, setSavePhase] = useState<'idle' | 'saving' | 'error'>('idle')
+
+    const [activePicker, setActivePicker] = useState<ActivePicker>(null)
+    const activePickerRef = useRef<ActivePicker>(null)
+    useEffect(() => {
+      activePickerRef.current = activePicker
+    }, [activePicker])
+    const lastFlushFailureTargetRef = useRef<'title' | 'tags'>('title')
+
+    const tagsSaveSeqRef = useRef(0)
+    const tagsSavePromiseRef = useRef<Promise<void> | null>(null)
+    const tagsSaveErrorRef = useRef<AppError | null>(null)
+
+    useEffect(() => {
+      tagsSaveErrorRef.current = tagsError
+    }, [tagsError])
+
+    const [isChecklistExpanded, setIsChecklistExpanded] = useState(false)
+    const checklistCreateInputRef = useRef<HTMLInputElement | null>(null)
 
     const [projects, setProjects] = useState<Project[]>([])
     const [sections, setSections] = useState<ProjectSection[]>([])
@@ -135,6 +175,84 @@ export const TaskEditorPaper = forwardRef<TaskEditorPaperHandle, { taskId: strin
     function focusTitle() {
       titleInputRef.current?.focus()
     }
+
+    function focusLastErrorTarget() {
+      if (lastFlushFailureTargetRef.current === 'tags') {
+        tagsButtonRef.current?.focus()
+        return
+      }
+      focusTitle()
+    }
+
+    const closeActivePicker = useCallback(() => {
+      const current = activePickerRef.current
+      if (!current) return
+      setActivePicker(null)
+    }, [])
+
+    useEffect(() => {
+      // When a date picker popover opens, focus the input and attempt to open the native picker.
+      const current = activePicker
+      if (!current) return
+      if (current.kind !== 'schedule' && current.kind !== 'due') return
+
+      const input = current.kind === 'schedule' ? schedulePopoverInputRef.current : duePopoverInputRef.current
+      if (!input) return
+
+      input.focus()
+      if (typeof input.showPicker === 'function') {
+        try {
+          input.showPicker()
+        } catch {
+          // Ignore and rely on the visible date input.
+        }
+      }
+    }, [activePicker])
+
+    useEffect(() => {
+      if (variant !== 'inline') return
+
+      function handlePointerDown(e: PointerEvent) {
+        if (e.button !== 0) return
+        if (!(e.target instanceof Node)) return
+
+        const root = inlineRootRef.current
+        if (!root) return
+        const popover = popoverRef.current
+        const isInside = root.contains(e.target) || (popover ? popover.contains(e.target) : false)
+        if (isInside) return
+
+        // Dismiss pickers first. If no picker is open, attempt to close the editor.
+        e.preventDefault()
+        e.stopPropagation()
+
+        if (activePicker) {
+          closeActivePicker()
+          return
+        }
+
+        onRequestClose()
+      }
+
+      document.addEventListener('pointerdown', handlePointerDown, true)
+      return () => document.removeEventListener('pointerdown', handlePointerDown, true)
+    }, [activePicker, closeActivePicker, onRequestClose, variant])
+
+    useEffect(() => {
+      if (!activePicker) return
+
+      // Close pickers on scroll/resize to avoid stale positioning.
+      function handleClose() {
+        closeActivePicker()
+      }
+
+      window.addEventListener('resize', handleClose)
+      window.addEventListener('scroll', handleClose, true)
+      return () => {
+        window.removeEventListener('resize', handleClose)
+        window.removeEventListener('scroll', handleClose, true)
+      }
+    }, [activePicker, closeActivePicker])
 
     function scheduleSave(nextDraft: Draft, debounceMs: number) {
       if (saveDebounceRef.current) window.clearTimeout(saveDebounceRef.current)
@@ -188,6 +306,7 @@ export const TaskEditorPaper = forwardRef<TaskEditorPaperHandle, { taskId: strin
         setSaveError(null)
 
         if (isDevForcedUpdateErrorEnabled()) {
+          lastFlushFailureTargetRef.current = 'title'
           setSaveError({
             code: 'DEV_FORCED_SAVE_ERROR',
             message: 'Forced task.update failure (dev self-test).',
@@ -207,6 +326,7 @@ export const TaskEditorPaper = forwardRef<TaskEditorPaperHandle, { taskId: strin
         const res = await window.api.task.update({ id: workerTaskId, ...patch })
         if (taskIdRef.current !== workerTaskId) return
         if (!res.ok) {
+          lastFlushFailureTargetRef.current = 'title'
           setSaveError(res.error)
           setSavePhase('error')
           // Preserve pending state so a user-triggered retry can re-run the same snapshot.
@@ -232,12 +352,15 @@ export const TaskEditorPaper = forwardRef<TaskEditorPaperHandle, { taskId: strin
 
       if (saveWorkerRef.current) await saveWorkerRef.current
 
+      if (tagsSavePromiseRef.current) await tagsSavePromiseRef.current
+
       if (saveErrorRef.current) return false
+      if (tagsSaveErrorRef.current) return false
       if (!draft || !lastSavedRef.current) return true
       return isDraftEqual(normalizeDraft(draft), lastSavedRef.current)
     }
 
-    useImperativeHandle(ref, () => ({ flushPendingChanges, focusTitle }))
+    useImperativeHandle(ref, () => ({ flushPendingChanges, focusTitle, focusLastErrorTarget }))
 
     useEffect(() => {
       void (async () => {
@@ -257,13 +380,17 @@ export const TaskEditorPaper = forwardRef<TaskEditorPaperHandle, { taskId: strin
       let cancelled = false
       setLoadError(null)
       setActionError(null)
+      setTagsError(null)
       setSaveError(null)
       setSavePhase('idle')
+      setActivePicker(null)
       setDetail(null)
       setDraft(null)
       setLastSaved(null)
       lastSavedRef.current = null
       pendingSnapshotRef.current = null
+      tagsSavePromiseRef.current = null
+      tagsSaveSeqRef.current = 0
       if (saveDebounceRef.current) {
         window.clearTimeout(saveDebounceRef.current)
         saveDebounceRef.current = null
@@ -309,6 +436,23 @@ export const TaskEditorPaper = forwardRef<TaskEditorPaperHandle, { taskId: strin
     }, [taskId])
 
     useEffect(() => {
+      if (variant !== 'inline') return
+      const notes = draft?.notes
+      if (notes === undefined) return
+      const el = notesInputRef.current
+      if (!el) return
+      // Auto-resize notes to avoid nested scrolling.
+      el.style.height = '0px'
+      el.style.height = `${el.scrollHeight}px`
+
+      // Keep the editor stable in virtualized lists while content grows.
+      // Only do this when the user is actively editing notes to avoid unexpected jumps.
+      if (document.activeElement === el) {
+        el.scrollIntoView({ block: 'nearest' })
+      }
+    }, [draft?.notes, variant])
+
+    useEffect(() => {
       const projectId = draft?.project_id
       if (!projectId) {
         setSections([])
@@ -328,9 +472,17 @@ export const TaskEditorPaper = forwardRef<TaskEditorPaperHandle, { taskId: strin
     const selectedTagIds = useMemo(() => new Set(detail?.tag_ids ?? []), [detail?.tag_ids])
     const checklist = detail?.checklist_items ?? []
 
+    useEffect(() => {
+      if (variant !== 'inline') return
+      // Inline editor treats an empty checklist as collapsed.
+      setIsChecklistExpanded(checklist.length > 0)
+    }, [checklist.length, variant])
+
+    const paperClassName = variant === 'inline' ? 'task-inline-paper' : 'overlay-paper'
+
     if (loadError) {
       return (
-        <div className="overlay-paper">
+        <div className={paperClassName}>
           <div className="overlay-paper-header">
             <div className="overlay-paper-title">Task</div>
             <button type="button" className="button button-ghost" onClick={onRequestClose}>
@@ -347,7 +499,7 @@ export const TaskEditorPaper = forwardRef<TaskEditorPaperHandle, { taskId: strin
 
     if (!detail || !draft) {
       return (
-        <div className="overlay-paper">
+        <div className={paperClassName}>
           <div className="overlay-paper-header">
             <div className="overlay-paper-title">Task</div>
             <button type="button" className="button button-ghost" onClick={onRequestClose}>
@@ -361,8 +513,454 @@ export const TaskEditorPaper = forwardRef<TaskEditorPaperHandle, { taskId: strin
 
     const statusLabel = detail.task.status === 'done' ? 'Done' : 'Open'
 
+    if (variant === 'inline') {
+      function openChecklistAndFocus() {
+        setIsChecklistExpanded(true)
+        window.setTimeout(() => checklistCreateInputRef.current?.focus(), 0)
+      }
+
+      const saveStatusLabel =
+        savePhase === 'saving' ? 'Saving…' : savePhase === 'error' ? 'Error' : isDirty ? 'Unsaved' : 'Saved'
+
+      const openSchedulePicker = (anchorEl: HTMLElement) => {
+        setActivePicker({ kind: 'schedule', anchorEl })
+      }
+
+      const openDuePicker = (anchorEl: HTMLElement) => {
+        setActivePicker({ kind: 'due', anchorEl })
+      }
+
+      const openTagsPicker = (anchorEl: HTMLElement) => {
+        setActivePicker({ kind: 'tags', anchorEl })
+      }
+
+      const persistTags = (nextTagIds: string[]) => {
+        // Optimistic UI update; persistence is tracked so close/switch can await it.
+        setDetail((d) => (d ? { ...d, tag_ids: nextTagIds } : d))
+        setTagsError(null)
+
+        tagsSaveSeqRef.current += 1
+        const seq = tagsSaveSeqRef.current
+        const promise = (async () => {
+          const res = await window.api.task.setTags(detail.task.id, nextTagIds)
+          if (tagsSaveSeqRef.current !== seq) return
+          if (!res.ok) {
+            lastFlushFailureTargetRef.current = 'tags'
+            setTagsError(res.error)
+            return
+          }
+          setTagsError(null)
+        })()
+
+        tagsSavePromiseRef.current = promise
+      }
+
+      const renderPopover = () => {
+        if (!activePicker) return null
+
+        const rect = activePicker.anchorEl.getBoundingClientRect()
+        const maxWidth = 320
+        const left = Math.min(Math.max(12, rect.left), window.innerWidth - maxWidth - 12)
+        const top = Math.min(rect.bottom + 8, window.innerHeight - 12)
+
+        return createPortal(
+          <div
+            ref={popoverRef}
+            className="task-inline-popover"
+            role="dialog"
+            style={{ position: 'fixed', top, left, width: maxWidth, zIndex: 45 }}
+          >
+            {activePicker.kind === 'tags' ? (
+              <div className="task-inline-popover-body">
+                <div className="task-inline-popover-title">Tags</div>
+                <div className="tag-grid" style={{ marginTop: 8 }}>
+                  {tags.map((tag) => {
+                    const checked = selectedTagIds.has(tag.id)
+                    return (
+                      <label key={tag.id} className="tag-checkbox" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const next = new Set(selectedTagIds)
+                            if (e.target.checked) next.add(tag.id)
+                            else next.delete(tag.id)
+                            persistTags(Array.from(next))
+                          }}
+                        />
+                        <span>{tag.title}</span>
+                        <span
+                          className="tag-swatch"
+                          style={{ marginLeft: 'auto', background: tag.color ?? 'transparent' }}
+                          aria-hidden="true"
+                        />
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : activePicker.kind === 'schedule' ? (
+              <div className="task-inline-popover-body">
+                <div className="task-inline-popover-title">Scheduled</div>
+                <input
+                  ref={schedulePopoverInputRef}
+                  className="input"
+                  type="date"
+                  value={draft.scheduled_at ?? ''}
+                  onChange={(e) => {
+                    const next = { ...draft, scheduled_at: e.target.value ? e.target.value : null }
+                    setDraft(next)
+                    scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                    setActivePicker(null)
+                  }}
+                />
+                <div className="row" style={{ justifyContent: 'flex-start' }}>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() => {
+                      const next = { ...draft, scheduled_at: today }
+                      setDraft(next)
+                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                      setActivePicker(null)
+                    }}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() => {
+                      const next = { ...draft, scheduled_at: null }
+                      setDraft(next)
+                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                      setActivePicker(null)
+                    }}
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="task-inline-popover-body">
+                <div className="task-inline-popover-title">Due</div>
+                <input
+                  ref={duePopoverInputRef}
+                  className="input"
+                  type="date"
+                  value={draft.due_at ?? ''}
+                  onChange={(e) => {
+                    const next = { ...draft, due_at: e.target.value ? e.target.value : null }
+                    setDraft(next)
+                    scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                    setActivePicker(null)
+                  }}
+                />
+                <div className="row" style={{ justifyContent: 'flex-start' }}>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() => {
+                      const next = { ...draft, due_at: null }
+                      setDraft(next)
+                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                      setActivePicker(null)
+                    }}
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>,
+          document.body
+        )
+      }
+
+      return (
+        <div
+          className={paperClassName}
+          ref={inlineRootRef}
+          onKeyDownCapture={(e) => {
+            if (e.key !== 'Escape') return
+            if (!activePickerRef.current) return
+            e.preventDefault()
+            e.stopPropagation()
+            closeActivePicker()
+          }}
+        >
+          <div className="task-inline-header">
+            <label className="task-checkbox" aria-label="Done">
+              <input
+                type="checkbox"
+                checked={detail.task.status === 'done'}
+                onChange={(e) => {
+                  const nextDone = e.target.checked
+                  void (async () => {
+                    const res = await window.api.task.toggleDone(detail.task.id, nextDone)
+                    if (!res.ok) {
+                      setActionError(res.error)
+                      return
+                    }
+                    setActionError(null)
+                    setDetail((d) => (d ? { ...d, task: res.data } : d))
+                  })()
+                }}
+              />
+            </label>
+
+            <input
+              id="task-title"
+              ref={titleInputRef}
+              className="task-inline-title"
+              value={draft.title}
+              onChange={(e) => {
+                const next = { ...draft, title: e.target.value }
+                setDraft(next)
+                scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return
+                if (e.metaKey || e.ctrlKey) return
+                e.preventDefault()
+                e.stopPropagation()
+                onRequestClose()
+              }}
+              placeholder="新建任务"
+            />
+
+            <div className="task-inline-header-right">
+              <div className="task-inline-status" aria-live="polite">
+                {saveStatusLabel}
+              </div>
+
+            {savePhase === 'error' ? (
+              <button
+                type="button"
+                className="button button-ghost"
+                onClick={() => {
+                  requestSave(draft)
+                }}
+              >
+                Retry
+              </button>
+            ) : null}
+
+            </div>
+          </div>
+
+          <div className="task-inline-content">
+            {saveError ? (
+              <div className="error">
+                <div className="error-code">{saveError.code}</div>
+                <div>{saveError.message}</div>
+              </div>
+            ) : null}
+
+            {actionError ? (
+              <div className="error">
+                <div className="error-code">{actionError.code}</div>
+                <div>{actionError.message}</div>
+              </div>
+            ) : null}
+
+            {tagsError ? (
+              <div className="error">
+                <div className="error-code">{tagsError.code}</div>
+                <div>{tagsError.message}</div>
+              </div>
+            ) : null}
+
+            <textarea
+              id="task-notes"
+              ref={notesInputRef}
+              className="task-inline-notes"
+              value={draft.notes}
+              onChange={(e) => {
+                const next = { ...draft, notes: e.target.value }
+                setDraft(next)
+                scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
+              }}
+              placeholder="备注"
+            />
+
+            {isChecklistExpanded ? (
+              <div className="task-inline-section">
+                <Checklist
+                  items={checklist}
+                  inputRef={checklistCreateInputRef}
+                  onAdd={async (title) => {
+                    const res = await window.api.checklist.create({ task_id: detail.task.id, title })
+                    if (!res.ok) {
+                      setActionError(res.error)
+                      return
+                    }
+                    setActionError(null)
+                    setDetail((d) => {
+                      if (!d) return d
+                      const nextItems = [...d.checklist_items, res.data].sort((a, b) => a.position - b.position)
+                      return { ...d, checklist_items: nextItems }
+                    })
+                  }}
+                  onToggle={async (itemId, done) => {
+                    const res = await window.api.checklist.update({ id: itemId, done })
+                    if (!res.ok) {
+                      setActionError(res.error)
+                      return
+                    }
+                    setActionError(null)
+                    setDetail((d) => {
+                      if (!d) return d
+                      const nextItems = d.checklist_items
+                        .map((it) => (it.id === res.data.id ? res.data : it))
+                        .sort((a, b) => a.position - b.position)
+                      return { ...d, checklist_items: nextItems }
+                    })
+                  }}
+                  onRename={async (itemId, title) => {
+                    const res = await window.api.checklist.update({ id: itemId, title })
+                    if (!res.ok) {
+                      setActionError(res.error)
+                      return
+                    }
+                    setActionError(null)
+                    setDetail((d) => {
+                      if (!d) return d
+                      const nextItems = d.checklist_items
+                        .map((it) => (it.id === res.data.id ? res.data : it))
+                        .sort((a, b) => a.position - b.position)
+                      return { ...d, checklist_items: nextItems }
+                    })
+                  }}
+                  onDelete={async (itemId) => {
+                    const res = await window.api.checklist.delete(itemId)
+                    if (!res.ok) {
+                      setActionError(res.error)
+                      return
+                    }
+                    setActionError(null)
+                    setDetail((d) => {
+                      if (!d) return d
+                      const nextItems = d.checklist_items.filter((it) => it.id !== itemId)
+                      if (nextItems.length === 0) setIsChecklistExpanded(false)
+                      return { ...d, checklist_items: nextItems }
+                    })
+                  }}
+                />
+              </div>
+            ) : null}
+
+            <div className="task-inline-action-bar">
+            <div className="task-inline-action-bar-left">
+              {draft.scheduled_at ? (
+                <div className="task-inline-chip">
+                  <button
+                    type="button"
+                    className="task-inline-chip-main"
+                    onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
+                  >
+                    Scheduled: {draft.scheduled_at === today ? 'Today' : draft.scheduled_at}
+                  </button>
+                  <button
+                    type="button"
+                    className="task-inline-chip-close"
+                    aria-label="Clear scheduled"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      const next = { ...draft, scheduled_at: null }
+                      setDraft(next)
+                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : null}
+
+              {draft.due_at ? (
+                <div className="task-inline-chip">
+                  <button type="button" className="task-inline-chip-main" onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}>
+                    Due: {draft.due_at}
+                  </button>
+                  <button
+                    type="button"
+                    className="task-inline-chip-close"
+                    aria-label="Clear due"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      const next = { ...draft, due_at: null }
+                      setDraft(next)
+                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : null}
+
+              {selectedTagIds.size > 0 ? (
+                <div className="task-inline-chip">
+                  <button type="button" className="task-inline-chip-main" onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}>
+                    Tags: {selectedTagIds.size}
+                  </button>
+                  <button
+                    type="button"
+                    className="task-inline-chip-close"
+                    aria-label="Clear tags"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      persistTags([])
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="task-inline-action-bar-right">
+              {!draft.scheduled_at ? (
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
+                >
+                  Schedule
+                </button>
+              ) : null}
+
+              <button
+                ref={tagsButtonRef}
+                type="button"
+                className="button button-ghost"
+                onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
+              >
+                Tags
+              </button>
+
+              {!draft.due_at ? (
+                <button type="button" className="button button-ghost" onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}>
+                  Due
+                </button>
+              ) : null}
+
+              {checklist.length === 0 ? (
+                <button type="button" className="button" onClick={() => openChecklistAndFocus()}>
+                  Checklist
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          </div>
+
+          {renderPopover()}
+        </div>
+      )
+    }
+
     return (
-      <div className="overlay-paper">
+      <div className={paperClassName}>
         <div className="overlay-paper-header">
           <div className="overlay-paper-title">Task</div>
 
@@ -869,12 +1467,14 @@ export const TaskEditorPaper = forwardRef<TaskEditorPaperHandle, { taskId: strin
 
 function Checklist({
   items,
+  inputRef,
   onAdd,
   onToggle,
   onRename,
   onDelete,
 }: {
   items: ChecklistItem[]
+  inputRef?: { current: HTMLInputElement | null }
   onAdd: (title: string) => Promise<void>
   onToggle: (id: string, done: boolean) => Promise<void>
   onRename: (id: string, title: string) => Promise<void>
@@ -886,6 +1486,7 @@ function Checklist({
     <div>
       <div className="checklist-create">
         <input
+          ref={inputRef}
           className="input"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}

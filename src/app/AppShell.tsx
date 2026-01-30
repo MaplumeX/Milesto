@@ -5,8 +5,7 @@ import type { Area } from '../../shared/schemas/area'
 import type { Project } from '../../shared/schemas/project'
 
 import { useAppEvents } from './AppEventsContext'
-import { TaskSelectionProvider } from '../features/tasks/TaskSelectionContext'
-import { TaskEditorOverlayPaper } from '../features/tasks/TaskEditorOverlayPaper'
+import { type OpenEditorHandle, TaskSelectionProvider } from '../features/tasks/TaskSelectionContext'
 import { CommandPalette } from './CommandPalette'
 import { formatLocalDate } from '../lib/dates'
 
@@ -28,15 +27,35 @@ export function AppShell() {
   const [isCreating, setIsCreating] = useState(false)
 
   const lastFocusTargetRef = useRef<{ element: HTMLElement | null; taskId: string } | null>(null)
+  const openEditorHandleRef = useRef<OpenEditorHandle | null>(null)
 
-  const openTask = useCallback((taskId: string) => {
-    lastFocusTargetRef.current = {
-      element: document.activeElement instanceof HTMLElement ? document.activeElement : null,
-      taskId,
-    }
-    setSelectedTaskId(taskId)
-    setOpenTaskId(taskId)
+  const registerOpenEditor = useCallback((handle: OpenEditorHandle | null) => {
+    openEditorHandleRef.current = handle
   }, [])
+
+  const openTask = useCallback(
+    async (taskId: string) => {
+      // When switching between tasks, flush current draft first to avoid data loss.
+      if (openTaskId && openTaskId !== taskId) {
+        const handle = openEditorHandleRef.current
+        if (!handle || handle.taskId !== openTaskId) return
+        const ok = await handle.flushPendingChanges()
+        if (!ok) {
+          handle.focusLastErrorTarget()
+          return
+        }
+        bumpRevision()
+      }
+
+      lastFocusTargetRef.current = {
+        element: document.activeElement instanceof HTMLElement ? document.activeElement : null,
+        taskId,
+      }
+      setSelectedTaskId(taskId)
+      setOpenTaskId(taskId)
+    },
+    [bumpRevision, openTaskId]
+  )
 
   const closeTask = useCallback(() => {
     if (!openTaskId) return
@@ -110,7 +129,7 @@ export function AppShell() {
     }
 
     bumpRevision()
-    openTask(res.data.id)
+    await openTask(res.data.id)
     if (shouldNavigateTo) navigate(shouldNavigateTo)
   }
 
@@ -186,15 +205,16 @@ export function AppShell() {
   }
 
   return (
-    <TaskSelectionProvider
-      value={{
-        selectedTaskId,
-        selectTask: setSelectedTaskId,
-        openTaskId,
-        openTask,
-        closeTask,
-      }}
-    >
+      <TaskSelectionProvider
+        value={{
+          selectedTaskId,
+          selectTask: setSelectedTaskId,
+          openTaskId,
+          openTask,
+          closeTask,
+          registerOpenEditor,
+        }}
+      >
       <div className="app-shell">
         <aside className="sidebar" aria-label="Sidebar">
         <div className="sidebar-top">
@@ -316,11 +336,9 @@ export function AppShell() {
         <main className="content" aria-label="Content">
           <div className="content-grid">
             <div className="content-main">
-              <div className={`content-scroll${openTaskId ? ' is-locked' : ''}`}>
+              <div className="content-scroll">
                 <Outlet />
               </div>
-
-              {openTaskId ? <TaskEditorOverlayPaper taskId={openTaskId} onClose={closeTask} /> : null}
 
               <div className="content-bottom-bar">
                 <div className="content-bottom-left">

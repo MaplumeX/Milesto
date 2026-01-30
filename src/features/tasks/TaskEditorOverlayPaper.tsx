@@ -34,7 +34,7 @@ export function TaskEditorOverlayPaper({
     try {
       const ok = (await editorRef.current?.flushPendingChanges()) ?? true
       if (!ok) {
-        editorRef.current?.focusTitle()
+        editorRef.current?.focusLastErrorTarget()
         return
       }
       onClose()
