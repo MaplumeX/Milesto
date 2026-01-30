@@ -21,7 +21,6 @@ Cursor/Copilot rules:
 - `shared/` - shared code/types (currently minimal)
 - `tests/` - tests (currently empty)
 - `docs/` - specs and standards
-- `docs/design/prototype interface/` - separate Vite prototype app (treat as a subproject)
 
 ## Commands (Repo Root)
 
@@ -48,21 +47,7 @@ Lint:
 - `npm run lint`
   - Current status: fails because no ESLint config file exists yet (`.eslintrc.*` or
     `eslint.config.*`).
-  - If you need lint to be green, add an ESLint config and/or ignore subprojects appropriately
-    (the repo contains a separate prototype app under `docs/design/prototype interface/`).
-
-## Commands (Prototype Subproject)
-
-The directory `docs/design/prototype interface/` has its own `package.json`.
-
-- `npm install`
-- `npm run dev`
-- `npm run build`
-- `npm run preview`
-
-Environment variables:
-- Prototype README mentions `GEMINI_API_KEY` in `.env.local`.
-- Do not commit secrets; repo `.gitignore` ignores `.env*` by default.
+  - If you need lint to be green, add an ESLint config (and ignore non-source directories as needed).
 
 ## Tests
 
