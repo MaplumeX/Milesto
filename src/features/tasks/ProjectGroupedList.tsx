@@ -109,7 +109,7 @@ export function ProjectGroupedList({
     rows.push({
       type: 'group',
       key: 'g:none',
-      title: 'Tasks',
+      title: '',
       sectionId: null,
       openCount: openNone.length,
       doneCount: doneTasks ? doneNone.length : null,
@@ -283,7 +283,7 @@ export function ProjectGroupedList({
                 }}
               >
                 <div className="project-group-left">
-                  <div className="project-group-title">{row.title}</div>
+                  {row.title ? <div className="project-group-title">{row.title}</div> : null}
                   <div className="project-group-meta">
                     {row.openCount} open
                     {row.doneCount !== null ? ` · ${row.doneCount} done` : null}

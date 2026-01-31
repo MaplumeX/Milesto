@@ -415,8 +415,22 @@ body {
   justify-content: space-between;
   gap: 12px;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.7);
+  /* Keep grouping headers visually flat (no card background). */
+  background: transparent;
   border-bottom: 1px solid rgba(29, 29, 27, 0.08);
+}
+
+/* Project page: Notes block should not look like a card. */
+.project-notes {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.project-notes-textarea {
+  padding: 6px 0;
 }
 
 .project-group-left {

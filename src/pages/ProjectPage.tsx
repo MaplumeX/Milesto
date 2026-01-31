@@ -294,10 +294,7 @@ export function ProjectPage() {
             )
           : null}
 
-        <div className="section" style={{ marginTop: 12 }}>
-          <div className="section-header" style={{ marginBottom: 6 }}>
-            <div className="section-title">Notes</div>
-          </div>
+        <div className="project-notes" style={{ marginTop: 12 }}>
           <ProjectNotes
             textareaRef={notesRef}
             value={notesDraft}
@@ -339,8 +336,7 @@ export function ProjectPage() {
           />
         </div>
 
-        <div className="sections-header" style={{ marginTop: 18 }}>
-          <div className="sections-title">Tasks</div>
+        <div className="sections-header" style={{ marginTop: 18, justifyContent: 'flex-end' }}>
           <button
             type="button"
             className="button button-ghost"
@@ -430,7 +426,7 @@ function ProjectNotes({
   return (
     <textarea
       ref={textareaRef}
-      className="task-inline-notes"
+      className="task-inline-notes project-notes-textarea"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}
