@@ -1133,7 +1133,7 @@ export const TaskEditorPaper = forwardRef<
               <option value="">(none)</option>
               {sections.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.title}
+                  {s.title.trim() ? s.title : '(untitled)'}
                 </option>
               ))}
             </select>

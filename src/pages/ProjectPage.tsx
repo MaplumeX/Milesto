@@ -10,6 +10,8 @@ import type { TaskListItem } from '../../shared/schemas/task-list'
 import { useAppEvents } from '../app/AppEventsContext'
 import { ProjectGroupedList } from '../features/tasks/ProjectGroupedList'
 
+const PROJECT_CREATE_SECTION_EVENT = 'milesto:project.createSection'
+
 export function ProjectPage() {
   const { revision, bumpRevision } = useAppEvents()
   const { projectId } = useParams<{ projectId: string }>()
@@ -22,6 +24,8 @@ export function ProjectPage() {
   const [doneTasks, setDoneTasks] = useState<TaskListItem[] | null>(null)
   const [sections, setSections] = useState<ProjectSection[]>([])
   const [error, setError] = useState<AppError | null>(null)
+
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
 
   const [notesDraft, setNotesDraft] = useState('')
   const notesRef = useRef<HTMLTextAreaElement | null>(null)
@@ -83,7 +87,31 @@ export function ProjectPage() {
     void pid
     setIsCompletedExpanded(false)
     setDoneTasks(null)
+    setEditingSectionId(null)
   }, [pid])
+
+  useEffect(() => {
+    function handleCreateSection(e: Event) {
+      const ce = e as CustomEvent<{ projectId?: string }>
+      const requestedProjectId = ce.detail?.projectId
+      if (!requestedProjectId) return
+      if (requestedProjectId !== pid) return
+
+      void (async () => {
+        const res = await window.api.project.createSection(pid, '')
+        if (!res.ok) {
+          setError(res.error)
+          return
+        }
+
+        await refresh()
+        setEditingSectionId(res.data.id)
+      })()
+    }
+
+    window.addEventListener(PROJECT_CREATE_SECTION_EVENT, handleCreateSection)
+    return () => window.removeEventListener(PROJECT_CREATE_SECTION_EVENT, handleCreateSection)
+  }, [pid, refresh])
 
   // Keep notes draft in sync when switching projects.
   useEffect(() => {
@@ -279,16 +307,6 @@ export function ProjectPage() {
                   bumpRevision()
                   await refresh()
                 }}
-                onNewSection={async () => {
-                  const t = prompt('New section title')
-                  if (!t) return
-                  const res = await window.api.project.createSection(pid, t)
-                  if (!res.ok) {
-                    setError(res.error)
-                    return
-                  }
-                  await refresh()
-                }}
               />,
               document.body
             )
@@ -336,25 +354,21 @@ export function ProjectPage() {
           />
         </div>
 
-        <div className="sections-header" style={{ marginTop: 18, justifyContent: 'flex-end' }}>
-          <button
-            type="button"
-            className="button button-ghost"
-            disabled={doneCount === 0}
-            aria-expanded={isCompletedExpanded}
-            onClick={() => {
-              const next = !isCompletedExpanded
-              setIsCompletedExpanded(next)
-            }}
-          >
-            {completedLabel} {isCompletedExpanded ? '▾' : '▸'}
-          </button>
-        </div>
-
         <ProjectGroupedList
           sections={sections}
           openTasks={openTasks}
           doneTasks={isCompletedExpanded ? doneTasks : null}
+          editingSectionId={editingSectionId}
+          onCancelSectionTitleEdit={() => setEditingSectionId(null)}
+          onCommitSectionTitle={async (sectionId, title) => {
+            const res = await window.api.project.renameSection(sectionId, title)
+            if (!res.ok) {
+              setError(res.error)
+              return
+            }
+            setEditingSectionId(null)
+            await refresh()
+          }}
           onToggleDone={async (taskId, done) => {
             const updated = await window.api.task.toggleDone(taskId, done)
             if (!updated.ok) {
@@ -393,6 +407,21 @@ export function ProjectPage() {
             })()
           }}
         />
+
+        <div className="sections-header">
+          <button
+            type="button"
+            className="button button-ghost"
+            disabled={doneCount === 0}
+            aria-expanded={isCompletedExpanded}
+            onClick={() => {
+              const next = !isCompletedExpanded
+              setIsCompletedExpanded(next)
+            }}
+          >
+            {completedLabel} {isCompletedExpanded ? '▾' : '▸'}
+          </button>
+        </div>
 
         {openCount === 0 && (!isCompletedExpanded || doneCount === 0) ? (
           <div className="nav-muted" style={{ marginTop: 10 }}>
@@ -446,7 +475,6 @@ const ProjectMenu = forwardRef(function ProjectMenu(
     onRename,
     onMarkDone,
     onReopen,
-    onNewSection,
   }: {
     anchorEl: HTMLElement
     project: Project
@@ -457,7 +485,6 @@ const ProjectMenu = forwardRef(function ProjectMenu(
     onRename: () => Promise<void>
     onMarkDone: () => Promise<void>
     onReopen: () => Promise<void>
-    onNewSection: () => Promise<void>
   },
   ref: ForwardedRef<HTMLDivElement>
 ) {
@@ -521,19 +548,6 @@ const ProjectMenu = forwardRef(function ProjectMenu(
             }}
           >
             Rename
-          </button>
-
-          <button
-            type="button"
-            className="button button-ghost"
-            onClick={() => {
-              void (async () => {
-                await onNewSection()
-                onClose()
-              })()
-            }}
-          >
-            + Section
           </button>
         </div>
 

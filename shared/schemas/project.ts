@@ -64,7 +64,8 @@ export type ProjectUpdateInput = z.infer<typeof ProjectUpdateInputSchema>
 export const ProjectSectionSchema = z.object({
   id: IdSchema,
   project_id: IdSchema,
-  title: z.string().min(1),
+  // Sections may be created before being named.
+  title: z.string(),
   position: z.number().int(),
   created_at: IsoDateTimeSchema,
   updated_at: IsoDateTimeSchema,
@@ -75,12 +76,14 @@ export type ProjectSection = z.infer<typeof ProjectSectionSchema>
 
 export const ProjectSectionCreateInputSchema = z.object({
   project_id: IdSchema,
-  title: z.string().min(1),
+  // Allow empty string titles (see ProjectSectionSchema).
+  title: z.string(),
 })
 
 export const ProjectSectionRenameInputSchema = z.object({
   id: IdSchema,
-  title: z.string().min(1),
+  // Allow clearing section titles back to empty.
+  title: z.string(),
 })
 
 export const ProjectSectionDeleteInputSchema = z.object({

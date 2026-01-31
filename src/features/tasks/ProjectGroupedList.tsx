@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { useVirtualizer } from '@tanstack/react-virtual'
 
@@ -31,6 +31,9 @@ export function ProjectGroupedList({
   sections,
   openTasks,
   doneTasks,
+  editingSectionId,
+  onCancelSectionTitleEdit,
+  onCommitSectionTitle,
   onToggleDone,
   onRenameSection,
   onDeleteSection,
@@ -38,6 +41,9 @@ export function ProjectGroupedList({
   sections: ProjectSection[]
   openTasks: TaskListItem[]
   doneTasks: TaskListItem[] | null
+  editingSectionId: string | null
+  onCancelSectionTitleEdit: () => void
+  onCommitSectionTitle: (sectionId: string, title: string) => Promise<void>
   onToggleDone: (taskId: string, done: boolean) => Promise<void>
   onRenameSection: (sectionId: string, currentTitle: string) => void
   onDeleteSection: (sectionId: string) => void
@@ -47,6 +53,10 @@ export function ProjectGroupedList({
 
   const listboxRef = useRef<HTMLDivElement | null>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
+
+  const editTitleInputRef = useRef<HTMLInputElement | null>(null)
+  const [editTitleDraft, setEditTitleDraft] = useState('')
+  const lastEditingSectionIdRef = useRef<string | null>(null)
 
   useLayoutEffect(() => {
     let cancelled = false
@@ -73,9 +83,10 @@ export function ProjectGroupedList({
     }
   }, [contentScrollRef])
 
-  const { rows, taskRowIndexById } = useMemo(() => {
+  const { rows, taskRowIndexById, groupRowIndexBySectionId } = useMemo(() => {
     const rows: Row[] = []
     const taskRowIndexById = new Map<string, number>()
+    const groupRowIndexBySectionId = new Map<string, number>()
 
     const openBySection = new Map<string, TaskListItem[]>()
     const openNone: TaskListItem[] = []
@@ -105,15 +116,7 @@ export function ProjectGroupedList({
       for (const list of doneBySection.values()) list.sort(sortByRankThenCreated)
     }
 
-    // Top group: tasks with no section.
-    rows.push({
-      type: 'group',
-      key: 'g:none',
-      title: '',
-      sectionId: null,
-      openCount: openNone.length,
-      doneCount: doneTasks ? doneNone.length : null,
-    })
+    // Tasks with no section: render first, without a dedicated group header.
     for (const task of openNone) {
       taskRowIndexById.set(task.id, rows.length)
       rows.push({ type: 'task', task })
@@ -130,6 +133,7 @@ export function ProjectGroupedList({
       const open = openBySection.get(s.id) ?? []
       const done = doneTasks ? doneBySection.get(s.id) ?? [] : null
 
+      const groupIndex = rows.length
       rows.push({
         type: 'group',
         key: `g:${s.id}`,
@@ -138,6 +142,7 @@ export function ProjectGroupedList({
         openCount: open.length,
         doneCount: doneTasks ? (done?.length ?? 0) : null,
       })
+      groupRowIndexBySectionId.set(s.id, groupIndex)
 
       for (const task of open) {
         taskRowIndexById.set(task.id, rows.length)
@@ -151,8 +156,20 @@ export function ProjectGroupedList({
       }
     }
 
-    return { rows, taskRowIndexById }
+    return { rows, taskRowIndexById, groupRowIndexBySectionId }
   }, [doneTasks, openTasks, sections])
+
+  useEffect(() => {
+    if (!editingSectionId) {
+      lastEditingSectionIdRef.current = null
+      return
+    }
+    if (lastEditingSectionIdRef.current === editingSectionId) return
+    lastEditingSectionIdRef.current = editingSectionId
+
+    const current = sections.find((s) => s.id === editingSectionId)?.title ?? ''
+    setEditTitleDraft(current)
+  }, [editingSectionId, sections])
 
   const lastSelectedIndexRef = useRef(0)
   useLayoutEffect(() => {
@@ -205,6 +222,19 @@ export function ProjectGroupedList({
       return `t:${row.task.id}`
     },
   })
+
+  useLayoutEffect(() => {
+    if (!editingSectionId) return
+    const idx = groupRowIndexBySectionId.get(editingSectionId)
+    if (idx === undefined) return
+
+    rowVirtualizer.scrollToIndex(idx)
+    const raf = window.requestAnimationFrame(() => {
+      editTitleInputRef.current?.focus()
+      editTitleInputRef.current?.select()
+    })
+    return () => window.cancelAnimationFrame(raf)
+  }, [editingSectionId, groupRowIndexBySectionId, rowVirtualizer])
 
   function moveSelection(dir: -1 | 1) {
     if (rows.length === 0) return
@@ -265,6 +295,8 @@ export function ProjectGroupedList({
           if (!row) return null
 
           if (row.type === 'group') {
+            const isEditing = !!row.sectionId && row.sectionId === editingSectionId
+            const title = row.title.trim() ? row.title : '(untitled)'
             return (
               <li
                 key={row.key}
@@ -283,14 +315,61 @@ export function ProjectGroupedList({
                 }}
               >
                 <div className="project-group-left">
-                  {row.title ? <div className="project-group-title">{row.title}</div> : null}
+                  {isEditing ? (
+                    <input
+                      ref={editTitleInputRef}
+                      className="project-group-title project-group-title-input"
+                      value={editTitleDraft}
+                      placeholder="(untitled)"
+                      aria-label="Section title"
+                      onChange={(e) => setEditTitleDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        // Prevent listbox navigation and allow inline editing.
+                        e.stopPropagation()
+
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          const sectionId = row.sectionId
+                          if (!sectionId) return
+
+                          const next = editTitleDraft.trim()
+                          const current = sections.find((s) => s.id === sectionId)?.title ?? ''
+                          if (next === current) {
+                            onCancelSectionTitleEdit()
+                            return
+                          }
+                          void onCommitSectionTitle(sectionId, next)
+                          return
+                        }
+
+                        if (e.key === 'Escape') {
+                          e.preventDefault()
+                          onCancelSectionTitleEdit()
+                        }
+                      }}
+                      onBlur={() => {
+                        const sectionId = row.sectionId
+                        if (!sectionId) return
+
+                        const next = editTitleDraft.trim()
+                        const current = sections.find((s) => s.id === sectionId)?.title ?? ''
+                        if (next === current) {
+                          onCancelSectionTitleEdit()
+                          return
+                        }
+                        void onCommitSectionTitle(sectionId, next)
+                      }}
+                    />
+                  ) : (
+                    <div className={`project-group-title${row.title.trim() ? '' : ' is-placeholder'}`}>{title}</div>
+                  )}
                   <div className="project-group-meta">
                     {row.openCount} open
                     {row.doneCount !== null ? ` · ${row.doneCount} done` : null}
                   </div>
                 </div>
 
-                {row.sectionId ? (
+                {row.sectionId && !isEditing ? (
                   <div className="project-group-actions">
                     <button
                       type="button"

@@ -449,6 +449,27 @@ body {
   text-overflow: ellipsis;
 }
 
+.project-group-title.is-placeholder {
+  color: var(--muted);
+}
+
+.project-group-title-input {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+}
+
+.project-group-title-input:focus {
+  outline: none;
+}
+
+.project-group-title-input::placeholder {
+  color: var(--muted);
+}
+
 .project-group-meta {
   font-size: 10px;
   color: var(--muted);

@@ -10,6 +10,8 @@ import { type OpenEditorHandle, TaskSelectionProvider } from '../features/tasks/
 import { CommandPalette } from './CommandPalette'
 import { formatLocalDate } from '../lib/dates'
 
+const PROJECT_CREATE_SECTION_EVENT = 'milesto:project.createSection'
+
 type SidebarModel = {
   areas: Area[]
   openProjects: Project[]
@@ -26,6 +28,11 @@ export function AppShell() {
   const [createMode, setCreateMode] = useState<'project' | 'area' | null>(null)
   const [createTitle, setCreateTitle] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+
+  const projectIdFromRoute = useMemo(() => {
+    const match = location.pathname.match(/^\/projects\/([^/]+)$/)
+    return match?.[1] ?? null
+  }, [location.pathname])
 
   const contentScrollRef = useRef<HTMLDivElement | null>(null)
 
@@ -134,6 +141,12 @@ export function AppShell() {
     bumpRevision()
     await openTask(res.data.id)
     if (shouldNavigateTo) navigate(shouldNavigateTo)
+  }
+
+  function handleAddSection() {
+    const projectId = projectIdFromRoute
+    if (!projectId) return
+    window.dispatchEvent(new CustomEvent(PROJECT_CREATE_SECTION_EVENT, { detail: { projectId } }))
   }
 
   const refreshSidebar = useCallback(async () => {
@@ -344,15 +357,20 @@ export function AppShell() {
                 <Outlet />
               </div>
 
-              <div className="content-bottom-bar">
-                <div className="content-bottom-left">
-                  <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
-                    + Task
-                  </button>
-                  <span className="content-bottom-hint">Cmd/Ctrl + K</span>
+                <div className="content-bottom-bar">
+                  <div className="content-bottom-left">
+                    <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
+                      + Task
+                    </button>
+                    {projectIdFromRoute ? (
+                      <button type="button" className="button button-ghost" onClick={handleAddSection}>
+                        + Section
+                      </button>
+                    ) : null}
+                    <span className="content-bottom-hint">Cmd/Ctrl + K</span>
+                  </div>
+                  <div className="content-bottom-right">Local, offline</div>
                 </div>
-                <div className="content-bottom-right">Local, offline</div>
-              </div>
             </div>
           </div>
         </main>
