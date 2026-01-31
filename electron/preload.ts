@@ -34,6 +34,8 @@ const api: WindowApi = {
     listUpcoming: (fromDate) => invoke('db:task.listUpcoming', { from_date: fromDate }),
     listLogbook: () => invoke('db:task.listLogbook', {}),
     listProject: (projectId) => invoke('db:task.listProject', { project_id: projectId }),
+    countProjectDone: (projectId) => invoke('db:task.countProjectDone', { project_id: projectId }),
+    listProjectDone: (projectId) => invoke('db:task.listProjectDone', { project_id: projectId }),
     listArea: (areaId) => invoke('db:task.listArea', { area_id: areaId }),
 
     search: (query, options) =>
@@ -58,6 +60,7 @@ const api: WindowApi = {
     create: (input) => invoke('db:project.create', input),
     get: (id) => invoke('db:project.get', { id }),
     update: (input) => invoke('db:project.update', input),
+    complete: (id) => invoke('db:project.complete', { id }),
     listOpen: () => invoke('db:project.listOpen', {}),
     listDone: () => invoke('db:project.listDone', {}),
     listOpenByArea: (areaId) => invoke('db:project.listOpenByArea', { area_id: areaId }),

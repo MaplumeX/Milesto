@@ -24,6 +24,21 @@ export const ProjectIdInputSchema = z.object({
 
 export type ProjectIdInput = z.infer<typeof ProjectIdInputSchema>
 
+// Atomic completion: mark project done and complete all tasks in the project.
+export const ProjectCompleteInputSchema = z.object({
+  id: IdSchema,
+})
+
+export type ProjectCompleteInput = z.infer<typeof ProjectCompleteInputSchema>
+
+export const ProjectCompleteResultSchema = z.object({
+  project: ProjectSchema,
+  // Number of tasks transitioned from open -> done by this operation.
+  tasks_completed: z.number().int().nonnegative(),
+})
+
+export type ProjectCompleteResult = z.infer<typeof ProjectCompleteResultSchema>
+
 export const ProjectCreateInputSchema = z.object({
   title: z.string().min(1),
   notes: z.string().optional(),

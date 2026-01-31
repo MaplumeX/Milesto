@@ -14,8 +14,11 @@ import {
 } from '../../../../shared/schemas/task'
 import {
   TaskListBaseInputSchema,
+  TaskCountProjectDoneInputSchema,
+  TaskCountResultSchema,
   TaskListItemSchema,
   TaskListLogbookInputSchema,
+  TaskListProjectDoneInputSchema,
   TaskListProjectInputSchema,
   TaskListTodayInputSchema,
   TaskListUpcomingInputSchema,
@@ -511,6 +514,69 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
              AND t.status = 'open'
              AND t.project_id = @project_id
            ORDER BY t.created_at ASC`
+        )
+        .all({ project_id: parsed.data.project_id })
+
+      const items = z.array(TaskListItemSchema).parse(rows)
+      return { ok: true, data: items }
+    },
+
+    'task.countProjectDone': (payload) => {
+      const parsed = TaskCountProjectDoneInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid task.countProjectDone payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const row = db
+        .prepare(
+          `SELECT COUNT(1) AS count
+           FROM tasks
+           WHERE deleted_at IS NULL
+             AND project_id = @project_id
+             AND status = 'done'`
+        )
+        .get({ project_id: parsed.data.project_id }) as { count: number }
+
+      return { ok: true, data: TaskCountResultSchema.parse({ count: row.count }) }
+    },
+
+    'task.listProjectDone': (payload) => {
+      const parsed = TaskListProjectDoneInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid task.listProjectDone payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const rows = db
+        .prepare(
+          `SELECT
+             t.id, t.title, t.status, t.base_list, t.project_id, t.section_id, t.area_id,
+             t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
+             lp.rank AS rank
+           FROM tasks t
+           LEFT JOIN list_positions lp
+             ON lp.task_id = t.id
+            AND lp.list_id = ('project:' || @project_id || ':' || COALESCE(t.section_id, 'none'))
+           WHERE t.deleted_at IS NULL
+             AND t.status = 'done'
+             AND t.project_id = @project_id
+           ORDER BY
+             CASE WHEN lp.rank IS NULL THEN 1 ELSE 0 END,
+             lp.rank ASC,
+             t.created_at ASC`
         )
         .all({ project_id: parsed.data.project_id })
 

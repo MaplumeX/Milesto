@@ -88,6 +88,11 @@ function findButtonByText(root: ParentNode, text: string): HTMLButtonElement | n
   return all.find((b) => (b.textContent ?? '').trim() === text) ?? null
 }
 
+function findButtonContainingText(root: ParentNode, text: string): HTMLButtonElement | null {
+  const all = Array.from(root.querySelectorAll<HTMLButtonElement>('button'))
+  return all.find((b) => (b.textContent ?? '').includes(text)) ?? null
+}
+
 function getInlinePaper(): HTMLElement | null {
   return document.querySelector<HTMLElement>('.task-inline-paper')
 }
@@ -483,6 +488,62 @@ async function runSelfTest(): Promise<SelfTestResult> {
     const upcomingAId = upcomingARes.data.id
     const upcomingBId = upcomingBRes.data.id
 
+    // Seed a project for Project page flows (completed toggle + project completion).
+    const projectRes = await window.api.project.create({ title: `${token} Project A` })
+    if (!projectRes.ok) {
+      throw new Error(
+        `project.create failed: ${projectRes.error.code}: ${projectRes.error.message}`
+      )
+    }
+    const projectId = projectRes.data.id
+    const sectionARes = await window.api.project.createSection(projectId, `${token} Section A`)
+    if (!sectionARes.ok) {
+      throw new Error(
+        `project.createSection failed: ${sectionARes.error.code}: ${sectionARes.error.message}`
+      )
+    }
+
+    const projectOpenNoneRes = await window.api.task.create({
+      title: `${token} Project Open None`,
+      base_list: 'anytime',
+      project_id: projectId,
+    })
+    if (!projectOpenNoneRes.ok) {
+      throw new Error(
+        `task.create projectOpenNone failed: ${projectOpenNoneRes.error.code}: ${projectOpenNoneRes.error.message}`
+      )
+    }
+
+    const projectOpenSectionRes = await window.api.task.create({
+      title: `${token} Project Open Section`,
+      base_list: 'anytime',
+      project_id: projectId,
+      section_id: sectionARes.data.id,
+    })
+    if (!projectOpenSectionRes.ok) {
+      throw new Error(
+        `task.create projectOpenSection failed: ${projectOpenSectionRes.error.code}: ${projectOpenSectionRes.error.message}`
+      )
+    }
+
+    const projectDoneRes = await window.api.task.create({
+      title: `${token} Project Done`,
+      base_list: 'anytime',
+      project_id: projectId,
+      section_id: sectionARes.data.id,
+    })
+    if (!projectDoneRes.ok) {
+      throw new Error(
+        `task.create projectDone failed: ${projectDoneRes.error.code}: ${projectDoneRes.error.message}`
+      )
+    }
+    const projectDoneToggleRes = await window.api.task.toggleDone(projectDoneRes.data.id, true)
+    if (!projectDoneToggleRes.ok) {
+      throw new Error(
+        `task.toggleDone projectDone failed: ${projectDoneToggleRes.error.code}: ${projectDoneToggleRes.error.message}`
+      )
+    }
+
     // Inbox (virtualized TaskList)
     window.location.hash = '/inbox'
     const inboxListbox = await waitFor('Inbox listbox', () =>
@@ -778,6 +839,108 @@ async function runSelfTest(): Promise<SelfTestResult> {
     assertEditorInView(upcomingListbox, paper, 'Upcoming B')
 
     await closeEditorWithEscape(upcomingBId, 'Upcoming B')
+
+    // Project page (grouped list + completed toggle + project completion)
+    window.location.hash = `/projects/${projectId}`
+    const projectListbox = await waitFor('Project listbox', () =>
+      document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Project tasks"]')
+    )
+
+    const completedToggle = await waitFor('Project completed toggle', () =>
+      findButtonContainingText(document, 'Completed')
+    )
+
+    // Completed tasks are collapsed by default.
+    if (findTaskButton(projectDoneRes.data.id)) {
+      throw new Error('Project: completed tasks visible by default (should be collapsed)')
+    }
+
+    completedToggle.click()
+    await waitFor('Project done task visible after expand', () =>
+      findTaskButton(projectDoneRes.data.id)
+    )
+    assertNoOverlap(projectListbox, 'Project: after expand')
+
+    completedToggle.click()
+    await waitFor('Project done task hidden after collapse', () =>
+      findTaskButton(projectDoneRes.data.id) ? null : true
+    )
+
+    // Project completion requires confirmation; auto-accept during self-test.
+    const prevConfirm = window.confirm
+    ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = () => true
+    try {
+      const projectDoneCheckbox = await waitFor('Project done checkbox', () =>
+        document.querySelector<HTMLInputElement>('.page-header input[type="checkbox"]')
+      )
+
+      projectDoneCheckbox.click()
+
+      await waitFor('Project checkbox checked + disabled', () => {
+        const cb = document.querySelector<HTMLInputElement>('.page-header input[type="checkbox"]')
+        return cb && cb.checked && cb.disabled ? cb : null
+      })
+
+      // Open tasks should disappear (they were completed).
+      await waitFor('Project open tasks hidden', () =>
+        findTaskButton(projectOpenNoneRes.data.id) ? null : true
+      )
+      await waitFor('Project open section tasks hidden', () =>
+        findTaskButton(projectOpenSectionRes.data.id) ? null : true
+      )
+
+      // Expand to see completed tasks (including previously-open tasks).
+      const completedToggleAfterComplete = await waitFor('Project completed toggle (post complete)', () =>
+        findButtonContainingText(document, 'Completed')
+      )
+      completedToggleAfterComplete.click()
+
+      await waitFor('Project done task visible (post complete)', () =>
+        findTaskButton(projectDoneRes.data.id)
+      )
+      await waitFor('Project former open task visible (post complete)', () =>
+        findTaskButton(projectOpenNoneRes.data.id)
+      )
+      await waitFor('Project former open section task visible (post complete)', () =>
+        findTaskButton(projectOpenSectionRes.data.id)
+      )
+
+      // Reopen via overflow menu (project status only; tasks remain done).
+      const menuButton = await waitFor('Project overflow menu button', () =>
+        findButtonByText(document, '...')
+      )
+      menuButton.click()
+
+      const reopenButton = await waitFor('Project reopen button', () =>
+        findButtonByText(document, 'Reopen')
+      )
+      reopenButton.click()
+
+      await waitFor('Project checkbox unchecked + enabled after reopen', () => {
+        const cb = document.querySelector<HTMLInputElement>('.page-header input[type="checkbox"]')
+        return cb && !cb.checked && !cb.disabled ? cb : null
+      })
+
+      // Tasks stay done after reopening (open list remains empty).
+      if (findTaskButton(projectOpenNoneRes.data.id) || findTaskButton(projectOpenSectionRes.data.id)) {
+        throw new Error('Project: reopening restored tasks unexpectedly')
+      }
+
+      // Completed toggle state is not persisted across navigation.
+      window.location.hash = '/today'
+      await waitFor('Today listbox (post project)', () =>
+        document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+      )
+      window.location.hash = `/projects/${projectId}`
+      await waitFor('Project listbox (return)', () =>
+        document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Project tasks"]')
+      )
+      await waitFor('Project completed task remains collapsed after navigation', () =>
+        findTaskButton(projectDoneRes.data.id) ? null : true
+      )
+    } finally {
+      ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = prevConfirm
+    }
   } catch (e) {
     failures.push(e instanceof Error ? e.message : String(e))
   } finally {

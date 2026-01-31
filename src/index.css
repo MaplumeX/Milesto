@@ -408,6 +408,45 @@ body {
   border-bottom: 1px solid rgba(29, 29, 27, 0.08);
 }
 
+/* Project page grouping headers (sections + no-section group). */
+.project-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.7);
+  border-bottom: 1px solid rgba(29, 29, 27, 0.08);
+}
+
+.project-group-left {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.project-group-title {
+  font-weight: 650;
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-group-meta {
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.project-group-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .detail-actions {
   display: flex;
   gap: 10px;
@@ -577,6 +616,13 @@ body {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 18px;
+}
+
+.project-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .page-title {

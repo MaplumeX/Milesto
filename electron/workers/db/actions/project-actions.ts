@@ -5,6 +5,8 @@ import type { DbActionHandler } from './db-actions'
 import { nowIso, uuidv7 } from './utils'
 
 import {
+  ProjectCompleteInputSchema,
+  ProjectCompleteResultSchema,
   ProjectCreateInputSchema,
   ProjectIdInputSchema,
   ProjectSchema,
@@ -193,6 +195,81 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
           )
           .get(input.id)
         return { ok: true as const, data: ProjectSchema.parse(row) }
+      })
+
+      return tx()
+    },
+
+    'project.complete': (payload) => {
+      const parsed = ProjectCompleteInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid project.complete payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const updatedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        const existing = db
+          .prepare(
+            `SELECT id, status
+             FROM projects
+             WHERE id = ? AND deleted_at IS NULL
+             LIMIT 1`
+          )
+          .get(parsed.data.id) as { id: string; status: string } | undefined
+
+        if (!existing) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Project not found.',
+              details: { id: parsed.data.id },
+            },
+          }
+        }
+
+        if (existing.status !== 'done') {
+          db.prepare(
+            `UPDATE projects
+             SET status = 'done',
+                 completed_at = @completed_at,
+                 updated_at = @updated_at
+             WHERE id = @id AND deleted_at IS NULL`
+          ).run({ id: parsed.data.id, completed_at: updatedAt, updated_at: updatedAt })
+        }
+
+        const taskRes = db
+          .prepare(
+            `UPDATE tasks
+             SET status = 'done',
+                 completed_at = @completed_at,
+                 updated_at = @updated_at
+             WHERE deleted_at IS NULL
+               AND project_id = @project_id
+               AND status = 'open'`
+          )
+          .run({ project_id: parsed.data.id, completed_at: updatedAt, updated_at: updatedAt })
+
+        const row = db
+          .prepare(
+            `SELECT id, title, notes, area_id, status, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+             FROM projects WHERE id = ? AND deleted_at IS NULL LIMIT 1`
+          )
+          .get(parsed.data.id)
+
+        const result = ProjectCompleteResultSchema.parse({
+          project: ProjectSchema.parse(row),
+          tasks_completed: taskRes.changes,
+        })
+        return { ok: true as const, data: result }
       })
 
       return tx()

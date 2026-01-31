@@ -12,6 +12,8 @@ import { DbWorkerClient } from './workers/db/db-worker-client'
 
 import {
   DataExportSchema,
+  ProjectCompleteInputSchema,
+  ProjectCompleteResultSchema,
   ProjectCreateInputSchema,
   ProjectIdInputSchema,
   ProjectSchema,
@@ -35,8 +37,11 @@ import {
   TaskToggleDoneInputSchema,
   TaskUpdateInputSchema,
   TaskListBaseInputSchema,
+  TaskCountProjectDoneInputSchema,
+  TaskCountResultSchema,
   TaskListItemSchema,
   TaskListLogbookInputSchema,
+  TaskListProjectDoneInputSchema,
   TaskListProjectInputSchema,
   TaskListTodayInputSchema,
   TaskListUpcomingInputSchema,
@@ -429,6 +434,18 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     TaskListProjectInputSchema,
     z.array(TaskListItemSchema)
   )
+  handleDb(
+    'db:task.countProjectDone',
+    'task.countProjectDone',
+    TaskCountProjectDoneInputSchema,
+    TaskCountResultSchema
+  )
+  handleDb(
+    'db:task.listProjectDone',
+    'task.listProjectDone',
+    TaskListProjectDoneInputSchema,
+    z.array(TaskListItemSchema)
+  )
   handleDb('db:task.listArea', 'task.listArea', z.object({ area_id: z.string() }), z.array(TaskListItemSchema))
   handleDb(
     'db:task.search',
@@ -442,6 +459,7 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   handleDb('db:project.create', 'project.create', ProjectCreateInputSchema, ProjectSchema)
   handleDb('db:project.get', 'project.get', ProjectIdInputSchema, ProjectSchema)
   handleDb('db:project.update', 'project.update', ProjectUpdateInputSchema, ProjectSchema)
+  handleDb('db:project.complete', 'project.complete', ProjectCompleteInputSchema, ProjectCompleteResultSchema)
   handleDb('db:project.listOpen', 'project.listOpen', z.object({}), z.array(ProjectSchema))
   handleDb('db:project.listDone', 'project.listDone', z.object({}), z.array(ProjectSchema))
   handleDb(

@@ -39,3 +39,18 @@ export const TaskListLogbookInputSchema = z.object({})
 export const TaskListProjectInputSchema = z.object({
   project_id: IdSchema,
 })
+
+// Project-level completed tasks support (used for the "Completed (N)" toggle).
+export const TaskCountProjectDoneInputSchema = z.object({
+  project_id: IdSchema,
+})
+
+export const TaskCountResultSchema = z.object({
+  count: z.number().int().nonnegative(),
+})
+
+export type TaskCountResult = z.infer<typeof TaskCountResultSchema>
+
+export const TaskListProjectDoneInputSchema = z.object({
+  project_id: IdSchema,
+})

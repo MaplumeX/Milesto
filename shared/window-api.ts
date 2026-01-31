@@ -9,12 +9,13 @@ import type {
 import type {
   Project,
   ProjectCreateInput,
+  ProjectCompleteResult,
   ProjectSection,
   ProjectUpdateInput,
 } from './schemas/project'
 import type { Tag, TagCreateInput, TagUpdateInput } from './schemas/tag'
 import type { Task, TaskCreateInput, TaskUpdateInput } from './schemas/task'
-import type { TaskListItem } from './schemas/task-list'
+import type { TaskCountResult, TaskListItem } from './schemas/task-list'
 import type { TaskSearchResultItem } from './schemas/search'
 import type { TaskDetail } from './schemas/task-detail'
 
@@ -55,6 +56,8 @@ export type WindowApi = {
     listUpcoming(fromDate: string): Promise<Result<TaskListItem[]>>
     listLogbook(): Promise<Result<TaskListItem[]>>
     listProject(projectId: string): Promise<Result<TaskListItem[]>>
+    countProjectDone(projectId: string): Promise<Result<TaskCountResult>>
+    listProjectDone(projectId: string): Promise<Result<TaskListItem[]>>
     listArea(areaId: string): Promise<Result<TaskListItem[]>>
 
     search(query: string, options?: { includeLogbook?: boolean }): Promise<Result<TaskSearchResultItem[]>>
@@ -67,6 +70,7 @@ export type WindowApi = {
     create(input: ProjectCreateInput): Promise<Result<Project>>
     get(id: string): Promise<Result<Project>>
     update(input: ProjectUpdateInput): Promise<Result<Project>>
+    complete(id: string): Promise<Result<ProjectCompleteResult>>
     listOpen(): Promise<Result<Project[]>>
     listDone(): Promise<Result<Project[]>>
     listOpenByArea(areaId: string): Promise<Result<Project[]>>
