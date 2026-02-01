@@ -846,6 +846,68 @@ async function runSelfTest(): Promise<SelfTestResult> {
       document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Project tasks"]')
     )
 
+    // Section header rows participate in selection and can enter inline title editing.
+    projectListbox.focus()
+    dispatchKey(projectListbox, 'ArrowDown')
+    await sleep(50)
+    dispatchKey(projectListbox, 'ArrowDown')
+    await waitFor('Project: section header selected', () => {
+      const el = document.querySelector<HTMLElement>(
+        `.project-group-header.is-selected[data-section-id="${sectionARes.data.id}"]`
+      )
+      return el ? true : null
+    })
+
+    dispatchKey(projectListbox, 'Enter')
+    const sectionTitleInput = await waitFor('Project: section title input', () =>
+      document.querySelector<HTMLInputElement>('input.project-group-title-input[aria-label="Section title"]')
+    )
+    await waitFor('Project: section title input focused', () =>
+      document.activeElement === sectionTitleInput ? true : null
+    )
+    dispatchKey(sectionTitleInput, 'Escape')
+    await waitFor('Project: section edit exited', () =>
+      document.querySelector('input.project-group-title-input[aria-label="Section title"]') ? null : true
+    )
+
+    // Safe-close: if a task editor is open, Enter on a selected section should flush+close it first.
+    const projectOpenNoneButtonForEditor = await waitFor('Project open none button (for editor)', () =>
+      findTaskButton(projectOpenNoneRes.data.id)
+    )
+    await openEditorByEnter({
+      listbox: projectListbox,
+      taskId: projectOpenNoneRes.data.id,
+      button: projectOpenNoneButtonForEditor,
+      label: 'Project open none (enter)',
+    })
+
+    projectListbox.focus()
+    dispatchKey(projectListbox, 'ArrowDown')
+    await waitFor('Project: section header selected (with editor open)', () => {
+      const el = document.querySelector<HTMLElement>(
+        `.project-group-header.is-selected[data-section-id="${sectionARes.data.id}"]`
+      )
+      return el ? true : null
+    })
+    dispatchKey(projectListbox, 'Enter')
+    await waitFor('Project: task editor closed before section edit', () => (getInlinePaper() ? null : true), {
+      timeoutMs: 20_000,
+    })
+    const sectionTitleInputAfterClose = await waitFor('Project: section title input (after close)', () =>
+      document.querySelector<HTMLInputElement>('input.project-group-title-input[aria-label="Section title"]')
+    )
+    await waitFor('Project: section title focused (after close)', () =>
+      document.activeElement === sectionTitleInputAfterClose ? true : null
+    )
+    dispatchKey(sectionTitleInputAfterClose, 'Escape')
+    await waitFor('Project: section edit exited (after close)', () =>
+      document.querySelector('input.project-group-title-input[aria-label="Section title"]') ? null : true
+    )
+
+    // Reset scroll position so later Project assertions can find expected rows.
+    contentScroller.scrollTop = 0
+    await sleep(150)
+
     const completedToggle = await waitFor('Project completed toggle', () =>
       findButtonContainingText(document, 'Completed')
     )
@@ -895,12 +957,28 @@ async function runSelfTest(): Promise<SelfTestResult> {
       )
       completedToggleAfterComplete.click()
 
+      // Ensure top-of-list rows are rendered before asserting visibility in a virtualized list.
+      contentScroller.scrollTop = 0
+      await sleep(150)
+
       await waitFor('Project done task visible (post complete)', () =>
         findTaskButton(projectDoneRes.data.id)
       )
-      await waitFor('Project former open task visible (post complete)', () =>
-        findTaskButton(projectOpenNoneRes.data.id)
-      )
+
+      try {
+        await waitFor(
+          'Project former open task visible (post complete)',
+          () => findTaskButton(projectOpenNoneRes.data.id),
+          { timeoutMs: 2000 }
+        )
+      } catch {
+        // If list ordering/scroll differs (virtualized), scroll to the end and retry.
+        contentScroller.scrollTop = contentScroller.scrollHeight
+        await sleep(150)
+        await waitFor('Project former open task visible (post complete)', () =>
+          findTaskButton(projectOpenNoneRes.data.id)
+        )
+      }
       await waitFor('Project former open section task visible (post complete)', () =>
         findTaskButton(projectOpenSectionRes.data.id)
       )
@@ -921,8 +999,14 @@ async function runSelfTest(): Promise<SelfTestResult> {
         return cb && !cb.checked && !cb.disabled ? cb : null
       })
 
-      // Tasks stay done after reopening (open list remains empty).
-      if (findTaskButton(projectOpenNoneRes.data.id) || findTaskButton(projectOpenSectionRes.data.id)) {
+      // Reopening changes the project status only; tasks should remain done.
+      const openAfterReopen = await window.api.task.listProject(projectId)
+      if (!openAfterReopen.ok) {
+        throw new Error(
+          `Project: listProject after reopen failed: ${openAfterReopen.error.code}: ${openAfterReopen.error.message}`
+        )
+      }
+      if (openAfterReopen.data.length !== 0) {
         throw new Error('Project: reopening restored tasks unexpectedly')
       }
 

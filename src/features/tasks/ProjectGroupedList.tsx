@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { useVirtualizer } from '@tanstack/react-virtual'
 
@@ -20,6 +20,11 @@ type Row =
     }
   | { type: 'task'; task: TaskListItem }
 
+type SelectedRow =
+  | { type: 'task'; taskId: string }
+  | { type: 'group'; sectionId: string }
+  | null
+
 function sortByRankThenCreated(a: TaskListItem, b: TaskListItem) {
   const ar = a.rank ?? Number.POSITIVE_INFINITY
   const br = b.rank ?? Number.POSITIVE_INFINITY
@@ -32,23 +37,21 @@ export function ProjectGroupedList({
   openTasks,
   doneTasks,
   editingSectionId,
+  onStartSectionTitleEdit,
   onCancelSectionTitleEdit,
   onCommitSectionTitle,
   onToggleDone,
-  onRenameSection,
-  onDeleteSection,
 }: {
   sections: ProjectSection[]
   openTasks: TaskListItem[]
   doneTasks: TaskListItem[] | null
   editingSectionId: string | null
+  onStartSectionTitleEdit: (sectionId: string) => void
   onCancelSectionTitleEdit: () => void
   onCommitSectionTitle: (sectionId: string, title: string) => Promise<void>
   onToggleDone: (taskId: string, done: boolean) => Promise<void>
-  onRenameSection: (sectionId: string, currentTitle: string) => void
-  onDeleteSection: (sectionId: string) => void
 }) {
-  const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
+  const { selectedTaskId, selectTask, openTask, openTaskId, requestCloseTask } = useTaskSelection()
   const contentScrollRef = useContentScrollRef()
 
   const listboxRef = useRef<HTMLDivElement | null>(null)
@@ -57,6 +60,8 @@ export function ProjectGroupedList({
   const editTitleInputRef = useRef<HTMLInputElement | null>(null)
   const [editTitleDraft, setEditTitleDraft] = useState('')
   const lastEditingSectionIdRef = useRef<string | null>(null)
+
+  const [selectedRow, setSelectedRow] = useState<SelectedRow>(null)
 
   useLayoutEffect(() => {
     let cancelled = false
@@ -159,6 +164,29 @@ export function ProjectGroupedList({
     return { rows, taskRowIndexById, groupRowIndexBySectionId }
   }, [doneTasks, openTasks, sections])
 
+  const selectedRowIndex = useMemo(() => {
+    if (!selectedRow) return null
+    if (selectedRow.type === 'task') return taskRowIndexById.get(selectedRow.taskId) ?? null
+    return groupRowIndexBySectionId.get(selectedRow.sectionId) ?? null
+  }, [groupRowIndexBySectionId, selectedRow, taskRowIndexById])
+
+  useEffect(() => {
+    if (rows.length === 0) {
+      setSelectedRow(null)
+    }
+  }, [rows.length])
+
+  useEffect(() => {
+    if (!selectedTaskId) return
+    setSelectedRow({ type: 'task', taskId: selectedTaskId })
+  }, [selectedTaskId])
+
+  useEffect(() => {
+    if (!selectedRow || selectedRow.type !== 'group') return
+    if (groupRowIndexBySectionId.get(selectedRow.sectionId) !== undefined) return
+    setSelectedRow(null)
+  }, [groupRowIndexBySectionId, selectedRow])
+
   useEffect(() => {
     if (!editingSectionId) {
       lastEditingSectionIdRef.current = null
@@ -236,18 +264,40 @@ export function ProjectGroupedList({
     return () => window.cancelAnimationFrame(raf)
   }, [editingSectionId, groupRowIndexBySectionId, rowVirtualizer])
 
+  const selectRowByIndex = useCallback(
+    (index: number) => {
+      const row = rows[index]
+      if (!row) return
+
+      if (row.type === 'task') {
+        setSelectedRow({ type: 'task', taskId: row.task.id })
+        selectTask(row.task.id)
+        rowVirtualizer.scrollToIndex(index)
+        return
+      }
+
+      const sectionId = row.sectionId
+      if (!sectionId) return
+      setSelectedRow({ type: 'group', sectionId })
+      selectTask(null)
+      rowVirtualizer.scrollToIndex(index)
+    },
+    [rowVirtualizer, rows, selectTask]
+  )
+
   function moveSelection(dir: -1 | 1) {
     if (rows.length === 0) return
-    const currentIndex = selectedTaskId ? taskRowIndexById.get(selectedTaskId) ?? -1 : -1
+    const currentIndex = selectedRowIndex ?? -1
     const start = currentIndex < 0 ? (dir === 1 ? -1 : rows.length) : currentIndex
+    const next = start + dir
+    if (next < 0 || next >= rows.length) return
+    selectRowByIndex(next)
+  }
 
-    for (let i = start + dir; i >= 0 && i < rows.length; i += dir) {
-      const r = rows[i]
-      if (r?.type !== 'task') continue
-      selectTask(r.task.id)
-      rowVirtualizer.scrollToIndex(i)
-      return
-    }
+  async function enterSectionTitleEdit(sectionId: string) {
+    const ok = await requestCloseTask()
+    if (!ok) return
+    onStartSectionTitleEdit(sectionId)
   }
 
   return (
@@ -274,8 +324,8 @@ export function ProjectGroupedList({
 
         if (e.key === ' ') {
           e.preventDefault()
-          if (!selectedTaskId) return
-          const idx = taskRowIndexById.get(selectedTaskId)
+          if (!selectedRow || selectedRow.type !== 'task') return
+          const idx = taskRowIndexById.get(selectedRow.taskId)
           const row = idx !== undefined ? rows[idx] : null
           if (!row || row.type !== 'task') return
           void onToggleDone(row.task.id, row.task.status !== 'done')
@@ -284,8 +334,14 @@ export function ProjectGroupedList({
 
         if (e.key === 'Enter') {
           e.preventDefault()
-          if (!selectedTaskId) return
-          void openTask(selectedTaskId)
+          if (!selectedRow) return
+
+          if (selectedRow.type === 'task') {
+            void openTask(selectedRow.taskId)
+            return
+          }
+
+          void enterSectionTitleEdit(selectedRow.sectionId)
         }
       }}
     >
@@ -297,14 +353,16 @@ export function ProjectGroupedList({
           if (row.type === 'group') {
             const isEditing = !!row.sectionId && row.sectionId === editingSectionId
             const title = row.title.trim() ? row.title : '(untitled)'
+            const isSelected = selectedRowIndex === virtualRow.index
             return (
               <li
                 key={row.key}
-                className="project-group-header"
+                className={`project-group-header${isSelected ? ' is-selected' : ''}`}
                 ref={(el) => {
                   if (!el) return
                   rowVirtualizer.measureElement(el)
                 }}
+                data-section-id={row.sectionId ?? undefined}
                 data-index={virtualRow.index}
                 style={{
                   position: 'absolute',
@@ -314,8 +372,8 @@ export function ProjectGroupedList({
                   transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
                 }}
               >
-                <div className="project-group-left">
-                  {isEditing ? (
+                {isEditing ? (
+                  <div className="project-group-left">
                     <input
                       ref={editTitleInputRef}
                       className="project-group-title project-group-title-input"
@@ -360,41 +418,35 @@ export function ProjectGroupedList({
                         void onCommitSectionTitle(sectionId, next)
                       }}
                     />
-                  ) : (
+                    <div className="project-group-meta">
+                      {row.openCount} open
+                      {row.doneCount !== null ? ` · ${row.doneCount} done` : null}
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="project-group-left project-group-left-button"
+                    onClick={() => {
+                      selectRowByIndex(virtualRow.index)
+                    }}
+                    onDoubleClick={() => {
+                      const sectionId = row.sectionId
+                      if (!sectionId) return
+                      // Double-click-to-edit should behave like Return activation.
+                      selectRowByIndex(virtualRow.index)
+                      void enterSectionTitleEdit(sectionId)
+                    }}
+                  >
                     <div className={`project-group-title${row.title.trim() ? '' : ' is-placeholder'}`}>{title}</div>
-                  )}
-                  <div className="project-group-meta">
-                    {row.openCount} open
-                    {row.doneCount !== null ? ` · ${row.doneCount} done` : null}
-                  </div>
-                </div>
+                    <div className="project-group-meta">
+                      {row.openCount} open
+                      {row.doneCount !== null ? ` · ${row.doneCount} done` : null}
+                    </div>
+                  </button>
+                )}
 
-                {row.sectionId && !isEditing ? (
-                  <div className="project-group-actions">
-                    <button
-                      type="button"
-                      className="button button-ghost"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        const section = sections.find((s) => s.id === row.sectionId)
-                        if (!section) return
-                        onRenameSection(section.id, section.title)
-                      }}
-                    >
-                      Rename
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-ghost"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDeleteSection(row.sectionId!)
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ) : null}
+                {/* Intentionally no per-section action buttons; keep header visually minimal. */}
               </li>
             )
           }
@@ -459,7 +511,10 @@ export function ProjectGroupedList({
                 className="task-title task-title-button"
                 data-task-focus-target="true"
                 data-task-id={t.id}
-                onClick={() => selectTask(t.id)}
+                onClick={() => {
+                  setSelectedRow({ type: 'task', taskId: t.id })
+                  selectTask(t.id)
+                }}
                 onDoubleClick={() => void openTask(t.id)}
               >
                 <span className={t.title.trim() ? undefined : 'task-title-placeholder'}>

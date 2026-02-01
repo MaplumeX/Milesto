@@ -138,7 +138,10 @@ export function ProjectPage() {
   useEffect(() => {
     if (!isCompletedExpanded) return
     if (!pid) return
-    if (doneTasks) return
+
+    // doneTasks is cached across collapses. If the done count changed (e.g. project.complete
+    // bulk-completes open tasks), refresh the expanded list so it matches the count.
+    if (doneTasks && doneTasks.length === doneCount) return
 
     void (async () => {
       const res = await window.api.task.listProjectDone(pid)
@@ -148,7 +151,7 @@ export function ProjectPage() {
       }
       setDoneTasks(res.data)
     })()
-  }, [doneTasks, isCompletedExpanded, pid])
+  }, [doneCount, doneTasks, isCompletedExpanded, pid])
 
   useEffect(() => {
     if (!isMenuOpen) return
@@ -359,6 +362,7 @@ export function ProjectPage() {
           openTasks={openTasks}
           doneTasks={isCompletedExpanded ? doneTasks : null}
           editingSectionId={editingSectionId}
+          onStartSectionTitleEdit={(sectionId) => setEditingSectionId(sectionId)}
           onCancelSectionTitleEdit={() => setEditingSectionId(null)}
           onCommitSectionTitle={async (sectionId, title) => {
             const res = await window.api.project.renameSection(sectionId, title)
@@ -381,30 +385,6 @@ export function ProjectPage() {
               const res = await window.api.task.listProjectDone(pid)
               if (res.ok) setDoneTasks(res.data)
             }
-          }}
-          onRenameSection={(sectionId, currentTitle) => {
-            const nextTitle = prompt('Rename section', currentTitle)
-            if (!nextTitle) return
-            void (async () => {
-              const res = await window.api.project.renameSection(sectionId, nextTitle)
-              if (!res.ok) {
-                setError(res.error)
-                return
-              }
-              await refresh()
-            })()
-          }}
-          onDeleteSection={(sectionId) => {
-            const confirmed = confirm('Delete section? Tasks will move to previous section.')
-            if (!confirmed) return
-            void (async () => {
-              const res = await window.api.project.deleteSection(sectionId)
-              if (!res.ok) {
-                setError(res.error)
-                return
-              }
-              await refresh()
-            })()
           }}
         />
 

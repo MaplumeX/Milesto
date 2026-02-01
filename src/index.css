@@ -420,6 +420,12 @@ body {
   border-bottom: 1px solid rgba(29, 29, 27, 0.08);
 }
 
+.project-group-header.is-selected {
+  background: rgba(29, 29, 27, 0.05);
+  border-radius: 12px;
+  border-bottom-color: transparent;
+}
+
 /* Project page: Notes block should not look like a card. */
 .project-notes {
   padding: 0;
@@ -438,6 +444,21 @@ body {
   align-items: baseline;
   gap: 10px;
   min-width: 0;
+}
+
+.project-group-left-button {
+  /* Make the entire section header row clickable (including whitespace/padding). */
+  width: 100%;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  /* Expand into the li padding, then re-apply padding on the button itself. */
+  margin: -8px -12px;
+  padding: 8px 12px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
 }
 
 .project-group-title {

@@ -15,6 +15,10 @@ export type TaskSelection = {
   openTask: (taskId: string) => Promise<void>
   closeTask: () => void
 
+  // Attempt to close the currently open task editor, flushing drafts first.
+  // Returns false if flushing fails (editor remains open and focuses error target).
+  requestCloseTask: () => Promise<boolean>
+
   // Allows the shell to flush before switching tasks.
   registerOpenEditor: (handle: OpenEditorHandle | null) => void
 }

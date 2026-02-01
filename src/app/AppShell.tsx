@@ -73,6 +73,24 @@ export function AppShell() {
     bumpRevision()
   }, [bumpRevision, openTaskId])
 
+  const requestCloseTask = useCallback(async (): Promise<boolean> => {
+    if (!openTaskId) return true
+
+    const handle = openEditorHandleRef.current
+    // If the editor hasn't registered its handle yet, do not close without flush.
+    if (!handle || handle.taskId !== openTaskId) return false
+
+    const ok = await handle.flushPendingChanges()
+    if (!ok) {
+      handle.focusLastErrorTarget()
+      return false
+    }
+
+    setOpenTaskId(null)
+    bumpRevision()
+    return true
+  }, [bumpRevision, openTaskId])
+
   useEffect(() => {
     if (openTaskId !== null) return
     const last = lastFocusTargetRef.current
@@ -228,6 +246,7 @@ export function AppShell() {
         openTaskId,
         openTask,
         closeTask,
+        requestCloseTask,
         registerOpenEditor,
       }}
     >
