@@ -98,6 +98,12 @@ export function AppShell() {
 
     // Wait for overlay unmount.
     const handle = setTimeout(() => {
+      // If something else already took focus (e.g. section title edit), don't steal it.
+      const active = document.activeElement
+      if (active instanceof HTMLElement && active !== document.body && active !== document.documentElement) {
+        return
+      }
+
       const selector = `[data-task-focus-target="true"][data-task-id="${last.taskId}"]`
       const fallback = document.querySelector<HTMLElement>(selector)
       if (fallback) {
