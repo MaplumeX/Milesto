@@ -8,7 +8,7 @@ import { TagSchema } from './tag'
 import { TaskSchema } from './task'
 
 export const DataExportSchema = z.object({
-  schema_version: z.number().int(),
+  schema_version: z.literal(2),
   app_version: z.string(),
   exported_at: z.string().datetime(),
   tasks: z.array(TaskSchema),

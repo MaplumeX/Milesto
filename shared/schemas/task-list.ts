@@ -1,13 +1,14 @@
 import { z } from 'zod'
 
-import { BaseListSchema, IdSchema, IsoDateTimeSchema, LocalDateSchema, TaskStatusSchema } from './common'
+import { DbBoolSchema, IdSchema, IsoDateTimeSchema, LocalDateSchema, TaskStatusSchema } from './common'
 
 // List views must avoid loading large fields (notes, checklist, etc.).
 export const TaskListItemSchema = z.object({
   id: IdSchema,
   title: z.string(),
   status: TaskStatusSchema,
-  base_list: BaseListSchema,
+  is_inbox: DbBoolSchema,
+  is_someday: DbBoolSchema,
   project_id: IdSchema.nullable(),
   section_id: IdSchema.nullable(),
   area_id: IdSchema.nullable(),
@@ -22,9 +23,9 @@ export const TaskListItemSchema = z.object({
 
 export type TaskListItem = z.infer<typeof TaskListItemSchema>
 
-export const TaskListBaseInputSchema = z.object({
-  base_list: BaseListSchema,
-})
+export const TaskListInboxInputSchema = z.object({})
+export const TaskListAnytimeInputSchema = z.object({})
+export const TaskListSomedayInputSchema = z.object({})
 
 export const TaskListTodayInputSchema = z.object({
   date: LocalDateSchema,

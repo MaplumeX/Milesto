@@ -51,7 +51,9 @@ export type WindowApi = {
 
     getDetail(id: string): Promise<Result<TaskDetail>>
 
-    listBase(baseList: 'inbox' | 'anytime' | 'someday'): Promise<Result<TaskListItem[]>>
+    listInbox(): Promise<Result<TaskListItem[]>>
+    listAnytime(): Promise<Result<TaskListItem[]>>
+    listSomeday(): Promise<Result<TaskListItem[]>>
     listToday(date: string): Promise<Result<TaskListItem[]>>
     listUpcoming(fromDate: string): Promise<Result<TaskListItem[]>>
     listLogbook(): Promise<Result<TaskListItem[]>>

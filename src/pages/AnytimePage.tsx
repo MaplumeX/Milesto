@@ -11,7 +11,7 @@ export function AnytimePage() {
   const [error, setError] = useState<AppError | null>(null)
 
   const refresh = useCallback(async () => {
-    const res = await window.api.task.listBase('anytime')
+    const res = await window.api.task.listAnytime()
     if (!res.ok) {
       setError(res.error)
       return

@@ -21,6 +21,14 @@ export function CommandPalette() {
   const today = useMemo(() => formatLocalDate(new Date()), [])
   const mode: Mode = query.trim() ? 'search' : 'commands'
 
+  function getTaskHint(item: TaskSearchResultItem): string {
+    if (item.is_someday) return 'Someday'
+    if (item.scheduled_at) return item.scheduled_at === today ? 'Today' : item.scheduled_at
+    if (item.is_inbox) return 'Inbox'
+    if (item.project_id) return 'Project'
+    return 'Anytime'
+  }
+
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       const key = e.key.toLowerCase()
@@ -85,12 +93,12 @@ export function CommandPalette() {
       navigate('/upcoming')
     } else if (item.project_id) {
       navigate(`/projects/${item.project_id}`)
-    } else if (item.base_list === 'inbox') {
+    } else if (item.is_inbox) {
       navigate('/inbox')
-    } else if (item.base_list === 'anytime') {
-      navigate('/anytime')
-    } else {
+    } else if (item.is_someday) {
       navigate('/someday')
+    } else {
+      navigate('/anytime')
     }
 
     selectTask(item.id)
@@ -100,7 +108,7 @@ export function CommandPalette() {
   async function createTaskFromQuery() {
     const title = query.trim()
     if (!title) return
-    const res = await window.api.task.create({ title, base_list: 'inbox' })
+    const res = await window.api.task.create({ title, is_inbox: true })
     if (!res.ok) return
 
     navigate('/inbox')
@@ -191,7 +199,7 @@ export function CommandPalette() {
                   <div className={item.title.trim() ? 'palette-item-title' : 'palette-item-title palette-item-placeholder'}>
                     {item.title.trim() ? item.title : '新建任务'}
                   </div>
-                  <div className="palette-item-hint">{item.snippet ?? item.base_list}</div>
+                  <div className="palette-item-hint">{item.snippet ?? getTaskHint(item)}</div>
                 </button>
               ))}
 

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import {
-  BaseListSchema,
+  DbBoolSchema,
   IdSchema,
   IsoDateTimeSchema,
   LocalDateSchema,
@@ -13,7 +13,8 @@ export const TaskSchema = z.object({
   title: z.string(),
   notes: z.string(),
   status: TaskStatusSchema,
-  base_list: BaseListSchema,
+  is_inbox: DbBoolSchema,
+  is_someday: DbBoolSchema,
   project_id: IdSchema.nullable(),
   section_id: IdSchema.nullable(),
   area_id: IdSchema.nullable(),
@@ -25,12 +26,34 @@ export const TaskSchema = z.object({
   deleted_at: IsoDateTimeSchema.nullable(),
 })
 
+// Cross-layer invariant validation: if DB ever returns an invalid row,
+// fail fast instead of leaking inconsistent state to the UI.
+.superRefine((task, ctx) => {
+  if (task.is_someday && task.scheduled_at !== null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Invalid task: is_someday=true requires scheduled_at=null.',
+      path: ['is_someday'],
+    })
+  }
+  if (task.is_inbox) {
+    if (task.project_id !== null || task.scheduled_at !== null || task.is_someday) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid task: is_inbox=true requires project_id/scheduled_at null and is_someday=false.',
+        path: ['is_inbox'],
+      })
+    }
+  }
+})
+
 export type Task = z.infer<typeof TaskSchema>
 
 export const TaskCreateInputSchema = z.object({
   title: z.string(),
   notes: z.string().optional(),
-  base_list: BaseListSchema.optional(),
+  is_inbox: z.boolean().optional(),
+  is_someday: z.boolean().optional(),
   project_id: IdSchema.nullable().optional(),
   section_id: IdSchema.nullable().optional(),
   area_id: IdSchema.nullable().optional(),
@@ -44,7 +67,8 @@ export const TaskUpdateInputSchema = z.object({
   id: IdSchema,
   title: z.string().optional(),
   notes: z.string().optional(),
-  base_list: BaseListSchema.optional(),
+  is_inbox: z.boolean().optional(),
+  is_someday: z.boolean().optional(),
   project_id: IdSchema.nullable().optional(),
   section_id: IdSchema.nullable().optional(),
   area_id: IdSchema.nullable().optional(),

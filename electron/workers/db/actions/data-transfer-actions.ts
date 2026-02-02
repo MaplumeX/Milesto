@@ -41,7 +41,7 @@ export function createDataTransferActions(db: Database.Database): Record<string,
         .parse(
           db
             .prepare(
-              `SELECT id, title, notes, status, base_list, project_id, section_id, area_id, scheduled_at, due_at,
+              `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at,
                       created_at, updated_at, completed_at, deleted_at
                FROM tasks
                WHERE deleted_at IS NULL`
@@ -136,7 +136,7 @@ export function createDataTransferActions(db: Database.Database): Record<string,
         )
 
       const exportData = DataExportSchema.parse({
-        schema_version: 1,
+        schema_version: 2,
         app_version: parsed.data.app_version,
         exported_at: exportedAt,
         tasks,
@@ -221,15 +221,19 @@ export function createDataTransferActions(db: Database.Database): Record<string,
 
         const insertTask = db.prepare(
           `INSERT INTO tasks (
-             id, title, notes, status, base_list, project_id, section_id, area_id,
+             id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id,
              scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
            ) VALUES (
-             @id, @title, @notes, @status, @base_list, @project_id, @section_id, @area_id,
+             @id, @title, @notes, @status, @is_inbox, @is_someday, @project_id, @section_id, @area_id,
              @scheduled_at, @due_at, @created_at, @updated_at, @completed_at, @deleted_at
            )`
         )
         for (const task of data.tasks) {
-          insertTask.run(task)
+          insertTask.run({
+            ...task,
+            is_inbox: task.is_inbox ? 1 : 0,
+            is_someday: task.is_someday ? 1 : 0,
+          })
         }
 
         const insertTaskTag = db.prepare(

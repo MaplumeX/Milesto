@@ -148,6 +148,43 @@ function getInlineActionBarRight(paper: HTMLElement): HTMLElement {
   return el
 }
 
+async function setScheduleToSomeday(paper: HTMLElement, label: string) {
+  const rightBar = getInlineActionBarRight(paper)
+  const scheduleBtn = findButtonByText(rightBar, 'Schedule')
+  const scheduledChip = Array.from(paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find((b) =>
+    ((b.textContent ?? '').trim() || '').startsWith('Scheduled:')
+  )
+
+  const trigger = scheduleBtn ?? scheduledChip
+  if (!trigger) throw new Error(`${label}: missing Schedule trigger`)
+  trigger.click()
+
+  const popover = await waitFor(`${label}: schedule popover`, () =>
+    document.querySelector<HTMLElement>('.task-inline-popover')
+  )
+  const somedayBtn = await waitFor(`${label}: schedule Someday button`, () => findButtonByText(popover, 'Someday'))
+  somedayBtn.click()
+
+  await waitFor(`${label}: schedule popover closed`, () =>
+    document.querySelector<HTMLElement>('.task-inline-popover') ? null : true
+  )
+
+  await waitFor(`${label}: Scheduled chip shows Someday`, () => {
+    const chip = Array.from(paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find((b) =>
+      ((b.textContent ?? '').trim() || '').startsWith('Scheduled:')
+    )
+    if (!chip) return null
+    return (chip.textContent ?? '').includes('Someday') ? true : null
+  })
+
+  // Wait for persistence (debounced + serialized save).
+  await waitFor(`${label}: save status is Saved`, () => {
+    const el = paper.querySelector<HTMLElement>('.task-inline-status')
+    if (!el) return null
+    return (el.textContent ?? '').trim() === 'Saved' ? true : null
+  }, { timeoutMs: 15_000 })
+}
+
 async function waitForUpcomingHeaderNearTop(params: {
   date: string
   label: string
@@ -403,14 +440,14 @@ async function runSelfTest(): Promise<SelfTestResult> {
     })()
 
     // Seed tasks for Inbox/Today/Upcoming flows.
-    const inboxARes = await window.api.task.create({ title: `${token} Inbox A`, base_list: 'inbox' })
-    const inboxBRes = await window.api.task.create({ title: `${token} Inbox B`, base_list: 'inbox' })
+    const inboxARes = await window.api.task.create({ title: `${token} Inbox A`, is_inbox: true })
+    const inboxBRes = await window.api.task.create({ title: `${token} Inbox B`, is_inbox: true })
     if (!inboxARes.ok) throw new Error(`task.create inboxA failed: ${inboxARes.error.code}: ${inboxARes.error.message}`)
     if (!inboxBRes.ok) throw new Error(`task.create inboxB failed: ${inboxBRes.error.code}: ${inboxBRes.error.message}`)
 
     // Add enough Inbox tasks to exercise scrolling + virtualization stability.
     for (let i = 0; i < 28; i++) {
-      const res = await window.api.task.create({ title: `${token} Inbox filler ${i}`, base_list: 'inbox' })
+      const res = await window.api.task.create({ title: `${token} Inbox filler ${i}`, is_inbox: true })
       if (!res.ok) {
         throw new Error(`task.create inbox filler ${i} failed: ${res.error.code}: ${res.error.message}`)
       }
@@ -418,12 +455,10 @@ async function runSelfTest(): Promise<SelfTestResult> {
 
     const todayARes = await window.api.task.create({
       title: `${token} Today A`,
-      base_list: 'anytime',
       scheduled_at: today,
     })
     const todayBRes = await window.api.task.create({
       title: `${token} Today B`,
-      base_list: 'anytime',
       scheduled_at: today,
     })
     if (!todayARes.ok) throw new Error(`task.create todayA failed: ${todayARes.error.code}: ${todayARes.error.message}`)
@@ -431,12 +466,10 @@ async function runSelfTest(): Promise<SelfTestResult> {
 
     const upcomingARes = await window.api.task.create({
       title: `${token} Upcoming A`,
-      base_list: 'anytime',
       scheduled_at: tomorrow,
     })
     const upcomingBRes = await window.api.task.create({
       title: `${token} Upcoming B`,
-      base_list: 'anytime',
       scheduled_at: tomorrow,
     })
 
@@ -444,7 +477,6 @@ async function runSelfTest(): Promise<SelfTestResult> {
     for (let i = 0; i < 28; i++) {
       const res = await window.api.task.create({
         title: `${token} Upcoming filler ${i}`,
-        base_list: 'anytime',
         scheduled_at: tomorrow,
       })
       if (!res.ok) {
@@ -455,12 +487,10 @@ async function runSelfTest(): Promise<SelfTestResult> {
     // Add tasks to enable Upcoming jump buttons (Next Week / Next Month).
     const upcomingWeekRes = await window.api.task.create({
       title: `${token} Upcoming Next Week`,
-      base_list: 'anytime',
       scheduled_at: nextWeekStart,
     })
     const upcomingMonthRes = await window.api.task.create({
       title: `${token} Upcoming Next Month`,
-      base_list: 'anytime',
       scheduled_at: nextMonthStart,
     })
     if (!upcomingARes.ok) throw new Error(`task.create upcomingA failed: ${upcomingARes.error.code}: ${upcomingARes.error.message}`)
@@ -473,7 +503,6 @@ async function runSelfTest(): Promise<SelfTestResult> {
     for (let i = 0; i < 28; i++) {
       const res = await window.api.task.create({
         title: `${token} Upcoming next month filler ${i}`,
-        base_list: 'anytime',
         scheduled_at: nextMonthStart,
       })
       if (!res.ok) {
@@ -505,7 +534,6 @@ async function runSelfTest(): Promise<SelfTestResult> {
 
     const projectOpenNoneRes = await window.api.task.create({
       title: `${token} Project Open None`,
-      base_list: 'anytime',
       project_id: projectId,
     })
     if (!projectOpenNoneRes.ok) {
@@ -516,7 +544,6 @@ async function runSelfTest(): Promise<SelfTestResult> {
 
     const projectOpenSectionRes = await window.api.task.create({
       title: `${token} Project Open Section`,
-      base_list: 'anytime',
       project_id: projectId,
       section_id: sectionARes.data.id,
     })
@@ -528,7 +555,6 @@ async function runSelfTest(): Promise<SelfTestResult> {
 
     const projectDoneRes = await window.api.task.create({
       title: `${token} Project Done`,
-      base_list: 'anytime',
       project_id: projectId,
       section_id: sectionARes.data.id,
     })
@@ -1022,6 +1048,61 @@ async function runSelfTest(): Promise<SelfTestResult> {
       await waitFor('Project completed task remains collapsed after navigation', () =>
         findTaskButton(projectDoneRes.data.id) ? null : true
       )
+
+      // Anytime/Someday bucket rules.
+      const anytimeRes = await window.api.task.create({ title: `${token} Anytime A` })
+      if (!anytimeRes.ok) {
+        throw new Error(
+          `task.create anytime failed: ${anytimeRes.error.code}: ${anytimeRes.error.message}`
+        )
+      }
+      const anytimeId = anytimeRes.data.id
+
+      window.location.hash = '/anytime'
+      await waitFor('Anytime listbox', () =>
+        document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+      )
+      const anytimeButton = await waitFor('Anytime A row button', () => findTaskButton(anytimeId))
+      const openedAnytime = await openEditorByDoubleClick({
+        taskId: anytimeId,
+        button: anytimeButton,
+        label: 'Anytime A (dblclick)',
+      })
+
+      await setScheduleToSomeday(openedAnytime.paper, 'Anytime A')
+
+      const anytimeDetailAfter = await window.api.task.getDetail(anytimeId)
+      if (!anytimeDetailAfter.ok) {
+        throw new Error(
+          `task.getDetail anytime failed: ${anytimeDetailAfter.error.code}: ${anytimeDetailAfter.error.message}`
+        )
+      }
+      if (!anytimeDetailAfter.data.task.is_someday) {
+        throw new Error('Anytime A: expected is_someday=true after setting Someday')
+      }
+      if (anytimeDetailAfter.data.task.scheduled_at !== null) {
+        throw new Error('Anytime A: expected scheduled_at=null after setting Someday')
+      }
+
+      const somedayListRes = await window.api.task.listSomeday()
+      if (!somedayListRes.ok) {
+        throw new Error(
+          `task.listSomeday failed: ${somedayListRes.error.code}: ${somedayListRes.error.message}`
+        )
+      }
+      if (!somedayListRes.data.some((t) => t.id === anytimeId)) {
+        throw new Error('Someday list: missing task after setting Someday')
+      }
+
+      const anytimeListRes = await window.api.task.listAnytime()
+      if (!anytimeListRes.ok) {
+        throw new Error(
+          `task.listAnytime failed: ${anytimeListRes.error.code}: ${anytimeListRes.error.message}`
+        )
+      }
+      if (anytimeListRes.data.some((t) => t.id === anytimeId)) {
+        throw new Error('Anytime list: Someday task should not appear')
+      }
     } finally {
       ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = prevConfirm
     }

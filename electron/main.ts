@@ -36,13 +36,15 @@ import {
   TaskSetTagsInputSchema,
   TaskToggleDoneInputSchema,
   TaskUpdateInputSchema,
-  TaskListBaseInputSchema,
+  TaskListAnytimeInputSchema,
   TaskCountProjectDoneInputSchema,
   TaskCountResultSchema,
+  TaskListInboxInputSchema,
   TaskListItemSchema,
   TaskListLogbookInputSchema,
   TaskListProjectDoneInputSchema,
   TaskListProjectInputSchema,
+  TaskListSomedayInputSchema,
   TaskListTodayInputSchema,
   TaskListUpcomingInputSchema,
   AreaCreateInputSchema,
@@ -414,7 +416,9 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   handleDb('db:task.restore', 'task.restore', TaskRestoreInputSchema, TaskSchema)
   handleDb('db:task.getDetail', 'task.getDetail', TaskIdInputSchema, TaskDetailSchema)
 
-  handleDb('db:task.listBase', 'task.listBase', TaskListBaseInputSchema, z.array(TaskListItemSchema))
+  handleDb('db:task.listInbox', 'task.listInbox', TaskListInboxInputSchema, z.array(TaskListItemSchema))
+  handleDb('db:task.listAnytime', 'task.listAnytime', TaskListAnytimeInputSchema, z.array(TaskListItemSchema))
+  handleDb('db:task.listSomeday', 'task.listSomeday', TaskListSomedayInputSchema, z.array(TaskListItemSchema))
   handleDb('db:task.listToday', 'task.listToday', TaskListTodayInputSchema, z.array(TaskListItemSchema))
   handleDb(
     'db:task.listUpcoming',

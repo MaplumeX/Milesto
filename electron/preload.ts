@@ -29,7 +29,9 @@ const api: WindowApi = {
 
     getDetail: (id) => invoke('db:task.getDetail', { id }),
 
-    listBase: (baseList) => invoke('db:task.listBase', { base_list: baseList }),
+    listInbox: () => invoke('db:task.listInbox', {}),
+    listAnytime: () => invoke('db:task.listAnytime', {}),
+    listSomeday: () => invoke('db:task.listSomeday', {}),
     listToday: (date) => invoke('db:task.listToday', { date }),
     listUpcoming: (fromDate) => invoke('db:task.listUpcoming', { from_date: fromDate }),
     listLogbook: () => invoke('db:task.listLogbook', {}),

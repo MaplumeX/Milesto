@@ -13,13 +13,15 @@ import {
   TaskUpdateInputSchema,
 } from '../../../../shared/schemas/task'
 import {
-  TaskListBaseInputSchema,
+  TaskListAnytimeInputSchema,
   TaskCountProjectDoneInputSchema,
   TaskCountResultSchema,
+  TaskListInboxInputSchema,
   TaskListItemSchema,
   TaskListLogbookInputSchema,
   TaskListProjectDoneInputSchema,
   TaskListProjectInputSchema,
+  TaskListSomedayInputSchema,
   TaskListTodayInputSchema,
   TaskListUpcomingInputSchema,
 } from '../../../../shared/schemas/task-list'
@@ -31,6 +33,29 @@ const TagIdRowSchema = z.object({ id: z.string() })
 const ChecklistDbRowSchema = ChecklistItemSchema.extend({
   done: z.preprocess((v) => Boolean(v), z.boolean()),
 })
+
+function normalizeBucketFlags(input: {
+  isInbox: boolean
+  isSomeday: boolean
+  scheduledAt: string | null
+  projectId: string | null
+}): { isInbox: boolean; isSomeday: boolean; scheduledAt: string | null; projectId: string | null } {
+  let { isInbox, isSomeday, scheduledAt, projectId } = input
+
+  // Someday and a concrete scheduled date are mutually exclusive.
+  if (scheduledAt !== null) isSomeday = false
+  if (isSomeday) scheduledAt = null
+
+  // Inbox is only for unprocessed tasks. Any concrete plan/assignment moves it out.
+  if (projectId !== null || scheduledAt !== null || isSomeday) isInbox = false
+  if (isInbox) {
+    projectId = null
+    scheduledAt = null
+    isSomeday = false
+  }
+
+  return { isInbox, isSomeday, scheduledAt, projectId }
+}
 
 export function createTaskActions(db: Database.Database): Record<string, DbActionHandler> {
   return {
@@ -51,15 +76,22 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const createdAt = nowIso()
       const id = uuidv7()
 
+      const bucket = normalizeBucketFlags({
+        isInbox: input.is_inbox ?? false,
+        isSomeday: input.is_someday ?? false,
+        scheduledAt: input.scheduled_at ?? null,
+        projectId: input.project_id ?? null,
+      })
+
       const insertTask = db.transaction(() => {
         const stmt = db.prepare(`
           INSERT INTO tasks (
-            id, title, notes, status, base_list,
+            id, title, notes, status, is_inbox, is_someday,
             project_id, section_id, area_id,
             scheduled_at, due_at,
             created_at, updated_at, completed_at, deleted_at
           ) VALUES (
-            @id, @title, @notes, 'open', @base_list,
+            @id, @title, @notes, 'open', @is_inbox, @is_someday,
             @project_id, @section_id, @area_id,
             @scheduled_at, @due_at,
             @created_at, @updated_at, NULL, NULL
@@ -70,11 +102,12 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
           id,
           title: input.title,
           notes: input.notes ?? '',
-          base_list: input.base_list ?? 'inbox',
-          project_id: input.project_id ?? null,
+          is_inbox: bucket.isInbox ? 1 : 0,
+          is_someday: bucket.isSomeday ? 1 : 0,
+          project_id: bucket.projectId,
           section_id: input.section_id ?? null,
           area_id: input.area_id ?? null,
-          scheduled_at: input.scheduled_at ?? null,
+          scheduled_at: bucket.scheduledAt,
           due_at: input.due_at ?? null,
           created_at: createdAt,
           updated_at: createdAt,
@@ -87,11 +120,12 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         title: input.title,
         notes: input.notes ?? '',
         status: 'open',
-        base_list: input.base_list ?? 'inbox',
-        project_id: input.project_id ?? null,
+        is_inbox: bucket.isInbox,
+        is_someday: bucket.isSomeday,
+        project_id: bucket.projectId,
         section_id: input.section_id ?? null,
         area_id: input.area_id ?? null,
-        scheduled_at: input.scheduled_at ?? null,
+        scheduled_at: bucket.scheduledAt,
         due_at: input.due_at ?? null,
         created_at: createdAt,
         updated_at: createdAt,
@@ -121,9 +155,14 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const tx = db.transaction(() => {
         const current = db
           .prepare(
-            `SELECT id FROM tasks WHERE id = ? AND deleted_at IS NULL LIMIT 1`
+            `SELECT is_inbox, is_someday, project_id, scheduled_at
+             FROM tasks
+             WHERE id = ? AND deleted_at IS NULL
+             LIMIT 1`
           )
-          .get(input.id)
+          .get(input.id) as
+          | { is_inbox: number; is_someday: number; project_id: string | null; scheduled_at: string | null }
+          | undefined
         if (!current) {
           return {
             ok: false as const,
@@ -134,6 +173,13 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
             },
           }
         }
+
+        const bucket = normalizeBucketFlags({
+          isInbox: input.is_inbox !== undefined ? input.is_inbox : Boolean(current.is_inbox),
+          isSomeday: input.is_someday !== undefined ? input.is_someday : Boolean(current.is_someday),
+          scheduledAt: input.scheduled_at !== undefined ? input.scheduled_at : current.scheduled_at,
+          projectId: input.project_id !== undefined ? input.project_id : current.project_id,
+        })
 
         const fields: string[] = []
         const params: Record<string, unknown> = { id: input.id, updated_at: updatedAt }
@@ -146,13 +192,19 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
           fields.push('notes = @notes')
           params.notes = input.notes
         }
-        if (input.base_list !== undefined) {
-          fields.push('base_list = @base_list')
-          params.base_list = input.base_list
+
+        // Bucket-related fields are merged and normalized, so we update based on diff.
+        if (bucket.isInbox !== Boolean(current.is_inbox)) {
+          fields.push('is_inbox = @is_inbox')
+          params.is_inbox = bucket.isInbox ? 1 : 0
         }
-        if (input.project_id !== undefined) {
+        if (bucket.isSomeday !== Boolean(current.is_someday)) {
+          fields.push('is_someday = @is_someday')
+          params.is_someday = bucket.isSomeday ? 1 : 0
+        }
+        if (bucket.projectId !== current.project_id) {
           fields.push('project_id = @project_id')
-          params.project_id = input.project_id
+          params.project_id = bucket.projectId
         }
         if (input.section_id !== undefined) {
           fields.push('section_id = @section_id')
@@ -162,9 +214,9 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
           fields.push('area_id = @area_id')
           params.area_id = input.area_id
         }
-        if (input.scheduled_at !== undefined) {
+        if (bucket.scheduledAt !== current.scheduled_at) {
           fields.push('scheduled_at = @scheduled_at')
-          params.scheduled_at = input.scheduled_at
+          params.scheduled_at = bucket.scheduledAt
         }
         if (input.due_at !== undefined) {
           fields.push('due_at = @due_at')
@@ -182,7 +234,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
 
         const row = db
           .prepare(
-            `SELECT id, title, notes, status, base_list, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+            `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
              FROM tasks WHERE id = ? AND deleted_at IS NULL LIMIT 1`
           )
           .get(input.id)
@@ -238,7 +290,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
 
         const row = db
           .prepare(
-            `SELECT id, title, notes, status, base_list, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+            `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
              FROM tasks WHERE id = ? AND deleted_at IS NULL LIMIT 1`
           )
           .get(input.id)
@@ -285,7 +337,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
 
         const row = db
           .prepare(
-            `SELECT id, title, notes, status, base_list, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+            `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
              FROM tasks WHERE id = ? AND deleted_at IS NULL LIMIT 1`
           )
           .get(parsed.data.id)
@@ -310,7 +362,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
 
       const row = db
         .prepare(
-          `SELECT id, title, notes, status, base_list, project_id, section_id, area_id, scheduled_at, due_at,
+          `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at,
                   created_at, updated_at, completed_at, deleted_at
            FROM tasks
            WHERE id = ? AND deleted_at IS NULL
@@ -362,14 +414,14 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       return { ok: true, data: detail }
     },
 
-    'task.listBase': (payload) => {
-      const parsed = TaskListBaseInputSchema.safeParse(payload)
+    'task.listInbox': (payload) => {
+      const parsed = TaskListInboxInputSchema.safeParse(payload)
       if (!parsed.success) {
         return {
           ok: false,
           error: {
             code: 'VALIDATION_FAILED',
-            message: 'Invalid task.listBase payload.',
+            message: 'Invalid task.listInbox payload.',
             details: { issues: parsed.error.issues },
           },
         }
@@ -377,16 +429,75 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
 
       const rows = db
         .prepare(
-          `SELECT id, title, status, base_list, project_id, section_id, area_id,
+          `SELECT id, title, status, is_inbox, is_someday, project_id, section_id, area_id,
                   scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
            FROM tasks
            WHERE deleted_at IS NULL
              AND status = 'open'
-             AND base_list = @base_list
-             AND project_id IS NULL
+             AND is_inbox = 1
            ORDER BY created_at ASC`
         )
-        .all({ base_list: parsed.data.base_list })
+        .all(parsed.data)
+
+      const items = z.array(TaskListItemSchema).parse(rows)
+      return { ok: true, data: items }
+    },
+
+    'task.listAnytime': (payload) => {
+      const parsed = TaskListAnytimeInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid task.listAnytime payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const rows = db
+        .prepare(
+          `SELECT id, title, status, is_inbox, is_someday, project_id, section_id, area_id,
+                  scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+           FROM tasks
+           WHERE deleted_at IS NULL
+             AND status = 'open'
+             AND scheduled_at IS NULL
+             AND is_inbox = 0
+             AND is_someday = 0
+           ORDER BY created_at ASC`
+        )
+        .all(parsed.data)
+
+      const items = z.array(TaskListItemSchema).parse(rows)
+      return { ok: true, data: items }
+    },
+
+    'task.listSomeday': (payload) => {
+      const parsed = TaskListSomedayInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid task.listSomeday payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const rows = db
+        .prepare(
+          `SELECT id, title, status, is_inbox, is_someday, project_id, section_id, area_id,
+                  scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+           FROM tasks
+           WHERE deleted_at IS NULL
+             AND status = 'open'
+             AND is_someday = 1
+           ORDER BY created_at ASC`
+        )
+        .all(parsed.data)
 
       const items = z.array(TaskListItemSchema).parse(rows)
       return { ok: true, data: items }
@@ -409,7 +520,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.base_list, t.project_id, t.section_id, t.area_id,
+             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
              t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
              lp.rank AS rank
            FROM tasks t
@@ -444,7 +555,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
 
       const rows = db
         .prepare(
-          `SELECT id, title, status, base_list, project_id, section_id, area_id,
+          `SELECT id, title, status, is_inbox, is_someday, project_id, section_id, area_id,
                   scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
            FROM tasks
            WHERE deleted_at IS NULL
@@ -474,7 +585,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
 
       const rows = db
         .prepare(
-          `SELECT id, title, status, base_list, project_id, section_id, area_id,
+          `SELECT id, title, status, is_inbox, is_someday, project_id, section_id, area_id,
                   scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
            FROM tasks
            WHERE deleted_at IS NULL
@@ -503,7 +614,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.base_list, t.project_id, t.section_id, t.area_id,
+             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
              t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
              lp.rank AS rank
            FROM tasks t
@@ -563,7 +674,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.base_list, t.project_id, t.section_id, t.area_id,
+             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
              t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
              lp.rank AS rank
            FROM tasks t
@@ -599,7 +710,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
 
       const rows = db
         .prepare(
-          `SELECT id, title, status, base_list, project_id, section_id, area_id,
+          `SELECT id, title, status, is_inbox, is_someday, project_id, section_id, area_id,
                   scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
            FROM tasks
            WHERE deleted_at IS NULL
@@ -637,7 +748,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         const rows = db
           .prepare(
             `SELECT
-               t.id, t.title, t.status, t.base_list, t.project_id, t.section_id, t.area_id,
+               t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
                t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
                snippet(tasks_fts, -1, '[', ']', '…', 10) AS snippet
              FROM tasks_fts

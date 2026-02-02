@@ -10,4 +10,9 @@ export const LocalDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 export const TaskStatusSchema = z.enum(['open', 'done'])
 export const ProjectStatusSchema = z.enum(['open', 'done'])
 
-export const BaseListSchema = z.enum(['inbox', 'anytime', 'someday'])
+// SQLite stores booleans as INTEGER (0/1). Keep JSON export/import as booleans.
+export const DbBoolSchema = z.preprocess((v) => {
+  if (v === 0 || v === false) return false
+  if (v === 1 || v === true) return true
+  return v
+}, z.boolean())

@@ -11,7 +11,7 @@ export function InboxPage() {
   const [error, setError] = useState<AppError | null>(null)
 
   const refresh = useCallback(async () => {
-    const res = await window.api.task.listBase('inbox')
+    const res = await window.api.task.listInbox()
     if (!res.ok) {
       setError(res.error)
       return

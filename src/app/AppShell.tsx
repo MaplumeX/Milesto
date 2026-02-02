@@ -120,12 +120,14 @@ export function AppShell() {
 
     const path = location.pathname
 
-    let input:
-      | { title: string; base_list: 'inbox' | 'anytime' | 'someday'; scheduled_at?: string | null; project_id?: string | null; area_id?: string | null }
-      | { title: string; base_list: 'inbox' | 'anytime' | 'someday' } = {
-      title: emptyTitle,
-      base_list: 'inbox',
-    }
+    let input: {
+      title: string
+      is_inbox?: boolean
+      is_someday?: boolean
+      scheduled_at?: string | null
+      project_id?: string | null
+      area_id?: string | null
+    } = { title: emptyTitle, is_inbox: true }
 
     let shouldNavigateTo: string | null = null
 
@@ -133,20 +135,20 @@ export function AppShell() {
     const areaMatch = path.match(/^\/areas\/([^/]+)$/)
 
     if (path === '/inbox') {
-      input = { title: emptyTitle, base_list: 'inbox' }
+      input = { title: emptyTitle, is_inbox: true }
     } else if (path === '/anytime') {
-      input = { title: emptyTitle, base_list: 'anytime' }
+      input = { title: emptyTitle }
     } else if (path === '/someday') {
-      input = { title: emptyTitle, base_list: 'someday' }
+      input = { title: emptyTitle, is_someday: true }
     } else if (path === '/today') {
-      input = { title: emptyTitle, base_list: 'anytime', scheduled_at: today }
+      input = { title: emptyTitle, scheduled_at: today }
     } else if (projectMatch) {
-      input = { title: emptyTitle, base_list: 'anytime', project_id: projectMatch[1] ?? null }
+      input = { title: emptyTitle, project_id: projectMatch[1] ?? null }
     } else if (areaMatch) {
-      input = { title: emptyTitle, base_list: 'anytime', area_id: areaMatch[1] ?? null }
+      input = { title: emptyTitle, area_id: areaMatch[1] ?? null }
     } else {
       // Non-task-focused pages: create in Inbox and navigate there.
-      input = { title: emptyTitle, base_list: 'inbox' }
+      input = { title: emptyTitle, is_inbox: true }
       shouldNavigateTo = '/inbox'
     }
 

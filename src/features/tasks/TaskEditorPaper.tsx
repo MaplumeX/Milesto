@@ -14,7 +14,8 @@ import { formatLocalDate } from '../../lib/dates'
 type Draft = {
   title: string
   notes: string
-  base_list: 'inbox' | 'anytime' | 'someday'
+  is_inbox: boolean
+  is_someday: boolean
   project_id: string | null
   section_id: string | null
   area_id: string | null
@@ -51,19 +52,28 @@ const TAG_COLOR_PRESETS: Array<{ name: string; value: string | null; hex: string
 ]
 
 function normalizeDraft(draft: Draft): Draft {
-  // PRD rule: Inbox is for unprocessed items. If a task is assigned/scheduled, it should not remain in Inbox.
-  if (draft.base_list !== 'inbox') return draft
-  if (draft.project_id !== null || draft.scheduled_at !== null) {
-    return { ...draft, base_list: 'anytime' }
+  let next = draft
+
+  // Someday and a concrete scheduled date are mutually exclusive.
+  // If both are present (shouldn't happen), let the date win.
+  if (next.scheduled_at !== null && next.is_someday) {
+    next = { ...next, is_someday: false }
   }
-  return draft
+
+  // Inbox is for unprocessed items. Any concrete plan/assignment moves it out.
+  if (next.is_inbox && (next.project_id !== null || next.scheduled_at !== null || next.is_someday)) {
+    next = { ...next, is_inbox: false }
+  }
+
+  return next
 }
 
 function isDraftEqual(a: Draft, b: Draft): boolean {
   return (
     a.title === b.title &&
     a.notes === b.notes &&
-    a.base_list === b.base_list &&
+    a.is_inbox === b.is_inbox &&
+    a.is_someday === b.is_someday &&
     a.project_id === b.project_id &&
     a.section_id === b.section_id &&
     a.area_id === b.area_id &&
@@ -76,7 +86,8 @@ function computePatch(prev: Draft, next: Draft): Omit<TaskUpdateInput, 'id'> {
   const patch: Partial<Omit<TaskUpdateInput, 'id'>> = {}
   if (prev.title !== next.title) patch.title = next.title
   if (prev.notes !== next.notes) patch.notes = next.notes
-  if (prev.base_list !== next.base_list) patch.base_list = next.base_list
+  if (prev.is_inbox !== next.is_inbox) patch.is_inbox = next.is_inbox
+  if (prev.is_someday !== next.is_someday) patch.is_someday = next.is_someday
   if (prev.project_id !== next.project_id) patch.project_id = next.project_id
   if (prev.section_id !== next.section_id) patch.section_id = next.section_id
   if (prev.area_id !== next.area_id) patch.area_id = next.area_id
@@ -269,9 +280,22 @@ export const TaskEditorPaper = forwardRef<
       if (!prev) return
 
       const normalized = normalizeDraft(nextDraft)
-      if (normalized.base_list !== nextDraft.base_list) {
-        // Keep the UI truthful when the Inbox normalization rule applies.
-        setDraft((d) => (d ? { ...d, base_list: normalized.base_list } : d))
+      if (
+        normalized.is_inbox !== nextDraft.is_inbox ||
+        normalized.is_someday !== nextDraft.is_someday ||
+        normalized.scheduled_at !== nextDraft.scheduled_at
+      ) {
+        // Keep the UI truthful when normalization rules apply.
+        setDraft((d) =>
+          d
+            ? {
+                ...d,
+                is_inbox: normalized.is_inbox,
+                is_someday: normalized.is_someday,
+                scheduled_at: normalized.scheduled_at,
+              }
+            : d
+        )
       }
 
       const patch = computePatch(prev, normalized)
@@ -407,7 +431,8 @@ export const TaskEditorPaper = forwardRef<
         const nextDraft: Draft = {
           title: res.data.task.title,
           notes: res.data.task.notes,
-          base_list: res.data.task.base_list,
+          is_inbox: res.data.task.is_inbox,
+          is_someday: res.data.task.is_someday,
           project_id: res.data.task.project_id,
           section_id: res.data.task.section_id,
           area_id: res.data.task.area_id,
@@ -606,9 +631,16 @@ export const TaskEditorPaper = forwardRef<
                   ref={schedulePopoverInputRef}
                   className="input"
                   type="date"
-                  value={draft.scheduled_at ?? ''}
+                  value={draft.is_someday ? '' : draft.scheduled_at ?? ''}
                   onChange={(e) => {
-                    const next = { ...draft, scheduled_at: e.target.value ? e.target.value : null }
+                    const nextDate = e.target.value ? e.target.value : null
+                    const next = {
+                      ...draft,
+                      scheduled_at: nextDate,
+                      is_someday: false,
+                      // Assigning a concrete schedule is a form of processing; it must leave Inbox.
+                      is_inbox: nextDate ? false : draft.is_inbox,
+                    }
                     setDraft(next)
                     scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
                     setActivePicker(null)
@@ -619,7 +651,19 @@ export const TaskEditorPaper = forwardRef<
                     type="button"
                     className="button button-ghost"
                     onClick={() => {
-                      const next = { ...draft, scheduled_at: today }
+                      const next = { ...draft, is_someday: true, scheduled_at: null, is_inbox: false }
+                      setDraft(next)
+                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                      setActivePicker(null)
+                    }}
+                  >
+                    Someday
+                  </button>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() => {
+                      const next = { ...draft, scheduled_at: today, is_someday: false, is_inbox: false }
                       setDraft(next)
                       scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
                       setActivePicker(null)
@@ -631,7 +675,7 @@ export const TaskEditorPaper = forwardRef<
                     type="button"
                     className="button button-ghost"
                     onClick={() => {
-                      const next = { ...draft, scheduled_at: null }
+                      const next = { ...draft, scheduled_at: null, is_someday: false }
                       setDraft(next)
                       scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
                       setActivePicker(null)
@@ -852,14 +896,14 @@ export const TaskEditorPaper = forwardRef<
 
             <div className="task-inline-action-bar">
             <div className="task-inline-action-bar-left">
-              {draft.scheduled_at ? (
+              {draft.scheduled_at || draft.is_someday ? (
                 <div className="task-inline-chip">
                   <button
                     type="button"
                     className="task-inline-chip-main"
                     onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
                   >
-                    Scheduled: {draft.scheduled_at === today ? 'Today' : draft.scheduled_at}
+                    Scheduled: {draft.is_someday ? 'Someday' : draft.scheduled_at === today ? 'Today' : draft.scheduled_at}
                   </button>
                   <button
                     type="button"
@@ -867,7 +911,7 @@ export const TaskEditorPaper = forwardRef<
                     aria-label="Clear scheduled"
                     onClick={(e) => {
                       e.preventDefault()
-                      const next = { ...draft, scheduled_at: null }
+                      const next = draft.is_someday ? { ...draft, is_someday: false } : { ...draft, scheduled_at: null }
                       setDraft(next)
                       scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
                     }}
@@ -919,7 +963,7 @@ export const TaskEditorPaper = forwardRef<
             </div>
 
             <div className="task-inline-action-bar-right">
-              {!draft.scheduled_at ? (
+              {!draft.scheduled_at && !draft.is_someday ? (
                 <button
                   type="button"
                   className="button button-ghost"
@@ -1008,7 +1052,11 @@ export const TaskEditorPaper = forwardRef<
 
         <div className="detail-meta" style={{ marginTop: 6 }}>
           <span className={`badge ${detail.task.status === 'done' ? 'badge-done' : 'badge-open'}`}>{statusLabel}</span>
-          {detail.task.scheduled_at ? <span className="badge">Scheduled: {detail.task.scheduled_at}</span> : null}
+          {detail.task.is_someday ? (
+            <span className="badge">Scheduled: Someday</span>
+          ) : detail.task.scheduled_at ? (
+            <span className="badge">Scheduled: {detail.task.scheduled_at}</span>
+          ) : null}
           {detail.task.due_at ? <span className="badge">Due: {detail.task.due_at}</span> : null}
         </div>
 
@@ -1048,26 +1096,6 @@ export const TaskEditorPaper = forwardRef<
         </div>
 
         <div className="detail-grid">
-          <div className="detail-field">
-            <label className="label" htmlFor="task-base-list">
-              Base list
-            </label>
-            <select
-              id="task-base-list"
-              className="input"
-              value={draft.base_list}
-              onChange={(e) => {
-                const next = { ...draft, base_list: e.target.value as Draft['base_list'] }
-                setDraft(next)
-                scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-              }}
-            >
-              <option value="inbox">Inbox</option>
-              <option value="anytime">Anytime</option>
-              <option value="someday">Someday</option>
-            </select>
-          </div>
-
           <div className="detail-field">
             <label className="label" htmlFor="task-project">
               Project

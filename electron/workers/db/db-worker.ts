@@ -84,7 +84,8 @@ function migrate(db: Database.Database) {
         title TEXT NOT NULL,
         notes TEXT NOT NULL DEFAULT '',
         status TEXT NOT NULL DEFAULT 'open',
-        base_list TEXT NOT NULL DEFAULT 'inbox',
+        is_inbox INTEGER NOT NULL DEFAULT 0,
+        is_someday INTEGER NOT NULL DEFAULT 0,
         project_id TEXT,
         section_id TEXT,
         area_id TEXT,
@@ -94,6 +95,10 @@ function migrate(db: Database.Database) {
         updated_at TEXT NOT NULL,
         completed_at TEXT,
         deleted_at TEXT,
+        CHECK (is_inbox IN (0, 1)),
+        CHECK (is_someday IN (0, 1)),
+        CHECK (is_someday = 0 OR scheduled_at IS NULL),
+        CHECK (is_inbox = 0 OR (project_id IS NULL AND scheduled_at IS NULL AND is_someday = 0)),
         FOREIGN KEY (project_id) REFERENCES projects(id),
         FOREIGN KEY (section_id) REFERENCES project_sections(id),
         FOREIGN KEY (area_id) REFERENCES areas(id)
@@ -130,7 +135,8 @@ function migrate(db: Database.Database) {
       );
 
       CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
-      CREATE INDEX IF NOT EXISTS idx_tasks_base_list ON tasks(base_list);
+      CREATE INDEX IF NOT EXISTS idx_tasks_is_inbox ON tasks(is_inbox);
+      CREATE INDEX IF NOT EXISTS idx_tasks_is_someday ON tasks(is_someday);
       CREATE INDEX IF NOT EXISTS idx_tasks_scheduled_at ON tasks(scheduled_at);
       CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
       CREATE INDEX IF NOT EXISTS idx_tasks_section_id ON tasks(section_id);

@@ -11,7 +11,7 @@ export function SomedayPage() {
   const [error, setError] = useState<AppError | null>(null)
 
   const refresh = useCallback(async () => {
-    const res = await window.api.task.listBase('someday')
+    const res = await window.api.task.listSomeday()
     if (!res.ok) {
       setError(res.error)
       return
