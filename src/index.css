@@ -426,6 +426,35 @@ body {
   border-bottom-color: transparent;
 }
 
+.project-group-header.is-drop-over {
+  background: rgba(29, 29, 27, 0.04);
+  border-radius: 12px;
+  border-bottom-color: transparent;
+  box-shadow: 0 0 0 1px var(--focus) inset;
+}
+
+/* Invisible hit area to drop tasks into the no-section container (project:<id>:none). */
+.project-no-section-dropzone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.project-no-section-dropzone[data-drop-over='true']::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--focus);
+}
+
 /* Project page: Notes block should not look like a card. */
 .project-notes {
   padding: 0;
@@ -766,6 +795,101 @@ body {
   border-bottom: 1px solid transparent;
 }
 
+/* Virtualized rows that split virtual position (outer) vs dnd transform (inner). */
+.task-row.task-row-virtual {
+  display: block;
+  padding: 0;
+  gap: 0;
+  border-bottom: 0;
+}
+
+.task-row.task-row-virtual .task-row-inner {
+  padding: 10px 8px;
+  /* Preserve the 1px layout parity used by the virtualizer. */
+  border-bottom: 1px solid transparent;
+}
+
+/* Drag-and-drop styling hooks (task-dnd). */
+.task-row.is-dragging {
+  opacity: 0.35;
+}
+
+.task-row-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  /* Inner wrapper is where dnd-kit applies transforms. */
+  position: relative;
+}
+
+.task-row-inner[data-drop-indicator='before']::before,
+.task-row-inner[data-drop-indicator='after']::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--focus);
+}
+
+.task-row-inner[data-drop-indicator='before']::before {
+  top: -2px;
+}
+
+.task-row-inner[data-drop-indicator='after']::after {
+  bottom: -2px;
+}
+
+.task-dnd-handle {
+  width: 18px;
+  height: 18px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: grab;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.task-dnd-handle:hover {
+  border-color: var(--border);
+  background: rgba(29, 29, 27, 0.04);
+}
+
+.task-dnd-handle:active {
+  cursor: grabbing;
+}
+
+.task-dnd-grip {
+  width: 8px;
+  height: 12px;
+  opacity: 0.55;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(29, 29, 27, 0.55),
+    rgba(29, 29, 27, 0.55) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+}
+
+.task-dnd-overlay {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 0 0 1px rgba(29, 29, 27, 0.14),
+    0 1px 0 var(--shadow),
+    0 16px 22px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+
+.task-dnd-overlay .task-row-inner {
+  padding: 10px 8px;
+}
+
 /* Open state: the row becomes the editor container (no separate editor row). */
 .task-row.is-open {
   display: block;
@@ -974,6 +1098,16 @@ body {
 }
 
 .task-row.is-selected {
+  background: rgba(29, 29, 27, 0.05);
+  border-radius: 12px;
+}
+
+.task-row.task-row-virtual.is-selected {
+  background: transparent;
+  border-radius: 0;
+}
+
+.task-row.task-row-virtual.is-selected .task-row-inner {
   background: rgba(29, 29, 27, 0.05);
   border-radius: 12px;
 }

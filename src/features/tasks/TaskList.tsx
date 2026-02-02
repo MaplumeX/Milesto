@@ -1,41 +1,155 @@
 import { useLayoutEffect, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
+
+import {
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragCancelEvent,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useTaskSelection } from './TaskSelectionContext'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
+import { TaskRow } from './TaskRow'
 import { useContentScrollRef } from '../../app/ContentScrollContext'
+
+function SortableTaskRow({
+  task,
+  isOverlay,
+  dropIndicator,
+  onSelect,
+  onOpen,
+  onToggleDone,
+  onRestore,
+  onSelectForDrag,
+}: {
+  task: TaskListItem
+  isOverlay?: boolean
+  dropIndicator?: 'before' | 'after'
+  onSelect?: (taskId: string) => void
+  onOpen?: (taskId: string) => void
+  onToggleDone?: (taskId: string, done: boolean) => void
+  onRestore?: (taskId: string) => void
+  onSelectForDrag?: (taskId: string) => void
+}) {
+  const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition } = useSortable({
+    id: task.id,
+  })
+
+  return (
+    <TaskRow
+      task={task}
+      isOverlay={isOverlay}
+      dropIndicator={dropIndicator}
+      innerRef={setNodeRef}
+      innerStyle={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      dragHandle={
+        <button
+          ref={setActivatorNodeRef}
+          type="button"
+          className="task-dnd-handle"
+          aria-label="Reorder"
+          {...attributes}
+          {...(listeners ?? {})}
+          tabIndex={-1}
+          onPointerDown={() => onSelectForDrag?.(task.id)}
+        >
+          <span className="task-dnd-grip" aria-hidden="true" />
+        </button>
+      }
+      onSelect={onSelect}
+      onOpen={onOpen}
+      onToggleDone={onToggleDone}
+      onRestore={onRestore}
+    />
+  )
+}
 
 export function TaskList({
   title,
   tasks,
+  listId,
   onToggleDone,
   onRestore,
+  onAfterReorder,
   headerActions,
 }: {
   title: string
   tasks: TaskListItem[]
+  // If provided, enables drag-and-drop + keyboard reordering persisted via list_positions.
+  listId?: string
   onToggleDone?: (taskId: string, done: boolean) => Promise<void>
   onRestore?: (taskId: string) => Promise<void>
+  onAfterReorder?: () => Promise<void>
   headerActions?: React.ReactNode
 }) {
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
 
   const contentScrollRef = useContentScrollRef()
 
+  const [orderedTaskIds, setOrderedTaskIds] = useState<string[]>(() => tasks.map((t) => t.id))
+  useEffect(() => {
+    setOrderedTaskIds(tasks.map((t) => t.id))
+  }, [tasks])
+
+  const orderedTasks = useMemo(() => {
+    if (orderedTaskIds.length === 0) return tasks
+    const byId = new Map<string, TaskListItem>()
+    for (const t of tasks) byId.set(t.id, t)
+
+    const out: TaskListItem[] = []
+    const seen = new Set<string>()
+    for (const id of orderedTaskIds) {
+      const t = byId.get(id)
+      if (!t) continue
+      out.push(t)
+      seen.add(id)
+    }
+    for (const t of tasks) {
+      if (seen.has(t.id)) continue
+      out.push(t)
+    }
+    return out
+  }, [orderedTaskIds, tasks])
+
   const taskIndexById = useMemo(() => {
     const map = new Map<string, number>()
-    for (let i = 0; i < tasks.length; i++) {
-      const t = tasks[i]
+    for (let i = 0; i < orderedTasks.length; i++) {
+      const t = orderedTasks[i]
       if (!t) continue
       map.set(t.id, i)
     }
     return map
-  }, [tasks])
+  }, [orderedTasks])
 
   const listboxRef = useRef<HTMLDivElement | null>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
+
+  const isDndEnabled = !!listId
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 6 },
+    })
+  )
+
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  const [dropIndicator, setDropIndicator] = useState<{ overId: string; position: 'before' | 'after' } | null>(
+    null
+  )
 
   useLayoutEffect(() => {
     let cancelled = false
@@ -67,10 +181,10 @@ export function TaskList({
     }
   }, [contentScrollRef])
   const rowVirtualizer = useVirtualizer({
-    count: tasks.length,
+    count: orderedTasks.length,
     getScrollElement: () => contentScrollRef.current,
     estimateSize: (index) => {
-      const t = tasks[index]
+      const t = orderedTasks[index]
       if (!t) return 44
       // Expanded rows are measured, but the estimate should be close to reduce initial jump.
       return openTaskId && t.id === openTaskId ? 400 : 44
@@ -78,34 +192,101 @@ export function TaskList({
     scrollMargin,
     overscan: 12,
     getItemKey: (index) => {
-      const t = tasks[index]
+      const t = orderedTasks[index]
       if (!t) return index
       return `t:${t.id}`
     },
   })
 
-  const openTasks = useMemo(() => tasks.filter((t) => t.status === 'open'), [tasks])
+  const openTasks = useMemo(() => orderedTasks.filter((t) => t.status === 'open'), [orderedTasks])
 
   const lastSelectedIndexRef = useRef(0)
   useEffect(() => {
     if (!selectedTaskId) return
 
-    const idx = tasks.findIndex((t) => t.id === selectedTaskId)
+    const idx = orderedTasks.findIndex((t) => t.id === selectedTaskId)
     if (idx >= 0) {
       lastSelectedIndexRef.current = idx
       return
     }
 
     // If the selected task disappeared after a refresh (e.g. moved lists), pick a neighbor.
-    if (tasks.length === 0) {
+    if (orderedTasks.length === 0) {
       selectTask(null)
       return
     }
 
-    const fallbackIdx = Math.min(lastSelectedIndexRef.current, tasks.length - 1)
-    const fallback = tasks[fallbackIdx]
+    const fallbackIdx = Math.min(lastSelectedIndexRef.current, orderedTasks.length - 1)
+    const fallback = orderedTasks[fallbackIdx]
     selectTask(fallback?.id ?? null)
-  }, [tasks, selectedTaskId, selectTask])
+  }, [orderedTasks, selectedTaskId, selectTask])
+
+  async function persistOrder(next: string[]) {
+    if (!listId) return
+    const res = await window.api.task.reorderBatch(listId, next)
+    if (!res.ok) throw new Error(`${res.error.code}: ${res.error.message}`)
+    await onAfterReorder?.()
+  }
+
+  function handleDragStart(e: DragStartEvent) {
+    const id = String(e.active.id)
+    setActiveTaskId(id)
+    setDropIndicator(null)
+    selectTask(id)
+  }
+
+  function handleDragOver(e: DragOverEvent) {
+    const activeId = String(e.active.id)
+    const overId = e.over?.id ? String(e.over.id) : null
+    if (!overId || activeId === overId) {
+      setDropIndicator(null)
+      return
+    }
+
+    const activeIndex = orderedTaskIds.indexOf(activeId)
+    const overIndex = orderedTaskIds.indexOf(overId)
+    if (activeIndex === -1 || overIndex === -1) {
+      setDropIndicator(null)
+      return
+    }
+
+    setDropIndicator({ overId, position: activeIndex < overIndex ? 'after' : 'before' })
+  }
+
+  async function handleDragEnd(e: DragEndEvent) {
+    const activeId = String(e.active.id)
+    const overId = e.over?.id ? String(e.over.id) : null
+    setActiveTaskId(null)
+    setDropIndicator(null)
+    if (!overId || activeId === overId) return
+
+    const prev = orderedTaskIds
+    const oldIndex = prev.indexOf(activeId)
+    const newIndex = prev.indexOf(overId)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const next = arrayMove(prev, oldIndex, newIndex)
+    setOrderedTaskIds(next)
+    try {
+      await persistOrder(next)
+    } catch (err) {
+      setOrderedTaskIds(prev)
+      throw err
+    }
+
+    const nextIndex = next.indexOf(activeId)
+    if (nextIndex >= 0) rowVirtualizer.scrollToIndex(nextIndex)
+  }
+
+  function handleDragCancel(_e: DragCancelEvent) {
+    setActiveTaskId(null)
+    setDropIndicator(null)
+  }
+
+  const activeTask = useMemo(() => {
+    if (!activeTaskId) return null
+    return orderedTasks.find((t) => t.id === activeTaskId) ?? null
+  }, [activeTaskId, orderedTasks])
 
   return (
     <div className="page">
@@ -117,145 +298,200 @@ export function TaskList({
         </div>
       </header>
 
-      <div
-        ref={listboxRef}
-        className="task-scroll"
-        tabIndex={0}
-        role="listbox"
-        aria-label="Tasks"
-        onKeyDown={(e) => {
-          // Keyboard-first list navigation (ArrowUp/Down, Enter to open, Space to toggle).
-          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== ' ') return
-
-          const idx = selectedTaskId ? taskIndexById.get(selectedTaskId) ?? -1 : -1
-
-          if (e.key === 'ArrowDown') {
-            e.preventDefault()
-            if (tasks.length === 0) return
-            const nextIdx = Math.min((idx < 0 ? -1 : idx) + 1, tasks.length - 1)
-            const next = tasks[nextIdx]
-            if (!next) return
-            selectTask(next.id)
-            rowVirtualizer.scrollToIndex(nextIdx)
-            return
-          }
-
-          if (e.key === 'ArrowUp') {
-            e.preventDefault()
-            if (tasks.length === 0) return
-            const nextIdx = Math.max(idx <= 0 ? 0 : idx - 1, 0)
-            const next = tasks[nextIdx]
-            if (!next) return
-            selectTask(next.id)
-            rowVirtualizer.scrollToIndex(nextIdx)
-            return
-          }
-
-          if (e.key === ' ') {
-            e.preventDefault()
-            if (!selectedTaskId || !onToggleDone) return
-            const current = tasks.find((t) => t.id === selectedTaskId)
-            if (!current) return
-            void onToggleDone(current.id, current.status !== 'done')
-            return
-          }
-
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            if (!selectedTaskId) return
-            void openTask(selectedTaskId)
-          }
-        }}
+      <DndContext
+        sensors={isDndEnabled ? sensors : undefined}
+        collisionDetection={closestCenter}
+        onDragStart={isDndEnabled ? handleDragStart : undefined}
+        onDragOver={isDndEnabled ? handleDragOver : undefined}
+        onDragEnd={isDndEnabled ? handleDragEnd : undefined}
+        onDragCancel={isDndEnabled ? handleDragCancel : undefined}
       >
-        <ul className="task-list" style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
-          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-            const t = tasks[virtualRow.index]
-            if (!t) return null
+        <div
+          ref={listboxRef}
+          className="task-scroll"
+          tabIndex={0}
+          role="listbox"
+          aria-label="Tasks"
+          onKeyDown={(e) => {
+            // Keyboard-first list navigation (ArrowUp/Down, Enter to open, Space to toggle).
+            const isReorderChord = (e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')
 
-            if (openTaskId && t.id === openTaskId) {
-              return (
-                <li
-                  key={t.id}
-                  className={`task-row is-open${t.status === 'done' ? ' is-done' : ''}${
-                    selectedTaskId === t.id ? ' is-selected' : ''
-                  }`}
-                  data-task-id={t.id}
-                  ref={(el) => {
-                    if (!el) return
-                    rowVirtualizer.measureElement(el)
-                  }}
-                  data-index={virtualRow.index}
-                   style={{
-                     position: 'absolute',
-                     top: 0,
-                     left: 0,
-                     width: '100%',
-                    transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
-                   }}
-                 >
-                  <TaskInlineEditorRow taskId={t.id} />
-                </li>
-              )
+            if (isReorderChord && e.target instanceof HTMLElement) {
+              const tag = e.target.tagName
+              // Don't steal text selection / cursor movement shortcuts from inputs.
+              if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return
+            }
+            if (
+              e.key !== 'ArrowDown' &&
+              e.key !== 'ArrowUp' &&
+              e.key !== 'Enter' &&
+              e.key !== ' ' &&
+              !isReorderChord
+            )
+              return
+
+            const idx = selectedTaskId ? taskIndexById.get(selectedTaskId) ?? -1 : -1
+
+            if (isReorderChord && listId && selectedTaskId) {
+              e.preventDefault()
+              const dir = e.key === 'ArrowUp' ? -1 : 1
+              const prev = orderedTaskIds
+              const from = prev.indexOf(selectedTaskId)
+              const to = from + dir
+              if (from < 0 || to < 0 || to >= prev.length) return
+              const next = arrayMove(prev, from, to)
+              setOrderedTaskIds(next)
+              void (async () => {
+                try {
+                  await persistOrder(next)
+                } catch (err) {
+                  setOrderedTaskIds(prev)
+                  throw err
+                }
+                rowVirtualizer.scrollToIndex(to)
+              })()
+              return
             }
 
-            return (
-              <li
-                key={t.id}
-                className={`task-row${t.status === 'done' ? ' is-done' : ''}${
-                  selectedTaskId === t.id ? ' is-selected' : ''
-                }`}
-                data-task-id={t.id}
-                ref={(el) => {
-                  if (!el) return
-                  rowVirtualizer.measureElement(el)
-                }}
-                data-index={virtualRow.index}
-                 style={{
-                   position: 'absolute',
-                   top: 0,
-                   left: 0,
-                   width: '100%',
-                  transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
-                 }}
-               >
-                <label className="task-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={t.status === 'done'}
-                    onChange={(e) => {
-                      if (onToggleDone) void onToggleDone(t.id, e.target.checked)
+            if (e.key === 'ArrowDown') {
+              e.preventDefault()
+              if (orderedTasks.length === 0) return
+              const nextIdx = Math.min((idx < 0 ? -1 : idx) + 1, orderedTasks.length - 1)
+              const next = orderedTasks[nextIdx]
+              if (!next) return
+              selectTask(next.id)
+              rowVirtualizer.scrollToIndex(nextIdx)
+              return
+            }
+
+            if (e.key === 'ArrowUp') {
+              e.preventDefault()
+              if (orderedTasks.length === 0) return
+              const nextIdx = Math.max(idx <= 0 ? 0 : idx - 1, 0)
+              const next = orderedTasks[nextIdx]
+              if (!next) return
+              selectTask(next.id)
+              rowVirtualizer.scrollToIndex(nextIdx)
+              return
+            }
+
+            if (e.key === ' ') {
+              e.preventDefault()
+              if (!selectedTaskId || !onToggleDone) return
+              const current = orderedTasks.find((t) => t.id === selectedTaskId)
+              if (!current) return
+              void onToggleDone(current.id, current.status !== 'done')
+              return
+            }
+
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              if (!selectedTaskId) return
+              void openTask(selectedTaskId)
+            }
+          }}
+        >
+          <SortableContext items={isDndEnabled ? orderedTaskIds : []} strategy={verticalListSortingStrategy}>
+            <ul className="task-list" style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const t = orderedTasks[virtualRow.index]
+                if (!t) return null
+
+                if (openTaskId && t.id === openTaskId) {
+                  return (
+                    <li
+                      key={t.id}
+                      className={`task-row is-open${t.status === 'done' ? ' is-done' : ''}${
+                        selectedTaskId === t.id ? ' is-selected' : ''
+                      }`}
+                      data-task-id={t.id}
+                      ref={(el) => {
+                        if (!el) return
+                        rowVirtualizer.measureElement(el)
+                      }}
+                      data-index={virtualRow.index}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
+                      }}
+                    >
+                      <TaskInlineEditorRow taskId={t.id} />
+                    </li>
+                  )
+                }
+
+                const indicator =
+                  dropIndicator && dropIndicator.overId === t.id ? dropIndicator.position : undefined
+
+                return (
+                  <li
+                    key={t.id}
+                    className={`task-row task-row-virtual${t.status === 'done' ? ' is-done' : ''}${
+                      selectedTaskId === t.id ? ' is-selected' : ''
+                    }${activeTaskId === t.id ? ' is-dragging' : ''}`}
+                    data-task-id={t.id}
+                    ref={(el) => {
+                      if (!el) return
+                      rowVirtualizer.measureElement(el)
                     }}
-                    disabled={!onToggleDone}
-                  />
-                </label>
-
-                <button
-                  type="button"
-                  className="task-title task-title-button"
-                  data-task-focus-target="true"
-                  data-task-id={t.id}
-                  onClick={() => selectTask(t.id)}
-                  onDoubleClick={() => void openTask(t.id)}
-                >
-                  <span className={t.title.trim() ? undefined : 'task-title-placeholder'}>
-                    {t.title.trim() ? t.title : '新建任务'}
-                  </span>
-                </button>
-
-                {t.status === 'done' && onRestore ? (
-                  <button
-                    type="button"
-                    className="button button-ghost"
-                    onClick={() => void onRestore(t.id)}
+                    data-index={virtualRow.index}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
+                    }}
                   >
-                    Restore
-                  </button>
-                ) : null}
-              </li>
+                    {isDndEnabled ? (
+                      <SortableTaskRow
+                        task={t}
+                        dropIndicator={indicator}
+                        onSelect={(taskId) => selectTask(taskId)}
+                        onOpen={(taskId) => openTask(taskId)}
+                        onToggleDone={(taskId, done) => {
+                          if (onToggleDone) void onToggleDone(taskId, done)
+                        }}
+                        onRestore={(taskId) => {
+                          if (onRestore) void onRestore(taskId)
+                        }}
+                        onSelectForDrag={(taskId) => selectTask(taskId)}
+                      />
+                    ) : (
+                      <TaskRow
+                        task={t}
+                        dropIndicator={indicator}
+                        onSelect={(taskId) => selectTask(taskId)}
+                        onOpen={(taskId) => openTask(taskId)}
+                        onToggleDone={(taskId, done) => {
+                          if (onToggleDone) void onToggleDone(taskId, done)
+                        }}
+                        onRestore={(taskId) => {
+                          if (onRestore) void onRestore(taskId)
+                        }}
+                      />
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </SortableContext>
+        </div>
+
+        {activeTask
+          ? createPortal(
+              <DragOverlay>
+                <div className="task-dnd-overlay">
+                  <TaskRow task={activeTask} isOverlay />
+                </div>
+              </DragOverlay>,
+              document.body
             )
-          })}
-        </ul>
-      </div>
+          : null}
+      </DndContext>
     </div>
   )
 }
