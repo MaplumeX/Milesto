@@ -5,6 +5,7 @@ import type { AppError } from '../../shared/app-error'
 import type { Area } from '../../shared/schemas/area'
 import type { Project } from '../../shared/schemas/project'
 import type { TaskListItem } from '../../shared/schemas/task-list'
+import { taskListIdArea } from '../../shared/task-list-ids'
 
 import { useAppEvents } from '../app/AppEventsContext'
 import { TaskList } from '../features/tasks/TaskList'
@@ -73,7 +74,9 @@ export function AreaPage() {
 
       <TaskList
         title={title}
+        listId={taskListIdArea(aid)}
         tasks={tasks}
+        onAfterReorder={refresh}
         headerActions={
           <>
             <button
