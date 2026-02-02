@@ -358,6 +358,7 @@ export function ProjectPage() {
         </div>
 
         <ProjectGroupedList
+          projectId={pid}
           sections={sections}
           openTasks={openTasks}
           doneTasks={isCompletedExpanded ? doneTasks : null}
@@ -386,6 +387,7 @@ export function ProjectPage() {
               if (res.ok) setDoneTasks(res.data)
             }
           }}
+          onAfterReorder={refresh}
         />
 
         <div className="sections-header">
