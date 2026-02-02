@@ -28,6 +28,13 @@ import {
 import { TaskSearchInputSchema, TaskSearchResultItemSchema } from '../../../../shared/schemas/search'
 import { TaskDetailSchema, TaskIdInputSchema } from '../../../../shared/schemas/task-detail'
 import { ChecklistItemSchema } from '../../../../shared/schemas/checklist'
+import {
+  TASK_LIST_ID_ANYTIME,
+  TASK_LIST_ID_INBOX,
+  TASK_LIST_ID_SOMEDAY,
+  TASK_LIST_ID_TODAY,
+  taskListIdArea,
+} from '../../../../shared/task-list-ids'
 
 const TagIdRowSchema = z.object({ id: z.string() })
 const ChecklistDbRowSchema = ChecklistItemSchema.extend({
@@ -427,17 +434,25 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         }
       }
 
+      const listId = TASK_LIST_ID_INBOX
       const rows = db
         .prepare(
-          `SELECT id, title, status, is_inbox, is_someday, project_id, section_id, area_id,
-                  scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
-           FROM tasks
-           WHERE deleted_at IS NULL
-             AND status = 'open'
-             AND is_inbox = 1
-           ORDER BY created_at ASC`
+          `SELECT
+             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
+             t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
+             lp.rank AS rank
+           FROM tasks t
+           LEFT JOIN list_positions lp
+             ON lp.list_id = @list_id AND lp.task_id = t.id
+           WHERE t.deleted_at IS NULL
+             AND t.status = 'open'
+             AND t.is_inbox = 1
+           ORDER BY
+             CASE WHEN lp.rank IS NULL THEN 1 ELSE 0 END,
+             lp.rank ASC,
+             t.created_at ASC`
         )
-        .all(parsed.data)
+        .all({ list_id: listId })
 
       const items = z.array(TaskListItemSchema).parse(rows)
       return { ok: true, data: items }
@@ -456,19 +471,27 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         }
       }
 
+      const listId = TASK_LIST_ID_ANYTIME
       const rows = db
         .prepare(
-          `SELECT id, title, status, is_inbox, is_someday, project_id, section_id, area_id,
-                  scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
-           FROM tasks
-           WHERE deleted_at IS NULL
-             AND status = 'open'
-             AND scheduled_at IS NULL
-             AND is_inbox = 0
-             AND is_someday = 0
-           ORDER BY created_at ASC`
+          `SELECT
+             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
+             t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
+             lp.rank AS rank
+           FROM tasks t
+           LEFT JOIN list_positions lp
+             ON lp.list_id = @list_id AND lp.task_id = t.id
+           WHERE t.deleted_at IS NULL
+             AND t.status = 'open'
+             AND t.scheduled_at IS NULL
+             AND t.is_inbox = 0
+             AND t.is_someday = 0
+           ORDER BY
+             CASE WHEN lp.rank IS NULL THEN 1 ELSE 0 END,
+             lp.rank ASC,
+             t.created_at ASC`
         )
-        .all(parsed.data)
+        .all({ list_id: listId })
 
       const items = z.array(TaskListItemSchema).parse(rows)
       return { ok: true, data: items }
@@ -487,17 +510,25 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         }
       }
 
+      const listId = TASK_LIST_ID_SOMEDAY
       const rows = db
         .prepare(
-          `SELECT id, title, status, is_inbox, is_someday, project_id, section_id, area_id,
-                  scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
-           FROM tasks
-           WHERE deleted_at IS NULL
-             AND status = 'open'
-             AND is_someday = 1
-           ORDER BY created_at ASC`
+          `SELECT
+             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
+             t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
+             lp.rank AS rank
+           FROM tasks t
+           LEFT JOIN list_positions lp
+             ON lp.list_id = @list_id AND lp.task_id = t.id
+           WHERE t.deleted_at IS NULL
+             AND t.status = 'open'
+             AND t.is_someday = 1
+           ORDER BY
+             CASE WHEN lp.rank IS NULL THEN 1 ELSE 0 END,
+             lp.rank ASC,
+             t.created_at ASC`
         )
-        .all(parsed.data)
+        .all({ list_id: listId })
 
       const items = z.array(TaskListItemSchema).parse(rows)
       return { ok: true, data: items }
@@ -516,7 +547,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         }
       }
 
-      const listId = 'today'
+      const listId = TASK_LIST_ID_TODAY
       const rows = db
         .prepare(
           `SELECT
@@ -624,7 +655,10 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
            WHERE t.deleted_at IS NULL
              AND t.status = 'open'
              AND t.project_id = @project_id
-           ORDER BY t.created_at ASC`
+           ORDER BY
+             CASE WHEN lp.rank IS NULL THEN 1 ELSE 0 END,
+             lp.rank ASC,
+             t.created_at ASC`
         )
         .all({ project_id: parsed.data.project_id })
 
@@ -708,22 +742,30 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         }
       }
 
+      const listId = taskListIdArea(parsed.data.area_id)
       const rows = db
         .prepare(
-          `SELECT id, title, status, is_inbox, is_someday, project_id, section_id, area_id,
-                  scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
-           FROM tasks
-           WHERE deleted_at IS NULL
-             AND status = 'open'
+          `SELECT
+             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
+             t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
+             lp.rank AS rank
+           FROM tasks t
+           LEFT JOIN list_positions lp
+             ON lp.list_id = @list_id AND lp.task_id = t.id
+           WHERE t.deleted_at IS NULL
+             AND t.status = 'open'
              AND (
-               area_id = @area_id
-               OR project_id IN (
+               t.area_id = @area_id
+               OR t.project_id IN (
                  SELECT id FROM projects WHERE deleted_at IS NULL AND area_id = @area_id
                )
              )
-           ORDER BY created_at ASC`
+           ORDER BY
+             CASE WHEN lp.rank IS NULL THEN 1 ELSE 0 END,
+             lp.rank ASC,
+             t.created_at ASC`
         )
-        .all({ area_id: parsed.data.area_id })
+        .all({ list_id: listId, area_id: parsed.data.area_id })
 
       const items = z.array(TaskListItemSchema).parse(rows)
       return { ok: true, data: items }
