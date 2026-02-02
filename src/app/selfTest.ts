@@ -25,6 +25,31 @@ async function waitFor<T>(
   throw new Error(`Timeout waiting for: ${label}`)
 }
 
+async function scrollUntil<T>(
+  label: string,
+  params: {
+    scroller: HTMLElement
+    get: () => T | null
+    stepPx?: number
+    timeoutMs?: number
+    intervalMs?: number
+  }
+): Promise<T> {
+  const stepPx = params.stepPx ?? 180
+  const timeoutMs = params.timeoutMs ?? 10_000
+  const intervalMs = params.intervalMs ?? 60
+  const start = Date.now()
+
+  while (Date.now() - start < timeoutMs) {
+    const v = params.get()
+    if (v) return v
+    params.scroller.scrollTop += stepPx
+    await sleep(intervalMs)
+  }
+
+  throw new Error(`Timeout waiting for: ${label}`)
+}
+
 function setNativeInputValue(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
   const proto = el instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype
   const desc = Object.getOwnPropertyDescriptor(proto, 'value')
@@ -52,6 +77,84 @@ function dispatchKey(
 function dispatchDblClick(target: HTMLElement) {
   target.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }))
 }
+
+function dispatchMouse(
+  target: Window | Document | HTMLElement,
+  type: 'mousedown' | 'mousemove' | 'mouseup',
+  params: {
+    clientX: number
+    clientY: number
+    button: number
+    buttons: number
+  }
+) {
+  target.dispatchEvent(
+    new MouseEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      clientX: params.clientX,
+      clientY: params.clientY,
+      button: params.button,
+      buttons: params.buttons,
+    })
+  )
+}
+
+function findDragHandle(taskId: string): HTMLElement | null {
+  return document
+    .querySelector<HTMLElement>(`.task-row[data-task-id="${taskId}"] .task-dnd-handle`)
+}
+
+async function dragHandleToPoint(params: {
+  label: string
+  handle: HTMLElement
+  to: { x: number; y: number }
+}) {
+  const { label, handle, to } = params
+
+  const startRect = handle.getBoundingClientRect()
+  const start = { x: startRect.left + startRect.width / 2, y: startRect.top + startRect.height / 2 }
+
+  dispatchMouse(handle, 'mousedown', {
+    clientX: start.x,
+    clientY: start.y,
+    button: 0,
+    buttons: 1,
+  })
+
+  // Move enough distance to satisfy activationConstraint.
+  dispatchMouse(document, 'mousemove', {
+    clientX: start.x + 24,
+    clientY: start.y + 18,
+    button: 0,
+    buttons: 1,
+  })
+
+  await waitFor(`${label}: drag overlay shown`, () =>
+    document.querySelector<HTMLElement>('.task-dnd-overlay')
+  )
+
+  dispatchMouse(document, 'mousemove', {
+    clientX: to.x,
+    clientY: to.y,
+    button: 0,
+    buttons: 1,
+  })
+
+  await sleep(50)
+
+  dispatchMouse(document, 'mouseup', {
+    clientX: to.x,
+    clientY: to.y,
+    button: 0,
+    buttons: 0,
+  })
+
+  await waitFor(`${label}: drag overlay hidden`, () =>
+    document.querySelector<HTMLElement>('.task-dnd-overlay') ? null : true
+  )
+}
+
 
 function formatLocalDate(date: Date): string {
   const year = date.getFullYear()
@@ -517,6 +620,55 @@ async function runSelfTest(): Promise<SelfTestResult> {
     const upcomingAId = upcomingARes.data.id
     const upcomingBId = upcomingBRes.data.id
 
+    // Seed tasks for DnD list views (Anytime/Someday/Area).
+    const anytimeDndARes = await window.api.task.create({ title: `${token} Anytime DnD A` })
+    const anytimeDndBRes = await window.api.task.create({ title: `${token} Anytime DnD B` })
+    if (!anytimeDndARes.ok) {
+      throw new Error(
+        `task.create anytimeDndA failed: ${anytimeDndARes.error.code}: ${anytimeDndARes.error.message}`
+      )
+    }
+    if (!anytimeDndBRes.ok) {
+      throw new Error(
+        `task.create anytimeDndB failed: ${anytimeDndBRes.error.code}: ${anytimeDndBRes.error.message}`
+      )
+    }
+
+    const somedayDndARes = await window.api.task.create({ title: `${token} Someday DnD A`, is_someday: true })
+    const somedayDndBRes = await window.api.task.create({ title: `${token} Someday DnD B`, is_someday: true })
+    if (!somedayDndARes.ok) {
+      throw new Error(
+        `task.create somedayDndA failed: ${somedayDndARes.error.code}: ${somedayDndARes.error.message}`
+      )
+    }
+    if (!somedayDndBRes.ok) {
+      throw new Error(
+        `task.create somedayDndB failed: ${somedayDndBRes.error.code}: ${somedayDndBRes.error.message}`
+      )
+    }
+
+    const areaRes = await window.api.area.create({ title: `${token} Area DnD A` })
+    if (!areaRes.ok) {
+      throw new Error(`area.create failed: ${areaRes.error.code}: ${areaRes.error.message}`)
+    }
+    const areaId = areaRes.data.id
+
+    const areaTaskARes = await window.api.task.create({ title: `${token} Area Task A`, area_id: areaId })
+    const areaTaskBRes = await window.api.task.create({ title: `${token} Area Task B`, area_id: areaId })
+    if (!areaTaskARes.ok) {
+      throw new Error(`task.create areaTaskA failed: ${areaTaskARes.error.code}: ${areaTaskARes.error.message}`)
+    }
+    if (!areaTaskBRes.ok) {
+      throw new Error(`task.create areaTaskB failed: ${areaTaskBRes.error.code}: ${areaTaskBRes.error.message}`)
+    }
+
+    const anytimeDndAId = anytimeDndARes.data.id
+    const anytimeDndBId = anytimeDndBRes.data.id
+    const somedayDndAId = somedayDndARes.data.id
+    const somedayDndBId = somedayDndBRes.data.id
+    const areaTaskAId = areaTaskARes.data.id
+    const areaTaskBId = areaTaskBRes.data.id
+
     // Seed a project for Project page flows (completed toggle + project completion).
     const projectRes = await window.api.project.create({ title: `${token} Project A` })
     if (!projectRes.ok) {
@@ -529,6 +681,13 @@ async function runSelfTest(): Promise<SelfTestResult> {
     if (!sectionARes.ok) {
       throw new Error(
         `project.createSection failed: ${sectionARes.error.code}: ${sectionARes.error.message}`
+      )
+    }
+
+    const sectionBRes = await window.api.project.createSection(projectId, `${token} Section B`)
+    if (!sectionBRes.ok) {
+      throw new Error(
+        `project.createSection (B) failed: ${sectionBRes.error.code}: ${sectionBRes.error.message}`
       )
     }
 
@@ -550,6 +709,17 @@ async function runSelfTest(): Promise<SelfTestResult> {
     if (!projectOpenSectionRes.ok) {
       throw new Error(
         `task.create projectOpenSection failed: ${projectOpenSectionRes.error.code}: ${projectOpenSectionRes.error.message}`
+      )
+    }
+
+    const projectOpenSection2Res = await window.api.task.create({
+      title: `${token} Project Open Section 2`,
+      project_id: projectId,
+      section_id: sectionARes.data.id,
+    })
+    if (!projectOpenSection2Res.ok) {
+      throw new Error(
+        `task.create projectOpenSection2 failed: ${projectOpenSection2Res.error.code}: ${projectOpenSection2Res.error.message}`
       )
     }
 
@@ -805,6 +975,9 @@ async function runSelfTest(): Promise<SelfTestResult> {
     const upcomingListbox = await waitFor('Upcoming listbox', () =>
       document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Upcoming tasks"]')
     )
+    if (upcomingListbox.querySelector('.task-dnd-handle')) {
+      throw new Error('Upcoming: drag-and-drop handle should not be present')
+    }
     await waitFor('Upcoming A row button', () => findTaskButton(upcomingAId))
     await waitFor('Upcoming B row button', () => findTaskButton(upcomingBId))
 
@@ -934,6 +1107,214 @@ async function runSelfTest(): Promise<SelfTestResult> {
     contentScroller.scrollTop = 0
     await sleep(150)
 
+    // DnD smoke: reorder within Section A and move into empty Section B.
+    const projectOpenSectionId = projectOpenSectionRes.data.id
+    const projectOpenSection2Id = projectOpenSection2Res.data.id
+    const sectionBId = sectionBRes.data.id
+
+    await waitFor('Project: open section task 1 visible', () => findTaskButton(projectOpenSectionId))
+    await waitFor('Project: open section task 2 visible', () => findTaskButton(projectOpenSection2Id))
+
+    const handleProject2 = await waitFor('Project: drag handle (task 2)', () => findDragHandle(projectOpenSection2Id))
+    const targetRowProject1 = await waitFor('Project: task 1 row element', () =>
+      document.querySelector<HTMLElement>(`.task-row[data-task-id="${projectOpenSectionId}"]`)
+    )
+    const r1 = targetRowProject1.getBoundingClientRect()
+    await dragHandleToPoint({
+      label: 'Project: reorder within section',
+      handle: handleProject2,
+      to: { x: r1.left + r1.width / 2, y: r1.top + r1.height * 0.25 },
+    })
+    await sleep(250)
+
+    const projectAfterReorder = await window.api.task.listProject(projectId)
+    if (!projectAfterReorder.ok) {
+      throw new Error(
+        `Project: listProject after reorder failed: ${projectAfterReorder.error.code}: ${projectAfterReorder.error.message}`
+      )
+    }
+    const p1 = projectAfterReorder.data.find((t) => t.id === projectOpenSectionId)
+    const p2 = projectAfterReorder.data.find((t) => t.id === projectOpenSection2Id)
+    if (!p1 || !p2) throw new Error('Project: missing reordered tasks in listProject')
+    if (p1.rank == null || p2.rank == null) {
+      throw new Error('Project: expected rank to be set after reorderBatch')
+    }
+    if (p2.rank >= p1.rank) {
+      throw new Error('Project: expected task 2 to be ranked before task 1 after reorder')
+    }
+
+    // Keyboard reorder within the selected task's current section.
+    const projectTask2ButtonForKey = await waitFor('Project: task 2 button (for keyboard)', () =>
+      findTaskButton(projectOpenSection2Id)
+    )
+    projectTask2ButtonForKey.click()
+    await waitFor('Project: task 2 selected (for keyboard)', () =>
+      getSelectedTaskId() === projectOpenSection2Id ? true : null
+    )
+    // Dispatch from the focused row button so the event bubbles to the listbox handler.
+    dispatchKey(projectTask2ButtonForKey, 'ArrowDown', { metaKey: true, ctrlKey: true, shiftKey: true })
+    await sleep(250)
+
+    const projectAfterKeyboard = await window.api.task.listProject(projectId)
+    if (!projectAfterKeyboard.ok) {
+      throw new Error(
+        `Project: listProject after keyboard reorder failed: ${projectAfterKeyboard.error.code}: ${projectAfterKeyboard.error.message}`
+      )
+    }
+    const pk1 = projectAfterKeyboard.data.find((t) => t.id === projectOpenSectionId)
+    const pk2 = projectAfterKeyboard.data.find((t) => t.id === projectOpenSection2Id)
+    if (!pk1 || !pk2) throw new Error('Project: missing tasks after keyboard reorder')
+    if (pk1.rank == null || pk2.rank == null) {
+      throw new Error('Project: expected rank to be set after keyboard reorder')
+    }
+    if (pk1.rank >= pk2.rank) {
+      throw new Error('Project: expected task 2 to move down after Ctrl+Shift+ArrowDown')
+    }
+
+    const sectionBHeader = await scrollUntil('Project: Section B header visible', {
+      scroller: contentScroller,
+      get: () =>
+        document.querySelector<HTMLElement>(`.project-group-header[data-section-id="${sectionBId}"]`),
+      stepPx: 120,
+      timeoutMs: 10_000,
+      intervalMs: 60,
+    })
+    const hb = sectionBHeader.getBoundingClientRect()
+    const handleProject2ForMove = await waitFor('Project: drag handle (task 2, move)', () =>
+      findDragHandle(projectOpenSection2Id)
+    )
+
+    // Inline drag so we can assert the header droppable activates.
+    {
+      const startRect = handleProject2ForMove.getBoundingClientRect()
+      const start = {
+        x: startRect.left + startRect.width / 2,
+        y: startRect.top + startRect.height / 2,
+      }
+      const to = { x: hb.left + hb.width / 2, y: hb.top + hb.height / 2 }
+
+      dispatchMouse(handleProject2ForMove, 'mousedown', {
+        clientX: start.x,
+        clientY: start.y,
+        button: 0,
+        buttons: 1,
+      })
+      dispatchMouse(document, 'mousemove', {
+        clientX: start.x + 24,
+        clientY: start.y + 18,
+        button: 0,
+        buttons: 1,
+      })
+      await waitFor('Project: move across sections overlay shown', () =>
+        document.querySelector<HTMLElement>('.task-dnd-overlay')
+      )
+
+      dispatchMouse(document, 'mousemove', {
+        clientX: to.x,
+        clientY: to.y,
+        button: 0,
+        buttons: 1,
+      })
+      await sleep(120)
+
+      const dropActive = document.querySelector<HTMLElement>(
+        `.project-group-header.is-drop-over[data-section-id="${sectionBId}"]`
+      )
+      if (!dropActive) {
+        const hit = document.elementFromPoint(to.x, to.y)
+        const hitDesc = hit ? `${hit.tagName}${hit instanceof HTMLElement && hit.className ? `.${hit.className}` : ''}` : 'null'
+        throw new Error(`Project: expected Section B to be droppable (hit=${hitDesc})`)
+      }
+
+      dispatchMouse(document, 'mouseup', {
+        clientX: to.x,
+        clientY: to.y,
+        button: 0,
+        buttons: 0,
+      })
+      await waitFor('Project: move across sections overlay hidden', () =>
+        document.querySelector<HTMLElement>('.task-dnd-overlay') ? null : true
+      )
+    }
+
+    await sleep(250)
+
+    const movedDetail = await window.api.task.getDetail(projectOpenSection2Id)
+    if (!movedDetail.ok) {
+      throw new Error(
+        `Project: getDetail after move failed: ${movedDetail.error.code}: ${movedDetail.error.message}`
+      )
+    }
+    if (movedDetail.data.task.section_id !== sectionBId) {
+      throw new Error('Project: expected task.section_id to update after cross-section drop')
+    }
+
+    // No-section drop: ensure a task can be dropped into the no-section container even when empty.
+    const projectOpenNoneId = projectOpenNoneRes.data.id
+    {
+      contentScroller.scrollTop = 0
+      await sleep(150)
+
+      const sectionAHeader = await waitFor('Project: Section A header (for no-section test)', () =>
+        document.querySelector<HTMLElement>(`.project-group-header[data-section-id="${sectionARes.data.id}"]`)
+      )
+      const ha = sectionAHeader.getBoundingClientRect()
+
+      const handleNoSection = await waitFor('Project: drag handle (no-section task)', () =>
+        findDragHandle(projectOpenNoneId)
+      )
+      await dragHandleToPoint({
+        label: 'Project: move no-section task into Section A',
+        handle: handleNoSection,
+        to: { x: ha.left + ha.width / 2, y: ha.top + ha.height / 2 },
+      })
+      await sleep(250)
+
+      const noneMoved = await window.api.task.getDetail(projectOpenNoneId)
+      if (!noneMoved.ok) {
+        throw new Error(
+          `Project: getDetail no-section after move failed: ${noneMoved.error.code}: ${noneMoved.error.message}`
+        )
+      }
+      if (noneMoved.data.task.section_id !== sectionARes.data.id) {
+        throw new Error('Project: expected no-section task to move into Section A')
+      }
+
+      // No-section group should not show a visible header row, but should remain droppable.
+      if (document.querySelector('.project-group-header[data-section-id="none"]')) {
+        throw new Error('Project: no-section header should not be rendered')
+      }
+
+      const noSectionDropZone = await waitFor('Project: no-section drop zone visible', () =>
+        document.querySelector<HTMLElement>('.project-no-section-dropzone')
+      )
+      const hn = noSectionDropZone.getBoundingClientRect()
+
+      const handleSectionTask = await waitFor('Project: drag handle (section task -> no section)', () =>
+        findDragHandle(projectOpenSectionId)
+      )
+      await dragHandleToPoint({
+        label: 'Project: move section task into no-section',
+        handle: handleSectionTask,
+        to: { x: hn.left + hn.width / 2, y: hn.top + hn.height / 2 },
+      })
+      await sleep(250)
+
+      const movedToNone = await window.api.task.getDetail(projectOpenSectionId)
+      if (!movedToNone.ok) {
+        throw new Error(
+          `Project: getDetail after move to no-section failed: ${movedToNone.error.code}: ${movedToNone.error.message}`
+        )
+      }
+      if (movedToNone.data.task.section_id !== null) {
+        throw new Error('Project: expected task.section_id=null after dropping into no-section')
+      }
+    }
+
+    // Keep later Project assertions stable.
+    contentScroller.scrollTop = 0
+    await sleep(150)
+
     const completedToggle = await waitFor('Project completed toggle', () =>
       findButtonContainingText(document, 'Completed')
     )
@@ -976,6 +1357,9 @@ async function runSelfTest(): Promise<SelfTestResult> {
       await waitFor('Project open section tasks hidden', () =>
         findTaskButton(projectOpenSectionRes.data.id) ? null : true
       )
+      await waitFor('Project open section tasks hidden (second)', () =>
+        findTaskButton(projectOpenSection2Res.data.id) ? null : true
+      )
 
       // Expand to see completed tasks (including previously-open tasks).
       const completedToggleAfterComplete = await waitFor('Project completed toggle (post complete)', () =>
@@ -1007,6 +1391,9 @@ async function runSelfTest(): Promise<SelfTestResult> {
       }
       await waitFor('Project former open section task visible (post complete)', () =>
         findTaskButton(projectOpenSectionRes.data.id)
+      )
+      await waitFor('Project former open section task visible (post complete, second)', () =>
+        findTaskButton(projectOpenSection2Res.data.id)
       )
 
       // Reopen via overflow menu (project status only; tasks remain done).
@@ -1102,6 +1489,198 @@ async function runSelfTest(): Promise<SelfTestResult> {
       }
       if (anytimeListRes.data.some((t) => t.id === anytimeId)) {
         throw new Error('Anytime list: Someday task should not appear')
+      }
+
+      // Drag-and-drop + keyboard reorder smoke tests.
+      // TaskList views with DnD enabled: Inbox / Today / Anytime / Someday / Area
+
+      // Inbox: drag reorder shows overlay and persists in DB ordering.
+      window.location.hash = '/inbox'
+      await waitFor('Inbox listbox (DnD)', () =>
+        document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+      )
+      const inboxHandleA = await waitFor('Inbox A drag handle', () => findDragHandle(inboxAId))
+      const inboxRowB = await waitFor('Inbox B row (DnD target)', () =>
+        document.querySelector<HTMLElement>(`.task-row[data-task-id="${inboxBId}"]`)
+      )
+      const inboxBRect = inboxRowB.getBoundingClientRect()
+      await dragHandleToPoint({
+        label: 'Inbox: drag reorder',
+        handle: inboxHandleA,
+        to: { x: inboxBRect.left + inboxBRect.width / 2, y: inboxBRect.top + inboxBRect.height / 2 },
+      })
+      await sleep(250)
+
+      const inboxAfter = await window.api.task.listInbox()
+      if (!inboxAfter.ok) {
+        throw new Error(`Inbox: listInbox failed: ${inboxAfter.error.code}: ${inboxAfter.error.message}`)
+      }
+      const inboxFirstTwo = inboxAfter.data.slice(0, 2).map((t) => t.id)
+      if (inboxFirstTwo[0] !== inboxBId || inboxFirstTwo[1] !== inboxAId) {
+        throw new Error('Inbox: reorder did not persist (expected B then A at top)')
+      }
+
+      // Today: drag reorder + keyboard reorder chord.
+      window.location.hash = '/today'
+      await waitFor('Today listbox (DnD)', () =>
+        document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+      )
+      const todayHandleA = await waitFor('Today A drag handle', () => findDragHandle(todayAId))
+      const todayRowB = await waitFor('Today B row (DnD target)', () =>
+        document.querySelector<HTMLElement>(`.task-row[data-task-id="${todayBId}"]`)
+      )
+      const todayBRect = todayRowB.getBoundingClientRect()
+      await dragHandleToPoint({
+        label: 'Today: drag reorder',
+        handle: todayHandleA,
+        to: { x: todayBRect.left + todayBRect.width / 2, y: todayBRect.top + todayBRect.height / 2 },
+      })
+      await sleep(250)
+
+      const todayAfter = await window.api.task.listToday(today)
+      if (!todayAfter.ok) {
+        throw new Error(`Today: listToday failed: ${todayAfter.error.code}: ${todayAfter.error.message}`)
+      }
+      const todayFirstTwo = todayAfter.data.slice(0, 2).map((t) => t.id)
+      if (todayFirstTwo[0] !== todayBId || todayFirstTwo[1] !== todayAId) {
+        throw new Error('Today: reorder did not persist (expected B then A)')
+      }
+
+      // Keyboard reorder: move selected task up by one.
+      const todayAButtonAfter = await waitFor('Today A row button (post DnD)', () => findTaskButton(todayAId))
+      todayAButtonAfter.click()
+      await waitFor('Today A selected (for keyboard reorder)', () =>
+        getSelectedTaskId() === todayAId ? true : null
+      )
+      await waitFor('Today A still selected (before keyboard reorder)', () =>
+        getSelectedTaskId() === todayAId ? true : null
+      )
+
+      // Dispatch from the focused row button so the event bubbles to the listbox handler.
+      dispatchKey(todayAButtonAfter, 'ArrowUp', { metaKey: true, ctrlKey: true, shiftKey: true })
+
+      let todayKeyOk = false
+      let todayKeyObserved: { ids: string[]; ranks: Array<number | null | undefined> } | null = null
+      for (let i = 0; i < 30; i++) {
+        const res = await window.api.task.listToday(today)
+        if (!res.ok) {
+          throw new Error(`Today: listToday after key failed: ${res.error.code}: ${res.error.message}`)
+        }
+        const firstTwo = res.data.slice(0, 2).map((t) => t.id)
+        todayKeyObserved = { ids: firstTwo, ranks: res.data.slice(0, 2).map((t) => t.rank) }
+        if (firstTwo[0] === todayAId && firstTwo[1] === todayBId) {
+          todayKeyOk = true
+          break
+        }
+        await sleep(100)
+      }
+      if (!todayKeyOk) {
+        throw new Error(
+          `Today: keyboard reorder did not persist (expected A then B), observed=${JSON.stringify(todayKeyObserved)}`
+        )
+      }
+
+      // Anytime: drag reorder.
+      window.location.hash = '/anytime'
+      await waitFor('Anytime listbox (DnD)', () =>
+        document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+      )
+      const anytimeHandleA = await waitFor('Anytime DnD A drag handle', () => findDragHandle(anytimeDndAId))
+      const anytimeRowB = await waitFor('Anytime DnD B row (DnD target)', () =>
+        document.querySelector<HTMLElement>(`.task-row[data-task-id="${anytimeDndBId}"]`)
+      )
+      const anytimeBRect = anytimeRowB.getBoundingClientRect()
+      await dragHandleToPoint({
+        label: 'Anytime: drag reorder',
+        handle: anytimeHandleA,
+        to: { x: anytimeBRect.left + anytimeBRect.width / 2, y: anytimeBRect.top + anytimeBRect.height / 2 },
+      })
+      await sleep(250)
+
+      const anytimeAfter = await window.api.task.listAnytime()
+      if (!anytimeAfter.ok) {
+        throw new Error(`Anytime: listAnytime failed: ${anytimeAfter.error.code}: ${anytimeAfter.error.message}`)
+      }
+      const anytimeFirstTwo = anytimeAfter.data.slice(0, 2).map((t) => t.id)
+      if (anytimeFirstTwo[0] !== anytimeDndBId || anytimeFirstTwo[1] !== anytimeDndAId) {
+        throw new Error('Anytime: reorder did not persist (expected DnD B then DnD A)')
+      }
+
+      // Someday: drag reorder.
+      window.location.hash = '/someday'
+      await waitFor('Someday listbox (DnD)', () =>
+        document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+      )
+      const somedayHandleA = await waitFor('Someday DnD A drag handle', () => findDragHandle(somedayDndAId))
+      const somedayRowB = await waitFor('Someday DnD B row (DnD target)', () =>
+        document.querySelector<HTMLElement>(`.task-row[data-task-id="${somedayDndBId}"]`)
+      )
+      const somedayBRect = somedayRowB.getBoundingClientRect()
+      await dragHandleToPoint({
+        label: 'Someday: drag reorder',
+        handle: somedayHandleA,
+        to: { x: somedayBRect.left + somedayBRect.width / 2, y: somedayBRect.top + somedayBRect.height / 2 },
+      })
+      await sleep(250)
+
+      const somedayAfter = await window.api.task.listSomeday()
+      if (!somedayAfter.ok) {
+        throw new Error(`Someday: listSomeday failed: ${somedayAfter.error.code}: ${somedayAfter.error.message}`)
+      }
+      const somedayFirstTwo = somedayAfter.data.slice(0, 2).map((t) => t.id)
+      if (somedayFirstTwo[0] !== somedayDndBId || somedayFirstTwo[1] !== somedayDndAId) {
+        throw new Error('Someday: reorder did not persist (expected DnD B then DnD A)')
+      }
+
+      // Area: drag reorder.
+      window.location.hash = `/areas/${areaId}`
+      await waitFor('Area listbox (DnD)', () =>
+        document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+      )
+      const areaHandleA = await waitFor('Area task A drag handle', () => findDragHandle(areaTaskAId))
+      const areaRowB = await waitFor('Area task B row (DnD target)', () =>
+        document.querySelector<HTMLElement>(`.task-row[data-task-id="${areaTaskBId}"]`)
+      )
+      const areaBRect = areaRowB.getBoundingClientRect()
+      await dragHandleToPoint({
+        label: 'Area: drag reorder',
+        handle: areaHandleA,
+        to: { x: areaBRect.left + areaBRect.width / 2, y: areaBRect.top + areaBRect.height / 2 },
+      })
+      await sleep(250)
+
+      const areaAfter = await window.api.task.listArea(areaId)
+      if (!areaAfter.ok) {
+        throw new Error(`Area: listArea failed: ${areaAfter.error.code}: ${areaAfter.error.message}`)
+      }
+      const areaFirstTwo = areaAfter.data.slice(0, 2).map((t) => t.id)
+      if (areaFirstTwo[0] !== areaTaskBId || areaFirstTwo[1] !== areaTaskAId) {
+        throw new Error('Area: reorder did not persist (expected Task B then Task A)')
+      }
+
+      // Views where manual ordering is NOT supported: Logbook / Search.
+      window.location.hash = '/logbook'
+      await waitFor('Logbook title', () => {
+        const h = document.querySelector<HTMLElement>('h1.page-title')
+        return h && (h.textContent ?? '').trim() === 'Logbook' ? true : null
+      })
+      const logbookListbox = await waitFor('Logbook listbox', () =>
+        document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+      )
+      if (logbookListbox.querySelector('.task-dnd-handle')) {
+        throw new Error('Logbook: drag-and-drop handle should not be present')
+      }
+
+      window.location.hash = '/search'
+      await waitFor('Search title', () => {
+        const h = document.querySelector<HTMLElement>('h1.page-title')
+        return h && (h.textContent ?? '').trim() === 'Search' ? true : null
+      })
+      const searchListbox = await waitFor('Search listbox', () =>
+        document.querySelector<HTMLElement>('div[role="listbox"][aria-label="Search results"]')
+      )
+      if (searchListbox.querySelector('.task-dnd-handle') || document.querySelector('.task-dnd-handle')) {
+        throw new Error('Search: drag-and-drop handle should not be present')
       }
     } finally {
       ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = prevConfirm
