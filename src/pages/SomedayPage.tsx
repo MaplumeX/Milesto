@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import type { AppError } from '../../shared/app-error'
 import type { TaskListItem } from '../../shared/schemas/task-list'
+import { TASK_LIST_ID_SOMEDAY } from '../../shared/task-list-ids'
 import { TaskList } from '../features/tasks/TaskList'
 import { useAppEvents } from '../app/AppEventsContext'
 
@@ -30,7 +31,9 @@ export function SomedayPage() {
       {error ? <ErrorBanner error={error} /> : null}
       <TaskList
         title="Someday"
+        listId={TASK_LIST_ID_SOMEDAY}
         tasks={tasks}
+        onAfterReorder={refresh}
         onToggleDone={async (taskId, done) => {
           const updated = await window.api.task.toggleDone(taskId, done)
           if (!updated.ok) throw new Error(`${updated.error.code}: ${updated.error.message}`)
