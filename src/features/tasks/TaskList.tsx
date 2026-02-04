@@ -27,7 +27,6 @@ import { useContentScrollRef } from '../../app/ContentScrollContext'
 function SortableTaskRow({
   task,
   isOverlay,
-  dropIndicator,
   onSelect,
   onOpen,
   onToggleDone,
@@ -36,7 +35,6 @@ function SortableTaskRow({
 }: {
   task: TaskListItem
   isOverlay?: boolean
-  dropIndicator?: 'before' | 'after'
   onSelect?: (taskId: string) => void
   onOpen?: (taskId: string) => void
   onToggleDone?: (taskId: string, done: boolean) => void
@@ -51,7 +49,6 @@ function SortableTaskRow({
     <TaskRow
       task={task}
       isOverlay={isOverlay}
-      dropIndicator={dropIndicator}
       innerRef={setNodeRef}
       innerStyle={{
         transform: CSS.Transform.toString(transform),
@@ -101,10 +98,19 @@ export function TaskList({
 
   const contentScrollRef = useContentScrollRef()
 
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+
   const [orderedTaskIds, setOrderedTaskIds] = useState<string[]>(() => tasks.map((t) => t.id))
   useEffect(() => {
+    // Avoid clobbering the draft ordering while dragging.
+    if (activeTaskId) return
     setOrderedTaskIds(tasks.map((t) => t.id))
-  }, [tasks])
+  }, [activeTaskId, tasks])
+
+  const orderedTaskIdsRef = useRef<string[]>(orderedTaskIds)
+  useEffect(() => {
+    orderedTaskIdsRef.current = orderedTaskIds
+  }, [orderedTaskIds])
 
   const orderedTasks = useMemo(() => {
     if (orderedTaskIds.length === 0) return tasks
@@ -145,11 +151,8 @@ export function TaskList({
       activationConstraint: { distance: 6 },
     })
   )
-
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
-  const [dropIndicator, setDropIndicator] = useState<{ overId: string; position: 'before' | 'after' } | null>(
-    null
-  )
+  const dragSnapshotRef = useRef<string[] | null>(null)
+  const lastOverIdRef = useRef<string | null>(null)
 
   useLayoutEffect(() => {
     let cancelled = false
@@ -231,46 +234,53 @@ export function TaskList({
   function handleDragStart(e: DragStartEvent) {
     const id = String(e.active.id)
     setActiveTaskId(id)
-    setDropIndicator(null)
+    dragSnapshotRef.current = orderedTaskIdsRef.current
+    lastOverIdRef.current = null
     selectTask(id)
   }
 
   function handleDragOver(e: DragOverEvent) {
     const activeId = String(e.active.id)
     const overId = e.over?.id ? String(e.over.id) : null
-    if (!overId || activeId === overId) {
-      setDropIndicator(null)
-      return
-    }
+    if (!overId || activeId === overId) return
+    if (lastOverIdRef.current === overId) return
 
-    const activeIndex = orderedTaskIds.indexOf(activeId)
-    const overIndex = orderedTaskIds.indexOf(overId)
-    if (activeIndex === -1 || overIndex === -1) {
-      setDropIndicator(null)
-      return
-    }
+    setOrderedTaskIds((prev) => {
+      const activeIndex = prev.indexOf(activeId)
+      const overIndex = prev.indexOf(overId)
+      if (activeIndex === -1 || overIndex === -1) return prev
+      if (activeIndex === overIndex) return prev
 
-    setDropIndicator({ overId, position: activeIndex < overIndex ? 'after' : 'before' })
+      const next = arrayMove(prev, activeIndex, overIndex)
+      orderedTaskIdsRef.current = next
+      lastOverIdRef.current = overId
+      return next
+    })
   }
 
   async function handleDragEnd(e: DragEndEvent) {
     const activeId = String(e.active.id)
     const overId = e.over?.id ? String(e.over.id) : null
     setActiveTaskId(null)
-    setDropIndicator(null)
-    if (!overId || activeId === overId) return
+    lastOverIdRef.current = null
 
-    const prev = orderedTaskIds
-    const oldIndex = prev.indexOf(activeId)
-    const newIndex = prev.indexOf(overId)
-    if (oldIndex === -1 || newIndex === -1) return
+    const snapshot = dragSnapshotRef.current
+    dragSnapshotRef.current = null
 
-    const next = arrayMove(prev, oldIndex, newIndex)
-    setOrderedTaskIds(next)
+    if (!overId || activeId === overId) {
+      if (snapshot) setOrderedTaskIds(snapshot)
+      return
+    }
+
+    const next = orderedTaskIdsRef.current
+    if (snapshot && snapshot.length === next.length && snapshot.every((id, i) => id === next[i])) {
+      return
+    }
+
     try {
       await persistOrder(next)
     } catch (err) {
-      setOrderedTaskIds(prev)
+      if (snapshot) setOrderedTaskIds(snapshot)
       throw err
     }
 
@@ -280,7 +290,11 @@ export function TaskList({
 
   function handleDragCancel(_e: DragCancelEvent) {
     setActiveTaskId(null)
-    setDropIndicator(null)
+    lastOverIdRef.current = null
+
+    const snapshot = dragSnapshotRef.current
+    dragSnapshotRef.current = null
+    if (snapshot) setOrderedTaskIds(snapshot)
   }
 
   const activeTask = useMemo(() => {
@@ -415,6 +429,7 @@ export function TaskList({
                         top: 0,
                         left: 0,
                         width: '100%',
+                        visibility: activeTaskId === t.id ? 'hidden' : undefined,
                         transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
                       }}
                     >
@@ -422,9 +437,6 @@ export function TaskList({
                     </li>
                   )
                 }
-
-                const indicator =
-                  dropIndicator && dropIndicator.overId === t.id ? dropIndicator.position : undefined
 
                 return (
                   <li
@@ -443,13 +455,13 @@ export function TaskList({
                       top: 0,
                       left: 0,
                       width: '100%',
+                      visibility: activeTaskId === t.id ? 'hidden' : undefined,
                       transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
                     }}
                   >
                     {isDndEnabled ? (
                       <SortableTaskRow
                         task={t}
-                        dropIndicator={indicator}
                         onSelect={(taskId) => selectTask(taskId)}
                         onOpen={(taskId) => openTask(taskId)}
                         onToggleDone={(taskId, done) => {
@@ -463,7 +475,6 @@ export function TaskList({
                     ) : (
                       <TaskRow
                         task={t}
-                        dropIndicator={indicator}
                         onSelect={(taskId) => selectTask(taskId)}
                         onOpen={(taskId) => openTask(taskId)}
                         onToggleDone={(taskId, done) => {

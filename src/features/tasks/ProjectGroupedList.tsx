@@ -55,13 +55,6 @@ function sortByRankThenCreated(a: TaskListItem, b: TaskListItem) {
 }
 
 type ContainerId = string
-type ProjectedDrop = {
-  overId: string
-  src: ContainerId
-  dest: ContainerId
-  index: number
-  placement: 'before' | 'after'
-} | null
 
 function NoSectionDropZone({
   containerId,
@@ -70,7 +63,7 @@ function NoSectionDropZone({
 }) {
   // Invisible hit area at the very top of the list content.
   // This enables dropping into no-section without introducing a visible group header.
-  const { setNodeRef, isOver } = useDroppable({
+  const { setNodeRef } = useDroppable({
     id: containerId,
     data: { type: 'container', containerId },
   })
@@ -79,7 +72,6 @@ function NoSectionDropZone({
     <div
       ref={setNodeRef}
       className="project-no-section-dropzone"
-      data-drop-over={isOver ? 'true' : 'false'}
       aria-hidden="true"
     />
   )
@@ -172,7 +164,7 @@ function ProjectGroupHeaderRow({
   index: number
   translateY: number
 }) {
-  const { setNodeRef, isOver } = useDroppable({
+  const { setNodeRef } = useDroppable({
     id: containerId,
     data: { type: 'container', containerId },
   })
@@ -191,7 +183,7 @@ function ProjectGroupHeaderRow({
     >
       <div
         ref={setNodeRef}
-        className={`project-group-header${isSelected ? ' is-selected' : ''}${isOver ? ' is-drop-over' : ''}`}
+        className={`project-group-header${isSelected ? ' is-selected' : ''}`}
         data-section-id={sectionId}
       >
         {isEditing ? (
@@ -265,14 +257,12 @@ function ProjectGroupHeaderRow({
 
 function SortableProjectTaskRow({
   task,
-  dropIndicator,
   onSelect,
   onOpen,
   onToggleDone,
   onSelectForDrag,
 }: {
   task: TaskListItem
-  dropIndicator?: 'before' | 'after'
   onSelect: (taskId: string) => void
   onOpen: (taskId: string) => void
   onToggleDone: (taskId: string, done: boolean) => void
@@ -286,7 +276,6 @@ function SortableProjectTaskRow({
   return (
     <TaskRow
       task={task}
-      dropIndicator={dropIndicator}
       innerRef={setNodeRef}
       innerStyle={{
         transform: CSS.Transform.toString(transform),
@@ -346,9 +335,14 @@ export function ProjectGroupedList({
   const noSectionContainerId = useMemo(() => taskListIdProject(projectId, null), [projectId])
 
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
-  const [projectedDrop, setProjectedDrop] = useState<ProjectedDrop>(null)
-  const projectedDropRef = useRef<ProjectedDrop>(null)
   const dragSnapshotRef = useRef<Record<ContainerId, string[]> | null>(null)
+  const dragStartContainerRef = useRef<ContainerId | null>(null)
+  const lastDraftSignatureRef = useRef<string | null>(null)
+
+  const openItemsByContainerRef = useRef(openItemsByContainer)
+  useEffect(() => {
+    openItemsByContainerRef.current = openItemsByContainer
+  }, [openItemsByContainer])
 
   useEffect(() => {
     if (activeTaskId) return
@@ -380,13 +374,21 @@ export function ProjectGroupedList({
     return m
   }, [openItemsByContainer])
 
-  const findContainerForId = useCallback(
-    (id: string): ContainerId | null => {
-      if (isProjectContainerId(id)) return id
-      return containerByTaskId.get(id) ?? null
-    },
-    [containerByTaskId]
-  )
+  const containerByTaskIdRef = useRef(containerByTaskId)
+  useEffect(() => {
+    containerByTaskIdRef.current = containerByTaskId
+  }, [containerByTaskId])
+
+  function findContainerForIdInDrag(id: string): ContainerId | null {
+    if (isProjectContainerId(id)) return id
+    return containerByTaskIdRef.current.get(id) ?? null
+  }
+
+  function cloneItemsByContainer(m: Record<ContainerId, string[]>): Record<ContainerId, string[]> {
+    const out: Record<ContainerId, string[]> = {}
+    for (const [k, v] of Object.entries(m)) out[k] = [...v]
+    return out
+  }
 
   async function persistReorder(containerId: ContainerId, orderedTaskIds: string[]) {
     const res = await window.api.task.reorderBatch(containerId, orderedTaskIds)
@@ -396,139 +398,155 @@ export function ProjectGroupedList({
   function handleDragStart(e: DragStartEvent) {
     const id = String(e.active.id)
     setActiveTaskId(id)
-    dragSnapshotRef.current = openItemsByContainer
-    projectedDropRef.current = null
-    setProjectedDrop(null)
+    dragSnapshotRef.current = cloneItemsByContainer(openItemsByContainerRef.current)
+    dragStartContainerRef.current = findContainerForIdInDrag(id)
+    lastDraftSignatureRef.current = null
     selectTask(id)
   }
 
   function handleDragOver(e: DragOverEvent) {
     const activeId = String(e.active.id)
     const overId = e.over?.id ? String(e.over.id) : null
-    if (!overId) {
-      projectedDropRef.current = null
-      setProjectedDrop(null)
-      return
-    }
+    if (!overId) return
 
-    const src = findContainerForId(activeId)
-    const dest = findContainerForId(overId)
-    if (!src || !dest) {
-      projectedDropRef.current = null
-      setProjectedDrop(null)
-      return
-    }
+    const src = findContainerForIdInDrag(activeId)
+    const dest = findContainerForIdInDrag(overId)
+    if (!src || !dest) return
 
-    if (isProjectContainerId(overId)) {
-      const proj: ProjectedDrop = { overId, src, dest, index: 0, placement: 'before' }
-      projectedDropRef.current = proj
-      setProjectedDrop(proj)
-      return
-    }
+    // If the pointer is on the current container header, don't force a jump-to-top.
+    if (src === dest && isProjectContainerId(overId)) return
 
-    const destItems = openItemsByContainer[dest] ?? []
-    const overIndex = destItems.indexOf(overId)
-    if (overIndex < 0) {
-      projectedDropRef.current = null
-      setProjectedDrop(null)
-      return
-    }
+    // Use the current draft map to compute indices, so reflow stays stable.
+    const draft = openItemsByContainerRef.current
 
-    // Keep same-container reordering semantics aligned with dnd-kit sortable transforms.
-    // dnd-kit effectively uses `arrayMove(items, activeIndex, overIndex)` for same-container sorting,
-    // which implicitly handles before/after based on move direction.
     if (src === dest) {
-      const srcItems = openItemsByContainer[src] ?? []
-      const activeIndex = srcItems.indexOf(activeId)
-      const placement: 'before' | 'after' = activeIndex >= 0 && activeIndex < overIndex ? 'after' : 'before'
-      const proj: ProjectedDrop = { overId, src, dest, index: overIndex, placement }
-      projectedDropRef.current = proj
-      setProjectedDrop(proj)
+      if (isProjectContainerId(overId)) return
+
+      const items = draft[src] ?? []
+      const from = items.indexOf(activeId)
+      const to = items.indexOf(overId)
+      if (from < 0 || to < 0 || from === to) return
+
+      const sig = `${src}|${dest}|${activeId}|${overId}`
+      if (lastDraftSignatureRef.current === sig) return
+      lastDraftSignatureRef.current = sig
+
+      setOpenItemsByContainer((prev) => {
+        const cur = prev[src] ?? []
+        const curFrom = cur.indexOf(activeId)
+        const curTo = cur.indexOf(overId)
+        if (curFrom < 0 || curTo < 0 || curFrom === curTo) return prev
+
+        const nextItems = arrayMove(cur, curFrom, curTo)
+        const next = { ...prev, [src]: nextItems }
+        openItemsByContainerRef.current = next
+        return next
+      })
       return
     }
 
-    const overMid = e.over!.rect.top + e.over!.rect.height / 2
-    const activeTop = e.active.rect.current.translated?.top ?? e.active.rect.current.initial?.top ?? 0
-    const isAfter = activeTop > overMid
+    const destItems = draft[dest] ?? []
+    let insertIndex = 0
+    if (isProjectContainerId(overId)) {
+      insertIndex = 0
+    } else {
+      const overIndex = destItems.indexOf(overId)
+      if (overIndex < 0) return
 
-    const index = Math.max(0, Math.min(overIndex + (isAfter ? 1 : 0), destItems.length))
-    const proj: ProjectedDrop = { overId, src, dest, index, placement: isAfter ? 'after' : 'before' }
-    projectedDropRef.current = proj
-    setProjectedDrop(proj)
+      const overMid = e.over!.rect.top + e.over!.rect.height / 2
+      const activeTop = e.active.rect.current.translated?.top ?? e.active.rect.current.initial?.top ?? 0
+      const isAfter = activeTop > overMid
+      insertIndex = Math.max(0, Math.min(overIndex + (isAfter ? 1 : 0), destItems.length))
+    }
+
+    const sig = `${src}|${dest}|${activeId}|${overId}|${insertIndex}`
+    if (lastDraftSignatureRef.current === sig) return
+    lastDraftSignatureRef.current = sig
+
+    setOpenItemsByContainer((prev) => {
+      const srcItems = prev[src] ?? []
+      const destItems2 = prev[dest] ?? []
+
+      const hasActive = srcItems.includes(activeId) || destItems2.includes(activeId)
+      if (!hasActive) return prev
+
+      const nextSrc = srcItems.filter((id) => id !== activeId)
+      const nextDestBase = destItems2.filter((id) => id !== activeId)
+      const idx = Math.max(0, Math.min(insertIndex, nextDestBase.length))
+      const nextDest = [...nextDestBase]
+      nextDest.splice(idx, 0, activeId)
+
+      const next = { ...prev, [src]: nextSrc, [dest]: nextDest }
+      openItemsByContainerRef.current = next
+      containerByTaskIdRef.current.set(activeId, dest)
+      return next
+    })
   }
 
   async function handleDragEnd(e: DragEndEvent) {
     const activeId = String(e.active.id)
     const overId = e.over?.id ? String(e.over.id) : null
-
-    const proj = projectedDropRef.current
-
     setActiveTaskId(null)
-    setProjectedDrop(null)
-    projectedDropRef.current = null
-
-    if (!overId) {
-      if (dragSnapshotRef.current) setOpenItemsByContainer(dragSnapshotRef.current)
-      return
-    }
-
-    const src = findContainerForId(activeId)
-    const dest = findContainerForId(overId)
-    if (!src || !dest) {
-      if (dragSnapshotRef.current) setOpenItemsByContainer(dragSnapshotRef.current)
-      return
-    }
-
-    const srcItems = openItemsByContainer[src] ?? []
-    const destItems = openItemsByContainer[dest] ?? []
-    const fromIndex = srcItems.indexOf(activeId)
-    if (fromIndex < 0) return
-
-    // Determine the insertion index in the destination list.
-    let rawIndex = 0
-    if (proj && proj.src === src && proj.dest === dest) rawIndex = proj.index
-    else if (!isProjectContainerId(overId)) {
-      const fallback = destItems.indexOf(overId)
-      rawIndex = fallback >= 0 ? fallback : 0
-    }
 
     const snapshot = dragSnapshotRef.current
-    try {
-      if (src === dest) {
-        const toIndex = isProjectContainerId(overId) ? 0 : srcItems.indexOf(overId)
-        if (toIndex < 0) return
+    dragSnapshotRef.current = null
+    const fromContainer = dragStartContainerRef.current
+    dragStartContainerRef.current = null
 
-        const next = arrayMove(srcItems, fromIndex, toIndex)
-        setOpenItemsByContainer((prev) => ({ ...prev, [src]: next }))
-        await persistReorder(src, next)
+    lastDraftSignatureRef.current = null
+
+    if (!overId || !fromContainer) {
+      if (snapshot) {
+        setOpenItemsByContainer(snapshot)
+        openItemsByContainerRef.current = snapshot
+      }
+      return
+    }
+
+    const toContainer = findContainerForIdInDrag(activeId)
+    if (!toContainer) {
+      if (snapshot) {
+        setOpenItemsByContainer(snapshot)
+        openItemsByContainerRef.current = snapshot
+      }
+      return
+    }
+
+    const draft = openItemsByContainerRef.current
+    const nextFrom = draft[fromContainer] ?? []
+    const nextTo = draft[toContainer] ?? []
+
+    try {
+      if (fromContainer === toContainer) {
+        await persistReorder(fromContainer, nextFrom)
         await onAfterReorder?.()
         return
       }
 
-      const nextSrc = srcItems.filter((id) => id !== activeId)
-      const insertIndex = Math.max(0, Math.min(rawIndex, destItems.length))
-      const nextDest = [...destItems]
-      nextDest.splice(insertIndex, 0, activeId)
-
-      setOpenItemsByContainer((prev) => ({ ...prev, [src]: nextSrc, [dest]: nextDest }))
-
-      const destSectionId = sectionIdFromProjectContainerId(dest)
+      const destSectionId = sectionIdFromProjectContainerId(toContainer)
       const updated = await window.api.task.update({ id: activeId, section_id: destSectionId })
       if (!updated.ok) throw new Error(`${updated.error.code}: ${updated.error.message}`)
 
-      await Promise.all([persistReorder(src, nextSrc), persistReorder(dest, nextDest)])
+      await Promise.all([persistReorder(fromContainer, nextFrom), persistReorder(toContainer, nextTo)])
       await onAfterReorder?.()
     } catch (err) {
-      if (snapshot) setOpenItemsByContainer(snapshot)
+      if (snapshot) {
+        setOpenItemsByContainer(snapshot)
+        openItemsByContainerRef.current = snapshot
+      }
       throw err
     }
   }
 
   function handleDragCancel(_e: DragCancelEvent) {
     setActiveTaskId(null)
-    setProjectedDrop(null)
-    projectedDropRef.current = null
-    if (dragSnapshotRef.current) setOpenItemsByContainer(dragSnapshotRef.current)
+    lastDraftSignatureRef.current = null
+    dragStartContainerRef.current = null
+    if (dragSnapshotRef.current) {
+      setOpenItemsByContainer(dragSnapshotRef.current)
+      openItemsByContainerRef.current = dragSnapshotRef.current
+    }
+    dragSnapshotRef.current = null
   }
 
   const activeTask = useMemo(() => {
@@ -958,6 +976,7 @@ export function ProjectGroupedList({
                     top: 0,
                     left: 0,
                     width: '100%',
+                    visibility: activeTaskId === t.id ? 'hidden' : undefined,
                     transform: `translateY(${translateY}px)`,
                   }}
                 >
@@ -968,8 +987,6 @@ export function ProjectGroupedList({
 
             const isSelected = selectedTaskId === t.id
             const isDragging = activeTaskId === t.id
-            const indicator = projectedDrop && projectedDrop.overId === t.id ? projectedDrop.placement : undefined
-
             const containerId = containerByTaskId.get(t.id) ?? taskListIdProject(projectId, t.section_id)
             const containerItems = openItemsByContainer[containerId] ?? []
 
@@ -985,19 +1002,19 @@ export function ProjectGroupedList({
                   rowVirtualizer.measureElement(el)
                 }}
                 data-index={virtualRow.index}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  transform: `translateY(${translateY}px)`,
-                }}
-              >
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                visibility: isDragging ? 'hidden' : undefined,
+                transform: `translateY(${translateY}px)`,
+              }}
+            >
                 {t.status === 'open' ? (
                   <SortableContext id={containerId} items={containerItems} strategy={verticalListSortingStrategy}>
                     <SortableProjectTaskRow
                       task={t}
-                      dropIndicator={indicator}
                       onSelect={selectTaskRow}
                       onOpen={(taskId) => void openTask(taskId)}
                       onToggleDone={(taskId, done) => void onToggleDone(taskId, done)}
@@ -1007,7 +1024,6 @@ export function ProjectGroupedList({
                 ) : (
                   <TaskRow
                     task={t}
-                    dropIndicator={indicator}
                     onSelect={selectTaskRow}
                     onOpen={(taskId) => void openTask(taskId)}
                     onToggleDone={(taskId, done) => void onToggleDone(taskId, done)}

@@ -1184,7 +1184,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
       findDragHandle(projectOpenSection2Id)
     )
 
-    // Inline drag so we can assert the header droppable activates.
+    // Inline drag so we can assert destination reflow/placeholder behavior.
     {
       const startRect = handleProject2ForMove.getBoundingClientRect()
       const start = {
@@ -1217,13 +1217,19 @@ async function runSelfTest(): Promise<SelfTestResult> {
       })
       await sleep(120)
 
-      const dropActive = document.querySelector<HTMLElement>(
-        `.project-group-header.is-drop-over[data-section-id="${sectionBId}"]`
-      )
-      if (!dropActive) {
+      // During drag, the destination section should show insertion feedback by reflow/placeholder
+      // (i.e., the dragged task appears to occupy a slot near the destination header).
+      const draggedRow = document.querySelector<HTMLElement>(`.task-row[data-task-id="${projectOpenSection2Id}"]`)
+      if (!draggedRow) {
         const hit = document.elementFromPoint(to.x, to.y)
-        const hitDesc = hit ? `${hit.tagName}${hit instanceof HTMLElement && hit.className ? `.${hit.className}` : ''}` : 'null'
-        throw new Error(`Project: expected Section B to be droppable (hit=${hitDesc})`)
+        const hitDesc = hit
+          ? `${hit.tagName}${hit instanceof HTMLElement && hit.className ? `.${hit.className}` : ''}`
+          : 'null'
+        throw new Error(`Project: expected dragged task row to remain rendered during drag (hit=${hitDesc})`)
+      }
+      const dr = draggedRow.getBoundingClientRect()
+      if (dr.top < hb.top - 4) {
+        throw new Error('Project: expected destination section to show reflow placeholder during cross-section drag')
       }
 
       dispatchMouse(document, 'mouseup', {
@@ -1247,6 +1253,23 @@ async function runSelfTest(): Promise<SelfTestResult> {
     }
     if (movedDetail.data.task.section_id !== sectionBId) {
       throw new Error('Project: expected task.section_id to update after cross-section drop')
+    }
+
+    const projectAfterMove = await window.api.task.listProject(projectId)
+    if (!projectAfterMove.ok) {
+      throw new Error(
+        `Project: listProject after move failed: ${projectAfterMove.error.code}: ${projectAfterMove.error.message}`
+      )
+    }
+    const openInSectionB = projectAfterMove.data.filter((t) => t.status === 'open' && t.section_id === sectionBId)
+    if (openInSectionB.length === 0) {
+      throw new Error('Project: expected Section B to have open tasks after cross-section drop')
+    }
+    if (openInSectionB[0]?.id !== projectOpenSection2Id) {
+      throw new Error('Project: expected moved task to be first in Section B after cross-section drop')
+    }
+    if (openInSectionB[0]?.rank == null) {
+      throw new Error('Project: expected rank to be set after cross-section drop')
     }
 
     // No-section drop: ensure a task can be dropped into the no-section container even when empty.

@@ -3,7 +3,6 @@ import type { TaskListItem } from '../../../shared/schemas/task-list'
 export function TaskRow({
   task,
   dragHandle,
-  dropIndicator,
   innerRef,
   innerStyle,
   onSelect,
@@ -14,7 +13,6 @@ export function TaskRow({
 }: {
   task: TaskListItem
   dragHandle?: React.ReactNode
-  dropIndicator?: 'before' | 'after'
   innerRef?: React.Ref<HTMLDivElement>
   innerStyle?: React.CSSProperties
   onSelect?: (taskId: string) => void
@@ -27,7 +25,6 @@ export function TaskRow({
     <div
       ref={innerRef}
       className="task-row-inner"
-      data-drop-indicator={dropIndicator}
       style={innerStyle}
     >
       {dragHandle}

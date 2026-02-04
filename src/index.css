@@ -426,12 +426,6 @@ body {
   border-bottom-color: transparent;
 }
 
-.project-group-header.is-drop-over {
-  background: rgba(29, 29, 27, 0.04);
-  border-radius: 12px;
-  border-bottom-color: transparent;
-  box-shadow: 0 0 0 1px var(--focus) inset;
-}
 
 /* Invisible hit area to drop tasks into the no-section container (project:<id>:none). */
 .project-no-section-dropzone {
@@ -444,16 +438,6 @@ body {
   z-index: 2;
 }
 
-.project-no-section-dropzone[data-drop-over='true']::after {
-  content: '';
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 0;
-  height: 2px;
-  border-radius: 999px;
-  background: var(--focus);
-}
 
 /* Project page: Notes block should not look like a card. */
 .project-notes {
@@ -809,10 +793,6 @@ body {
   border-bottom: 1px solid transparent;
 }
 
-/* Drag-and-drop styling hooks (task-dnd). */
-.task-row.is-dragging {
-  opacity: 0.35;
-}
 
 .task-row-inner {
   display: flex;
@@ -823,24 +803,6 @@ body {
   position: relative;
 }
 
-.task-row-inner[data-drop-indicator='before']::before,
-.task-row-inner[data-drop-indicator='after']::after {
-  content: '';
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  height: 2px;
-  border-radius: 999px;
-  background: var(--focus);
-}
-
-.task-row-inner[data-drop-indicator='before']::before {
-  top: -2px;
-}
-
-.task-row-inner[data-drop-indicator='after']::after {
-  bottom: -2px;
-}
 
 .task-dnd-handle {
   width: 18px;

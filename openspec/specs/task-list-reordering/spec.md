@@ -17,7 +17,8 @@ The system SHALL show a drag preview while dragging a task.
 #### Scenario: User drags a task to reorder within a list
 - **WHEN** the user drags a task row within a supported list view
 - **THEN** the system SHALL show a drag preview for the dragged task
-- **AND** the system SHALL show a clear drop indicator for the insertion position
+- **AND** the system SHALL indicate the insertion position by live list reflow (neighboring items move to show the target slot)
+- **AND** the system SHALL NOT render a separate insertion indicator line
 - **AND** releasing the pointer SHALL reorder the task to the indicated position
 
 ### Requirement: Reordering persists per list context
