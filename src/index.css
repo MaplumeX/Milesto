@@ -787,6 +787,14 @@ body {
   border-bottom: 0;
 }
 
+.task-row.task-row-placeholder {
+  height: 44px;
+  padding: 0;
+  border-bottom: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
 .task-row.task-row-virtual .task-row-inner {
   padding: 10px 8px;
   /* Preserve the 1px layout parity used by the virtualizer. */
@@ -814,6 +822,16 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Invisible spacer so DragOverlay rows don't horizontally jump on drop. */
+.task-dnd-handle-placeholder {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 .task-dnd-handle:hover {
