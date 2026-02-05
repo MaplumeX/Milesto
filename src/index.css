@@ -812,48 +812,8 @@ body {
 }
 
 
-.task-dnd-handle {
-  width: 18px;
-  height: 18px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  cursor: grab;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Invisible spacer so DragOverlay rows don't horizontally jump on drop. */
-.task-dnd-handle-placeholder {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  flex: 0 0 auto;
-  pointer-events: none;
-  visibility: hidden;
-}
-
-.task-dnd-handle:hover {
-  border-color: var(--border);
-  background: rgba(29, 29, 27, 0.04);
-}
-
-.task-dnd-handle:active {
-  cursor: grabbing;
-}
-
-.task-dnd-grip {
-  width: 8px;
-  height: 12px;
-  opacity: 0.55;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(29, 29, 27, 0.55),
-    rgba(29, 29, 27, 0.55) 2px,
-    transparent 2px,
-    transparent 4px
-  );
+.task-title-button.is-dnd-activator {
+  user-select: none;
 }
 
 .task-dnd-overlay {

@@ -101,8 +101,9 @@ function dispatchMouse(
 }
 
 function findDragHandle(taskId: string): HTMLElement | null {
-  return document
-    .querySelector<HTMLElement>(`.task-row[data-task-id="${taskId}"] .task-dnd-handle`)
+  return document.querySelector<HTMLElement>(
+    `.task-title-button.is-dnd-activator[data-task-id="${taskId}"]`
+  )
 }
 
 async function dragHandleToPoint(params: {
@@ -1004,8 +1005,8 @@ async function runSelfTest(): Promise<SelfTestResult> {
     const upcomingListbox = await waitFor('Upcoming listbox', () =>
       document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Upcoming tasks"]')
     )
-    if (upcomingListbox.querySelector('.task-dnd-handle')) {
-      throw new Error('Upcoming: drag-and-drop handle should not be present')
+    if (upcomingListbox.querySelector('.task-title-button.is-dnd-activator')) {
+      throw new Error('Upcoming: drag-and-drop activator should not be present')
     }
     await waitFor('Upcoming A row button', () => findTaskButton(upcomingAId))
     await waitFor('Upcoming B row button', () => findTaskButton(upcomingBId))
@@ -1719,8 +1720,8 @@ async function runSelfTest(): Promise<SelfTestResult> {
       const logbookListbox = await waitFor('Logbook listbox', () =>
         document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
       )
-      if (logbookListbox.querySelector('.task-dnd-handle')) {
-        throw new Error('Logbook: drag-and-drop handle should not be present')
+      if (logbookListbox.querySelector('.task-title-button.is-dnd-activator')) {
+        throw new Error('Logbook: drag-and-drop activator should not be present')
       }
 
       window.location.hash = '/search'
@@ -1731,8 +1732,11 @@ async function runSelfTest(): Promise<SelfTestResult> {
       const searchListbox = await waitFor('Search listbox', () =>
         document.querySelector<HTMLElement>('div[role="listbox"][aria-label="Search results"]')
       )
-      if (searchListbox.querySelector('.task-dnd-handle') || document.querySelector('.task-dnd-handle')) {
-        throw new Error('Search: drag-and-drop handle should not be present')
+      if (
+        searchListbox.querySelector('.task-title-button.is-dnd-activator') ||
+        document.querySelector('.task-title-button.is-dnd-activator')
+      ) {
+        throw new Error('Search: drag-and-drop activator should not be present')
       }
     } finally {
       ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = prevConfirm
