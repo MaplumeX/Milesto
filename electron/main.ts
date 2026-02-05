@@ -172,12 +172,20 @@ function createWindow() {
   if (VITE_DEV_SERVER_URL) {
     const url = new URL(VITE_DEV_SERVER_URL)
     if (IS_SELF_TEST) url.searchParams.set('selfTest', '1')
+    if (IS_SELF_TEST && process.env.MILESTO_SELF_TEST_REDUCED_MOTION === '1') {
+      url.searchParams.set('reducedMotion', '1')
+    }
     win.loadURL(url.toString())
   } else {
     // win.loadFile('dist/index.html')
     const htmlPath = path.join(RENDERER_DIST, 'index.html')
     if (IS_SELF_TEST) {
-      win.loadFile(htmlPath, { query: { selfTest: '1' } })
+      win.loadFile(htmlPath, {
+        query: {
+          selfTest: '1',
+          ...(process.env.MILESTO_SELF_TEST_REDUCED_MOTION === '1' ? { reducedMotion: '1' } : {}),
+        },
+      })
     } else {
       win.loadFile(htmlPath)
     }

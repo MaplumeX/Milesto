@@ -1,4 +1,4 @@
-import { useLayoutEffect, useEffect, useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
@@ -23,6 +23,11 @@ import { useTaskSelection } from './TaskSelectionContext'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
 import { TaskRow } from './TaskRow'
 import { useContentScrollRef } from '../../app/ContentScrollContext'
+import {
+  getTaskDropAnimationConfig,
+  getTaskDropAnimationDurationMs,
+  usePrefersReducedMotion,
+} from './dnd-drop-animation'
 
 function SortableTaskRow({
   task,
@@ -99,6 +104,55 @@ export function TaskList({
   const contentScrollRef = useContentScrollRef()
 
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const dropAnimation = useMemo(() => getTaskDropAnimationConfig(prefersReducedMotion), [prefersReducedMotion])
+  const dropAnimationDurationMs = useMemo(
+    () => getTaskDropAnimationDurationMs(prefersReducedMotion),
+    [prefersReducedMotion]
+  )
+
+  const clearActiveTaskIdTimeoutRef = useRef<number | null>(null)
+  const postDropActionTimeoutRef = useRef<number | null>(null)
+
+  const cancelPendingDropTimers = useCallback(() => {
+    if (clearActiveTaskIdTimeoutRef.current !== null) {
+      window.clearTimeout(clearActiveTaskIdTimeoutRef.current)
+      clearActiveTaskIdTimeoutRef.current = null
+    }
+    if (postDropActionTimeoutRef.current !== null) {
+      window.clearTimeout(postDropActionTimeoutRef.current)
+      postDropActionTimeoutRef.current = null
+    }
+  }, [])
+
+  useEffect(() => () => cancelPendingDropTimers(), [cancelPendingDropTimers])
+
+  function scheduleClearActiveTaskIdAfterDrop(droppingTaskId: string) {
+    if (dropAnimationDurationMs <= 0) {
+      setActiveTaskId(null)
+      return
+    }
+
+    if (clearActiveTaskIdTimeoutRef.current !== null) window.clearTimeout(clearActiveTaskIdTimeoutRef.current)
+
+    clearActiveTaskIdTimeoutRef.current = window.setTimeout(() => {
+      clearActiveTaskIdTimeoutRef.current = null
+      setActiveTaskId((cur) => (cur === droppingTaskId ? null : cur))
+    }, dropAnimationDurationMs)
+  }
+
+  function runAfterDropAnimation(fn: () => void) {
+    if (dropAnimationDurationMs <= 0) {
+      fn()
+      return
+    }
+
+    if (postDropActionTimeoutRef.current !== null) window.clearTimeout(postDropActionTimeoutRef.current)
+    postDropActionTimeoutRef.current = window.setTimeout(() => {
+      postDropActionTimeoutRef.current = null
+      fn()
+    }, dropAnimationDurationMs)
+  }
 
   const [orderedTaskIds, setOrderedTaskIds] = useState<string[]>(() => tasks.map((t) => t.id))
   useEffect(() => {
@@ -233,6 +287,7 @@ export function TaskList({
 
   function handleDragStart(e: DragStartEvent) {
     const id = String(e.active.id)
+    cancelPendingDropTimers()
     setActiveTaskId(id)
     dragSnapshotRef.current = orderedTaskIdsRef.current
     lastOverIdRef.current = null
@@ -261,7 +316,7 @@ export function TaskList({
   async function handleDragEnd(e: DragEndEvent) {
     const activeId = String(e.active.id)
     const overId = e.over?.id ? String(e.over.id) : null
-    setActiveTaskId(null)
+    scheduleClearActiveTaskIdAfterDrop(activeId)
     lastOverIdRef.current = null
 
     const snapshot = dragSnapshotRef.current
@@ -288,10 +343,17 @@ export function TaskList({
     }
 
     const nextIndex = next.indexOf(activeId)
-    if (nextIndex >= 0) rowVirtualizer.scrollToIndex(nextIndex)
+    if (nextIndex >= 0) {
+      const virtualItems = rowVirtualizer.getVirtualItems()
+      const firstVisibleIndex = virtualItems[0]?.index ?? 0
+      const lastVisibleIndex = virtualItems[virtualItems.length - 1]?.index ?? 0
+      const shouldScroll = nextIndex < firstVisibleIndex || nextIndex > lastVisibleIndex
+      if (shouldScroll) runAfterDropAnimation(() => rowVirtualizer.scrollToIndex(nextIndex))
+    }
   }
 
   function handleDragCancel(_e: DragCancelEvent) {
+    cancelPendingDropTimers()
     setActiveTaskId(null)
     lastOverIdRef.current = null
 
@@ -495,12 +557,18 @@ export function TaskList({
           </SortableContext>
         </div>
 
-        {activeTask
+        {isDndEnabled && activeTaskId
           ? createPortal(
-              <DragOverlay>
-                <div className="task-dnd-overlay">
-                  <TaskRow task={activeTask} isOverlay />
-                </div>
+              <DragOverlay dropAnimation={dropAnimation}>
+                {activeTask ? (
+                  <div className="task-dnd-overlay">
+                    <TaskRow
+                      task={activeTask}
+                      isOverlay
+                      dragHandle={<span className="task-dnd-handle-placeholder" aria-hidden="true" />}
+                    />
+                  </div>
+                ) : null}
               </DragOverlay>,
               document.body
             )

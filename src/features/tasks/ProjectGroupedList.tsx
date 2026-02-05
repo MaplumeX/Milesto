@@ -30,6 +30,11 @@ import { useContentScrollRef } from '../../app/ContentScrollContext'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
 import { TaskRow } from './TaskRow'
 import { useTaskSelection } from './TaskSelectionContext'
+import {
+  getTaskDropAnimationConfig,
+  getTaskDropAnimationDurationMs,
+  usePrefersReducedMotion,
+} from './dnd-drop-animation'
 
 type Row =
   | {
@@ -41,6 +46,7 @@ type Row =
       doneCount: number | null
     }
   | { type: 'task'; task: TaskListItem }
+  | { type: 'placeholder'; key: string }
 
 type SelectedRow =
   | { type: 'task'; taskId: string }
@@ -335,6 +341,36 @@ export function ProjectGroupedList({
   const noSectionContainerId = useMemo(() => taskListIdProject(projectId, null), [projectId])
 
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const dropAnimation = useMemo(() => getTaskDropAnimationConfig(prefersReducedMotion), [prefersReducedMotion])
+  const dropAnimationDurationMs = useMemo(
+    () => getTaskDropAnimationDurationMs(prefersReducedMotion),
+    [prefersReducedMotion]
+  )
+
+  const clearActiveTaskIdTimeoutRef = useRef<number | null>(null)
+  const cancelPendingDropTimers = useCallback(() => {
+    if (clearActiveTaskIdTimeoutRef.current !== null) {
+      window.clearTimeout(clearActiveTaskIdTimeoutRef.current)
+      clearActiveTaskIdTimeoutRef.current = null
+    }
+  }, [])
+
+  useEffect(() => () => cancelPendingDropTimers(), [cancelPendingDropTimers])
+
+  function scheduleClearActiveTaskIdAfterDrop(droppingTaskId: string) {
+    if (dropAnimationDurationMs <= 0) {
+      setActiveTaskId(null)
+      return
+    }
+
+    if (clearActiveTaskIdTimeoutRef.current !== null) window.clearTimeout(clearActiveTaskIdTimeoutRef.current)
+
+    clearActiveTaskIdTimeoutRef.current = window.setTimeout(() => {
+      clearActiveTaskIdTimeoutRef.current = null
+      setActiveTaskId((cur) => (cur === droppingTaskId ? null : cur))
+    }, dropAnimationDurationMs)
+  }
   const dragSnapshotRef = useRef<Record<ContainerId, string[]> | null>(null)
   const dragStartContainerRef = useRef<ContainerId | null>(null)
   const lastDraftSignatureRef = useRef<string | null>(null)
@@ -397,6 +433,7 @@ export function ProjectGroupedList({
 
   function handleDragStart(e: DragStartEvent) {
     const id = String(e.active.id)
+    cancelPendingDropTimers()
     setActiveTaskId(id)
     dragSnapshotRef.current = cloneItemsByContainer(openItemsByContainerRef.current)
     dragStartContainerRef.current = findContainerForIdInDrag(id)
@@ -486,7 +523,7 @@ export function ProjectGroupedList({
   async function handleDragEnd(e: DragEndEvent) {
     const activeId = String(e.active.id)
     const overId = e.over?.id ? String(e.over.id) : null
-    setActiveTaskId(null)
+    scheduleClearActiveTaskIdAfterDrop(activeId)
 
     const snapshot = dragSnapshotRef.current
     dragSnapshotRef.current = null
@@ -539,6 +576,7 @@ export function ProjectGroupedList({
   }
 
   function handleDragCancel(_e: DragCancelEvent) {
+    cancelPendingDropTimers()
     setActiveTaskId(null)
     lastDraftSignatureRef.current = null
     dragStartContainerRef.current = null
@@ -612,14 +650,49 @@ export function ProjectGroupedList({
       for (const list of doneBySection.values()) list.sort(sortByRankThenCreated)
     }
 
+    const activeId = activeTaskId
+    const dragStartContainerId = dragStartContainerRef.current
+    const dragStartSnapshot = dragSnapshotRef.current
+
+    const placeholderIndex =
+      activeId && dragStartContainerId && dragStartSnapshot
+        ? (dragStartSnapshot[dragStartContainerId] ?? []).indexOf(activeId)
+        : -1
+
+    const shouldInsertPlaceholder =
+      activeId &&
+      dragStartContainerId &&
+      dragStartSnapshot &&
+      placeholderIndex >= 0 &&
+      !(openItemsByContainer[dragStartContainerId] ?? []).includes(activeId)
+
+    const placeholderKey =
+      shouldInsertPlaceholder && activeId && dragStartContainerId
+        ? `ph:${dragStartContainerId}:${activeId}`
+        : null
+
+    function pushOpenTasks(containerId: ContainerId, openIds: string[]) {
+      const insertAt =
+        shouldInsertPlaceholder && placeholderKey && containerId === dragStartContainerId
+          ? Math.max(0, Math.min(placeholderIndex, openIds.length))
+          : null
+
+      for (let i = 0; i <= openIds.length; i++) {
+        if (insertAt !== null && i === insertAt && placeholderKey) rows.push({ type: 'placeholder', key: placeholderKey })
+        if (i === openIds.length) break
+
+        const id = openIds[i]
+        if (!id) continue
+        const task = openById.get(id)
+        if (!task) continue
+        taskRowIndexById.set(task.id, rows.length)
+        rows.push({ type: 'task', task })
+      }
+    }
+
     const noneContainerId = taskListIdProject(projectId, null)
     const openNoneIds = openItemsByContainer[noneContainerId] ?? []
-    for (const id of openNoneIds) {
-      const task = openById.get(id)
-      if (!task) continue
-      taskRowIndexById.set(task.id, rows.length)
-      rows.push({ type: 'task', task })
-    }
+    pushOpenTasks(noneContainerId, openNoneIds)
     if (doneTasks) {
       for (const task of doneNone) {
         taskRowIndexById.set(task.id, rows.length)
@@ -644,12 +717,7 @@ export function ProjectGroupedList({
       })
       groupRowIndexBySectionId.set(s.id, groupIndex)
 
-      for (const id of openIds) {
-        const task = openById.get(id)
-        if (!task) continue
-        taskRowIndexById.set(task.id, rows.length)
-        rows.push({ type: 'task', task })
-      }
+      pushOpenTasks(containerId, openIds)
       if (doneTasks && done) {
         for (const task of done) {
           taskRowIndexById.set(task.id, rows.length)
@@ -659,7 +727,7 @@ export function ProjectGroupedList({
     }
 
     return { rows, taskRowIndexById, groupRowIndexBySectionId }
-  }, [doneTasks, openItemsByContainer, openTasks, projectId, sections])
+  }, [activeTaskId, doneTasks, openItemsByContainer, openTasks, projectId, sections])
 
   const selectedRowIndex = useMemo(() => {
     if (!selectedRow) return null
@@ -736,6 +804,7 @@ export function ProjectGroupedList({
       const row = rows[index]
       if (!row) return 44
       if (row.type === 'group') return 34
+      if (row.type === 'placeholder') return 44
       return openTaskId && row.task.id === openTaskId ? 400 : 44
     },
     scrollMargin,
@@ -744,6 +813,7 @@ export function ProjectGroupedList({
       const row = rows[index]
       if (!row) return index
       if (row.type === 'group') return row.key
+      if (row.type === 'placeholder') return row.key
       return `t:${row.task.id}`
     },
   })
@@ -781,7 +851,9 @@ export function ProjectGroupedList({
         return
       }
 
-      const sectionId = row.sectionId
+      if (row.type === 'placeholder') return
+
+      const sectionId = row.type === 'group' ? row.sectionId : null
       if (!sectionId) return
       setSelectedRow({ type: 'group', sectionId })
       selectTask(null)
@@ -957,6 +1029,30 @@ export function ProjectGroupedList({
               )
             }
 
+            if (row.type === 'placeholder') {
+              return (
+                <li
+                  key={row.key}
+                  className="task-row task-row-placeholder"
+                  aria-hidden="true"
+                  ref={(el) => {
+                    if (!el) return
+                    rowVirtualizer.measureElement(el)
+                  }}
+                  data-index={virtualRow.index}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${translateY}px)`,
+                  }}
+                />
+              )
+            }
+
+            if (row.type !== 'task') return null
+
             const t = row.task
             if (openTaskId && t.id === openTaskId) {
               return (
@@ -1035,12 +1131,18 @@ export function ProjectGroupedList({
         </ul>
       </div>
 
-      {activeTask
+      {activeTaskId
         ? createPortal(
-            <DragOverlay>
-              <div className="task-dnd-overlay">
-                <TaskRow task={activeTask} isOverlay />
-              </div>
+            <DragOverlay dropAnimation={dropAnimation}>
+              {activeTask ? (
+                <div className="task-dnd-overlay">
+                  <TaskRow
+                    task={activeTask}
+                    isOverlay
+                    dragHandle={<span className="task-dnd-handle-placeholder" aria-hidden="true" />}
+                  />
+                </div>
+              ) : null}
             </DragOverlay>,
             document.body
           )

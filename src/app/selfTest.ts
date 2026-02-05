@@ -111,6 +111,7 @@ async function dragHandleToPoint(params: {
   to: { x: number; y: number }
 }) {
   const { label, handle, to } = params
+  const reducedMotion = new URL(window.location.href).searchParams.get('reducedMotion') === '1'
 
   const startRect = handle.getBoundingClientRect()
   const start = { x: startRect.left + startRect.width / 2, y: startRect.top + startRect.height / 2 }
@@ -150,9 +151,37 @@ async function dragHandleToPoint(params: {
     buttons: 0,
   })
 
-  await waitFor(`${label}: drag overlay hidden`, () =>
-    document.querySelector<HTMLElement>('.task-dnd-overlay') ? null : true
+  const mouseUpAt = Date.now()
+
+  if (!reducedMotion) {
+    // If drop animation is enabled, the overlay should remain briefly after mouseup.
+    await sleep(80)
+    if (!document.querySelector<HTMLElement>('.task-dnd-overlay')) {
+      throw new Error(`${label}: expected drag overlay to remain briefly after drop (animation enabled)`) 
+    }
+  }
+
+  await waitFor(
+    `${label}: drag overlay hidden`,
+    () => (document.querySelector<HTMLElement>('.task-dnd-overlay') ? null : true),
+    { timeoutMs: 10_000, intervalMs: 10 }
   )
+
+  const hiddenAfterMs = Date.now() - mouseUpAt
+  if (reducedMotion) {
+    // Reduced motion: no visible drop animation.
+    if (hiddenAfterMs > 250) {
+      throw new Error(`${label}: expected overlay to hide quickly with reduced motion (ms=${hiddenAfterMs})`)
+    }
+  } else {
+    // Non-reduced motion: keep the drop animation short but perceptible.
+    if (hiddenAfterMs < 100) {
+      throw new Error(`${label}: expected overlay to stay up for drop animation (ms=${hiddenAfterMs})`)
+    }
+    if (hiddenAfterMs > 1500) {
+      throw new Error(`${label}: expected overlay to hide within a short drop animation window (ms=${hiddenAfterMs})`)
+    }
+  }
 }
 
 
