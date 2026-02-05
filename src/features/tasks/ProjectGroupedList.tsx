@@ -46,7 +46,6 @@ type Row =
       doneCount: number | null
     }
   | { type: 'task'; task: TaskListItem }
-  | { type: 'placeholder'; key: string }
 
 type SelectedRow =
   | { type: 'task'; taskId: string }
@@ -487,8 +486,9 @@ export function ProjectGroupedList({
       if (overIndex < 0) return
 
       const overMid = e.over!.rect.top + e.over!.rect.height / 2
-      const activeTop = e.active.rect.current.translated?.top ?? e.active.rect.current.initial?.top ?? 0
-      const isAfter = activeTop > overMid
+      const activeRect = e.active.rect.current.translated ?? e.active.rect.current.initial
+      const activeMid = activeRect ? activeRect.top + activeRect.height / 2 : 0
+      const isAfter = activeMid > overMid
       insertIndex = Math.max(0, Math.min(overIndex + (isAfter ? 1 : 0), destItems.length))
     }
 
@@ -646,35 +646,8 @@ export function ProjectGroupedList({
       for (const list of doneBySection.values()) list.sort(sortByRankThenCreated)
     }
 
-    const activeId = activeTaskId
-    const dragStartContainerId = dragStartContainerRef.current
-    const dragStartSnapshot = dragSnapshotRef.current
-
-    const placeholderIndex =
-      activeId && dragStartContainerId && dragStartSnapshot
-        ? (dragStartSnapshot[dragStartContainerId] ?? []).indexOf(activeId)
-        : -1
-
-    const shouldInsertPlaceholder =
-      activeId &&
-      dragStartContainerId &&
-      dragStartSnapshot &&
-      placeholderIndex >= 0 &&
-      !(openItemsByContainer[dragStartContainerId] ?? []).includes(activeId)
-
-    const placeholderKey =
-      shouldInsertPlaceholder && activeId && dragStartContainerId
-        ? `ph:${dragStartContainerId}:${activeId}`
-        : null
-
-    function pushOpenTasks(containerId: ContainerId, openIds: string[]) {
-      const insertAt =
-        shouldInsertPlaceholder && placeholderKey && containerId === dragStartContainerId
-          ? Math.max(0, Math.min(placeholderIndex, openIds.length))
-          : null
-
+    function pushOpenTasks(openIds: string[]) {
       for (let i = 0; i <= openIds.length; i++) {
-        if (insertAt !== null && i === insertAt && placeholderKey) rows.push({ type: 'placeholder', key: placeholderKey })
         if (i === openIds.length) break
 
         const id = openIds[i]
@@ -688,7 +661,7 @@ export function ProjectGroupedList({
 
     const noneContainerId = taskListIdProject(projectId, null)
     const openNoneIds = openItemsByContainer[noneContainerId] ?? []
-    pushOpenTasks(noneContainerId, openNoneIds)
+    pushOpenTasks(openNoneIds)
     if (doneTasks) {
       for (const task of doneNone) {
         taskRowIndexById.set(task.id, rows.length)
@@ -713,7 +686,7 @@ export function ProjectGroupedList({
       })
       groupRowIndexBySectionId.set(s.id, groupIndex)
 
-      pushOpenTasks(containerId, openIds)
+      pushOpenTasks(openIds)
       if (doneTasks && done) {
         for (const task of done) {
           taskRowIndexById.set(task.id, rows.length)
@@ -723,7 +696,7 @@ export function ProjectGroupedList({
     }
 
     return { rows, taskRowIndexById, groupRowIndexBySectionId }
-  }, [activeTaskId, doneTasks, openItemsByContainer, openTasks, projectId, sections])
+  }, [doneTasks, openItemsByContainer, openTasks, projectId, sections])
 
   const selectedRowIndex = useMemo(() => {
     if (!selectedRow) return null
@@ -800,7 +773,6 @@ export function ProjectGroupedList({
       const row = rows[index]
       if (!row) return 44
       if (row.type === 'group') return 34
-      if (row.type === 'placeholder') return 44
       return openTaskId && row.task.id === openTaskId ? 400 : 44
     },
     scrollMargin,
@@ -809,7 +781,6 @@ export function ProjectGroupedList({
       const row = rows[index]
       if (!row) return index
       if (row.type === 'group') return row.key
-      if (row.type === 'placeholder') return row.key
       return `t:${row.task.id}`
     },
   })
@@ -846,8 +817,6 @@ export function ProjectGroupedList({
         rowVirtualizer.scrollToIndex(index)
         return
       }
-
-      if (row.type === 'placeholder') return
 
       const sectionId = row.type === 'group' ? row.sectionId : null
       if (!sectionId) return
@@ -1021,28 +990,6 @@ export function ProjectGroupedList({
                   }}
                   index={virtualRow.index}
                   translateY={translateY}
-                />
-              )
-            }
-
-            if (row.type === 'placeholder') {
-              return (
-                <li
-                  key={row.key}
-                  className="task-row task-row-placeholder"
-                  aria-hidden="true"
-                  ref={(el) => {
-                    if (!el) return
-                    rowVirtualizer.measureElement(el)
-                  }}
-                  data-index={virtualRow.index}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    transform: `translateY(${translateY}px)`,
-                  }}
                 />
               )
             }
