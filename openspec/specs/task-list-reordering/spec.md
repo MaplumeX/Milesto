@@ -14,7 +14,7 @@ The system SHALL allow users to reorder tasks via drag-and-drop within these tas
 
 The system SHALL show a drag preview while dragging a task.
 
-The drag preview SHALL use the same horizontal layout as the in-list task row being dragged (e.g. reserved space for the drag handle) to avoid a visible horizontal jump at drop.
+The drag preview SHALL use the same horizontal layout as the in-list task row being dragged to avoid a visible horizontal jump at drop.
 
 #### Scenario: User drags a task to reorder within a list
 - **WHEN** the user drags a task row within a supported list view
@@ -82,4 +82,15 @@ When the user has enabled reduced motion, the system SHALL disable (or reduce to
 - **AND** the user releases the pointer to drop
 - **THEN** the system SHALL reorder the task to the indicated position
 - **AND** the transition at drop SHALL NOT use a visible animated drop motion
+
+### Requirement: Task title area is the drag activator for reordering
+In supported task list views that enable drag-and-drop reordering, the system SHALL allow users to initiate pointer-based drag-and-drop reordering by dragging the task title area.
+
+The system SHALL NOT require a dedicated visible drag handle control to initiate drag-and-drop reordering.
+
+#### Scenario: User starts reorder drag from the task title
+- **WHEN** the user presses on a task title area in a supported list view
+- **AND** the user drags beyond the activation threshold
+- **THEN** the system SHALL enter drag mode
+- **AND** the system SHALL show a drag preview for the dragged task
 

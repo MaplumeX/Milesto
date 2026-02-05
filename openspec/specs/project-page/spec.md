@@ -196,7 +196,7 @@ If a task inline editor is currently open, the system MUST attempt to safely clo
 ### Requirement: Project page supports drag-and-drop reordering within a section
 On the Project page tasks list, the system SHALL allow users to reorder open tasks within the same section via drag-and-drop, with a visible drag preview.
 
-The drag preview SHALL use the same horizontal layout as the in-list task row being dragged (e.g. reserved space for the drag handle) to avoid a visible horizontal jump at drop.
+The drag preview SHALL use the same horizontal layout as the in-list task row being dragged to avoid a visible horizontal jump at drop.
 
 #### Scenario: User reorders a task within its section
 - **WHEN** the user drags a task within the same project section
@@ -211,7 +211,7 @@ On the Project page tasks list, the system SHALL allow users to drag a task from
 
 Dropping onto an empty section group SHALL be supported.
 
-The drag preview SHALL use the same horizontal layout as the in-list task row being dragged (e.g. reserved space for the drag handle) to avoid a visible horizontal jump at drop.
+The drag preview SHALL use the same horizontal layout as the in-list task row being dragged to avoid a visible horizontal jump at drop.
 
 #### Scenario: User drags a task into a different section
 - **WHEN** the user drags a task from one project section group to another
@@ -268,4 +268,15 @@ When the user has enabled reduced motion, the system SHALL disable (or reduce to
 - **AND** the user releases the pointer to drop
 - **THEN** the system SHALL complete the reorder or move
 - **AND** the transition at drop SHALL NOT use a visible animated drop motion
+
+### Requirement: Project page uses task title area as the drag activator
+On the Project page tasks list, the system SHALL allow users to initiate pointer-based drag-and-drop by dragging the task title area.
+
+The system SHALL NOT require a dedicated visible drag handle control to initiate drag-and-drop.
+
+#### Scenario: User starts Project drag from the task title
+- **WHEN** the user presses on a task title area on the Project page
+- **AND** the user drags beyond the activation threshold
+- **THEN** the system SHALL enter drag mode
+- **AND** the system SHALL show a drag preview
 
