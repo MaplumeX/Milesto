@@ -267,12 +267,15 @@ export function TaskList({
     const snapshot = dragSnapshotRef.current
     dragSnapshotRef.current = null
 
-    if (!overId || activeId === overId) {
+    const next = orderedTaskIdsRef.current
+    // Only revert when dropped outside any sortable target.
+    // If `overId === activeId`, dnd-kit often reports the active item itself on drop;
+    // we still want to persist if the order changed during drag.
+    if (!overId) {
       if (snapshot) setOrderedTaskIds(snapshot)
       return
     }
 
-    const next = orderedTaskIdsRef.current
     if (snapshot && snapshot.length === next.length && snapshot.every((id, i) => id === next[i])) {
       return
     }
