@@ -3,6 +3,8 @@ import type { TaskListItem } from '../../../shared/schemas/task-list'
 export function TaskRow({
   task,
   dragHandle,
+  titleActivatorRef,
+  titleActivatorProps,
   innerRef,
   innerStyle,
   onSelect,
@@ -13,6 +15,8 @@ export function TaskRow({
 }: {
   task: TaskListItem
   dragHandle?: React.ReactNode
+  titleActivatorRef?: React.Ref<HTMLButtonElement>
+  titleActivatorProps?: React.ButtonHTMLAttributes<HTMLButtonElement>
   innerRef?: React.Ref<HTMLDivElement>
   innerStyle?: React.CSSProperties
   onSelect?: (taskId: string) => void
@@ -21,6 +25,15 @@ export function TaskRow({
   onRestore?: (taskId: string) => void
   isOverlay?: boolean
 }) {
+  const isTitleActivator = !!titleActivatorProps
+  const {
+    className: titleActivatorClassName,
+    disabled: titleActivatorDisabled,
+    onClick: titleActivatorOnClick,
+    onDoubleClick: titleActivatorOnDoubleClick,
+    ...titleActivatorRest
+  } = titleActivatorProps ?? {}
+
   return (
     <div
       ref={innerRef}
@@ -42,13 +55,23 @@ export function TaskRow({
       </label>
 
       <button
+        {...titleActivatorRest}
+        ref={titleActivatorRef}
         type="button"
-        className="task-title task-title-button"
+        className={`task-title task-title-button${isTitleActivator ? ' is-dnd-activator' : ''}${
+          titleActivatorClassName ? ` ${titleActivatorClassName}` : ''
+        }`}
         data-task-focus-target="true"
         data-task-id={task.id}
-        disabled={!!isOverlay}
-        onClick={() => onSelect?.(task.id)}
-        onDoubleClick={() => {
+        disabled={!!isOverlay || !!titleActivatorDisabled}
+        onClick={(e) => {
+          titleActivatorOnClick?.(e)
+          if (e.defaultPrevented) return
+          onSelect?.(task.id)
+        }}
+        onDoubleClick={(e) => {
+          titleActivatorOnDoubleClick?.(e)
+          if (e.defaultPrevented) return
           if (onOpen) void onOpen(task.id)
         }}
       >

@@ -287,20 +287,16 @@ function SortableProjectTaskRow({
         transform: CSS.Transform.toString(transform),
         transition,
       }}
-      dragHandle={
-        <button
-          ref={setActivatorNodeRef}
-          type="button"
-          className="task-dnd-handle"
-          aria-label="Reorder"
-          {...attributes}
-          {...(listeners ?? {})}
-          tabIndex={-1}
-          onPointerDown={() => onSelectForDrag(task.id)}
-        >
-          <span className="task-dnd-grip" aria-hidden="true" />
-        </button>
-      }
+      titleActivatorRef={setActivatorNodeRef}
+      titleActivatorProps={{
+        ...attributes,
+        ...(listeners ?? {}),
+        onPointerDown: (e) => {
+          // Preserve “select on drag start” even if click doesn't fire.
+          onSelectForDrag(task.id)
+          listeners?.onPointerDown?.(e)
+        },
+      }}
       onSelect={onSelect}
       onOpen={onOpen}
       onToggleDone={onToggleDone}
@@ -1139,7 +1135,6 @@ export function ProjectGroupedList({
                   <TaskRow
                     task={activeTask}
                     isOverlay
-                    dragHandle={<span className="task-dnd-handle-placeholder" aria-hidden="true" />}
                   />
                 </div>
               ) : null}
