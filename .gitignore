@@ -74,3 +74,5 @@ Desktop.ini
 *.der
 *.key
 *.pem
+
+.sisyphus/
