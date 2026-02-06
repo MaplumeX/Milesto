@@ -11,6 +11,7 @@ import type {
   ProjectCreateInput,
   ProjectCompleteResult,
   ProjectSection,
+  ProjectSectionReorderBatchResult,
   ProjectUpdateInput,
 } from './schemas/project'
 import type { Tag, TagCreateInput, TagUpdateInput } from './schemas/tag'
@@ -81,6 +82,7 @@ export type WindowApi = {
     createSection(projectId: string, title: string): Promise<Result<ProjectSection>>
     renameSection(id: string, title: string): Promise<Result<ProjectSection>>
     deleteSection(id: string): Promise<Result<{ deleted: boolean; moved_to_section_id: string | null }>>
+    reorderSections(projectId: string, orderedSectionIds: string[]): Promise<Result<ProjectSectionReorderBatchResult>>
   }
 
   area: {

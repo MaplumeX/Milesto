@@ -426,6 +426,10 @@ body {
   border-bottom-color: transparent;
 }
 
+.project-group-header.is-dragging {
+  visibility: hidden;
+}
+
 
 /* Invisible hit area to drop tasks into the no-section container (project:<id>:none). */
 .project-no-section-dropzone {
@@ -827,6 +831,49 @@ body {
 
 .task-dnd-overlay .task-row-inner {
   padding: 10px 8px;
+}
+
+.project-section-dnd-overlay {
+  position: relative;
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+.project-section-dnd-overlay-edge {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(29, 29, 27, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.project-section-dnd-overlay-edge-1 {
+  transform: translate3d(0, 5px, 0) scale(0.985);
+  opacity: 0.92;
+}
+
+.project-section-dnd-overlay-edge-2 {
+  transform: translate3d(0, 10px, 0) scale(0.97);
+  opacity: 0.84;
+}
+
+.project-section-dnd-overlay-card {
+  position: relative;
+  min-width: 220px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(29, 29, 27, 0.14);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow:
+    0 1px 0 var(--shadow),
+    0 14px 22px rgba(0, 0, 0, 0.11);
+  pointer-events: none;
+  will-change: transform;
 }
 
 /* Open state: the row becomes the editor container (no separate editor row). */

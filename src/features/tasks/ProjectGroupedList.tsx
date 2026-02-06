@@ -61,9 +61,24 @@ function sortByRankThenCreated(a: TaskListItem, b: TaskListItem) {
 
 type ContainerId = string
 const projectTailIdPrefix = 'project-tail:'
+const projectSectionDragIdPrefix = 'project-section:'
 
 function projectTailIdFromContainerId(containerId: ContainerId): string {
   return `${projectTailIdPrefix}${containerId}`
+}
+
+function projectSectionDragId(sectionId: string): string {
+  return `${projectSectionDragIdPrefix}${sectionId}`
+}
+
+function isProjectSectionDragId(id: string): boolean {
+  return id.startsWith(projectSectionDragIdPrefix)
+}
+
+function sectionIdFromProjectSectionDragId(id: string): string | null {
+  if (!isProjectSectionDragId(id)) return null
+  const sectionId = id.slice(projectSectionDragIdPrefix.length)
+  return sectionId || null
 }
 
 function NoSectionDropZone({
@@ -128,6 +143,13 @@ function sectionIdFromProjectContainerId(containerId: string): string | null {
   return sectionPart
 }
 
+function sectionIdFromDragOrContainerId(id: string): string | null {
+  const fromDragId = sectionIdFromProjectSectionDragId(id)
+  if (fromDragId) return fromDragId
+  if (isProjectContainerId(id)) return sectionIdFromProjectContainerId(id)
+  return null
+}
+
 function deriveOpenItemsByContainer({
   projectId,
   sections,
@@ -173,6 +195,7 @@ function ProjectGroupHeaderRow({
   openCount,
   doneCount,
   isSelected,
+  isDragging,
   isEditing,
   editTitleDraft,
   setEditTitleDraft,
@@ -191,6 +214,7 @@ function ProjectGroupHeaderRow({
   openCount: number
   doneCount: number | null
   isSelected: boolean
+  isDragging: boolean
   isEditing: boolean
   editTitleDraft: string
   setEditTitleDraft: (next: string) => void
@@ -203,10 +227,29 @@ function ProjectGroupHeaderRow({
   index: number
   translateY: number
 }) {
-  const { setNodeRef } = useDroppable({
+  const { setNodeRef: setDroppableNodeRef } = useDroppable({
     id: containerId,
     data: { type: 'container', containerId },
   })
+
+  const {
+    attributes: sectionAttributes,
+    listeners: sectionListeners,
+    setActivatorNodeRef: setSectionActivatorNodeRef,
+    setNodeRef: setSectionSortableNodeRef,
+  } = useSortable({
+    id: projectSectionDragId(sectionId),
+    data: { type: 'section', sectionId },
+    disabled: isEditing,
+  })
+
+  const setHeaderNodeRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      setDroppableNodeRef(el)
+      setSectionSortableNodeRef(el)
+    },
+    [setDroppableNodeRef, setSectionSortableNodeRef]
+  )
 
   return (
     <li
@@ -221,8 +264,8 @@ function ProjectGroupHeaderRow({
       }}
     >
       <div
-        ref={setNodeRef}
-        className={`project-group-header${isSelected ? ' is-selected' : ''}`}
+        ref={setHeaderNodeRef}
+        className={`project-group-header${isSelected ? ' is-selected' : ''}${isDragging ? ' is-dragging' : ''}`}
         data-section-id={sectionId}
       >
         {isEditing ? (
@@ -270,8 +313,15 @@ function ProjectGroupHeaderRow({
           </div>
         ) : (
           <button
+            ref={setSectionActivatorNodeRef}
             type="button"
             className="project-group-left project-group-left-button"
+            {...sectionAttributes}
+            {...(sectionListeners ?? {})}
+            onPointerDown={(e) => {
+              onSelectRow()
+              sectionListeners?.onPointerDown?.(e)
+            }}
             onClick={onSelectRow}
             onDoubleClick={() => {
               onSelectRow()
@@ -337,6 +387,32 @@ function SortableProjectTaskRow({
   )
 }
 
+function ProjectSectionDragOverlay({
+  title,
+  openCount,
+  doneCount,
+}: {
+  title: string
+  openCount: number
+  doneCount: number | null
+}) {
+  const hasTitle = title.trim().length > 0
+
+  return (
+    <div className="project-section-dnd-overlay" aria-hidden="true">
+      <div className="project-section-dnd-overlay-edge project-section-dnd-overlay-edge-1" />
+      <div className="project-section-dnd-overlay-edge project-section-dnd-overlay-edge-2" />
+      <div className="project-section-dnd-overlay-card">
+        <div className={`project-group-title${hasTitle ? '' : ' is-placeholder'}`}>{hasTitle ? title : '(untitled)'}</div>
+        <div className="project-group-meta">
+          {openCount} open
+          {doneCount !== null ? ` · ${doneCount} done` : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function ProjectGroupedList({
   projectId,
   sections,
@@ -363,6 +439,34 @@ export function ProjectGroupedList({
   const { selectedTaskId, selectTask, openTask, openTaskId, requestCloseTask } = useTaskSelection()
   const contentScrollRef = useContentScrollRef()
 
+  const [orderedSectionIds, setOrderedSectionIds] = useState<string[]>(() => sections.map((s) => s.id))
+  const orderedSectionIdsRef = useRef(orderedSectionIds)
+  useEffect(() => {
+    orderedSectionIdsRef.current = orderedSectionIds
+  }, [orderedSectionIds])
+
+  const orderedSections = useMemo(() => {
+    const byId = new Map<string, ProjectSection>()
+    for (const section of sections) byId.set(section.id, section)
+
+    const out: ProjectSection[] = []
+    const seen = new Set<string>()
+
+    for (const sectionId of orderedSectionIds) {
+      const section = byId.get(sectionId)
+      if (!section) continue
+      out.push(section)
+      seen.add(sectionId)
+    }
+
+    for (const section of sections) {
+      if (seen.has(section.id)) continue
+      out.push(section)
+    }
+
+    return out
+  }, [orderedSectionIds, sections])
+
   const [openItemsByContainer, setOpenItemsByContainer] = useState<Record<ContainerId, string[]>>(() =>
     deriveOpenItemsByContainer({ projectId, sections, openTasks })
   )
@@ -370,6 +474,7 @@ export function ProjectGroupedList({
   const noSectionContainerId = useMemo(() => taskListIdProject(projectId, null), [projectId])
 
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null)
   const prefersReducedMotion = usePrefersReducedMotion()
   const dropAnimation = useMemo(() => getTaskDropAnimationConfig(prefersReducedMotion), [prefersReducedMotion])
   const dropAnimationDurationMs = useMemo(
@@ -378,10 +483,16 @@ export function ProjectGroupedList({
   )
 
   const clearActiveTaskIdTimeoutRef = useRef<number | null>(null)
+  const clearActiveSectionIdTimeoutRef = useRef<number | null>(null)
   const cancelPendingDropTimers = useCallback(() => {
     if (clearActiveTaskIdTimeoutRef.current !== null) {
       window.clearTimeout(clearActiveTaskIdTimeoutRef.current)
       clearActiveTaskIdTimeoutRef.current = null
+    }
+
+    if (clearActiveSectionIdTimeoutRef.current !== null) {
+      window.clearTimeout(clearActiveSectionIdTimeoutRef.current)
+      clearActiveSectionIdTimeoutRef.current = null
     }
   }, [])
 
@@ -400,9 +511,28 @@ export function ProjectGroupedList({
       setActiveTaskId((cur) => (cur === droppingTaskId ? null : cur))
     }, dropAnimationDurationMs)
   }
+
+  function scheduleClearActiveSectionIdAfterDrop(droppingSectionId: string) {
+    if (dropAnimationDurationMs <= 0) {
+      setActiveSectionId(null)
+      return
+    }
+
+    if (clearActiveSectionIdTimeoutRef.current !== null) {
+      window.clearTimeout(clearActiveSectionIdTimeoutRef.current)
+    }
+
+    clearActiveSectionIdTimeoutRef.current = window.setTimeout(() => {
+      clearActiveSectionIdTimeoutRef.current = null
+      setActiveSectionId((cur) => (cur === droppingSectionId ? null : cur))
+    }, dropAnimationDurationMs)
+  }
+
   const dragSnapshotRef = useRef<Record<ContainerId, string[]> | null>(null)
   const dragStartContainerRef = useRef<ContainerId | null>(null)
   const lastDraftSignatureRef = useRef<string | null>(null)
+  const sectionOrderSnapshotRef = useRef<string[] | null>(null)
+  const lastSectionDraftSignatureRef = useRef<string | null>(null)
 
   const openItemsByContainerRef = useRef(openItemsByContainer)
   useEffect(() => {
@@ -410,9 +540,20 @@ export function ProjectGroupedList({
   }, [openItemsByContainer])
 
   useEffect(() => {
-    if (activeTaskId) return
-    setOpenItemsByContainer(deriveOpenItemsByContainer({ projectId, sections, openTasks }))
-  }, [activeTaskId, openTasks, projectId, sections])
+    if (activeSectionId) return
+    const nextOrder = sections.map((s) => s.id)
+    setOrderedSectionIds((prev) => {
+      if (prev.length === nextOrder.length && prev.every((id, index) => id === nextOrder[index])) {
+        return prev
+      }
+      return nextOrder
+    })
+  }, [activeSectionId, sections])
+
+  useEffect(() => {
+    if (activeTaskId || activeSectionId) return
+    setOpenItemsByContainer(deriveOpenItemsByContainer({ projectId, sections: orderedSections, openTasks }))
+  }, [activeSectionId, activeTaskId, openTasks, orderedSections, projectId])
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -422,8 +563,22 @@ export function ProjectGroupedList({
 
   const collisionDetection: CollisionDetection = useCallback(
     (args) => {
+      const activeType = args.active.data.current?.type
       // Prefer dropping onto section headers (container ids) when the pointer is within.
       const pointerCollisions = pointerWithin(args)
+
+      if (activeType === 'section') {
+        const sectionHits = pointerCollisions.filter(
+          (c) => typeof c.id === 'string' && isProjectSectionDragId(String(c.id))
+        )
+        if (sectionHits.length > 0) return sectionHits
+
+        const closestSectionHits = closestCenter(args).filter(
+          (c) => typeof c.id === 'string' && isProjectSectionDragId(String(c.id))
+        )
+        if (closestSectionHits.length > 0) return closestSectionHits
+      }
+
       const headerHits = pointerCollisions.filter((c) => typeof c.id === 'string' && c.id.startsWith('project:'))
       if (headerHits.length > 0) return headerHits
 
@@ -464,20 +619,68 @@ export function ProjectGroupedList({
     if (!res.ok) throw new Error(`${res.error.code}: ${res.error.message}`)
   }
 
+  async function persistSectionReorder(nextOrderedSectionIds: string[]) {
+    const res = await window.api.project.reorderSections(projectId, nextOrderedSectionIds)
+    if (!res.ok) throw new Error(`${res.error.code}: ${res.error.message}`)
+  }
+
   function handleDragStart(e: DragStartEvent) {
-    const id = String(e.active.id)
+    const activeId = String(e.active.id)
+    const dragType = e.active.data.current?.type
     cancelPendingDropTimers()
-    setActiveTaskId(id)
+
+    if (dragType === 'section') {
+      const sectionId = sectionIdFromDragOrContainerId(activeId)
+      if (!sectionId) return
+
+      setActiveSectionId(sectionId)
+      setActiveTaskId(null)
+      sectionOrderSnapshotRef.current = [...orderedSectionIdsRef.current]
+      lastSectionDraftSignatureRef.current = null
+      setSelectedRow({ type: 'group', sectionId })
+      selectTask(null)
+      return
+    }
+
+    setActiveTaskId(activeId)
+    setActiveSectionId(null)
     dragSnapshotRef.current = cloneItemsByContainer(openItemsByContainerRef.current)
-    dragStartContainerRef.current = findContainerForIdInDrag(id)
+    dragStartContainerRef.current = findContainerForIdInDrag(activeId)
     lastDraftSignatureRef.current = null
-    selectTask(id)
+    selectTask(activeId)
   }
 
   function handleDragOver(e: DragOverEvent) {
     const activeId = String(e.active.id)
     const overId = e.over?.id ? String(e.over.id) : null
     if (!overId) return
+
+    const dragType = e.active.data.current?.type
+    if (dragType === 'section') {
+      const activeSectionIdFromDrag = sectionIdFromDragOrContainerId(activeId)
+      const overSectionId = sectionIdFromDragOrContainerId(overId)
+      if (!activeSectionIdFromDrag || !overSectionId || activeSectionIdFromDrag === overSectionId) return
+
+      const draft = orderedSectionIdsRef.current
+      const from = draft.indexOf(activeSectionIdFromDrag)
+      const to = draft.indexOf(overSectionId)
+      if (from < 0 || to < 0 || from === to) return
+
+      const sig = `${activeSectionIdFromDrag}|${overSectionId}|${from}|${to}`
+      if (lastSectionDraftSignatureRef.current === sig) return
+      lastSectionDraftSignatureRef.current = sig
+
+      setOrderedSectionIds((prev) => {
+        const curFrom = prev.indexOf(activeSectionIdFromDrag)
+        const curTo = prev.indexOf(overSectionId)
+        if (curFrom < 0 || curTo < 0 || curFrom === curTo) return prev
+
+        const next = arrayMove(prev, curFrom, curTo)
+        orderedSectionIdsRef.current = next
+        return next
+      })
+      return
+    }
 
     const src = findContainerForIdInDrag(activeId)
     const dest = findContainerForIdInDrag(overId)
@@ -564,6 +767,43 @@ export function ProjectGroupedList({
   async function handleDragEnd(e: DragEndEvent) {
     const activeId = String(e.active.id)
     const overId = e.over?.id ? String(e.over.id) : null
+    const dragType = e.active.data.current?.type
+
+    if (dragType === 'section') {
+      const activeSectionIdFromDrag = sectionIdFromDragOrContainerId(activeId)
+      if (!activeSectionIdFromDrag) return
+
+      scheduleClearActiveSectionIdAfterDrop(activeSectionIdFromDrag)
+      const snapshot = sectionOrderSnapshotRef.current
+      sectionOrderSnapshotRef.current = null
+      lastSectionDraftSignatureRef.current = null
+
+      if (!overId) {
+        if (snapshot) {
+          setOrderedSectionIds(snapshot)
+          orderedSectionIdsRef.current = snapshot
+        }
+        return
+      }
+
+      const nextOrder = orderedSectionIdsRef.current
+      if (snapshot && snapshot.length === nextOrder.length && snapshot.every((id, i) => id === nextOrder[i])) {
+        return
+      }
+
+      try {
+        await persistSectionReorder(nextOrder)
+        await onAfterReorder?.()
+      } catch (err) {
+        if (snapshot) {
+          setOrderedSectionIds(snapshot)
+          orderedSectionIdsRef.current = snapshot
+        }
+        throw err
+      }
+      return
+    }
+
     scheduleClearActiveTaskIdAfterDrop(activeId)
 
     const snapshot = dragSnapshotRef.current
@@ -618,6 +858,19 @@ export function ProjectGroupedList({
 
   function handleDragCancel(_e: DragCancelEvent) {
     cancelPendingDropTimers()
+
+    if (activeSectionId) {
+      setActiveSectionId(null)
+      lastSectionDraftSignatureRef.current = null
+
+      const sectionSnapshot = sectionOrderSnapshotRef.current
+      sectionOrderSnapshotRef.current = null
+      if (sectionSnapshot) {
+        setOrderedSectionIds(sectionSnapshot)
+        orderedSectionIdsRef.current = sectionSnapshot
+      }
+    }
+
     setActiveTaskId(null)
     lastDraftSignatureRef.current = null
     dragStartContainerRef.current = null
@@ -632,6 +885,20 @@ export function ProjectGroupedList({
     if (!activeTaskId) return null
     return openTasks.find((t) => t.id === activeTaskId) ?? null
   }, [activeTaskId, openTasks])
+
+  const activeSection = useMemo(() => {
+    if (!activeSectionId) return null
+    const section = sections.find((s) => s.id === activeSectionId)
+    if (!section) return null
+
+    const openCount = openTasks.filter((task) => task.section_id === activeSectionId).length
+    const doneCount = doneTasks ? doneTasks.filter((task) => task.section_id === activeSectionId).length : null
+    return {
+      section,
+      openCount,
+      doneCount,
+    }
+  }, [activeSectionId, doneTasks, openTasks, sections])
 
   const listboxRef = useRef<HTMLDivElement | null>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
@@ -715,10 +982,11 @@ export function ProjectGroupedList({
     }
 
     // Sections (including empty).
-    for (const s of sections) {
+    for (const s of orderedSections) {
       const containerId = taskListIdProject(projectId, s.id)
       const openIds = openItemsByContainer[containerId] ?? []
       const done = doneTasks ? doneBySection.get(s.id) ?? [] : null
+      const isActiveDraggedSection = activeSectionId === s.id
 
       const groupIndex = rows.length
       rows.push({
@@ -731,17 +999,21 @@ export function ProjectGroupedList({
       })
       groupRowIndexBySectionId.set(s.id, groupIndex)
 
-      pushOpenTasks(openIds)
-      if (doneTasks && done) {
-        for (const task of done) {
-          taskRowIndexById.set(task.id, rows.length)
-          rows.push({ type: 'task', task })
+      // While dragging a section header, hide that section's task rows so only the
+      // section-level overlay represents the dragged group.
+      if (!isActiveDraggedSection) {
+        pushOpenTasks(openIds)
+        if (doneTasks && done) {
+          for (const task of done) {
+            taskRowIndexById.set(task.id, rows.length)
+            rows.push({ type: 'task', task })
+          }
         }
       }
     }
 
     return { rows, taskRowIndexById, groupRowIndexBySectionId }
-  }, [doneTasks, openItemsByContainer, openTasks, projectId, sections])
+  }, [activeSectionId, doneTasks, openItemsByContainer, openTasks, orderedSections, projectId])
 
   const selectedRowIndex = useMemo(() => {
     if (!selectedRow) return null
@@ -919,14 +1191,43 @@ export function ProjectGroupedList({
             (e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')
 
           if (isReorderChord) {
-            if (activeTaskId) return
+            if (activeTaskId || activeSectionId) return
             if (e.target instanceof HTMLElement) {
               if (e.target.isContentEditable) return
               const tag = e.target.tagName
               if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
               if (e.target.closest('[role="textbox"], [contenteditable="true"]')) return
             }
-            if (!selectedRow || selectedRow.type !== 'task') return
+
+            if (!selectedRow) return
+
+            if (selectedRow.type === 'group') {
+              const sectionId = selectedRow.sectionId
+              const prev = orderedSectionIds
+              const from = prev.indexOf(sectionId)
+              if (from < 0) return
+
+              const dir = e.key === 'ArrowUp' ? -1 : 1
+              const to = from + dir
+              if (to < 0 || to >= prev.length) return
+
+              e.preventDefault()
+
+              const next = arrayMove(prev, from, to)
+              setOrderedSectionIds(next)
+              orderedSectionIdsRef.current = next
+              void (async () => {
+                try {
+                  await persistSectionReorder(next)
+                  await onAfterReorder?.()
+                } catch (err) {
+                  setOrderedSectionIds(prev)
+                  orderedSectionIdsRef.current = prev
+                  throw err
+                }
+              })()
+              return
+            }
 
             const taskId = selectedRow.taskId
             const containerId = containerByTaskId.get(taskId)
@@ -1021,6 +1322,7 @@ export function ProjectGroupedList({
                   openCount={row.openCount}
                   doneCount={row.doneCount}
                   isSelected={isSelected}
+                  isDragging={activeSectionId === sectionId}
                   isEditing={isEditing}
                   editTitleDraft={editTitleDraft}
                   setEditTitleDraft={setEditTitleDraft}
@@ -1123,10 +1425,16 @@ export function ProjectGroupedList({
         </ul>
       </div>
 
-      {activeTaskId
+      {activeTaskId || activeSectionId
         ? createPortal(
             <DragOverlay dropAnimation={dropAnimation}>
-              {activeTask ? (
+              {activeSection ? (
+                <ProjectSectionDragOverlay
+                  title={activeSection.section.title}
+                  openCount={activeSection.openCount}
+                  doneCount={activeSection.doneCount}
+                />
+              ) : activeTask ? (
                 <div className="task-dnd-overlay">
                   <TaskRow
                     task={activeTask}

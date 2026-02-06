@@ -12,6 +12,8 @@ import {
   ProjectSchema,
   ProjectSectionCreateInputSchema,
   ProjectSectionDeleteInputSchema,
+  ProjectSectionReorderBatchInputSchema,
+  ProjectSectionReorderBatchResultSchema,
   ProjectSectionRenameInputSchema,
   ProjectSectionSchema,
   ProjectUpdateInputSchema,
@@ -447,6 +449,126 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
           )
           .get(parsed.data.id)
         return { ok: true as const, data: ProjectSectionSchema.parse(row) }
+      })
+
+      return tx()
+    },
+
+    'project.section.reorderBatch': (payload) => {
+      const parsed = ProjectSectionReorderBatchInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid project.section.reorderBatch payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const input = parsed.data
+      const duplicateSectionIds = new Set<string>()
+      const seenSectionIds = new Set<string>()
+      for (const sectionId of input.ordered_section_ids) {
+        if (seenSectionIds.has(sectionId)) duplicateSectionIds.add(sectionId)
+        seenSectionIds.add(sectionId)
+      }
+
+      if (duplicateSectionIds.size > 0) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'ordered_section_ids contains duplicates.',
+            details: { duplicate_section_ids: Array.from(duplicateSectionIds) },
+          },
+        }
+      }
+
+      const updatedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        const project = db
+          .prepare(
+            `SELECT id
+             FROM projects
+             WHERE id = @project_id AND deleted_at IS NULL
+             LIMIT 1`
+          )
+          .get({ project_id: input.project_id }) as { id: string } | undefined
+
+        if (!project) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Project not found.',
+              details: { id: input.project_id },
+            },
+          }
+        }
+
+        const sectionRows = db
+          .prepare(
+            `SELECT id
+             FROM project_sections
+             WHERE project_id = @project_id
+               AND deleted_at IS NULL
+             ORDER BY position ASC`
+          )
+          .all({ project_id: input.project_id }) as { id: string }[]
+
+        const existingSectionIds = sectionRows.map((row) => row.id)
+        const existingSectionIdSet = new Set(existingSectionIds)
+
+        const invalidSectionIds = input.ordered_section_ids.filter((sectionId) => !existingSectionIdSet.has(sectionId))
+        if (invalidSectionIds.length > 0) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'VALIDATION_FAILED',
+              message: 'ordered_section_ids must reference active sections in the project.',
+              details: { invalid_section_ids: invalidSectionIds, project_id: input.project_id },
+            },
+          }
+        }
+
+        if (input.ordered_section_ids.length !== existingSectionIds.length) {
+          const providedSectionIdSet = new Set(input.ordered_section_ids)
+          const missingSectionIds = existingSectionIds.filter((sectionId) => !providedSectionIdSet.has(sectionId))
+          return {
+            ok: false as const,
+            error: {
+              code: 'VALIDATION_FAILED',
+              message: 'ordered_section_ids must include every active section exactly once.',
+              details: { missing_section_ids: missingSectionIds, project_id: input.project_id },
+            },
+          }
+        }
+
+        const updateSection = db.prepare(
+          `UPDATE project_sections
+           SET position = @position,
+               updated_at = @updated_at
+           WHERE id = @id
+             AND project_id = @project_id
+             AND deleted_at IS NULL`
+        )
+
+        for (let i = 0; i < input.ordered_section_ids.length; i++) {
+          updateSection.run({
+            id: input.ordered_section_ids[i],
+            project_id: input.project_id,
+            position: (i + 1) * 1000,
+            updated_at: updatedAt,
+          })
+        }
+
+        return {
+          ok: true as const,
+          data: ProjectSectionReorderBatchResultSchema.parse({ reordered: true }),
+        }
       })
 
       return tx()

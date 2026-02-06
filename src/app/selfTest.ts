@@ -106,12 +106,20 @@ function findDragHandle(taskId: string): HTMLElement | null {
   )
 }
 
+function findSectionDragHandle(sectionId: string): HTMLButtonElement | null {
+  return document.querySelector<HTMLButtonElement>(
+    `.project-group-header[data-section-id="${sectionId}"] .project-group-left-button`
+  )
+}
+
 async function dragHandleToPoint(params: {
   label: string
   handle: HTMLElement
   to: { x: number; y: number }
+  overlaySelector?: string
 }) {
   const { label, handle, to } = params
+  const overlaySelector = params.overlaySelector ?? '.task-dnd-overlay'
   const reducedMotion = new URL(window.location.href).searchParams.get('reducedMotion') === '1'
 
   const startRect = handle.getBoundingClientRect()
@@ -139,7 +147,7 @@ async function dragHandleToPoint(params: {
   })
 
   await waitFor(`${label}: drag overlay shown`, () =>
-    document.querySelector<HTMLElement>('.task-dnd-overlay')
+    document.querySelector<HTMLElement>(overlaySelector)
   )
 
   dispatchMouse(document, 'mousemove', {
@@ -163,14 +171,14 @@ async function dragHandleToPoint(params: {
   if (!reducedMotion) {
     // If drop animation is enabled, the overlay should remain briefly after mouseup.
     await sleep(80)
-    if (!document.querySelector<HTMLElement>('.task-dnd-overlay')) {
+    if (!document.querySelector<HTMLElement>(overlaySelector)) {
       throw new Error(`${label}: expected drag overlay to remain briefly after drop (animation enabled)`) 
     }
   }
 
   await waitFor(
     `${label}: drag overlay hidden`,
-    () => (document.querySelector<HTMLElement>('.task-dnd-overlay') ? null : true),
+    () => (document.querySelector<HTMLElement>(overlaySelector) ? null : true),
     { timeoutMs: 10_000, intervalMs: 10 }
   )
 
@@ -1077,7 +1085,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
 
     // Project page (grouped list + completed toggle + project completion)
     window.location.hash = `/projects/${projectId}`
-    const projectListbox = await waitFor('Project listbox', () =>
+    let projectListbox = await waitFor('Project listbox', () =>
       document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Project tasks"]')
     )
 
@@ -1142,6 +1150,86 @@ async function runSelfTest(): Promise<SelfTestResult> {
     // Reset scroll position so later Project assertions can find expected rows.
     contentScroller.scrollTop = 0
     await sleep(150)
+
+    // Section DnD: pointer reorder + persistence across navigation/reload-like flow.
+    const sectionBHandle = await waitFor('Project: drag handle (section B)', () =>
+      findSectionDragHandle(sectionBRes.data.id)
+    )
+    const sectionAHeaderForSectionMove = await waitFor('Project: section A header (section reorder target)', () =>
+      document.querySelector<HTMLElement>(`.project-group-header[data-section-id="${sectionARes.data.id}"]`)
+    )
+    const sectionATargetRect = sectionAHeaderForSectionMove.getBoundingClientRect()
+
+    await dragHandleToPoint({
+      label: 'Project: reorder sections (pointer)',
+      handle: sectionBHandle,
+      to: {
+        x: sectionATargetRect.left + sectionATargetRect.width / 2,
+        y: sectionATargetRect.top + sectionATargetRect.height * 0.25,
+      },
+      overlaySelector: '.project-section-dnd-overlay',
+    })
+    await sleep(250)
+
+    const sectionsAfterPointerReorder = await window.api.project.listSections(projectId)
+    if (!sectionsAfterPointerReorder.ok) {
+      throw new Error(
+        `Project: listSections after pointer section reorder failed: ${sectionsAfterPointerReorder.error.code}: ${sectionsAfterPointerReorder.error.message}`
+      )
+    }
+    const pointerOrder = sectionsAfterPointerReorder.data.map((section) => section.id)
+    const pointerAIndex = pointerOrder.indexOf(sectionARes.data.id)
+    const pointerBIndex = pointerOrder.indexOf(sectionBRes.data.id)
+    if (pointerAIndex < 0 || pointerBIndex < 0 || pointerBIndex >= pointerAIndex) {
+      throw new Error('Project: expected Section B to move before Section A after pointer section reorder')
+    }
+
+    window.location.hash = '/today'
+    await waitFor('Today listbox (after section reorder)', () =>
+      document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+    )
+    window.location.hash = `/projects/${projectId}`
+    projectListbox = await waitFor('Project listbox (after section reorder return)', () =>
+      document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Project tasks"]')
+    )
+
+    await waitFor('Project: section order persisted after navigation', () => {
+      const headers = Array.from(document.querySelectorAll<HTMLElement>('.project-group-header[data-section-id]'))
+      const ids = headers
+        .map((el) => el.getAttribute('data-section-id'))
+        .filter((id): id is string => !!id)
+      const aIndex = ids.indexOf(sectionARes.data.id)
+      const bIndex = ids.indexOf(sectionBRes.data.id)
+      if (aIndex < 0 || bIndex < 0) return null
+      return bIndex < aIndex ? true : null
+    })
+
+    // Keyboard section reorder: move Section B down by one (back to original order).
+    const sectionBHandleForKey = await waitFor('Project: section B drag handle (for keyboard)', () =>
+      findSectionDragHandle(sectionBRes.data.id)
+    )
+    sectionBHandleForKey.click()
+    await waitFor('Project: section B selected (for keyboard reorder)', () => {
+      const el = document.querySelector<HTMLElement>(
+        `.project-group-header.is-selected[data-section-id="${sectionBRes.data.id}"]`
+      )
+      return el ? true : null
+    })
+    dispatchKey(sectionBHandleForKey, 'ArrowDown', { metaKey: true, ctrlKey: true, shiftKey: true })
+    await sleep(250)
+
+    const sectionsAfterKeyboardReorder = await window.api.project.listSections(projectId)
+    if (!sectionsAfterKeyboardReorder.ok) {
+      throw new Error(
+        `Project: listSections after keyboard section reorder failed: ${sectionsAfterKeyboardReorder.error.code}: ${sectionsAfterKeyboardReorder.error.message}`
+      )
+    }
+    const keyboardOrder = sectionsAfterKeyboardReorder.data.map((section) => section.id)
+    const keyboardAIndex = keyboardOrder.indexOf(sectionARes.data.id)
+    const keyboardBIndex = keyboardOrder.indexOf(sectionBRes.data.id)
+    if (keyboardAIndex < 0 || keyboardBIndex < 0 || keyboardAIndex >= keyboardBIndex) {
+      throw new Error('Project: expected keyboard section reorder to move Section B after Section A')
+    }
 
     // DnD smoke: reorder within Section A and move into empty Section B.
     const projectOpenSectionId = projectOpenSectionRes.data.id

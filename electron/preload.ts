@@ -71,6 +71,11 @@ const api: WindowApi = {
     createSection: (projectId, title) => invoke('db:project.section.create', { project_id: projectId, title }),
     renameSection: (id, title) => invoke('db:project.section.rename', { id, title }),
     deleteSection: (id) => invoke('db:project.section.delete', { id }),
+    reorderSections: (projectId, orderedSectionIds) =>
+      invoke('db:project.section.reorderBatch', {
+        project_id: projectId,
+        ordered_section_ids: orderedSectionIds,
+      }),
   },
 
   area: {

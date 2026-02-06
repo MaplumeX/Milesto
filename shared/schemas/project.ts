@@ -89,3 +89,16 @@ export const ProjectSectionRenameInputSchema = z.object({
 export const ProjectSectionDeleteInputSchema = z.object({
   id: IdSchema,
 })
+
+export const ProjectSectionReorderBatchInputSchema = z.object({
+  project_id: IdSchema,
+  ordered_section_ids: z.array(IdSchema),
+})
+
+export type ProjectSectionReorderBatchInput = z.infer<typeof ProjectSectionReorderBatchInputSchema>
+
+export const ProjectSectionReorderBatchResultSchema = z.object({
+  reordered: z.boolean(),
+})
+
+export type ProjectSectionReorderBatchResult = z.infer<typeof ProjectSectionReorderBatchResultSchema>
