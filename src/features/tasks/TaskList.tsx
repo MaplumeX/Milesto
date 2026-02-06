@@ -7,8 +7,10 @@ import {
   DragOverlay,
   MouseSensor,
   closestCenter,
+  pointerWithin,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragCancelEvent,
   type DragEndEvent,
   type DragOverEvent,
@@ -204,6 +206,12 @@ export function TaskList({
   const dragSnapshotRef = useRef<string[] | null>(null)
   const lastOverIdRef = useRef<string | null>(null)
 
+  const collisionDetection: CollisionDetection = useCallback((args) => {
+    const pointerCollisions = pointerWithin(args)
+    if (pointerCollisions.length > 0) return pointerCollisions
+    return closestCenter(args)
+  }, [])
+
   useLayoutEffect(() => {
     let cancelled = false
 
@@ -375,7 +383,7 @@ export function TaskList({
 
       <DndContext
         sensors={isDndEnabled ? sensors : undefined}
-        collisionDetection={closestCenter}
+        collisionDetection={collisionDetection}
         onDragStart={isDndEnabled ? handleDragStart : undefined}
         onDragOver={isDndEnabled ? handleDragOver : undefined}
         onDragEnd={isDndEnabled ? handleDragEnd : undefined}

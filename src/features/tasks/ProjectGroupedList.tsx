@@ -60,6 +60,11 @@ function sortByRankThenCreated(a: TaskListItem, b: TaskListItem) {
 }
 
 type ContainerId = string
+const projectTailIdPrefix = 'project-tail:'
+
+function projectTailIdFromContainerId(containerId: ContainerId): string {
+  return `${projectTailIdPrefix}${containerId}`
+}
 
 function NoSectionDropZone({
   containerId,
@@ -82,8 +87,37 @@ function NoSectionDropZone({
   )
 }
 
+function ProjectSectionTailDropZone({
+  containerId,
+}: {
+  containerId: ContainerId
+}) {
+  const { setNodeRef } = useDroppable({
+    id: projectTailIdFromContainerId(containerId),
+    data: { type: 'containerTail', containerId },
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className="project-section-tail-dropzone"
+      aria-hidden="true"
+    />
+  )
+}
+
 function isProjectContainerId(id: string): boolean {
   return id.startsWith('project:')
+}
+
+function isProjectTailId(id: string): boolean {
+  return id.startsWith(projectTailIdPrefix)
+}
+
+function containerIdFromTailId(id: string): ContainerId | null {
+  if (!isProjectTailId(id)) return null
+  const containerId = id.slice(projectTailIdPrefix.length)
+  return containerId || null
 }
 
 function sectionIdFromProjectContainerId(containerId: string): string | null {
@@ -392,6 +426,9 @@ export function ProjectGroupedList({
       const pointerCollisions = pointerWithin(args)
       const headerHits = pointerCollisions.filter((c) => typeof c.id === 'string' && c.id.startsWith('project:'))
       if (headerHits.length > 0) return headerHits
+
+      if (pointerCollisions.length > 0) return pointerCollisions
+
       return closestCenter(args)
     },
     []
@@ -412,6 +449,7 @@ export function ProjectGroupedList({
 
   function findContainerForIdInDrag(id: string): ContainerId | null {
     if (isProjectContainerId(id)) return id
+    if (isProjectTailId(id)) return containerIdFromTailId(id)
     return containerByTaskIdRef.current.get(id) ?? null
   }
 
@@ -456,18 +494,23 @@ export function ProjectGroupedList({
 
       const items = draft[src] ?? []
       const from = items.indexOf(activeId)
-      const to = items.indexOf(overId)
-      if (from < 0 || to < 0 || from === to) return
+      if (from < 0) return
 
-      const sig = `${src}|${dest}|${activeId}|${overId}`
+      const isTailOver = isProjectTailId(overId)
+      const to = isTailOver ? Math.max(items.length - 1, 0) : items.indexOf(overId)
+      if (to < 0 || from === to) return
+
+      const sig = `${src}|${dest}|${activeId}|${overId}|${to}`
       if (lastDraftSignatureRef.current === sig) return
       lastDraftSignatureRef.current = sig
 
       setOpenItemsByContainer((prev) => {
         const cur = prev[src] ?? []
         const curFrom = cur.indexOf(activeId)
-        const curTo = cur.indexOf(overId)
-        if (curFrom < 0 || curTo < 0 || curFrom === curTo) return prev
+        if (curFrom < 0) return prev
+
+        const curTo = isTailOver ? Math.max(cur.length - 1, 0) : cur.indexOf(overId)
+        if (curTo < 0 || curFrom === curTo) return prev
 
         const nextItems = arrayMove(cur, curFrom, curTo)
         const next = { ...prev, [src]: nextItems }
@@ -481,6 +524,8 @@ export function ProjectGroupedList({
     let insertIndex = 0
     if (isProjectContainerId(overId)) {
       insertIndex = 0
+    } else if (isProjectTailId(overId)) {
+      insertIndex = destItems.length
     } else {
       const overIndex = destItems.indexOf(overId)
       if (overIndex < 0) return
@@ -1028,6 +1073,9 @@ export function ProjectGroupedList({
             const isDragging = activeTaskId === t.id
             const containerId = containerByTaskId.get(t.id) ?? taskListIdProject(projectId, t.section_id)
             const containerItems = openItemsByContainer[containerId] ?? []
+            const isOpenTask = t.status === 'open'
+            const isLastOpenInContainer =
+              isOpenTask && containerItems.length > 0 && containerItems[containerItems.length - 1] === t.id
 
             return (
               <li
@@ -1050,7 +1098,7 @@ export function ProjectGroupedList({
                 transform: `translateY(${translateY}px)`,
               }}
             >
-                {t.status === 'open' ? (
+                {isOpenTask ? (
                   <SortableContext id={containerId} items={containerItems} strategy={verticalListSortingStrategy}>
                     <SortableProjectTaskRow
                       task={t}
@@ -1059,6 +1107,7 @@ export function ProjectGroupedList({
                       onToggleDone={(taskId, done) => void onToggleDone(taskId, done)}
                       onSelectForDrag={selectTaskRow}
                     />
+                    {isLastOpenInContainer ? <ProjectSectionTailDropZone containerId={containerId} /> : null}
                   </SortableContext>
                 ) : (
                   <TaskRow

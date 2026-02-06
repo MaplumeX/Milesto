@@ -438,6 +438,13 @@ body {
   z-index: 2;
 }
 
+/* Invisible tail drop target appended to each section's last open task row. */
+.project-section-tail-dropzone {
+  width: 100%;
+  height: 12px;
+  pointer-events: none;
+}
+
 
 /* Project page: Notes block should not look like a card. */
 .project-notes {

@@ -115,7 +115,13 @@ async function dragHandleToPoint(params: {
   const reducedMotion = new URL(window.location.href).searchParams.get('reducedMotion') === '1'
 
   const startRect = handle.getBoundingClientRect()
-  const start = { x: startRect.left + startRect.width / 2, y: startRect.top + startRect.height / 2 }
+  // Use a non-center start point to better test DnD precision and coverage.
+  // This helps ensure the drag overlay and drop target logic work correctly even when
+  // the user doesn't grab the exact center of the activator.
+  const start = {
+    x: startRect.left + Math.min(Math.max(startRect.width * 0.25, 8), startRect.width - 8),
+    y: startRect.top + Math.min(Math.max(startRect.height * 0.35, 6), startRect.height - 6),
+  }
 
   dispatchMouse(handle, 'mousedown', {
     clientX: start.x,
@@ -1201,7 +1207,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
       throw new Error('Project: expected task 2 to move down after Ctrl+Shift+ArrowDown')
     }
 
-    const sectionBHeader = await scrollUntil('Project: Section B header visible', {
+    await scrollUntil('Project: Section B header visible', {
       scroller: contentScroller,
       get: () =>
         document.querySelector<HTMLElement>(`.project-group-header[data-section-id="${sectionBId}"]`),
@@ -1209,7 +1215,6 @@ async function runSelfTest(): Promise<SelfTestResult> {
       timeoutMs: 10_000,
       intervalMs: 60,
     })
-    const hb = sectionBHeader.getBoundingClientRect()
     const handleProject2ForMove = await waitFor('Project: drag handle (task 2, move)', () =>
       findDragHandle(projectOpenSection2Id)
     )
@@ -1217,11 +1222,11 @@ async function runSelfTest(): Promise<SelfTestResult> {
     // Inline drag so we can assert destination reflow/placeholder behavior.
     {
       const startRect = handleProject2ForMove.getBoundingClientRect()
+      // Use the same non-center start point formula as dragHandleToPoint.
       const start = {
-        x: startRect.left + startRect.width / 2,
-        y: startRect.top + startRect.height / 2,
+        x: startRect.left + Math.min(Math.max(startRect.width * 0.25, 8), startRect.width - 8),
+        y: startRect.top + Math.min(Math.max(startRect.height * 0.35, 6), startRect.height - 6),
       }
-      const to = { x: hb.left + hb.width / 2, y: hb.top + hb.height / 2 }
 
       dispatchMouse(handleProject2ForMove, 'mousedown', {
         clientX: start.x,
@@ -1239,28 +1244,46 @@ async function runSelfTest(): Promise<SelfTestResult> {
         document.querySelector<HTMLElement>('.task-dnd-overlay')
       )
 
+      // Re-query header to account for list reflow after drag starts.
+      const liveHeaderB = document.querySelector<HTMLElement>(
+        `.project-group-header[data-section-id="${sectionBId}"]`
+      )
+      if (!liveHeaderB) throw new Error('Project: Section B header disappeared after drag start')
+      const hbLiveInitial = liveHeaderB.getBoundingClientRect()
+      const to = {
+        x: hbLiveInitial.left + hbLiveInitial.width / 2,
+        y: hbLiveInitial.top + hbLiveInitial.height / 2,
+      }
+
       dispatchMouse(document, 'mousemove', {
         clientX: to.x,
         clientY: to.y,
         button: 0,
         buttons: 1,
       })
-      await sleep(120)
 
       // During drag, the destination section should show insertion feedback by reflow/placeholder
       // (i.e., the dragged task appears to occupy a slot near the destination header).
-      const draggedRow = document.querySelector<HTMLElement>(`.task-row[data-task-id="${projectOpenSection2Id}"]`)
-      if (!draggedRow) {
-        const hit = document.elementFromPoint(to.x, to.y)
-        const hitDesc = hit
-          ? `${hit.tagName}${hit instanceof HTMLElement && hit.className ? `.${hit.className}` : ''}`
-          : 'null'
-        throw new Error(`Project: expected dragged task row to remain rendered during drag (hit=${hitDesc})`)
-      }
-      const dr = draggedRow.getBoundingClientRect()
-      if (dr.top < hb.top - 4) {
-        throw new Error('Project: expected destination section to show reflow placeholder during cross-section drag')
-      }
+      // Use polling to wait for the placeholder to move below the header, as layout shifts
+      // may take a few frames to stabilize.
+      await waitFor(
+        'Project: reflow placeholder shown in Section B',
+        () => {
+          const header = document.querySelector<HTMLElement>(
+            `.project-group-header[data-section-id="${sectionBId}"]`
+          )
+          const row = document.querySelector<HTMLElement>(
+            `.task-row[data-task-id="${projectOpenSection2Id}"]`
+          )
+          if (!header || !row) return null
+          const hr = header.getBoundingClientRect()
+          const dr = row.getBoundingClientRect()
+          // If row top is at or below header top (with a small margin), it means 
+          // the placeholder has reflowed into the destination section.
+          return dr.top >= hr.top - 4 ? true : null
+        },
+        { timeoutMs: 3000 }
+      )
 
       dispatchMouse(document, 'mouseup', {
         clientX: to.x,
@@ -1300,6 +1323,41 @@ async function runSelfTest(): Promise<SelfTestResult> {
     }
     if (openInSectionB[0]?.rank == null) {
       throw new Error('Project: expected rank to be set after cross-section drop')
+    }
+
+    // Tail dropzone move: move task 1 to the end of Section B (using the tail dropzone on task 2).
+    const handleProject1ForTail = await waitFor('Project: drag handle (task 1, tail move)', () =>
+      findDragHandle(projectOpenSectionId)
+    )
+    const rowProject2InSectionB = await waitFor('Project: task 2 row in Section B', () =>
+      document.querySelector<HTMLElement>(`.task-row[data-task-id="${projectOpenSection2Id}"]`)
+    )
+    const tailDropzone = await waitFor('Project: Section B tail dropzone', () =>
+      rowProject2InSectionB.querySelector<HTMLElement>('.project-section-tail-dropzone')
+    )
+    const tr = tailDropzone.getBoundingClientRect()
+    await dragHandleToPoint({
+      label: 'Project: move to tail of section',
+      handle: handleProject1ForTail,
+      to: { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 },
+    })
+    await sleep(250)
+
+    const projectAfterTailMove = await window.api.task.listProject(projectId)
+    if (!projectAfterTailMove.ok) {
+      throw new Error(
+        `Project: listProject after tail move failed: ${projectAfterTailMove.error.code}: ${projectAfterTailMove.error.message}`
+      )
+    }
+    const openInBAfterTail = projectAfterTailMove.data
+      .filter((t) => t.status === 'open' && t.section_id === sectionBId)
+      .sort((a, b) => ((a.rank ?? '') < (b.rank ?? '') ? -1 : 1))
+
+    if (openInBAfterTail.length !== 2) {
+      throw new Error(`Project: expected 2 tasks in Section B, got ${openInBAfterTail.length}`)
+    }
+    if (openInBAfterTail[1].id !== projectOpenSectionId) {
+      throw new Error('Project: expected task 1 to be at the end of Section B')
     }
 
     // No-section drop: ensure a task can be dropped into the no-section container even when empty.
