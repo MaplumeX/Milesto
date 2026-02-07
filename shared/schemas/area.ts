@@ -6,6 +6,8 @@ export const AreaSchema = z.object({
   id: IdSchema,
   title: z.string().min(1),
   notes: z.string(),
+  // Nullable for backward compatibility; only set after manual ordering is used.
+  position: z.number().int().nullable().optional(),
   created_at: IsoDateTimeSchema,
   updated_at: IsoDateTimeSchema,
   deleted_at: IsoDateTimeSchema.nullable(),

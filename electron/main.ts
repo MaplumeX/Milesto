@@ -56,6 +56,13 @@ import {
   ChecklistItemSchema,
   ChecklistItemUpdateInputSchema,
   ChecklistItemDeleteInputSchema,
+  SidebarListModelInputSchema,
+  SidebarListModelSchema,
+  SidebarMoveProjectInputSchema,
+  SidebarMoveProjectResultSchema,
+  SidebarReorderAreasInputSchema,
+  SidebarReorderProjectsInputSchema,
+  SidebarReorderResultSchema,
 } from '../shared/schemas'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -497,6 +504,16 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   handleDb('db:area.list', 'area.list', z.object({}), z.array(AreaSchema))
   handleDb('db:area.get', 'area.get', AreaDeleteInputSchema, AreaSchema)
   handleDb('db:area.delete', 'area.delete', AreaDeleteInputSchema, z.object({ deleted: z.boolean() }))
+
+  handleDb('db:sidebar.listModel', 'sidebar.listModel', SidebarListModelInputSchema, SidebarListModelSchema)
+  handleDb('db:sidebar.reorderAreas', 'sidebar.reorderAreas', SidebarReorderAreasInputSchema, SidebarReorderResultSchema)
+  handleDb(
+    'db:sidebar.reorderProjects',
+    'sidebar.reorderProjects',
+    SidebarReorderProjectsInputSchema,
+    SidebarReorderResultSchema
+  )
+  handleDb('db:sidebar.moveProject', 'sidebar.moveProject', SidebarMoveProjectInputSchema, SidebarMoveProjectResultSchema)
 
   handleDb('db:tag.create', 'tag.create', TagCreateInputSchema, TagSchema)
   handleDb('db:tag.update', 'tag.update', TagUpdateInputSchema, TagSchema)

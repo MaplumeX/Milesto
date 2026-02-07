@@ -19,6 +19,14 @@ import type { Task, TaskCreateInput, TaskUpdateInput } from './schemas/task'
 import type { TaskCountResult, TaskListItem } from './schemas/task-list'
 import type { TaskSearchResultItem } from './schemas/search'
 import type { TaskDetail } from './schemas/task-detail'
+import type {
+  SidebarListModel,
+  SidebarMoveProjectInput,
+  SidebarMoveProjectResult,
+  SidebarReorderAreasInput,
+  SidebarReorderProjectsInput,
+  SidebarReorderResult,
+} from './schemas/sidebar'
 
 export type OpenDialogResult = {
   canceled: boolean
@@ -91,6 +99,14 @@ export type WindowApi = {
     update(input: AreaUpdateInput): Promise<Result<Area>>
     list(): Promise<Result<Area[]>>
     delete(id: string): Promise<Result<{ deleted: boolean }>>
+  }
+
+  sidebar: {
+    // Sidebar-specific ordering rules (manual order with title fallback).
+    listModel(): Promise<Result<SidebarListModel>>
+    reorderAreas(input: SidebarReorderAreasInput): Promise<Result<SidebarReorderResult>>
+    reorderProjects(input: SidebarReorderProjectsInput): Promise<Result<SidebarReorderResult>>
+    moveProject(input: SidebarMoveProjectInput): Promise<Result<SidebarMoveProjectResult>>
   }
 
   tag: {

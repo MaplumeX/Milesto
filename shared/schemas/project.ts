@@ -8,6 +8,8 @@ export const ProjectSchema = z.object({
   notes: z.string(),
   area_id: IdSchema.nullable(),
   status: ProjectStatusSchema,
+  // Nullable for backward compatibility; only set after manual ordering is used.
+  position: z.number().int().nullable().optional(),
   scheduled_at: LocalDateSchema.nullable(),
   due_at: LocalDateSchema.nullable(),
   created_at: IsoDateTimeSchema,

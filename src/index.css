@@ -823,6 +823,30 @@ body {
   user-select: none;
 }
 
+/* Sidebar: invisible tail drop target to allow dropping into empty groups and list tails. */
+.sidebar-tail-dropzone {
+  width: 100%;
+  height: 12px;
+  pointer-events: none;
+}
+
+/* Sidebar drag preview. */
+.sidebar-dnd-overlay {
+  min-width: 180px;
+  max-width: 260px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 0 0 1px rgba(29, 29, 27, 0.14),
+    0 1px 0 var(--shadow),
+    0 16px 22px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .task-dnd-overlay {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.96);

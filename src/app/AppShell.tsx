@@ -1,5 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+
+import {
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  closestCenter,
+  pointerWithin,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type CollisionDetection,
+  type DragCancelEvent,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS as DndCss } from '@dnd-kit/utilities'
 
 import type { Area } from '../../shared/schemas/area'
 import type { Project } from '../../shared/schemas/project'
@@ -9,8 +28,109 @@ import { ContentScrollProvider } from './ContentScrollContext'
 import { type OpenEditorHandle, TaskSelectionProvider } from '../features/tasks/TaskSelectionContext'
 import { CommandPalette } from './CommandPalette'
 import { formatLocalDate } from '../lib/dates'
+import {
+  getTaskDropAnimationConfig,
+  getTaskDropAnimationDurationMs,
+  usePrefersReducedMotion,
+} from '../features/tasks/dnd-drop-animation'
 
 const PROJECT_CREATE_SECTION_EVENT = 'milesto:project.createSection'
+
+type ContainerId = string
+const SIDEBAR_UNASSIGNED_CONTAINER_ID: ContainerId = 'sidebar:unassigned'
+const SIDEBAR_AREA_CONTAINER_PREFIX = 'sidebar:area:'
+const SIDEBAR_TAIL_ID_PREFIX = 'sidebar-tail:'
+const AREA_DRAG_ID_PREFIX = 'area:'
+const PROJECT_DRAG_ID_PREFIX = 'project:'
+
+function sidebarAreaContainerId(areaId: string): ContainerId {
+  return `${SIDEBAR_AREA_CONTAINER_PREFIX}${areaId}`
+}
+
+function sidebarTailIdFromContainerId(containerId: ContainerId): string {
+  return `${SIDEBAR_TAIL_ID_PREFIX}${containerId}`
+}
+
+function isSidebarTailId(id: string): boolean {
+  return id.startsWith(SIDEBAR_TAIL_ID_PREFIX)
+}
+
+function containerIdFromSidebarTailId(id: string): ContainerId | null {
+  if (!isSidebarTailId(id)) return null
+  const containerId = id.slice(SIDEBAR_TAIL_ID_PREFIX.length)
+  return containerId || null
+}
+
+function isSidebarContainerId(id: string): boolean {
+  return id === SIDEBAR_UNASSIGNED_CONTAINER_ID || id.startsWith(SIDEBAR_AREA_CONTAINER_PREFIX)
+}
+
+function areaIdFromSidebarContainerId(containerId: ContainerId): string | null {
+  if (containerId === SIDEBAR_UNASSIGNED_CONTAINER_ID) return null
+  if (!containerId.startsWith(SIDEBAR_AREA_CONTAINER_PREFIX)) return null
+  const areaId = containerId.slice(SIDEBAR_AREA_CONTAINER_PREFIX.length)
+  return areaId || null
+}
+
+function areaDragId(areaId: string): string {
+  return `${AREA_DRAG_ID_PREFIX}${areaId}`
+}
+
+function projectDragId(projectId: string): string {
+  return `${PROJECT_DRAG_ID_PREFIX}${projectId}`
+}
+
+function isAreaDragId(id: string): boolean {
+  return id.startsWith(AREA_DRAG_ID_PREFIX)
+}
+
+function isProjectDragId(id: string): boolean {
+  return id.startsWith(PROJECT_DRAG_ID_PREFIX)
+}
+
+function areaIdFromAreaDragId(id: string): string | null {
+  if (!isAreaDragId(id)) return null
+  const areaId = id.slice(AREA_DRAG_ID_PREFIX.length)
+  return areaId || null
+}
+
+function projectIdFromProjectDragId(id: string): string | null {
+  if (!isProjectDragId(id)) return null
+  const projectId = id.slice(PROJECT_DRAG_ID_PREFIX.length)
+  return projectId || null
+}
+
+function cloneItemsByContainer(m: Record<ContainerId, string[]>): Record<ContainerId, string[]> {
+  const out: Record<ContainerId, string[]> = {}
+  for (const [k, v] of Object.entries(m)) out[k] = [...v]
+  return out
+}
+
+function deriveOpenItemsByContainer({
+  areas,
+  openProjects,
+}: {
+  areas: Area[]
+  openProjects: Project[]
+}): Record<ContainerId, string[]> {
+  const out: Record<ContainerId, string[]> = {
+    [SIDEBAR_UNASSIGNED_CONTAINER_ID]: [],
+  }
+  for (const a of areas) out[sidebarAreaContainerId(a.id)] = []
+
+  for (const p of openProjects) {
+    const containerId = p.area_id ? sidebarAreaContainerId(p.area_id) : SIDEBAR_UNASSIGNED_CONTAINER_ID
+    const list = out[containerId] ?? []
+    list.push(projectDragId(p.id))
+    out[containerId] = list
+  }
+
+  return out
+}
+
+function isReorderChord(e: { metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; key: string }): boolean {
+  return (e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')
+}
 
 type SidebarModel = {
   areas: Area[]
@@ -176,22 +296,14 @@ export function AppShell() {
   }
 
   const refreshSidebar = useCallback(async () => {
-    const [areasRes, projectsRes] = await Promise.all([
-      window.api.area.list(),
-      window.api.project.listOpen(),
-    ])
-
-    if (!areasRes.ok) {
-      setSidebarError(`${areasRes.error.code}: ${areasRes.error.message}`)
-      return
-    }
-    if (!projectsRes.ok) {
-      setSidebarError(`${projectsRes.error.code}: ${projectsRes.error.message}`)
+    const res = await window.api.sidebar.listModel()
+    if (!res.ok) {
+      setSidebarError(`${res.error.code}: ${res.error.message}`)
       return
     }
 
     setSidebarError(null)
-    setSidebar({ areas: areasRes.data, openProjects: projectsRes.data })
+    setSidebar(res.data)
   }, [])
 
   useEffect(() => {
@@ -200,21 +312,584 @@ export function AppShell() {
     void refreshSidebar()
   }, [refreshSidebar, revision])
 
-  const unassignedProjects = useMemo(
-    () => sidebar.openProjects.filter((p) => !p.area_id),
-    [sidebar.openProjects]
+  const [orderedAreaDragIds, setOrderedAreaDragIds] = useState<string[]>([])
+  const orderedAreaDragIdsRef = useRef<string[]>(orderedAreaDragIds)
+  useEffect(() => {
+    orderedAreaDragIdsRef.current = orderedAreaDragIds
+  }, [orderedAreaDragIds])
+
+  const [openItemsByContainer, setOpenItemsByContainer] = useState<Record<ContainerId, string[]>>(() => ({
+    [SIDEBAR_UNASSIGNED_CONTAINER_ID]: [],
+  }))
+  const openItemsByContainerRef = useRef(openItemsByContainer)
+  useEffect(() => {
+    openItemsByContainerRef.current = openItemsByContainer
+  }, [openItemsByContainer])
+
+  const [activeAreaId, setActiveAreaId] = useState<string | null>(null)
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
+
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const dropAnimation = useMemo(() => getTaskDropAnimationConfig(prefersReducedMotion), [prefersReducedMotion])
+  const dropAnimationDurationMs = useMemo(
+    () => getTaskDropAnimationDurationMs(prefersReducedMotion),
+    [prefersReducedMotion]
   )
 
-  const projectsByArea = useMemo(() => {
-    const map = new Map<string, Project[]>()
-    for (const project of sidebar.openProjects) {
-      if (!project.area_id) continue
-      const list = map.get(project.area_id) ?? []
-      list.push(project)
-      map.set(project.area_id, list)
+  const clearActiveAreaIdTimeoutRef = useRef<number | null>(null)
+  const clearActiveProjectIdTimeoutRef = useRef<number | null>(null)
+  const enableClicksTimeoutRef = useRef<number | null>(null)
+  const suppressClickRef = useRef(false)
+
+  function formatSidebarErrorMessage(err: unknown): string {
+    if (err instanceof Error) return err.message
+    return String(err)
+  }
+
+  const cancelPendingDropTimers = useCallback(() => {
+    if (clearActiveAreaIdTimeoutRef.current !== null) {
+      window.clearTimeout(clearActiveAreaIdTimeoutRef.current)
+      clearActiveAreaIdTimeoutRef.current = null
     }
-    return map
+    if (clearActiveProjectIdTimeoutRef.current !== null) {
+      window.clearTimeout(clearActiveProjectIdTimeoutRef.current)
+      clearActiveProjectIdTimeoutRef.current = null
+    }
+    if (enableClicksTimeoutRef.current !== null) {
+      window.clearTimeout(enableClicksTimeoutRef.current)
+      enableClicksTimeoutRef.current = null
+    }
+  }, [])
+
+  useEffect(() => () => cancelPendingDropTimers(), [cancelPendingDropTimers])
+
+  function scheduleClearActiveAreaIdAfterDrop(droppingAreaDragId: string) {
+    if (dropAnimationDurationMs <= 0) {
+      setActiveAreaId(null)
+      return
+    }
+    if (clearActiveAreaIdTimeoutRef.current !== null) window.clearTimeout(clearActiveAreaIdTimeoutRef.current)
+    clearActiveAreaIdTimeoutRef.current = window.setTimeout(() => {
+      clearActiveAreaIdTimeoutRef.current = null
+      setActiveAreaId((cur) => (cur === droppingAreaDragId ? null : cur))
+    }, dropAnimationDurationMs)
+  }
+
+  function scheduleClearActiveProjectIdAfterDrop(droppingProjectDragId: string) {
+    if (dropAnimationDurationMs <= 0) {
+      setActiveProjectId(null)
+      return
+    }
+    if (clearActiveProjectIdTimeoutRef.current !== null) {
+      window.clearTimeout(clearActiveProjectIdTimeoutRef.current)
+    }
+    clearActiveProjectIdTimeoutRef.current = window.setTimeout(() => {
+      clearActiveProjectIdTimeoutRef.current = null
+      setActiveProjectId((cur) => (cur === droppingProjectDragId ? null : cur))
+    }, dropAnimationDurationMs)
+  }
+
+  function scheduleEnableClicksAfterDrop() {
+    if (dropAnimationDurationMs <= 0) {
+      suppressClickRef.current = false
+      return
+    }
+    if (enableClicksTimeoutRef.current !== null) window.clearTimeout(enableClicksTimeoutRef.current)
+    enableClicksTimeoutRef.current = window.setTimeout(() => {
+      enableClicksTimeoutRef.current = null
+      suppressClickRef.current = false
+    }, dropAnimationDurationMs)
+  }
+
+  function focusSidebarRowByDndId(dndId: string) {
+    window.setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-sidebar-dnd-id="${CSS.escape(dndId)}"]`)
+      el?.focus()
+    }, 0)
+  }
+
+  function handleSidebarKeyDown(e: React.KeyboardEvent<HTMLElement>) {
+    if (activeAreaId || activeProjectId) return
+    if (e.repeat) return
+    if (!isReorderChord(e)) return
+
+    if (e.target instanceof HTMLElement) {
+      const tag = e.target.tagName
+      // Don't steal text selection / cursor movement shortcuts from inputs.
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return
+    }
+
+    const target = e.target instanceof HTMLElement ? e.target : null
+    if (!target) return
+
+    const row = target.closest<HTMLElement>('[data-sidebar-dnd-kind][data-sidebar-dnd-id]')
+    if (!row) return
+
+    const kind = row.getAttribute('data-sidebar-dnd-kind')
+    const dndId = row.getAttribute('data-sidebar-dnd-id')
+    if (!kind || !dndId) return
+
+    const dir = e.key === 'ArrowUp' ? -1 : 1
+
+    if (kind === 'area') {
+      const prev = orderedAreaDragIdsRef.current
+      const from = prev.indexOf(dndId)
+      const to = from + dir
+      if (from < 0 || to < 0 || to >= prev.length) return
+
+      e.preventDefault()
+      const next = arrayMove(prev, from, to)
+      setOrderedAreaDragIds(next)
+      orderedAreaDragIdsRef.current = next
+      focusSidebarRowByDndId(dndId)
+
+      void (async () => {
+        try {
+          await persistAreaOrder(next)
+          await refreshSidebar()
+        } catch (err) {
+          setOrderedAreaDragIds(prev)
+          orderedAreaDragIdsRef.current = prev
+          setSidebarError(formatSidebarErrorMessage(err))
+        }
+      })()
+      return
+    }
+
+    if (kind === 'project') {
+      const containerId = containerByProjectDragIdRef.current.get(dndId)
+      if (!containerId) return
+      const prevItems = openItemsByContainerRef.current[containerId] ?? []
+      const from = prevItems.indexOf(dndId)
+      const to = from + dir
+      if (from < 0 || to < 0 || to >= prevItems.length) return
+
+      e.preventDefault()
+      const nextItems = arrayMove(prevItems, from, to)
+      setOpenItemsByContainer((prevMap) => {
+        const nextMap = { ...prevMap, [containerId]: nextItems }
+        openItemsByContainerRef.current = nextMap
+        return nextMap
+      })
+      focusSidebarRowByDndId(dndId)
+
+      void (async () => {
+        try {
+          await persistProjectReorder(containerId, nextItems)
+          await refreshSidebar()
+        } catch (err) {
+          setOpenItemsByContainer((prevMap) => {
+            const nextMap = { ...prevMap, [containerId]: prevItems }
+            openItemsByContainerRef.current = nextMap
+            return nextMap
+          })
+          setSidebarError(formatSidebarErrorMessage(err))
+        }
+      })()
+    }
+  }
+
+  useEffect(() => {
+    if (activeAreaId || activeProjectId) return
+    setOrderedAreaDragIds(sidebar.areas.map((a) => areaDragId(a.id)))
+  }, [activeAreaId, activeProjectId, sidebar.areas])
+
+  useEffect(() => {
+    if (activeAreaId || activeProjectId) return
+    setOpenItemsByContainer(deriveOpenItemsByContainer({ areas: sidebar.areas, openProjects: sidebar.openProjects }))
+  }, [activeAreaId, activeProjectId, sidebar.areas, sidebar.openProjects])
+
+  const areaById = useMemo(() => {
+    const m = new Map<string, Area>()
+    for (const a of sidebar.areas) m.set(a.id, a)
+    return m
+  }, [sidebar.areas])
+
+  const projectById = useMemo(() => {
+    const m = new Map<string, Project>()
+    for (const p of sidebar.openProjects) m.set(p.id, p)
+    return m
   }, [sidebar.openProjects])
+
+  const orderedAreas = useMemo(() => {
+    if (orderedAreaDragIds.length === 0) return sidebar.areas
+    const out: Area[] = []
+    const seen = new Set<string>()
+    for (const dragId of orderedAreaDragIds) {
+      const id = areaIdFromAreaDragId(dragId)
+      if (!id) continue
+      const a = areaById.get(id)
+      if (!a) continue
+      out.push(a)
+      seen.add(id)
+    }
+    for (const a of sidebar.areas) {
+      if (seen.has(a.id)) continue
+      out.push(a)
+    }
+    return out
+  }, [areaById, orderedAreaDragIds, sidebar.areas])
+
+  const containerByProjectDragId = useMemo(() => {
+    const m = new Map<string, ContainerId>()
+    for (const [containerId, ids] of Object.entries(openItemsByContainer)) {
+      for (const id of ids) m.set(id, containerId)
+    }
+    return m
+  }, [openItemsByContainer])
+
+  const containerByProjectDragIdRef = useRef(containerByProjectDragId)
+  useEffect(() => {
+    containerByProjectDragIdRef.current = containerByProjectDragId
+  }, [containerByProjectDragId])
+
+  function findContainerForIdInDrag(id: string): ContainerId | null {
+    if (isSidebarContainerId(id)) return id
+    if (isSidebarTailId(id)) return containerIdFromSidebarTailId(id)
+    if (isAreaDragId(id)) {
+      const areaId = areaIdFromAreaDragId(id)
+      return areaId ? sidebarAreaContainerId(areaId) : null
+    }
+    if (isProjectDragId(id)) return containerByProjectDragIdRef.current.get(id) ?? null
+    return null
+  }
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 8 },
+    })
+  )
+
+  const collisionDetection: CollisionDetection = useCallback(
+    (args) => {
+      const dragType = args.active.data.current?.type
+      const pointerCollisions = pointerWithin(args)
+
+      if (dragType === 'area') {
+        const areaHits = pointerCollisions.filter((c) => typeof c.id === 'string' && isAreaDragId(String(c.id)))
+        if (areaHits.length > 0) return areaHits
+
+        const closestArea = closestCenter(args).filter((c) => typeof c.id === 'string' && isAreaDragId(String(c.id)))
+        if (closestArea.length > 0) return closestArea
+      }
+
+      const containerHits = pointerCollisions.filter(
+        (c) =>
+          typeof c.id === 'string' &&
+          (isSidebarContainerId(String(c.id)) || isSidebarTailId(String(c.id)))
+      )
+      if (containerHits.length > 0) return containerHits
+
+      if (pointerCollisions.length > 0) return pointerCollisions
+      return closestCenter(args)
+    },
+    []
+  )
+
+  const areaOrderSnapshotRef = useRef<string[] | null>(null)
+  const openItemsSnapshotRef = useRef<Record<ContainerId, string[]> | null>(null)
+  const dragStartContainerRef = useRef<ContainerId | null>(null)
+  const lastDraftSignatureRef = useRef<string | null>(null)
+
+  async function persistAreaOrder(nextAreaDragIds: string[]) {
+    const orderedAreaIds = nextAreaDragIds
+      .map((id) => areaIdFromAreaDragId(id))
+      .filter((id): id is string => !!id)
+    const res = await window.api.sidebar.reorderAreas({ ordered_area_ids: orderedAreaIds })
+    if (!res.ok) throw new Error(`${res.error.code}: ${res.error.message}`)
+  }
+
+  async function persistProjectReorder(containerId: ContainerId, orderedProjectDragIds: string[]) {
+    const orderedProjectIds = orderedProjectDragIds
+      .map((id) => projectIdFromProjectDragId(id))
+      .filter((id): id is string => !!id)
+    const res = await window.api.sidebar.reorderProjects({
+      area_id: areaIdFromSidebarContainerId(containerId),
+      ordered_project_ids: orderedProjectIds,
+    })
+    if (!res.ok) throw new Error(`${res.error.code}: ${res.error.message}`)
+  }
+
+  async function persistProjectMove({
+    projectDragId,
+    fromContainerId,
+    toContainerId,
+    fromOrderedProjectDragIds,
+    toOrderedProjectDragIds,
+  }: {
+    projectDragId: string
+    fromContainerId: ContainerId
+    toContainerId: ContainerId
+    fromOrderedProjectDragIds: string[]
+    toOrderedProjectDragIds: string[]
+  }) {
+    const projectId = projectIdFromProjectDragId(projectDragId)
+    if (!projectId) throw new Error('Invalid project id')
+
+    const fromOrderedIds = fromOrderedProjectDragIds
+      .map((id) => projectIdFromProjectDragId(id))
+      .filter((id): id is string => !!id)
+    const toOrderedIds = toOrderedProjectDragIds
+      .map((id) => projectIdFromProjectDragId(id))
+      .filter((id): id is string => !!id)
+
+    const res = await window.api.sidebar.moveProject({
+      project_id: projectId,
+      from_area_id: areaIdFromSidebarContainerId(fromContainerId),
+      to_area_id: areaIdFromSidebarContainerId(toContainerId),
+      from_ordered_project_ids: fromOrderedIds,
+      to_ordered_project_ids: toOrderedIds,
+    })
+    if (!res.ok) throw new Error(`${res.error.code}: ${res.error.message}`)
+  }
+
+  function handleDragStart(e: DragStartEvent) {
+    const activeId = String(e.active.id)
+    const dragType = e.active.data.current?.type
+    cancelPendingDropTimers()
+    suppressClickRef.current = true
+    setSidebarError(null)
+    lastDraftSignatureRef.current = null
+
+    if (dragType === 'area') {
+      setActiveAreaId(activeId)
+      setActiveProjectId(null)
+      areaOrderSnapshotRef.current = [...orderedAreaDragIdsRef.current]
+      return
+    }
+
+    if (dragType === 'project') {
+      setActiveProjectId(activeId)
+      setActiveAreaId(null)
+      openItemsSnapshotRef.current = cloneItemsByContainer(openItemsByContainerRef.current)
+      dragStartContainerRef.current = findContainerForIdInDrag(activeId)
+    }
+  }
+
+  function handleDragOver(e: DragOverEvent) {
+    const activeId = String(e.active.id)
+    const overId = e.over?.id ? String(e.over.id) : null
+    if (!overId) return
+
+    const dragType = e.active.data.current?.type
+    if (dragType === 'area') {
+      if (!isAreaDragId(overId) || !isAreaDragId(activeId) || activeId === overId) return
+
+      const draft = orderedAreaDragIdsRef.current
+      const from = draft.indexOf(activeId)
+      const to = draft.indexOf(overId)
+      if (from < 0 || to < 0 || from === to) return
+
+      const sig = `${activeId}|${overId}|${from}|${to}`
+      if (lastDraftSignatureRef.current === sig) return
+      lastDraftSignatureRef.current = sig
+
+      setOrderedAreaDragIds((prev) => {
+        const curFrom = prev.indexOf(activeId)
+        const curTo = prev.indexOf(overId)
+        if (curFrom < 0 || curTo < 0 || curFrom === curTo) return prev
+        const next = arrayMove(prev, curFrom, curTo)
+        orderedAreaDragIdsRef.current = next
+        return next
+      })
+      return
+    }
+
+    if (dragType !== 'project') return
+
+    const src = findContainerForIdInDrag(activeId)
+    const dest = findContainerForIdInDrag(overId)
+    if (!src || !dest) return
+
+    // Use the current draft map to compute indices, so reflow stays stable.
+    const draft = openItemsByContainerRef.current
+
+    if (src === dest) {
+      // Avoid jump-to-top when hovering the container itself.
+      if (isSidebarContainerId(overId)) return
+
+      const items = draft[src] ?? []
+      const from = items.indexOf(activeId)
+      if (from < 0) return
+
+      const isTailOver = isSidebarTailId(overId)
+      const to = isTailOver ? Math.max(items.length - 1, 0) : items.indexOf(overId)
+      if (to < 0 || from === to) return
+
+      const sig = `${src}|${dest}|${activeId}|${overId}|${to}`
+      if (lastDraftSignatureRef.current === sig) return
+      lastDraftSignatureRef.current = sig
+
+      setOpenItemsByContainer((prev) => {
+        const cur = prev[src] ?? []
+        const curFrom = cur.indexOf(activeId)
+        if (curFrom < 0) return prev
+
+        const curTo = isTailOver ? Math.max(cur.length - 1, 0) : cur.indexOf(overId)
+        if (curTo < 0 || curFrom === curTo) return prev
+
+        const nextItems = arrayMove(cur, curFrom, curTo)
+        const next = { ...prev, [src]: nextItems }
+        openItemsByContainerRef.current = next
+        return next
+      })
+      return
+    }
+
+    const destItems = draft[dest] ?? []
+    let insertIndex = 0
+    if (isSidebarContainerId(overId) || isSidebarTailId(overId)) {
+      insertIndex = isSidebarTailId(overId) ? destItems.length : 0
+    } else {
+      const overIndex = destItems.indexOf(overId)
+      if (overIndex < 0) return
+
+      const overMid = e.over!.rect.top + e.over!.rect.height / 2
+      const activeRect = e.active.rect.current.translated ?? e.active.rect.current.initial
+      const activeMid = activeRect ? activeRect.top + activeRect.height / 2 : 0
+      const isAfter = activeMid > overMid
+      insertIndex = Math.max(0, Math.min(overIndex + (isAfter ? 1 : 0), destItems.length))
+    }
+
+    const sig = `${src}|${dest}|${activeId}|${overId}|${insertIndex}`
+    if (lastDraftSignatureRef.current === sig) return
+    lastDraftSignatureRef.current = sig
+
+    setOpenItemsByContainer((prev) => {
+      const srcItems = prev[src] ?? []
+      const destItems2 = prev[dest] ?? []
+      const hasActive = srcItems.includes(activeId) || destItems2.includes(activeId)
+      if (!hasActive) return prev
+
+      const nextSrc = srcItems.filter((id) => id !== activeId)
+      const nextDestBase = destItems2.filter((id) => id !== activeId)
+      const idx = Math.max(0, Math.min(insertIndex, nextDestBase.length))
+      const nextDest = [...nextDestBase]
+      nextDest.splice(idx, 0, activeId)
+
+      const next = { ...prev, [src]: nextSrc, [dest]: nextDest }
+      openItemsByContainerRef.current = next
+      containerByProjectDragIdRef.current.set(activeId, dest)
+      return next
+    })
+  }
+
+  async function handleDragEnd(e: DragEndEvent) {
+    const activeId = String(e.active.id)
+    const overId = e.over?.id ? String(e.over.id) : null
+    const dragType = e.active.data.current?.type
+
+    if (dragType === 'area') {
+      scheduleClearActiveAreaIdAfterDrop(activeId)
+      scheduleEnableClicksAfterDrop()
+
+      const snapshot = areaOrderSnapshotRef.current
+      areaOrderSnapshotRef.current = null
+      lastDraftSignatureRef.current = null
+
+      if (!overId) {
+        if (snapshot) {
+          setOrderedAreaDragIds(snapshot)
+          orderedAreaDragIdsRef.current = snapshot
+        }
+        return
+      }
+
+      const nextOrder = orderedAreaDragIdsRef.current
+      if (snapshot && snapshot.length === nextOrder.length && snapshot.every((id, i) => id === nextOrder[i])) {
+        return
+      }
+
+      try {
+        await persistAreaOrder(nextOrder)
+        await refreshSidebar()
+      } catch (err) {
+        if (snapshot) {
+          setOrderedAreaDragIds(snapshot)
+          orderedAreaDragIdsRef.current = snapshot
+        }
+        setSidebarError(formatSidebarErrorMessage(err))
+      }
+      return
+    }
+
+    if (dragType !== 'project') return
+
+    scheduleClearActiveProjectIdAfterDrop(activeId)
+    scheduleEnableClicksAfterDrop()
+
+    const snapshot = openItemsSnapshotRef.current
+    openItemsSnapshotRef.current = null
+    const fromContainer = dragStartContainerRef.current
+    dragStartContainerRef.current = null
+    lastDraftSignatureRef.current = null
+
+    if (!overId || !fromContainer) {
+      if (snapshot) {
+        setOpenItemsByContainer(snapshot)
+        openItemsByContainerRef.current = snapshot
+      }
+      return
+    }
+
+    const toContainer = findContainerForIdInDrag(activeId)
+    if (!toContainer) {
+      if (snapshot) {
+        setOpenItemsByContainer(snapshot)
+        openItemsByContainerRef.current = snapshot
+      }
+      return
+    }
+
+    const draft = openItemsByContainerRef.current
+    const nextFrom = draft[fromContainer] ?? []
+    const nextTo = draft[toContainer] ?? []
+
+    try {
+      if (fromContainer === toContainer) {
+        await persistProjectReorder(fromContainer, nextFrom)
+        await refreshSidebar()
+        return
+      }
+
+      await persistProjectMove({
+        projectDragId: activeId,
+        fromContainerId: fromContainer,
+        toContainerId: toContainer,
+        fromOrderedProjectDragIds: nextFrom,
+        toOrderedProjectDragIds: nextTo,
+      })
+      await refreshSidebar()
+    } catch (err) {
+      if (snapshot) {
+        setOpenItemsByContainer(snapshot)
+        openItemsByContainerRef.current = snapshot
+      }
+      setSidebarError(formatSidebarErrorMessage(err))
+    }
+  }
+
+  function handleDragCancel(_e: DragCancelEvent) {
+    cancelPendingDropTimers()
+    suppressClickRef.current = false
+    setActiveAreaId(null)
+    setActiveProjectId(null)
+    lastDraftSignatureRef.current = null
+    dragStartContainerRef.current = null
+
+    const areaSnapshot = areaOrderSnapshotRef.current
+    areaOrderSnapshotRef.current = null
+    if (areaSnapshot) {
+      setOrderedAreaDragIds(areaSnapshot)
+      orderedAreaDragIdsRef.current = areaSnapshot
+    }
+
+    if (openItemsSnapshotRef.current) {
+      setOpenItemsByContainer(openItemsSnapshotRef.current)
+      openItemsByContainerRef.current = openItemsSnapshotRef.current
+    }
+    openItemsSnapshotRef.current = null
+  }
 
   async function handleCreate() {
     const title = createTitle.trim()
@@ -265,7 +940,7 @@ export function AppShell() {
           <div className="app-title">Milesto</div>
         </div>
 
-        <nav className="nav" aria-label="Main navigation">
+        <nav className="nav" aria-label="Main navigation" onKeyDown={handleSidebarKeyDown}>
           <NavItem to="/inbox" label="Inbox" />
           <NavItem to="/today" label="Today" />
           <NavItem to="/upcoming" label="Upcoming" />
@@ -280,25 +955,49 @@ export function AppShell() {
 
           {sidebarError ? <div className="sidebar-error">{sidebarError}</div> : null}
 
-          {unassignedProjects.map((p) => (
-            <NavItem key={p.id} to={`/projects/${p.id}`} label={p.title} />
-          ))}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={collisionDetection}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <SidebarUnassignedGroup
+              containerId={SIDEBAR_UNASSIGNED_CONTAINER_ID}
+              projectDragIds={openItemsByContainer[SIDEBAR_UNASSIGNED_CONTAINER_ID] ?? []}
+              projectById={projectById}
+              activeProjectDragId={activeProjectId}
+              suppressClickRef={suppressClickRef}
+            />
 
-          {sidebar.areas.map((area) => (
-            <div key={area.id} className="nav-area">
-              <NavLink className="nav-area-title" to={`/areas/${area.id}`}>
-                {area.title}
-              </NavLink>
-              {(projectsByArea.get(area.id) ?? []).map((p) => (
-                <NavItem key={p.id} to={`/projects/${p.id}`} label={p.title} indent />
+            <SortableContext items={orderedAreaDragIds} strategy={verticalListSortingStrategy}>
+              {orderedAreas.map((area) => (
+                <SortableSidebarAreaGroup
+                  key={area.id}
+                  area={area}
+                  containerId={sidebarAreaContainerId(area.id)}
+                  projectDragIds={openItemsByContainer[sidebarAreaContainerId(area.id)] ?? []}
+                  projectById={projectById}
+                  activeAreaDragId={activeAreaId}
+                  activeProjectDragId={activeProjectId}
+                  suppressClickRef={suppressClickRef}
+                />
               ))}
-              {(projectsByArea.get(area.id) ?? []).length === 0 ? (
-                <div className="nav-muted" aria-hidden="true">
-                  (empty)
-                </div>
-              ) : null}
-            </div>
-          ))}
+            </SortableContext>
+
+            {createPortal(
+              <DragOverlay dropAnimation={dropAnimation}>
+                <SidebarDragOverlay
+                  activeAreaDragId={activeAreaId}
+                  activeProjectDragId={activeProjectId}
+                  areaById={areaById}
+                  projectById={projectById}
+                />
+              </DragOverlay>,
+              document.body
+            )}
+          </DndContext>
         </nav>
 
         {createMode ? (
@@ -407,6 +1106,250 @@ export function AppShell() {
       </ContentScrollProvider>
     </TaskSelectionProvider>
   )
+}
+
+function SidebarContainerTailDropZone({
+  containerId,
+}: {
+  containerId: ContainerId
+}) {
+  const { setNodeRef } = useDroppable({
+    id: sidebarTailIdFromContainerId(containerId),
+    data: { type: 'containerTail', containerId },
+  })
+
+  return <div ref={setNodeRef} className="sidebar-tail-dropzone" aria-hidden="true" />
+}
+
+function SortableSidebarProjectNavItem({
+  project,
+  indent,
+  activeProjectDragId,
+  suppressClickRef,
+}: {
+  project: Project
+  indent?: boolean
+  activeProjectDragId: string | null
+  suppressClickRef: React.MutableRefObject<boolean>
+}) {
+  const dragId = projectDragId(project.id)
+  const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition } = useSortable({
+    id: dragId,
+    data: { type: 'project', projectId: project.id },
+  })
+
+  const isHiddenForOverlay = activeProjectDragId === dragId
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: DndCss.Transform.toString(transform),
+        transition,
+        visibility: isHiddenForOverlay ? 'hidden' : undefined,
+      }}
+    >
+      <NavLink
+        ref={setActivatorNodeRef}
+        className={({ isActive }) =>
+          `nav-item${isActive ? ' is-active' : ''}${indent ? ' is-indent' : ''}`
+        }
+        to={`/projects/${project.id}`}
+        data-sidebar-dnd-kind="project"
+        data-sidebar-dnd-id={dragId}
+        {...attributes}
+        {...(listeners ?? {})}
+        onPointerDown={(e) => {
+          listeners?.onPointerDown?.(e)
+        }}
+        onClick={(e) => {
+          if (suppressClickRef.current) {
+            e.preventDefault()
+            e.stopPropagation()
+          }
+        }}
+      >
+        {project.title}
+      </NavLink>
+    </div>
+  )
+}
+
+function SidebarUnassignedGroup({
+  containerId,
+  projectDragIds,
+  projectById,
+  activeProjectDragId,
+  suppressClickRef,
+}: {
+  containerId: ContainerId
+  projectDragIds: string[]
+  projectById: Map<string, Project>
+  activeProjectDragId: string | null
+  suppressClickRef: React.MutableRefObject<boolean>
+}) {
+  const { setNodeRef } = useDroppable({
+    id: containerId,
+    data: { type: 'container', containerId },
+  })
+
+  return (
+    <div ref={setNodeRef} className="sidebar-project-group">
+      <SortableContext items={projectDragIds} strategy={verticalListSortingStrategy}>
+        {projectDragIds.map((dragId) => {
+          const projectId = projectIdFromProjectDragId(dragId)
+          if (!projectId) return null
+          const project = projectById.get(projectId)
+          if (!project) return null
+          return (
+            <SortableSidebarProjectNavItem
+              key={project.id}
+              project={project}
+              activeProjectDragId={activeProjectDragId}
+              suppressClickRef={suppressClickRef}
+            />
+          )
+        })}
+      </SortableContext>
+
+      <SidebarContainerTailDropZone containerId={containerId} />
+    </div>
+  )
+}
+
+function SortableSidebarAreaGroup({
+  area,
+  containerId,
+  projectDragIds,
+  projectById,
+  activeAreaDragId,
+  activeProjectDragId,
+  suppressClickRef,
+}: {
+  area: Area
+  containerId: ContainerId
+  projectDragIds: string[]
+  projectById: Map<string, Project>
+  activeAreaDragId: string | null
+  activeProjectDragId: string | null
+  suppressClickRef: React.MutableRefObject<boolean>
+}) {
+  const { setNodeRef: setDroppableNodeRef } = useDroppable({
+    id: containerId,
+    data: { type: 'container', containerId },
+  })
+
+  const dragId = areaDragId(area.id)
+  const { attributes, listeners, setActivatorNodeRef, setNodeRef: setSortableNodeRef, transform, transition } =
+    useSortable({
+      id: dragId,
+      data: { type: 'area', areaId: area.id },
+    })
+
+  const setGroupNodeRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      setDroppableNodeRef(el)
+      setSortableNodeRef(el)
+    },
+    [setDroppableNodeRef, setSortableNodeRef]
+  )
+
+  const isHiddenForOverlay = activeAreaDragId === dragId
+
+  return (
+    <div
+      ref={setGroupNodeRef}
+      className="nav-area"
+      style={{
+        transform: DndCss.Transform.toString(transform),
+        transition,
+        visibility: isHiddenForOverlay ? 'hidden' : undefined,
+      }}
+    >
+      <NavLink
+        ref={setActivatorNodeRef}
+        className="nav-area-title"
+        to={`/areas/${area.id}`}
+        data-sidebar-dnd-kind="area"
+        data-sidebar-dnd-id={dragId}
+        {...attributes}
+        {...(listeners ?? {})}
+        onPointerDown={(e) => {
+          listeners?.onPointerDown?.(e)
+        }}
+        onClick={(e) => {
+          if (suppressClickRef.current) {
+            e.preventDefault()
+            e.stopPropagation()
+          }
+        }}
+      >
+        {area.title}
+      </NavLink>
+
+      <SortableContext items={projectDragIds} strategy={verticalListSortingStrategy}>
+        {projectDragIds.map((pDragId) => {
+          const projectId = projectIdFromProjectDragId(pDragId)
+          if (!projectId) return null
+          const project = projectById.get(projectId)
+          if (!project) return null
+          return (
+            <SortableSidebarProjectNavItem
+              key={project.id}
+              project={project}
+              indent
+              activeProjectDragId={activeProjectDragId}
+              suppressClickRef={suppressClickRef}
+            />
+          )
+        })}
+      </SortableContext>
+
+      {projectDragIds.length === 0 ? (
+        <div className="nav-muted" aria-hidden="true">
+          (empty)
+        </div>
+      ) : null}
+
+      <SidebarContainerTailDropZone containerId={containerId} />
+    </div>
+  )
+}
+
+function SidebarDragOverlay({
+  activeAreaDragId,
+  activeProjectDragId,
+  areaById,
+  projectById,
+}: {
+  activeAreaDragId: string | null
+  activeProjectDragId: string | null
+  areaById: Map<string, Area>
+  projectById: Map<string, Project>
+}) {
+  if (activeAreaDragId) {
+    const areaId = areaIdFromAreaDragId(activeAreaDragId)
+    const area = areaId ? areaById.get(areaId) : null
+    if (!area) return null
+    return (
+      <div className="sidebar-dnd-overlay" aria-hidden="true">
+        {area.title}
+      </div>
+    )
+  }
+
+  if (activeProjectDragId) {
+    const projectId = projectIdFromProjectDragId(activeProjectDragId)
+    const project = projectId ? projectById.get(projectId) : null
+    if (!project) return null
+    return (
+      <div className="sidebar-dnd-overlay" aria-hidden="true">
+        {project.title}
+      </div>
+    )
+  }
+
+  return null
 }
 
 function NavItem({

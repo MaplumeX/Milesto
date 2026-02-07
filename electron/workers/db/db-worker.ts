@@ -12,6 +12,7 @@ import { createTagActions } from './actions/tag-actions'
 import { createChecklistActions } from './actions/checklist-actions'
 import { createListPositionActions } from './actions/list-position-actions'
 import { createDataTransferActions } from './actions/data-transfer-actions'
+import { createSidebarActions } from './actions/sidebar-actions'
 import type { DbActionHandler } from './actions/db-actions'
 
 type WorkerData = {
@@ -32,6 +33,12 @@ function initDb(dbPath: string) {
 
 function migrate(db: Database.Database) {
   const userVersion = db.pragma('user_version', { simple: true }) as number
+
+  function hasColumn(tableName: string, columnName: string): boolean {
+    // Table name is static (ours), so interpolation is safe here.
+    const rows = db.prepare(`PRAGMA table_info(${tableName})`).all() as { name?: unknown }[]
+    return rows.some((r) => r.name === columnName)
+  }
 
   if (userVersion < 1) {
     db.exec(`
@@ -186,6 +193,20 @@ function migrate(db: Database.Database) {
 
     db.pragma('user_version = 1')
   }
+
+  if (userVersion < 2) {
+    // v2: Sidebar manual ordering for areas/projects.
+    const stmts: string[] = []
+    if (!hasColumn('areas', 'position')) stmts.push('ALTER TABLE areas ADD COLUMN position INTEGER;')
+    if (!hasColumn('projects', 'position')) stmts.push('ALTER TABLE projects ADD COLUMN position INTEGER;')
+
+    stmts.push('CREATE INDEX IF NOT EXISTS idx_areas_position ON areas(position);')
+    stmts.push('CREATE INDEX IF NOT EXISTS idx_projects_area_position ON projects(area_id, position);')
+
+    db.exec(stmts.join('\n'))
+
+    db.pragma('user_version = 2')
+  }
 }
 
 function respond(response: DbWorkerResponse) {
@@ -202,6 +223,7 @@ function buildHandlers(db: Database.Database) {
     ...createChecklistActions(db),
     ...createListPositionActions(db),
     ...createDataTransferActions(db),
+    ...createSidebarActions(db),
   }
 }
 

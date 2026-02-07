@@ -136,6 +136,24 @@ function findSectionDragHandle(sectionId: string): HTMLButtonElement | null {
   )
 }
 
+function findSidebarAreaHandle(areaId: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(
+    `.nav a.nav-area-title[data-sidebar-dnd-kind="area"][data-sidebar-dnd-id="area:${areaId}"]`
+  )
+}
+
+function findSidebarProjectHandle(projectId: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(
+    `.nav a.nav-item[data-sidebar-dnd-kind="project"][data-sidebar-dnd-id="project:${projectId}"]`
+  )
+}
+
+function findSidebarAreaGroup(areaId: string): HTMLElement | null {
+  const handle = findSidebarAreaHandle(areaId)
+  if (!handle) return null
+  return handle.closest<HTMLElement>('.nav-area')
+}
+
 async function dragHandleToPoint(params: {
   label: string
   handle: HTMLElement
@@ -819,6 +837,63 @@ async function runSelfTest(): Promise<SelfTestResult> {
       throw new Error(`area.create failed: ${areaRes.error.code}: ${areaRes.error.message}`)
     }
     const areaId = areaRes.data.id
+
+    // Seed sidebar-specific Areas/Projects for DnD + keyboard reorder smoke.
+    const sidebarAreaARes = await window.api.area.create({ title: `${token} Sidebar Area A` })
+    const sidebarAreaBRes = await window.api.area.create({ title: `${token} Sidebar Area B` })
+    const sidebarAreaEmptyRes = await window.api.area.create({ title: `${token} Sidebar Area Empty` })
+    if (!sidebarAreaARes.ok) {
+      throw new Error(`area.create sidebarAreaA failed: ${sidebarAreaARes.error.code}: ${sidebarAreaARes.error.message}`)
+    }
+    if (!sidebarAreaBRes.ok) {
+      throw new Error(`area.create sidebarAreaB failed: ${sidebarAreaBRes.error.code}: ${sidebarAreaBRes.error.message}`)
+    }
+    if (!sidebarAreaEmptyRes.ok) {
+      throw new Error(
+        `area.create sidebarAreaEmpty failed: ${sidebarAreaEmptyRes.error.code}: ${sidebarAreaEmptyRes.error.message}`
+      )
+    }
+    const sidebarAreaAId = sidebarAreaARes.data.id
+    const sidebarAreaBId = sidebarAreaBRes.data.id
+    const sidebarAreaEmptyId = sidebarAreaEmptyRes.data.id
+
+    const sidebarProjectUnassignedRes = await window.api.project.create({ title: `${token} Sidebar Project Unassigned` })
+    const sidebarProjectA1Res = await window.api.project.create({
+      title: `${token} Sidebar Project A1`,
+      area_id: sidebarAreaAId,
+    })
+    const sidebarProjectA2Res = await window.api.project.create({
+      title: `${token} Sidebar Project A2`,
+      area_id: sidebarAreaAId,
+    })
+    const sidebarProjectB1Res = await window.api.project.create({
+      title: `${token} Sidebar Project B1`,
+      area_id: sidebarAreaBId,
+    })
+    if (!sidebarProjectUnassignedRes.ok) {
+      throw new Error(
+        `project.create sidebarProjectUnassigned failed: ${sidebarProjectUnassignedRes.error.code}: ${sidebarProjectUnassignedRes.error.message}`
+      )
+    }
+    if (!sidebarProjectA1Res.ok) {
+      throw new Error(
+        `project.create sidebarProjectA1 failed: ${sidebarProjectA1Res.error.code}: ${sidebarProjectA1Res.error.message}`
+      )
+    }
+    if (!sidebarProjectA2Res.ok) {
+      throw new Error(
+        `project.create sidebarProjectA2 failed: ${sidebarProjectA2Res.error.code}: ${sidebarProjectA2Res.error.message}`
+      )
+    }
+    if (!sidebarProjectB1Res.ok) {
+      throw new Error(
+        `project.create sidebarProjectB1 failed: ${sidebarProjectB1Res.error.code}: ${sidebarProjectB1Res.error.message}`
+      )
+    }
+    const sidebarProjectUnassignedId = sidebarProjectUnassignedRes.data.id
+    const sidebarProjectA1Id = sidebarProjectA1Res.data.id
+    const sidebarProjectA2Id = sidebarProjectA2Res.data.id
+    const sidebarProjectB1Id = sidebarProjectB1Res.data.id
 
     const areaTaskARes = await window.api.task.create({ title: `${token} Area Task A`, area_id: areaId })
     const areaTaskBRes = await window.api.task.create({ title: `${token} Area Task B`, area_id: areaId })
@@ -2058,6 +2133,175 @@ async function runSelfTest(): Promise<SelfTestResult> {
       const areaFirstTwo = areaAfter.data.slice(0, 2).map((t) => t.id)
       if (areaFirstTwo[0] !== areaTaskBId || areaFirstTwo[1] !== areaTaskAId) {
         throw new Error('Area: reorder did not persist (expected Task B then Task A)')
+      }
+
+      // Sidebar: Areas/Projects pointer DnD + keyboard reorder + move + failure rollback.
+      const sidebarAreaAHandle = await waitFor('Sidebar: area A handle', () => findSidebarAreaHandle(sidebarAreaAId))
+      const sidebarAreaBHandle = await waitFor('Sidebar: area B handle', () => findSidebarAreaHandle(sidebarAreaBId))
+      const sidebarAreaEmptyHandle = await waitFor('Sidebar: empty area handle', () => findSidebarAreaHandle(sidebarAreaEmptyId))
+
+      // Pointer reorder areas: drag B onto A.
+      const areaATargetRect = sidebarAreaAHandle.getBoundingClientRect()
+      await dragHandleToPoint({
+        label: 'Sidebar: reorder areas (pointer)',
+        handle: sidebarAreaBHandle,
+        to: {
+          x: areaATargetRect.left + areaATargetRect.width / 2,
+          y: areaATargetRect.top + areaATargetRect.height / 2,
+        },
+        overlaySelector: '.sidebar-dnd-overlay',
+      })
+      await sleep(250)
+
+      const sidebarModelAfterAreaPointer = await window.api.sidebar.listModel()
+      if (!sidebarModelAfterAreaPointer.ok) {
+        throw new Error(
+          `Sidebar: listModel after pointer area reorder failed: ${sidebarModelAfterAreaPointer.error.code}: ${sidebarModelAfterAreaPointer.error.message}`
+        )
+      }
+      const idxAreaAAfterPointer = sidebarModelAfterAreaPointer.data.areas.findIndex((a) => a.id === sidebarAreaAId)
+      const idxAreaBAfterPointer = sidebarModelAfterAreaPointer.data.areas.findIndex((a) => a.id === sidebarAreaBId)
+      if (idxAreaAAfterPointer < 0 || idxAreaBAfterPointer < 0) {
+        throw new Error('Sidebar: missing expected areas after pointer reorder')
+      }
+      if (idxAreaBAfterPointer >= idxAreaAAfterPointer) {
+        throw new Error('Sidebar: expected Area B to appear before Area A after pointer reorder')
+      }
+
+      // Keyboard reorder areas: move focused Area B down by one.
+      sidebarAreaBHandle.focus()
+      await waitFor('Sidebar: area B focused (for keyboard reorder)', () => (document.activeElement === sidebarAreaBHandle ? true : null))
+      dispatchKey(sidebarAreaBHandle, 'ArrowDown', { metaKey: true, ctrlKey: true, shiftKey: true })
+
+      let sidebarAreaKeyOk = false
+      for (let i = 0; i < 30; i++) {
+        const res = await window.api.sidebar.listModel()
+        if (!res.ok) {
+          throw new Error(`Sidebar: listModel after area key failed: ${res.error.code}: ${res.error.message}`)
+        }
+        const idxB = res.data.areas.findIndex((a) => a.id === sidebarAreaBId)
+        if (idxB === idxAreaBAfterPointer + 1) {
+          sidebarAreaKeyOk = true
+          break
+        }
+        await sleep(100)
+      }
+      if (!sidebarAreaKeyOk) {
+        throw new Error('Sidebar: expected keyboard area reorder to move Area B down by one')
+      }
+
+      // Pointer reorder projects within Area A: drag A2 onto A1.
+      const sidebarProjectA1Handle = await waitFor('Sidebar: project A1 handle', () => findSidebarProjectHandle(sidebarProjectA1Id))
+      const sidebarProjectA2Handle = await waitFor('Sidebar: project A2 handle', () => findSidebarProjectHandle(sidebarProjectA2Id))
+      const a1Rect = sidebarProjectA1Handle.getBoundingClientRect()
+      await dragHandleToPoint({
+        label: 'Sidebar: reorder projects within area (pointer)',
+        handle: sidebarProjectA2Handle,
+        to: { x: a1Rect.left + a1Rect.width / 2, y: a1Rect.top + a1Rect.height / 2 },
+        overlaySelector: '.sidebar-dnd-overlay',
+      })
+      await sleep(250)
+
+      const sidebarModelAfterProjectPointer = await window.api.sidebar.listModel()
+      if (!sidebarModelAfterProjectPointer.ok) {
+        throw new Error(
+          `Sidebar: listModel after pointer project reorder failed: ${sidebarModelAfterProjectPointer.error.code}: ${sidebarModelAfterProjectPointer.error.message}`
+        )
+      }
+      const areaAOpen = sidebarModelAfterProjectPointer.data.openProjects.filter((p) => p.area_id === sidebarAreaAId)
+      const areaAIds = areaAOpen.slice(0, 2).map((p) => p.id)
+      if (areaAIds[0] !== sidebarProjectA2Id || areaAIds[1] !== sidebarProjectA1Id) {
+        throw new Error('Sidebar: expected A2 before A1 after pointer project reorder')
+      }
+
+      // Keyboard reorder projects within Area A: move A2 down by one (back to A1 then A2).
+      sidebarProjectA2Handle.focus()
+      await waitFor('Sidebar: project A2 focused (for keyboard reorder)', () => (document.activeElement === sidebarProjectA2Handle ? true : null))
+      dispatchKey(sidebarProjectA2Handle, 'ArrowDown', { metaKey: true, ctrlKey: true, shiftKey: true })
+
+      let sidebarProjectKeyOk = false
+      for (let i = 0; i < 30; i++) {
+        const res = await window.api.sidebar.listModel()
+        if (!res.ok) {
+          throw new Error(`Sidebar: listModel after project key failed: ${res.error.code}: ${res.error.message}`)
+        }
+        const open = res.data.openProjects.filter((p) => p.area_id === sidebarAreaAId)
+        const ids = open.slice(0, 2).map((p) => p.id)
+        if (ids[0] === sidebarProjectA1Id && ids[1] === sidebarProjectA2Id) {
+          sidebarProjectKeyOk = true
+          break
+        }
+        await sleep(100)
+      }
+      if (!sidebarProjectKeyOk) {
+        throw new Error('Sidebar: expected keyboard project reorder to restore A1 then A2')
+      }
+
+      // Move project into an empty area group.
+      const sidebarProjectUnassignedHandle = await waitFor(
+        'Sidebar: unassigned project handle',
+        () => findSidebarProjectHandle(sidebarProjectUnassignedId)
+      )
+      const emptyAreaRect = sidebarAreaEmptyHandle.getBoundingClientRect()
+      await dragHandleToPoint({
+        label: 'Sidebar: move project to empty area (pointer)',
+        handle: sidebarProjectUnassignedHandle,
+        to: { x: emptyAreaRect.left + emptyAreaRect.width / 2, y: emptyAreaRect.top + emptyAreaRect.height / 2 },
+        overlaySelector: '.sidebar-dnd-overlay',
+      })
+      await sleep(250)
+
+      const sidebarModelAfterMove = await window.api.sidebar.listModel()
+      if (!sidebarModelAfterMove.ok) {
+        throw new Error(
+          `Sidebar: listModel after move failed: ${sidebarModelAfterMove.error.code}: ${sidebarModelAfterMove.error.message}`
+        )
+      }
+      const moved = sidebarModelAfterMove.data.openProjects.find((p) => p.id === sidebarProjectUnassignedId)
+      if (!moved) throw new Error('Sidebar: missing moved project after move')
+      if (moved.area_id !== sidebarAreaEmptyId) {
+        throw new Error('Sidebar: expected moved project to have area_id=empty area after move')
+      }
+
+      // Failure rollback: force moveProject to fail and ensure UI reverts to snapshot.
+      const originalMoveProject = window.api.sidebar.moveProject
+      window.api.sidebar.moveProject = async () => ({
+        ok: false,
+        error: { code: 'TEST_FAIL', message: 'Forced sidebar moveProject failure.' },
+      })
+
+      try {
+        const movedProjectHandle = await waitFor(
+          'Sidebar: moved project handle (for rollback)',
+          () => findSidebarProjectHandle(sidebarProjectUnassignedId)
+        )
+        const sidebarProjectB1Handle = await waitFor(
+          'Sidebar: project B1 handle (move target)',
+          () => findSidebarProjectHandle(sidebarProjectB1Id)
+        )
+        const targetB1Rect = sidebarProjectB1Handle.getBoundingClientRect()
+        await dragHandleToPoint({
+          label: 'Sidebar: move failure rollback',
+          handle: movedProjectHandle,
+          to: { x: targetB1Rect.left + targetB1Rect.width / 2, y: targetB1Rect.top + targetB1Rect.height / 2 },
+          overlaySelector: '.sidebar-dnd-overlay',
+        })
+        await sleep(250)
+
+        const errBox = await waitFor('Sidebar: error box shown', () => document.querySelector<HTMLElement>('.sidebar-error'))
+        if (!((errBox.textContent ?? '').includes('TEST_FAIL') && (errBox.textContent ?? '').includes('Forced'))) {
+          throw new Error('Sidebar: expected TEST_FAIL sidebar error after forced moveProject failure')
+        }
+
+        const emptyGroup = await waitFor('Sidebar: empty area group', () => findSidebarAreaGroup(sidebarAreaEmptyId))
+        const stillThere = emptyGroup.querySelector<HTMLElement>(
+          `a[data-sidebar-dnd-kind="project"][data-sidebar-dnd-id="project:${sidebarProjectUnassignedId}"]`
+        )
+        if (!stillThere) {
+          throw new Error('Sidebar: expected UI to rollback moved project back to empty area group after failure')
+        }
+      } finally {
+        window.api.sidebar.moveProject = originalMoveProject
       }
 
       // Views where manual ordering is NOT supported: Logbook / Search.

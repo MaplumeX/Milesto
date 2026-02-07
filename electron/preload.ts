@@ -86,6 +86,13 @@ const api: WindowApi = {
     delete: (id) => invoke('db:area.delete', { id }),
   },
 
+  sidebar: {
+    listModel: () => invoke('db:sidebar.listModel', {}),
+    reorderAreas: (input) => invoke('db:sidebar.reorderAreas', input),
+    reorderProjects: (input) => invoke('db:sidebar.reorderProjects', input),
+    moveProject: (input) => invoke('db:sidebar.moveProject', input),
+  },
+
   tag: {
     create: (input) => invoke('db:tag.create', input),
     update: (input) => invoke('db:tag.update', input),

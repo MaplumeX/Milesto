@@ -55,7 +55,7 @@ export function createDataTransferActions(db: Database.Database): Record<string,
           db
             .prepare(
               `SELECT id, title, notes, area_id, status, scheduled_at, due_at,
-                      created_at, updated_at, completed_at, deleted_at
+                      position, created_at, updated_at, completed_at, deleted_at
                FROM projects
                WHERE deleted_at IS NULL`
             )
@@ -79,7 +79,7 @@ export function createDataTransferActions(db: Database.Database): Record<string,
         .parse(
           db
             .prepare(
-              `SELECT id, title, notes, created_at, updated_at, deleted_at
+              `SELECT id, title, notes, position, created_at, updated_at, deleted_at
                FROM areas
                WHERE deleted_at IS NULL`
             )
@@ -180,11 +180,11 @@ export function createDataTransferActions(db: Database.Database): Record<string,
         `)
 
         const insertArea = db.prepare(
-          `INSERT INTO areas (id, title, notes, created_at, updated_at, deleted_at)
-           VALUES (@id, @title, @notes, @created_at, @updated_at, @deleted_at)`
+          `INSERT INTO areas (id, title, notes, position, created_at, updated_at, deleted_at)
+           VALUES (@id, @title, @notes, @position, @created_at, @updated_at, @deleted_at)`
         )
         for (const area of data.areas) {
-          insertArea.run(area)
+          insertArea.run({ ...area, position: area.position ?? null })
         }
 
         const insertTag = db.prepare(
@@ -197,15 +197,15 @@ export function createDataTransferActions(db: Database.Database): Record<string,
 
         const insertProject = db.prepare(
           `INSERT INTO projects (
-             id, title, notes, area_id, status, scheduled_at, due_at,
+             id, title, notes, area_id, status, position, scheduled_at, due_at,
              created_at, updated_at, completed_at, deleted_at
            ) VALUES (
-             @id, @title, @notes, @area_id, @status, @scheduled_at, @due_at,
+             @id, @title, @notes, @area_id, @status, @position, @scheduled_at, @due_at,
              @created_at, @updated_at, @completed_at, @deleted_at
            )`
         )
         for (const project of data.projects) {
-          insertProject.run(project)
+          insertProject.run({ ...project, position: project.position ?? null })
         }
 
         const insertSection = db.prepare(
