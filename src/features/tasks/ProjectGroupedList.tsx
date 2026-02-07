@@ -1008,7 +1008,7 @@ export function ProjectGroupedList({
     setSelectedRow(null)
   }, [groupRowIndexBySectionId, selectedRow])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!editingSectionId) {
       lastEditingSectionIdRef.current = null
       return
@@ -1087,8 +1087,11 @@ export function ProjectGroupedList({
 
     rowVirtualizer.scrollToIndex(idx)
     const raf = window.requestAnimationFrame(() => {
-      editTitleInputRef.current?.focus()
-      editTitleInputRef.current?.select()
+      const input = editTitleInputRef.current
+      if (!input) return
+      input.focus()
+      const caretPos = input.value.length
+      input.setSelectionRange(caretPos, caretPos)
     })
     return () => window.cancelAnimationFrame(raf)
   }, [editingSectionId, groupRowIndexBySectionId, rowVirtualizer])
