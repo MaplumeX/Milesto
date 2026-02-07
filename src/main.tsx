@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
+import 'react-day-picker/style.css'
 import './index.css'
 
 if (new URL(window.location.href).searchParams.get('selfTest') === '1') {

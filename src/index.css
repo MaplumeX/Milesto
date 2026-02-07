@@ -363,12 +363,6 @@ body {
   background: rgba(255, 255, 255, 0.8);
 }
 
-.checklist-create {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
 .checklist {
   list-style: none;
   margin: 0;
@@ -383,18 +377,43 @@ body {
   border-bottom: 1px solid rgba(29, 29, 27, 0.08);
 }
 
-.checklist-row.is-done .checklist-title {
+.checklist-row.is-done .checklist-title-input {
   text-decoration: line-through;
   color: var(--muted);
 }
 
-.checklist-title {
+.checklist-title-input {
   flex: 1;
-  text-align: left;
+  width: 100%;
+  min-width: 0;
   background: transparent;
   border: 0;
-  padding: 0;
-  cursor: pointer;
+  outline: none;
+  padding: 2px 0;
+  font: inherit;
+  color: var(--text);
+}
+
+.checklist-title-input::placeholder {
+  color: var(--muted);
+}
+
+.checklist-empty {
+  padding: 8px;
+}
+
+.checklist-empty-entry {
+  width: 100%;
+  text-align: left;
+  border: 1px dashed rgba(29, 29, 27, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--muted);
+  padding: 8px 10px;
+}
+
+.checklist-empty-entry:hover {
+  background: rgba(255, 255, 255, 0.8);
   color: var(--text);
 }
 
@@ -1042,6 +1061,85 @@ body {
 .task-inline-popover-title {
   font-weight: 650;
   font-size: 11px;
+}
+
+.task-inline-popover-tags .task-inline-popover-body {
+  padding: 8px;
+}
+
+.task-inline-popover-tags .task-inline-popover-title {
+  font-size: 10px;
+}
+
+.task-inline-popover-tags .input {
+  padding: 7px 9px;
+  border-radius: 10px;
+}
+
+.task-inline-popover-tags .tag-grid {
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.task-inline-popover-tags .tag-checkbox {
+  font-size: 11px;
+}
+
+/* Inline calendar picker (react-day-picker) styles are scoped to avoid impacting other popovers. */
+.task-inline-popover-calendar {
+  /* Allow the calendar to remain usable near small viewports. */
+  overflow: auto;
+}
+
+.task-inline-popover-calendar .task-inline-popover-body {
+  padding: 6px;
+}
+
+.task-inline-popover-calendar .task-inline-popover-title {
+  font-size: 10px;
+}
+
+.task-inline-popover-calendar .rdp-root {
+  --rdp-accent-color: rgba(29, 29, 27, 0.85);
+  --rdp-accent-background-color: rgba(29, 29, 27, 0.08);
+  --rdp-today-color: rgba(29, 29, 27, 0.85);
+
+  --rdp-day-height: 30px;
+  --rdp-day-width: 30px;
+  --rdp-day_button-height: 28px;
+  --rdp-day_button-width: 28px;
+  --rdp-day_button-border-radius: 7px;
+  --rdp-nav_button-height: 1.75rem;
+  --rdp-nav_button-width: 1.75rem;
+  --rdp-nav-height: 2rem;
+  --rdp-weekday-padding: 0.2rem 0;
+  --rdp-selected-border: 2px solid rgba(29, 29, 27, 0.25);
+}
+
+.task-inline-popover-calendar .row {
+  gap: 4px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.task-inline-popover-calendar .button {
+  padding: 4px 6px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.task-inline-popover-calendar .rdp-selected {
+  font-weight: 650;
+  font-size: inherit;
+}
+
+.task-inline-popover-calendar .rdp-day_button:hover:not(:disabled) {
+  background: rgba(29, 29, 27, 0.06);
+}
+
+.task-inline-popover-calendar .rdp-day_button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .task-inline-action-bar-right {

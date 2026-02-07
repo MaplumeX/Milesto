@@ -295,6 +295,39 @@ function getInlineActionBarRight(paper: HTMLElement): HTMLElement {
   return el
 }
 
+function assertPopoverWithinViewport(popover: HTMLElement, label: string) {
+  const padding = 12
+  const epsilon = 4
+  const rect = popover.getBoundingClientRect()
+  if (rect.top < padding - epsilon) {
+    throw new Error(`${label}: popover top clipped (top=${rect.top.toFixed(1)} innerH=${window.innerHeight})`)
+  }
+  if (rect.bottom > window.innerHeight - padding + epsilon) {
+    throw new Error(
+      `${label}: popover bottom clipped (bottom=${rect.bottom.toFixed(1)} innerH=${window.innerHeight})`
+    )
+  }
+  if (rect.left < padding - epsilon) {
+    throw new Error(`${label}: popover left clipped (left=${rect.left.toFixed(1)} innerW=${window.innerWidth})`)
+  }
+  if (rect.right > window.innerWidth - padding + epsilon) {
+    throw new Error(
+      `${label}: popover right clipped (right=${rect.right.toFixed(1)} innerW=${window.innerWidth})`
+    )
+  }
+}
+
+function assertInlineCalendarPopover(popover: HTMLElement, label: string) {
+  // Embedded calendar: should not use native <input type="date">.
+  if (!popover.querySelector('.rdp-root')) {
+    throw new Error(`${label}: missing embedded calendar (.rdp-root)`)
+  }
+  if (popover.querySelector('input[type="date"]')) {
+    throw new Error(`${label}: unexpected native date input (input[type="date"])`)
+  }
+  assertPopoverWithinViewport(popover, label)
+}
+
 async function setScheduleToSomeday(paper: HTMLElement, label: string) {
   const rightBar = getInlineActionBarRight(paper)
   const scheduleBtn = findButtonByText(rightBar, 'Schedule')
@@ -304,17 +337,27 @@ async function setScheduleToSomeday(paper: HTMLElement, label: string) {
 
   const trigger = scheduleBtn ?? scheduledChip
   if (!trigger) throw new Error(`${label}: missing Schedule trigger`)
+  // Try to position the trigger near the viewport bottom to exercise popover flip.
+  const contentScroller = getContentScroller()
+  const prevScrollTop = contentScroller.scrollTop
+  trigger.scrollIntoView({ block: 'end' })
+  await sleep(120)
   trigger.click()
 
   const popover = await waitFor(`${label}: schedule popover`, () =>
     document.querySelector<HTMLElement>('.task-inline-popover')
   )
+  assertInlineCalendarPopover(popover, `${label}: schedule popover`)
   const somedayBtn = await waitFor(`${label}: schedule Someday button`, () => findButtonByText(popover, 'Someday'))
   somedayBtn.click()
 
   await waitFor(`${label}: schedule popover closed`, () =>
     document.querySelector<HTMLElement>('.task-inline-popover') ? null : true
   )
+
+  // Restore scroll position for subsequent list assertions.
+  contentScroller.scrollTop = prevScrollTop
+  await sleep(80)
 
   await waitFor(`${label}: Scheduled chip shows Someday`, () => {
     const chip = Array.from(paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find((b) =>
@@ -326,6 +369,57 @@ async function setScheduleToSomeday(paper: HTMLElement, label: string) {
 
   // Wait for persistence (debounced + serialized save).
   await waitFor(`${label}: save status is Saved`, () => {
+    const el = paper.querySelector<HTMLElement>('.task-inline-status')
+    if (!el) return null
+    return (el.textContent ?? '').trim() === 'Saved' ? true : null
+  }, { timeoutMs: 15_000 })
+}
+
+async function setDueToToday(paper: HTMLElement, label: string, today: string) {
+  const rightBar = getInlineActionBarRight(paper)
+  const dueBtn = findButtonByText(rightBar, 'Due')
+  const dueChip = Array.from(paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find((b) =>
+    ((b.textContent ?? '').trim() || '').startsWith('Due:')
+  )
+
+  const trigger = dueBtn ?? dueChip
+  if (!trigger) throw new Error(`${label}: missing Due trigger`)
+
+  // Try to position the trigger near the viewport bottom to exercise popover flip.
+  const contentScroller = getContentScroller()
+  const prevScrollTop = contentScroller.scrollTop
+  trigger.scrollIntoView({ block: 'end' })
+  await sleep(120)
+  trigger.click()
+
+  const popover = await waitFor(`${label}: due popover`, () =>
+    document.querySelector<HTMLElement>('.task-inline-popover')
+  )
+  assertInlineCalendarPopover(popover, `${label}: due popover`)
+
+  const todayButton = await waitFor(`${label}: due today day button`, () =>
+    popover.querySelector<HTMLButtonElement>('.rdp-today .rdp-day_button')
+  )
+  todayButton.click()
+
+  await waitFor(`${label}: due popover closed`, () =>
+    document.querySelector<HTMLElement>('.task-inline-popover') ? null : true
+  )
+
+  // Restore scroll position for subsequent list assertions.
+  contentScroller.scrollTop = prevScrollTop
+  await sleep(80)
+
+  await waitFor(`${label}: Due chip shows today`, () => {
+    const chip = Array.from(paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find((b) =>
+      ((b.textContent ?? '').trim() || '').startsWith('Due:')
+    )
+    if (!chip) return null
+    return (chip.textContent ?? '').includes(today) ? true : null
+  })
+
+  // Wait for persistence (debounced + serialized save).
+  await waitFor(`${label}: save status is Saved (due)`, () => {
     const el = paper.querySelector<HTMLElement>('.task-inline-status')
     if (!el) return null
     return (el.textContent ?? '').trim() === 'Saved' ? true : null
@@ -480,30 +574,34 @@ async function openEditorByEnter(params: {
 }
 
 async function assertChecklistEmptyStateBehavior(paper: HTMLElement, label: string) {
-  // Empty checklist should show the quick-add button.
+  // Empty checklist should show the quick entry button.
   const bar = getInlineActionBarRight(paper)
   const checklistButton = findButtonByText(bar, 'Checklist')
   if (!checklistButton) throw new Error(`${label}: missing Checklist button when empty`)
 
   checklistButton.click()
 
-  const createInput = await waitFor(
-    `${label}: checklist create input`,
-    () => paper.querySelector<HTMLInputElement>('input[placeholder="Add checklist item…"]')
+  const firstRowInput = await waitFor(
+    `${label}: first checklist row input`,
+    () => paper.querySelector<HTMLInputElement>('.checklist-row .checklist-title-input')
   )
   await waitFor(
-    `${label}: checklist input focused`,
-    () => (document.activeElement === createInput ? true : null)
+    `${label}: first checklist row focused`,
+    () => (document.activeElement === firstRowInput ? true : null)
   )
 
-  setNativeInputValue(createInput, 'First item')
+  setNativeInputValue(firstRowInput, 'First item')
   // Allow React state to catch up before key handler reads `draft`.
   await sleep(50)
-  dispatchKey(createInput, 'Enter')
+  dispatchKey(firstRowInput, 'Enter')
 
-  await waitFor(`${label}: checklist item created`, () => {
-    const rows = paper.querySelectorAll('.checklist-row')
-    return rows.length >= 1 ? true : null
+  const secondRowInput = await waitFor(`${label}: second checklist row created`, () => {
+    const rows = paper.querySelectorAll<HTMLInputElement>('.checklist-row .checklist-title-input')
+    return rows.length >= 2 ? rows[1] : null
+  })
+
+  await waitFor(`${label}: second checklist row focused`, () => {
+    return document.activeElement === secondRowInput ? true : null
   })
 
   await waitFor(`${label}: checklist button hidden when non-empty`, () => {
@@ -511,11 +609,18 @@ async function assertChecklistEmptyStateBehavior(paper: HTMLElement, label: stri
     return findButtonByText(bar, 'Checklist') ? null : true
   })
 
-  const deleteButton = await waitFor(`${label}: delete checklist item`, () => {
-    const btns = Array.from(paper.querySelectorAll<HTMLButtonElement>('.checklist-row button'))
-    return btns.find((b) => (b.textContent ?? '').trim() === 'Delete') ?? null
+  // Enter on the empty follow-up row should discard that temporary row.
+  dispatchKey(secondRowInput, 'Enter')
+
+  const remainingRowInput = await waitFor(`${label}: temporary checklist row removed`, () => {
+    const rows = paper.querySelectorAll<HTMLInputElement>('.checklist-row .checklist-title-input')
+    return rows.length === 1 ? rows[0] : null
   })
-  deleteButton.click()
+
+  // Clearing and pressing Backspace on the last persisted row should remove it.
+  setNativeInputValue(remainingRowInput, '')
+  await sleep(50)
+  dispatchKey(remainingRowInput, 'Backspace')
 
   await waitFor(`${label}: checklist section collapsed`, () => {
     const list = paper.querySelector('.checklist')
@@ -1654,6 +1759,90 @@ async function runSelfTest(): Promise<SelfTestResult> {
         button: anytimeButton,
         label: 'Anytime A (dblclick)',
       })
+
+      // Picker QA (inline): ensure Due uses embedded calendar, and Tags quick-create works.
+      await setDueToToday(openedAnytime.paper, 'Anytime A', today)
+
+      const workTitle = `${token} Work`
+      const workCreateRes = await window.api.tag.create({ title: workTitle })
+      if (!workCreateRes.ok) {
+        throw new Error(
+          `tag.create work failed: ${workCreateRes.error.code}: ${workCreateRes.error.message}`
+        )
+      }
+
+      const rightBarForTags = getInlineActionBarRight(openedAnytime.paper)
+      const tagsBtn = findButtonByText(rightBarForTags, 'Tags')
+      if (!tagsBtn) throw new Error('Anytime A: missing Tags button')
+      tagsBtn.click()
+
+      const tagsPopover = await waitFor('Anytime A: tags popover', () =>
+        document.querySelector<HTMLElement>('.task-inline-popover')
+      )
+
+      const createInput = await waitFor('Anytime A: tag create input', () =>
+        tagsPopover.querySelector<HTMLInputElement>('input[placeholder="New tag"]')
+      )
+
+      // Duplicate handling: Enter on a case-insensitive match selects existing tag (no new create).
+      const tagsBeforeDup = await window.api.tag.list()
+      if (!tagsBeforeDup.ok) {
+        throw new Error(`tag.list failed: ${tagsBeforeDup.error.code}: ${tagsBeforeDup.error.message}`)
+      }
+      const workNorm = workTitle.trim().toLowerCase()
+      const workCountBefore = tagsBeforeDup.data.filter((t) => (t.title ?? '').trim().toLowerCase() === workNorm)
+        .length
+      if (workCountBefore !== 1) {
+        throw new Error(`Anytime A: expected exactly 1 Work tag before dup-select, got=${workCountBefore}`)
+      }
+
+      setNativeInputValue(createInput, `  ${workTitle.toLowerCase()} `)
+      dispatchKey(createInput, 'Enter')
+
+      await waitFor('Anytime A: Tags chip shows 1 after dup-select', () => {
+        const chip = Array.from(openedAnytime.paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find(
+          (b) => ((b.textContent ?? '').trim() || '').startsWith('Tags:')
+        )
+        if (!chip) return null
+        return (chip.textContent ?? '').includes('Tags: 1') ? true : null
+      })
+
+      const tagsAfterDup = await window.api.tag.list()
+      if (!tagsAfterDup.ok) {
+        throw new Error(`tag.list after dup failed: ${tagsAfterDup.error.code}: ${tagsAfterDup.error.message}`)
+      }
+      const workCountAfter = tagsAfterDup.data.filter((t) => (t.title ?? '').trim().toLowerCase() === workNorm).length
+      if (workCountAfter !== 1) {
+        throw new Error(`Anytime A: duplicate created unexpectedly (workCount=${workCountAfter})`)
+      }
+
+      // Create path: new tag is created, list refreshes, and tag is auto-selected.
+      const homeTitle = `${token} Home`
+      setNativeInputValue(createInput, homeTitle)
+      dispatchKey(createInput, 'Enter')
+
+      await waitFor('Anytime A: Tags chip shows 2 after create', () => {
+        const chip = Array.from(openedAnytime.paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find(
+          (b) => ((b.textContent ?? '').trim() || '').startsWith('Tags:')
+        )
+        if (!chip) return null
+        return (chip.textContent ?? '').includes('Tags: 2') ? true : null
+      }, { timeoutMs: 15_000 })
+
+      const tagsAfterCreate = await window.api.tag.list()
+      if (!tagsAfterCreate.ok) {
+        throw new Error(`tag.list after create failed: ${tagsAfterCreate.error.code}: ${tagsAfterCreate.error.message}`)
+      }
+      const homeNorm = homeTitle.trim().toLowerCase()
+      if (!tagsAfterCreate.data.some((t) => (t.title ?? '').trim().toLowerCase() === homeNorm)) {
+        throw new Error('Anytime A: expected Home tag to exist after create')
+      }
+
+      // Close tags picker before continuing with schedule tests.
+      dispatchKey(createInput, 'Escape')
+      await waitFor('Anytime A: tags popover closed', () =>
+        document.querySelector<HTMLElement>('.task-inline-popover') ? null : true
+      )
 
       await setScheduleToSomeday(openedAnytime.paper, 'Anytime A')
 

@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { DayPicker } from 'react-day-picker'
 
 import type { AppError } from '../../../shared/app-error'
 import type { Area } from '../../../shared/schemas/area'
@@ -9,7 +10,7 @@ import type { Tag } from '../../../shared/schemas/tag'
 import type { TaskDetail } from '../../../shared/schemas/task-detail'
 import type { TaskUpdateInput } from '../../../shared/schemas/task'
 
-import { formatLocalDate } from '../../lib/dates'
+import { formatLocalDate, parseLocalDate } from '../../lib/dates'
 
 type Draft = {
   title: string
@@ -31,11 +32,81 @@ export type TaskEditorPaperHandle = {
 
 type TaskEditorVariant = 'overlay' | 'inline'
 
+type ChecklistRowView = {
+  key: string
+  itemId: string | null
+  done: boolean
+  titleDraft: string
+  persistedTitle: string | null
+}
+
 type PickerKind = 'schedule' | 'due' | 'tags'
 type ActivePicker = {
   kind: PickerKind
   anchorEl: HTMLElement
 } | null
+
+function createChecklistRowKey(counterRef: { current: number }): string {
+  counterRef.current += 1
+  return `checklist-row-${counterRef.current}`
+}
+
+function mergeChecklistRows(
+  prevRows: ChecklistRowView[],
+  items: ChecklistItem[],
+  keyById: Map<string, string>,
+  rowKeyCounterRef: { current: number },
+  editingRowKey: string | null
+): ChecklistRowView[] {
+  const orderedItems = [...items].sort((a, b) => a.position - b.position)
+  const itemById = new Map(orderedItems.map((item) => [item.id, item]))
+  const retainedIds = new Set<string>()
+  const nextRows: ChecklistRowView[] = []
+
+  for (const row of prevRows) {
+    if (!row.itemId) {
+      nextRows.push(row)
+      continue
+    }
+
+    const item = itemById.get(row.itemId)
+    if (!item) continue
+
+    const existingKey = keyById.get(item.id) ?? row.key
+    keyById.set(item.id, existingKey)
+    retainedIds.add(item.id)
+
+    const shouldKeepDraft =
+      editingRowKey === row.key && row.titleDraft !== (row.persistedTitle ?? item.title)
+
+    nextRows.push({
+      key: existingKey,
+      itemId: item.id,
+      done: item.done,
+      titleDraft: shouldKeepDraft ? row.titleDraft : item.title,
+      persistedTitle: item.title,
+    })
+  }
+
+  for (const item of orderedItems) {
+    if (retainedIds.has(item.id)) continue
+    const key = keyById.get(item.id) ?? createChecklistRowKey(rowKeyCounterRef)
+    keyById.set(item.id, key)
+    nextRows.push({
+      key,
+      itemId: item.id,
+      done: item.done,
+      titleDraft: item.title,
+      persistedTitle: item.title,
+    })
+  }
+
+  for (const persistedId of Array.from(keyById.keys())) {
+    if (!itemById.has(persistedId)) keyById.delete(persistedId)
+  }
+
+  return nextRows
+}
 
 const TITLE_NOTES_DEBOUNCE_MS = 450
 const OTHER_FIELDS_DEBOUNCE_MS = 120
@@ -105,6 +176,10 @@ function isDevForcedUpdateErrorEnabled(): boolean {
   )
 }
 
+function normalizeTagTitle(title: string): string {
+  return title.trim().toLowerCase()
+}
+
 function getDevTaskUpdateDelayMs(): number {
   const selfTestEnabled = new URL(window.location.href).searchParams.get('selfTest') === '1'
   if (!import.meta.env.DEV && !selfTestEnabled) return 0
@@ -125,9 +200,6 @@ export const TaskEditorPaper = forwardRef<
     const popoverRef = useRef<HTMLDivElement | null>(null)
     const tagsButtonRef = useRef<HTMLButtonElement | null>(null)
 
-    const schedulePopoverInputRef = useRef<HTMLInputElement | null>(null)
-    const duePopoverInputRef = useRef<HTMLInputElement | null>(null)
-
     const taskIdRef = useRef(taskId)
     useEffect(() => {
       taskIdRef.current = taskId
@@ -140,6 +212,8 @@ export const TaskEditorPaper = forwardRef<
     const [loadError, setLoadError] = useState<AppError | null>(null)
     const [actionError, setActionError] = useState<AppError | null>(null)
     const [tagsError, setTagsError] = useState<AppError | null>(null)
+    const [tagCreateError, setTagCreateError] = useState<AppError | null>(null)
+    const [tagCreateTitle, setTagCreateTitle] = useState('')
     const [saveError, setSaveError] = useState<AppError | null>(null)
     const saveErrorRef = useRef<AppError | null>(null)
     useEffect(() => {
@@ -153,18 +227,27 @@ export const TaskEditorPaper = forwardRef<
     useEffect(() => {
       activePickerRef.current = activePicker
     }, [activePicker])
-    const lastFlushFailureTargetRef = useRef<'title' | 'tags'>('title')
+    const lastFlushFailureTargetRef = useRef<'title' | 'tags' | 'checklist'>('title')
 
     const tagsSaveSeqRef = useRef(0)
     const tagsSavePromiseRef = useRef<Promise<void> | null>(null)
     const tagsSaveErrorRef = useRef<AppError | null>(null)
 
+    const [checklistError, setChecklistError] = useState<AppError | null>(null)
+    const checklistErrorRef = useRef<AppError | null>(null)
+    const checklistMutationSetRef = useRef(new Set<Promise<unknown>>())
+
     useEffect(() => {
       tagsSaveErrorRef.current = tagsError
     }, [tagsError])
 
+    useEffect(() => {
+      checklistErrorRef.current = checklistError
+    }, [checklistError])
+
     const [isChecklistExpanded, setIsChecklistExpanded] = useState(false)
-    const checklistCreateInputRef = useRef<HTMLInputElement | null>(null)
+    const [checklistCreateRequestToken, setChecklistCreateRequestToken] = useState(0)
+    const checklistActionButtonRef = useRef<HTMLButtonElement | null>(null)
 
     const [projects, setProjects] = useState<Project[]>([])
     const [sections, setSections] = useState<ProjectSection[]>([])
@@ -192,33 +275,32 @@ export const TaskEditorPaper = forwardRef<
         tagsButtonRef.current?.focus()
         return
       }
+
+      if (lastFlushFailureTargetRef.current === 'checklist') {
+        const checklistInput = document.querySelector<HTMLInputElement>('.checklist-title-input')
+        if (checklistInput) {
+          checklistInput.focus()
+          return
+        }
+        checklistActionButtonRef.current?.focus()
+        return
+      }
+
       focusTitle()
     }
 
-    const closeActivePicker = useCallback(() => {
+    const closeActivePicker = useCallback((opts?: { restoreFocus?: boolean }) => {
       const current = activePickerRef.current
       if (!current) return
+      const anchorEl = current.anchorEl
       setActivePicker(null)
+
+      if (!opts?.restoreFocus) return
+
+      window.setTimeout(() => {
+        if (anchorEl.isConnected) anchorEl.focus()
+      }, 0)
     }, [])
-
-    useEffect(() => {
-      // When a date picker popover opens, focus the input and attempt to open the native picker.
-      const current = activePicker
-      if (!current) return
-      if (current.kind !== 'schedule' && current.kind !== 'due') return
-
-      const input = current.kind === 'schedule' ? schedulePopoverInputRef.current : duePopoverInputRef.current
-      if (!input) return
-
-      input.focus()
-      if (typeof input.showPicker === 'function') {
-        try {
-          input.showPicker()
-        } catch {
-          // Ignore and rely on the visible date input.
-        }
-      }
-    }, [activePicker])
 
     useEffect(() => {
       if (variant !== 'inline') return
@@ -230,31 +312,42 @@ export const TaskEditorPaper = forwardRef<
         const root = inlineRootRef.current
         if (!root) return
         const popover = popoverRef.current
-        const isInside = root.contains(e.target) || (popover ? popover.contains(e.target) : false)
-        if (isInside) return
+        const isInsideRoot = root.contains(e.target)
+        const isInsidePopover = popover ? popover.contains(e.target) : false
+
+        if (isInsidePopover) return
+
+        if (activePicker) {
+          // Clicking anywhere outside the popover should dismiss it.
+          // If the click is outside the editor, keep the existing two-step close behavior.
+          if (!isInsideRoot) {
+            e.preventDefault()
+            e.stopPropagation()
+          }
+          setActivePicker(null)
+          return
+        }
+
+        if (isInsideRoot) return
 
         // Dismiss pickers first. If no picker is open, attempt to close the editor.
         e.preventDefault()
         e.stopPropagation()
-
-        if (activePicker) {
-          closeActivePicker()
-          return
-        }
 
         onRequestClose()
       }
 
       document.addEventListener('pointerdown', handlePointerDown, true)
       return () => document.removeEventListener('pointerdown', handlePointerDown, true)
-    }, [activePicker, closeActivePicker, onRequestClose, variant])
+    }, [activePicker, onRequestClose, variant])
 
     useEffect(() => {
       if (!activePicker) return
 
       // Close pickers on scroll/resize to avoid stale positioning.
       function handleClose() {
-        closeActivePicker()
+        // Scroll/resize is not an intentional dismissal; don't steal focus.
+        setActivePicker(null)
       }
 
       window.addEventListener('resize', handleClose)
@@ -263,7 +356,7 @@ export const TaskEditorPaper = forwardRef<
         window.removeEventListener('resize', handleClose)
         window.removeEventListener('scroll', handleClose, true)
       }
-    }, [activePicker, closeActivePicker])
+    }, [activePicker])
 
     function scheduleSave(nextDraft: Draft, debounceMs: number) {
       if (saveDebounceRef.current) window.clearTimeout(saveDebounceRef.current)
@@ -272,6 +365,14 @@ export const TaskEditorPaper = forwardRef<
         saveDebounceRef.current = null
         requestSave(nextDraft)
       }, debounceMs)
+    }
+
+    function trackChecklistMutation<T>(mutation: Promise<T>): Promise<T> {
+      checklistMutationSetRef.current.add(mutation)
+      void mutation.finally(() => {
+        checklistMutationSetRef.current.delete(mutation)
+      })
+      return mutation
     }
 
     function requestSave(nextDraft: Draft) {
@@ -378,8 +479,14 @@ export const TaskEditorPaper = forwardRef<
 
       if (tagsSavePromiseRef.current) await tagsSavePromiseRef.current
 
+      while (checklistMutationSetRef.current.size > 0) {
+        const pending = Array.from(checklistMutationSetRef.current)
+        await Promise.allSettled(pending)
+      }
+
       if (saveErrorRef.current) return false
       if (tagsSaveErrorRef.current) return false
+      if (checklistErrorRef.current) return false
       if (!draft || !lastSavedRef.current) return true
       return isDraftEqual(normalizeDraft(draft), lastSavedRef.current)
     }
@@ -405,16 +512,21 @@ export const TaskEditorPaper = forwardRef<
       setLoadError(null)
       setActionError(null)
       setTagsError(null)
+      setChecklistError(null)
       setSaveError(null)
       setSavePhase('idle')
       setActivePicker(null)
       setDetail(null)
       setDraft(null)
       setLastSaved(null)
+      setIsChecklistExpanded(false)
+      setChecklistCreateRequestToken(0)
       lastSavedRef.current = null
       pendingSnapshotRef.current = null
       tagsSavePromiseRef.current = null
       tagsSaveSeqRef.current = 0
+      checklistMutationSetRef.current.clear()
+      checklistErrorRef.current = null
       if (saveDebounceRef.current) {
         window.clearTimeout(saveDebounceRef.current)
         saveDebounceRef.current = null
@@ -442,6 +554,7 @@ export const TaskEditorPaper = forwardRef<
 
         setDetail(res.data)
         setDraft(nextDraft)
+        setIsChecklistExpanded(res.data.checklist_items.length > 0)
         const normalized = normalizeDraft(nextDraft)
         lastSavedRef.current = normalized
         setLastSaved(normalized)
@@ -497,12 +610,6 @@ export const TaskEditorPaper = forwardRef<
     const selectedTagIds = useMemo(() => new Set(detail?.tag_ids ?? []), [detail?.tag_ids])
     const checklist = detail?.checklist_items ?? []
 
-    useEffect(() => {
-      if (variant !== 'inline') return
-      // Inline editor treats an empty checklist as collapsed.
-      setIsChecklistExpanded(checklist.length > 0)
-    }, [checklist.length, variant])
-
     const paperClassName = variant === 'inline' ? 'task-inline-paper' : 'overlay-paper'
 
     if (loadError) {
@@ -538,10 +645,124 @@ export const TaskEditorPaper = forwardRef<
 
     const statusLabel = detail.task.status === 'done' ? 'Done' : 'Open'
 
+    const createChecklistItem = async (title: string): Promise<ChecklistItem | null> => {
+      const nextTitle = title.trim()
+      if (!nextTitle) return null
+
+      setChecklistError(null)
+
+      const mutation = (async () => {
+        const res = await window.api.checklist.create({ task_id: detail.task.id, title: nextTitle })
+        if (!res.ok) {
+          lastFlushFailureTargetRef.current = 'checklist'
+          setChecklistError(res.error)
+          return null
+        }
+
+        setChecklistError(null)
+        setDetail((d) => {
+          if (!d) return d
+          const nextItems = [...d.checklist_items, res.data].sort((a, b) => a.position - b.position)
+          return { ...d, checklist_items: nextItems }
+        })
+
+        return res.data
+      })()
+
+      return trackChecklistMutation(mutation)
+    }
+
+    const toggleChecklistItem = async (itemId: string, done: boolean): Promise<ChecklistItem | null> => {
+      setChecklistError(null)
+
+      const mutation = (async () => {
+        const res = await window.api.checklist.update({ id: itemId, done })
+        if (!res.ok) {
+          lastFlushFailureTargetRef.current = 'checklist'
+          setChecklistError(res.error)
+          return null
+        }
+
+        setChecklistError(null)
+        setDetail((d) => {
+          if (!d) return d
+          const nextItems = d.checklist_items
+            .map((it) => (it.id === res.data.id ? res.data : it))
+            .sort((a, b) => a.position - b.position)
+          return { ...d, checklist_items: nextItems }
+        })
+
+        return res.data
+      })()
+
+      return trackChecklistMutation(mutation)
+    }
+
+    const renameChecklistItem = async (itemId: string, title: string): Promise<ChecklistItem | null> => {
+      const nextTitle = title.trim()
+      if (!nextTitle) return null
+
+      setChecklistError(null)
+
+      const mutation = (async () => {
+        const res = await window.api.checklist.update({ id: itemId, title: nextTitle })
+        if (!res.ok) {
+          lastFlushFailureTargetRef.current = 'checklist'
+          setChecklistError(res.error)
+          return null
+        }
+
+        setChecklistError(null)
+        setDetail((d) => {
+          if (!d) return d
+          const nextItems = d.checklist_items
+            .map((it) => (it.id === res.data.id ? res.data : it))
+            .sort((a, b) => a.position - b.position)
+          return { ...d, checklist_items: nextItems }
+        })
+
+        return res.data
+      })()
+
+      return trackChecklistMutation(mutation)
+    }
+
+    const deleteChecklistItem = async (itemId: string): Promise<boolean> => {
+      setChecklistError(null)
+
+      const mutation = (async () => {
+        const res = await window.api.checklist.delete(itemId)
+        if (!res.ok) {
+          lastFlushFailureTargetRef.current = 'checklist'
+          setChecklistError(res.error)
+          return false
+        }
+
+        setChecklistError(null)
+        setDetail((d) => {
+          if (!d) return d
+          const nextItems = d.checklist_items.filter((it) => it.id !== itemId)
+          return { ...d, checklist_items: nextItems }
+        })
+
+        return true
+      })()
+
+      return trackChecklistMutation(mutation)
+    }
+
+    const collapseInlineChecklist = () => {
+      if (variant !== 'inline') return
+      setIsChecklistExpanded(false)
+      window.setTimeout(() => {
+        checklistActionButtonRef.current?.focus()
+      }, 0)
+    }
+
     if (variant === 'inline') {
       function openChecklistAndFocus() {
         setIsChecklistExpanded(true)
-        window.setTimeout(() => checklistCreateInputRef.current?.focus(), 0)
+        setChecklistCreateRequestToken((v) => v + 1)
       }
 
       const saveStatusLabel =
@@ -556,6 +777,8 @@ export const TaskEditorPaper = forwardRef<
       }
 
       const openTagsPicker = (anchorEl: HTMLElement) => {
+        setTagCreateError(null)
+        setTagCreateTitle('')
         setActivePicker({ kind: 'tags', anchorEl })
       }
 
@@ -584,25 +807,119 @@ export const TaskEditorPaper = forwardRef<
         if (!activePicker) return null
 
         const rect = activePicker.anchorEl.getBoundingClientRect()
-        const maxWidth = 320
-        const left = Math.min(Math.max(12, rect.left), window.innerWidth - maxWidth - 12)
-        const top = Math.min(rect.bottom + 8, window.innerHeight - 12)
+        const viewportPadding = 12
+        const isCalendar = activePicker.kind === 'schedule' || activePicker.kind === 'due'
+
+        const isTags = activePicker.kind === 'tags'
+
+        // Keep inline pickers compact.
+        const maxWidth = isTags ? 220 : 236
+        const left = Math.min(Math.max(viewportPadding, rect.left), window.innerWidth - maxWidth - viewportPadding)
+
+        const preferredTop = rect.bottom + 8
+        const spaceBelow = window.innerHeight - viewportPadding - preferredTop
+        const spaceAbove = rect.top - 8 - viewportPadding
+        const estimatedCalendarHeight = 250
+        const openCalendarAbove =
+          isCalendar && spaceBelow < estimatedCalendarHeight && spaceAbove > spaceBelow
+
+        const top = (() => {
+          if (!isCalendar) return Math.min(preferredTop, window.innerHeight - viewportPadding)
+
+          // When flipping above, anchor the popover edge to the trigger edge.
+          return openCalendarAbove ? rect.top - 8 : preferredTop
+        })()
+
+        const maxHeight = (() => {
+          if (!isCalendar) return undefined
+
+          const sideSpace = openCalendarAbove ? spaceAbove : spaceBelow
+          // Keep it usable when viewport is tight.
+          return Math.max(180, sideSpace)
+        })()
 
         return createPortal(
           <div
             ref={popoverRef}
-            className="task-inline-popover"
+            className={
+              isCalendar
+                ? 'task-inline-popover task-inline-popover-calendar'
+                : isTags
+                  ? 'task-inline-popover task-inline-popover-tags'
+                  : 'task-inline-popover'
+            }
             role="dialog"
-            style={{ position: 'fixed', top, left, width: maxWidth, zIndex: 45 }}
+            style={{
+              position: 'fixed',
+              top,
+              left,
+              width: maxWidth,
+              maxHeight: isCalendar ? maxHeight : undefined,
+              transform: openCalendarAbove ? 'translateY(-100%)' : undefined,
+              zIndex: 45,
+            }}
           >
             {activePicker.kind === 'tags' ? (
               <div className="task-inline-popover-body">
                 <div className="task-inline-popover-title">Tags</div>
-                <div className="tag-grid" style={{ marginTop: 8 }}>
+                <input
+                  className="input"
+                  placeholder="New tag"
+                  value={tagCreateTitle}
+                  onChange={(e) => {
+                    setTagCreateTitle(e.target.value)
+                    if (tagCreateError) setTagCreateError(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter') return
+                    e.preventDefault()
+                    e.stopPropagation()
+
+                    const title = tagCreateTitle.trim()
+                    if (!title) return
+
+                    const normalized = normalizeTagTitle(title)
+                    const existing = tags.find((t) => normalizeTagTitle(t.title) === normalized)
+                    if (existing) {
+                      const next = new Set(selectedTagIds)
+                      next.add(existing.id)
+                      if (next.size !== selectedTagIds.size) persistTags(Array.from(next))
+                      setTagCreateTitle('')
+                      setTagCreateError(null)
+                      return
+                    }
+
+                    void (async () => {
+                      setTagCreateError(null)
+                      const res = await window.api.tag.create({ title })
+                      if (!res.ok) {
+                        setTagCreateError(res.error)
+                        return
+                      }
+
+                      setTagCreateTitle('')
+                      const list = await window.api.tag.list()
+                      if (list.ok) setTags(list.data)
+
+                      const next = new Set(selectedTagIds)
+                      next.add(res.data.id)
+                      if (next.size !== selectedTagIds.size) persistTags(Array.from(next))
+                    })()
+                  }}
+                  style={{ marginTop: 6 }}
+                />
+
+                {tagCreateError ? (
+                  <div className="error" style={{ margin: '10px 0 0' }}>
+                    <div className="error-code">{tagCreateError.code}</div>
+                    <div>{tagCreateError.message}</div>
+                  </div>
+                ) : null}
+                <div className="tag-grid" style={{ marginTop: 6 }}>
                   {tags.map((tag) => {
                     const checked = selectedTagIds.has(tag.id)
                     return (
-                      <label key={tag.id} className="tag-checkbox" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <label key={tag.id} className="tag-checkbox" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <input
                           type="checkbox"
                           checked={checked}
@@ -627,25 +944,29 @@ export const TaskEditorPaper = forwardRef<
             ) : activePicker.kind === 'schedule' ? (
               <div className="task-inline-popover-body">
                 <div className="task-inline-popover-title">Scheduled</div>
-                <input
-                  ref={schedulePopoverInputRef}
-                  className="input"
-                  type="date"
-                  value={draft.is_someday ? '' : draft.scheduled_at ?? ''}
-                  onChange={(e) => {
-                    const nextDate = e.target.value ? e.target.value : null
-                    const next = {
-                      ...draft,
-                      scheduled_at: nextDate,
-                      is_someday: false,
-                      // Assigning a concrete schedule is a form of processing; it must leave Inbox.
-                      is_inbox: nextDate ? false : draft.is_inbox,
-                    }
-                    setDraft(next)
-                    scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                    setActivePicker(null)
-                  }}
-                />
+                <div className="task-inline-calendar" style={{ marginTop: 8 }}>
+                  <DayPicker
+                    mode="single"
+                    selected={!draft.is_someday && draft.scheduled_at ? parseLocalDate(draft.scheduled_at) ?? undefined : undefined}
+                    onSelect={(date) => {
+                      const nextDate = date ? formatLocalDate(date) : null
+                      const next = {
+                        ...draft,
+                        scheduled_at: nextDate,
+                        is_someday: false,
+                        // Assigning a concrete schedule is a form of processing; it must leave Inbox.
+                        is_inbox: nextDate ? false : draft.is_inbox,
+                      }
+                      setDraft(next)
+                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                      closeActivePicker({ restoreFocus: true })
+                    }}
+                    weekStartsOn={1}
+                    showOutsideDays
+                    fixedWeeks
+                    autoFocus
+                  />
+                </div>
                 <div className="row" style={{ justifyContent: 'flex-start' }}>
                   <button
                     type="button"
@@ -654,7 +975,7 @@ export const TaskEditorPaper = forwardRef<
                       const next = { ...draft, is_someday: true, scheduled_at: null, is_inbox: false }
                       setDraft(next)
                       scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                      setActivePicker(null)
+                      closeActivePicker({ restoreFocus: true })
                     }}
                   >
                     Someday
@@ -666,7 +987,7 @@ export const TaskEditorPaper = forwardRef<
                       const next = { ...draft, scheduled_at: today, is_someday: false, is_inbox: false }
                       setDraft(next)
                       scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                      setActivePicker(null)
+                      closeActivePicker({ restoreFocus: true })
                     }}
                   >
                     Today
@@ -678,7 +999,7 @@ export const TaskEditorPaper = forwardRef<
                       const next = { ...draft, scheduled_at: null, is_someday: false }
                       setDraft(next)
                       scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                      setActivePicker(null)
+                      closeActivePicker({ restoreFocus: true })
                     }}
                   >
                     Clear
@@ -688,18 +1009,22 @@ export const TaskEditorPaper = forwardRef<
             ) : (
               <div className="task-inline-popover-body">
                 <div className="task-inline-popover-title">Due</div>
-                <input
-                  ref={duePopoverInputRef}
-                  className="input"
-                  type="date"
-                  value={draft.due_at ?? ''}
-                  onChange={(e) => {
-                    const next = { ...draft, due_at: e.target.value ? e.target.value : null }
-                    setDraft(next)
-                    scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                    setActivePicker(null)
-                  }}
-                />
+                <div className="task-inline-calendar" style={{ marginTop: 8 }}>
+                  <DayPicker
+                    mode="single"
+                    selected={draft.due_at ? parseLocalDate(draft.due_at) ?? undefined : undefined}
+                    onSelect={(date) => {
+                      const next = { ...draft, due_at: date ? formatLocalDate(date) : null }
+                      setDraft(next)
+                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                      closeActivePicker({ restoreFocus: true })
+                    }}
+                    weekStartsOn={1}
+                    showOutsideDays
+                    fixedWeeks
+                    autoFocus
+                  />
+                </div>
                 <div className="row" style={{ justifyContent: 'flex-start' }}>
                   <button
                     type="button"
@@ -708,7 +1033,7 @@ export const TaskEditorPaper = forwardRef<
                       const next = { ...draft, due_at: null }
                       setDraft(next)
                       scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                      setActivePicker(null)
+                      closeActivePicker({ restoreFocus: true })
                     }}
                   >
                     Clear
@@ -730,7 +1055,7 @@ export const TaskEditorPaper = forwardRef<
             if (!activePickerRef.current) return
             e.preventDefault()
             e.stopPropagation()
-            closeActivePicker()
+            closeActivePicker({ restoreFocus: true })
           }}
         >
           <div className="task-inline-header">
@@ -815,6 +1140,13 @@ export const TaskEditorPaper = forwardRef<
               </div>
             ) : null}
 
+            {checklistError ? (
+              <div className="error">
+                <div className="error-code">{checklistError.code}</div>
+                <div>{checklistError.message}</div>
+              </div>
+            ) : null}
+
             <textarea
               id="task-notes"
               ref={notesInputRef}
@@ -832,64 +1164,14 @@ export const TaskEditorPaper = forwardRef<
               <div className="task-inline-section">
                 <Checklist
                   items={checklist}
-                  inputRef={checklistCreateInputRef}
-                  onAdd={async (title) => {
-                    const res = await window.api.checklist.create({ task_id: detail.task.id, title })
-                    if (!res.ok) {
-                      setActionError(res.error)
-                      return
-                    }
-                    setActionError(null)
-                    setDetail((d) => {
-                      if (!d) return d
-                      const nextItems = [...d.checklist_items, res.data].sort((a, b) => a.position - b.position)
-                      return { ...d, checklist_items: nextItems }
-                    })
-                  }}
-                  onToggle={async (itemId, done) => {
-                    const res = await window.api.checklist.update({ id: itemId, done })
-                    if (!res.ok) {
-                      setActionError(res.error)
-                      return
-                    }
-                    setActionError(null)
-                    setDetail((d) => {
-                      if (!d) return d
-                      const nextItems = d.checklist_items
-                        .map((it) => (it.id === res.data.id ? res.data : it))
-                        .sort((a, b) => a.position - b.position)
-                      return { ...d, checklist_items: nextItems }
-                    })
-                  }}
-                  onRename={async (itemId, title) => {
-                    const res = await window.api.checklist.update({ id: itemId, title })
-                    if (!res.ok) {
-                      setActionError(res.error)
-                      return
-                    }
-                    setActionError(null)
-                    setDetail((d) => {
-                      if (!d) return d
-                      const nextItems = d.checklist_items
-                        .map((it) => (it.id === res.data.id ? res.data : it))
-                        .sort((a, b) => a.position - b.position)
-                      return { ...d, checklist_items: nextItems }
-                    })
-                  }}
-                  onDelete={async (itemId) => {
-                    const res = await window.api.checklist.delete(itemId)
-                    if (!res.ok) {
-                      setActionError(res.error)
-                      return
-                    }
-                    setActionError(null)
-                    setDetail((d) => {
-                      if (!d) return d
-                      const nextItems = d.checklist_items.filter((it) => it.id !== itemId)
-                      if (nextItems.length === 0) setIsChecklistExpanded(false)
-                      return { ...d, checklist_items: nextItems }
-                    })
-                  }}
+                  variant="inline"
+                  createRequestToken={checklistCreateRequestToken}
+                  fallbackFocusRef={checklistActionButtonRef}
+                  onCreate={createChecklistItem}
+                  onToggle={toggleChecklistItem}
+                  onRename={renameChecklistItem}
+                  onDelete={deleteChecklistItem}
+                  onCollapseWhenEmpty={collapseInlineChecklist}
                 />
               </div>
             ) : null}
@@ -988,8 +1270,13 @@ export const TaskEditorPaper = forwardRef<
                 </button>
               ) : null}
 
-              {checklist.length === 0 ? (
-                <button type="button" className="button" onClick={() => openChecklistAndFocus()}>
+              {checklist.length === 0 && !isChecklistExpanded ? (
+                <button
+                  ref={checklistActionButtonRef}
+                  type="button"
+                  className="button"
+                  onClick={() => openChecklistAndFocus()}
+                >
                   Checklist
                 </button>
               ) : null}
@@ -1047,6 +1334,13 @@ export const TaskEditorPaper = forwardRef<
           <div className="error">
             <div className="error-code">{actionError.code}</div>
             <div>{actionError.message}</div>
+          </div>
+        ) : null}
+
+        {checklistError ? (
+          <div className="error">
+            <div className="error-code">{checklistError.code}</div>
+            <div>{checklistError.message}</div>
           </div>
         ) : null}
 
@@ -1390,62 +1684,11 @@ export const TaskEditorPaper = forwardRef<
           <div className="label">Checklist</div>
           <Checklist
             items={checklist}
-            onAdd={async (title) => {
-              const res = await window.api.checklist.create({ task_id: detail.task.id, title })
-              if (!res.ok) {
-                setActionError(res.error)
-                return
-              }
-              setActionError(null)
-              setDetail((d) => {
-                if (!d) return d
-                const nextItems = [...d.checklist_items, res.data].sort((a, b) => a.position - b.position)
-                return { ...d, checklist_items: nextItems }
-              })
-            }}
-            onToggle={async (itemId, done) => {
-              const res = await window.api.checklist.update({ id: itemId, done })
-              if (!res.ok) {
-                setActionError(res.error)
-                return
-              }
-              setActionError(null)
-              setDetail((d) => {
-                if (!d) return d
-                const nextItems = d.checklist_items
-                  .map((it) => (it.id === res.data.id ? res.data : it))
-                  .sort((a, b) => a.position - b.position)
-                return { ...d, checklist_items: nextItems }
-              })
-            }}
-            onRename={async (itemId, title) => {
-              const res = await window.api.checklist.update({ id: itemId, title })
-              if (!res.ok) {
-                setActionError(res.error)
-                return
-              }
-              setActionError(null)
-              setDetail((d) => {
-                if (!d) return d
-                const nextItems = d.checklist_items
-                  .map((it) => (it.id === res.data.id ? res.data : it))
-                  .sort((a, b) => a.position - b.position)
-                return { ...d, checklist_items: nextItems }
-              })
-            }}
-            onDelete={async (itemId) => {
-              const res = await window.api.checklist.delete(itemId)
-              if (!res.ok) {
-                setActionError(res.error)
-                return
-              }
-              setActionError(null)
-              setDetail((d) => {
-                if (!d) return d
-                const nextItems = d.checklist_items.filter((it) => it.id !== itemId)
-                return { ...d, checklist_items: nextItems }
-              })
-            }}
+            variant="overlay"
+            onCreate={createChecklistItem}
+            onToggle={toggleChecklistItem}
+            onRename={renameChecklistItem}
+            onDelete={deleteChecklistItem}
           />
         </div>
 
@@ -1495,85 +1738,335 @@ export const TaskEditorPaper = forwardRef<
 
 function Checklist({
   items,
-  inputRef,
-  onAdd,
+  variant,
+  createRequestToken,
+  fallbackFocusRef,
+  onCreate,
   onToggle,
   onRename,
   onDelete,
+  onCollapseWhenEmpty,
 }: {
   items: ChecklistItem[]
-  inputRef?: { current: HTMLInputElement | null }
-  onAdd: (title: string) => Promise<void>
-  onToggle: (id: string, done: boolean) => Promise<void>
-  onRename: (id: string, title: string) => Promise<void>
-  onDelete: (id: string) => Promise<void>
+  variant: TaskEditorVariant
+  createRequestToken?: number
+  fallbackFocusRef?: { current: HTMLButtonElement | null }
+  onCreate: (title: string) => Promise<ChecklistItem | null>
+  onToggle: (id: string, done: boolean) => Promise<ChecklistItem | null>
+  onRename: (id: string, title: string) => Promise<ChecklistItem | null>
+  onDelete: (id: string) => Promise<boolean>
+  onCollapseWhenEmpty?: () => void
 }) {
-  const [draft, setDraft] = useState('')
+  const rowKeyCounterRef = useRef(0)
+  const keyByIdRef = useRef(new Map<string, string>())
+  const editingRowKeyRef = useRef<string | null>(null)
+
+  const [rows, setRows] = useState<ChecklistRowView[]>(() =>
+    mergeChecklistRows([], items, keyByIdRef.current, rowKeyCounterRef, null)
+  )
+  const rowsRef = useRef(rows)
+  useEffect(() => {
+    rowsRef.current = rows
+  }, [rows])
+
+  useEffect(() => {
+    setRows((prev) => mergeChecklistRows(prev, items, keyByIdRef.current, rowKeyCounterRef, editingRowKeyRef.current))
+  }, [items])
+
+  const rowInputRefs = useRef(new Map<string, HTMLInputElement>())
+  const pendingFocusRef = useRef<
+    | { type: 'row'; key: string; selectAll?: boolean; cursor?: 'start' | 'end' }
+    | { type: 'fallback' }
+    | null
+  >(null)
+  const committingRowsRef = useRef(new Set<string>())
+  const composingRowsRef = useRef(new Set<string>())
+
+  const queueRowFocus = useCallback((key: string, options?: { selectAll?: boolean; cursor?: 'start' | 'end' }) => {
+    pendingFocusRef.current = { type: 'row', key, ...options }
+  }, [])
+
+  const queueFallbackFocus = useCallback(() => {
+    pendingFocusRef.current = { type: 'fallback' }
+  }, [])
+
+  useEffect(() => {
+    const pending = pendingFocusRef.current
+    if (!pending) return
+
+    if (pending.type === 'row') {
+      const input = rowInputRefs.current.get(pending.key)
+      if (!input) return
+      pendingFocusRef.current = null
+      input.focus()
+      if (pending.selectAll === false) {
+        const pos = pending.cursor === 'start' ? 0 : input.value.length
+        input.setSelectionRange(pos, pos)
+      } else {
+        input.select()
+      }
+      return
+    }
+
+    pendingFocusRef.current = null
+    fallbackFocusRef?.current?.focus()
+  })
+
+  const ensureEditableRow = useCallback(() => {
+    setRows((prev) => {
+      if (prev.length > 0) {
+        queueRowFocus(prev[0].key)
+        return prev
+      }
+
+      const key = createChecklistRowKey(rowKeyCounterRef)
+      queueRowFocus(key)
+
+      return [
+        {
+          key,
+          itemId: null,
+          done: false,
+          titleDraft: '',
+          persistedTitle: null,
+        },
+      ]
+    })
+  }, [queueRowFocus])
+
+  const lastCreateRequestRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (createRequestToken === undefined) return
+    if (lastCreateRequestRef.current === createRequestToken) return
+    lastCreateRequestRef.current = createRequestToken
+    ensureEditableRow()
+  }, [createRequestToken, ensureEditableRow])
+
+  const commitRow = useCallback(
+    async (rowKey: string, source: 'enter' | 'blur') => {
+      if (committingRowsRef.current.has(rowKey)) return
+
+      const snapshot = rowsRef.current.find((row) => row.key === rowKey)
+      if (!snapshot) return
+
+      committingRowsRef.current.add(rowKey)
+      try {
+        const rowIndex = rowsRef.current.findIndex((row) => row.key === rowKey)
+        if (rowIndex === -1) return
+
+        const nextTitle = snapshot.titleDraft.trim()
+        const nextRowKey = rowsRef.current[rowIndex + 1]?.key ?? null
+        const previousRowKey = rowsRef.current[rowIndex - 1]?.key ?? null
+
+        if (!nextTitle) {
+          let deleted = true
+          if (snapshot.itemId) {
+            deleted = await onDelete(snapshot.itemId)
+          }
+          if (!deleted) return
+
+          const remainingCount = rowsRef.current.length - 1
+          setRows((prev) => prev.filter((row) => row.key !== rowKey))
+
+          if (remainingCount === 0 && variant === 'inline') {
+            onCollapseWhenEmpty?.()
+            return
+          }
+
+          if (nextRowKey) {
+            queueRowFocus(nextRowKey)
+            return
+          }
+          if (previousRowKey) {
+            queueRowFocus(previousRowKey, { selectAll: false, cursor: 'end' })
+            return
+          }
+          queueFallbackFocus()
+          return
+        }
+
+        if (!snapshot.itemId) {
+          const created = await onCreate(nextTitle)
+          if (!created) return
+          keyByIdRef.current.set(created.id, snapshot.key)
+          setRows((prev) =>
+            prev.map((row) =>
+              row.key === rowKey
+                ? {
+                    ...row,
+                    itemId: created.id,
+                    done: created.done,
+                    titleDraft: created.title,
+                    persistedTitle: created.title,
+                  }
+                : row
+            )
+          )
+        } else if (snapshot.persistedTitle !== nextTitle) {
+          const updated = await onRename(snapshot.itemId, nextTitle)
+          if (!updated) return
+          setRows((prev) =>
+            prev.map((row) =>
+              row.key === rowKey
+                ? {
+                    ...row,
+                    done: updated.done,
+                    titleDraft: updated.title,
+                    persistedTitle: updated.title,
+                  }
+                : row
+            )
+          )
+        } else {
+          setRows((prev) =>
+            prev.map((row) => (row.key === rowKey ? { ...row, persistedTitle: nextTitle } : row))
+          )
+        }
+
+        if (source !== 'enter') return
+
+        const insertedKey = createChecklistRowKey(rowKeyCounterRef)
+        setRows((prev) => {
+          const currentIndex = prev.findIndex((row) => row.key === rowKey)
+          if (currentIndex === -1) return prev
+          const nextRows = [...prev]
+          nextRows.splice(currentIndex + 1, 0, {
+            key: insertedKey,
+            itemId: null,
+            done: false,
+            titleDraft: '',
+            persistedTitle: null,
+          })
+          return nextRows
+        })
+        queueRowFocus(insertedKey)
+      } finally {
+        committingRowsRef.current.delete(rowKey)
+      }
+    },
+    [onCollapseWhenEmpty, onCreate, onDelete, onRename, queueFallbackFocus, queueRowFocus, variant]
+  )
+
+  const handleToggle = useCallback(
+    (rowKey: string, done: boolean) => {
+      const snapshot = rowsRef.current.find((row) => row.key === rowKey)
+      if (!snapshot) return
+
+      setRows((prev) => prev.map((row) => (row.key === rowKey ? { ...row, done } : row)))
+
+      if (!snapshot.itemId) return
+
+      void (async () => {
+        const updated = await onToggle(snapshot.itemId as string, done)
+        if (!updated) {
+          setRows((prev) => prev.map((row) => (row.key === rowKey ? { ...row, done: snapshot.done } : row)))
+          return
+        }
+
+        setRows((prev) =>
+          prev.map((row) =>
+            row.key === rowKey
+              ? {
+                  ...row,
+                  done: updated.done,
+                  persistedTitle: updated.title,
+                }
+              : row
+          )
+        )
+      })()
+    },
+    [onToggle]
+  )
 
   return (
-    <div>
-      <div className="checklist-create">
-        <input
-          ref={inputRef}
-          className="input"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Add checklist item…"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              const title = draft.trim()
-              if (!title) return
-              void (async () => {
-                await onAdd(title)
-                setDraft('')
-              })()
-            }
-          }}
-        />
-        <button
-          type="button"
-          className="button"
-          onClick={() => {
-            const title = draft.trim()
-            if (!title) return
-            void (async () => {
-              await onAdd(title)
-              setDraft('')
-            })()
-          }}
-        >
-          Add
-        </button>
-      </div>
+    <ul className="checklist">
+      {rows.map((row) => (
+        <li key={row.key} className={`checklist-row${row.done ? ' is-done' : ''}`}>
+          <label className="task-checkbox" aria-label="Checklist item done">
+            <input
+              type="checkbox"
+              checked={row.done}
+              onChange={(e) => handleToggle(row.key, e.target.checked)}
+              disabled={!row.itemId}
+            />
+          </label>
 
-      <ul className="checklist">
-        {items.map((item) => (
-          <li key={item.id} className={`checklist-row${item.done ? ' is-done' : ''}`}>
-            <label className="task-checkbox">
-              <input
-                type="checkbox"
-                checked={item.done}
-                onChange={(e) => void onToggle(item.id, e.target.checked)}
-              />
-            </label>
-            <button
-              type="button"
-              className="checklist-title"
-              onClick={() => {
-                const next = prompt('Edit item', item.title)
-                if (!next) return
-                void onRename(item.id, next)
-              }}
-            >
-              {item.title}
-            </button>
-            <button type="button" className="button button-ghost" onClick={() => void onDelete(item.id)}>
-              Delete
-            </button>
-          </li>
-        ))}
-        {items.length === 0 ? <li className="nav-muted">(empty)</li> : null}
-      </ul>
-    </div>
+          <input
+            ref={(el) => {
+              if (el) rowInputRefs.current.set(row.key, el)
+              else rowInputRefs.current.delete(row.key)
+            }}
+            className="checklist-title-input"
+            value={row.titleDraft}
+            placeholder="Checklist item"
+            onFocus={() => {
+              editingRowKeyRef.current = row.key
+            }}
+            onChange={(e) => {
+              const nextTitle = e.target.value
+              setRows((prev) =>
+                prev.map((candidate) =>
+                  candidate.key === row.key
+                    ? {
+                        ...candidate,
+                        titleDraft: nextTitle,
+                      }
+                    : candidate
+                )
+              )
+            }}
+            onCompositionStart={() => {
+              composingRowsRef.current.add(row.key)
+            }}
+            onCompositionEnd={() => {
+              composingRowsRef.current.delete(row.key)
+            }}
+            onBlur={() => {
+              editingRowKeyRef.current = null
+              composingRowsRef.current.delete(row.key)
+              void commitRow(row.key, 'blur')
+            }}
+            onKeyDown={(e) => {
+              const isDeleteKey = e.key === 'Backspace' || e.key === 'Delete'
+
+              if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ' || isDeleteKey) {
+                e.stopPropagation()
+              }
+
+              if (isDeleteKey && row.titleDraft === '') {
+                e.preventDefault()
+                void commitRow(row.key, 'blur')
+                return
+              }
+
+              if (e.key !== 'Enter') return
+
+              const nativeEvent = e.nativeEvent as KeyboardEvent & { isComposing?: boolean; keyCode?: number }
+              if (composingRowsRef.current.has(row.key) || nativeEvent.isComposing || nativeEvent.keyCode === 229) {
+                return
+              }
+
+              e.preventDefault()
+              void commitRow(row.key, 'enter')
+            }}
+          />
+        </li>
+      ))}
+
+      {rows.length === 0 ? (
+        <li className="checklist-empty">
+          <button
+            type="button"
+            className="checklist-empty-entry"
+            onClick={() => {
+              ensureEditableRow()
+            }}
+          >
+            {variant === 'overlay' ? 'Create first checklist item' : 'Create checklist item'}
+          </button>
+        </li>
+      ) : null}
+    </ul>
   )
 }

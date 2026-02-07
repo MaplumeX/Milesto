@@ -62,20 +62,24 @@ TBD - created by archiving change inline-task-editor-row-expand. Update Purpose 
 - **THEN** Action Bar 不显示 `Checklist` 按钮
 
 ### Requirement: Checklist button focuses add-item input
-当 checklist 为空且用户点击 `Checklist` 按钮时，系统 MUST 展示 checklist 的新增输入区域，并将焦点置于“新增 checklist item”的输入框。
+当 checklist 为空且用户点击 `Checklist` 按钮时，系统 MUST 创建一条空 checklist 行并立即进入编辑状态。
 
-#### Scenario: Click Checklist focuses add input
+系统 MUST 将焦点置于该新行的标题输入框，且 MUST NOT 依赖独立的“新增输入区域”。
+
+#### Scenario: Click Checklist creates and focuses first checklist row
 - **WHEN** 任务展开且 checklist 为空
 - **WHEN** 用户点击 `Checklist` 按钮
-- **THEN** UI 展示 checklist 新增输入区域
-- **THEN** 焦点移动到“Add checklist item…”输入框
+- **THEN** 系统创建一条空 checklist 行并显示标题输入框
+- **THEN** 焦点移动到该行标题输入框
+- **THEN** UI 不显示独立的 checklist 新增输入框
 
 ### Requirement: Checklist section collapses when it becomes empty
-当用户删除最后一个 checklist 项后，系统 MUST 自动收起 checklist 区域，并重新显示 `Checklist` 按钮（作为再次新增入口）。
+当 checklist 的最后一项被删除后，系统 MUST 自动收起 checklist 区域，并重新显示 `Checklist` 按钮作为再次新增入口。
 
-#### Scenario: Delete last checklist item collapses checklist
+#### Scenario: Clearing and submitting the last item collapses checklist
 - **WHEN** 任务展开且 checklist 仅剩最后一项
-- **WHEN** 用户删除该项
+- **WHEN** 用户将该项标题清空并提交（`Enter` 或失焦）
+- **THEN** 系统删除该 checklist 项
 - **THEN** checklist 区域被自动收起
 - **THEN** Action Bar 重新显示 `Checklist` 按钮
 
@@ -146,7 +150,12 @@ TBD - created by archiving change inline-task-editor-row-expand. Update Purpose 
 - **THEN** 系统将 `is_someday` 设为 false
 
 ### Requirement: Schedule/Due/Tags are edited via pickers without expanding editor height
-`Schedule` / `Due` / `Tags` 的编辑 MUST 通过 picker（popover 或原生 date picker）完成，MUST NOT 通过在编辑器内插入展开区块来提供选择 UI。
+`Schedule` / `Due` / `Tags` 的编辑 MUST 通过 floating picker 完成，MUST NOT 通过在编辑器内插入展开区块来提供选择 UI，从而避免行内编辑器高度因临时选择器而抖动。
+
+其中：
+
+- `Schedule` 与 `Due` picker MUST 在同一个 popover 面板内直接呈现可点击的日历（嵌入式 calendar），MUST NOT 依赖原生 `input[type="date"]` 的系统日期选择面板（避免“面板套日历面板”）。
+- 日历的周起始 MUST 为周一。
 
 Schedule picker MUST 支持设置 Someday 这一状态，并保持与 `scheduled_at` 互斥。
 
@@ -154,4 +163,92 @@ Schedule picker MUST 支持设置 Someday 这一状态，并保持与 `scheduled
 - **WHEN** 任务展开
 - **WHEN** 用户通过按钮或摘要 chip 打开 `Schedule`/`Due`/`Tags` picker
 - **THEN** 行内编辑器的布局不会因为“展开选择区块”而发生额外增高
+
+#### Scenario: Schedule picker shows embedded calendar and actions in one panel
+- **WHEN** 用户打开 `Schedule` picker
+- **THEN** popover 面板内可见嵌入式日历
+- **THEN** popover 面板内可见 `Someday` / `Today` / `Clear` 操作按钮
+- **THEN** 用户无需打开系统日期选择面板即可完成日期选择
+
+#### Scenario: Due picker shows embedded calendar in one panel
+- **WHEN** 用户打开 `Due` picker
+- **THEN** popover 面板内可见嵌入式日历
+- **THEN** 用户无需打开系统日期选择面板即可完成日期选择
+
+#### Scenario: Calendar week starts on Monday
+- **WHEN** 用户打开 `Schedule` 或 `Due` picker
+- **THEN** 日历的第一列为周一
+
+### Requirement: Tags picker allows quick-create of new tags
+当用户打开行内编辑器的 `Tags` picker 时，picker 面板顶部 MUST 显示一个用于创建新 tag 的输入框。
+
+该输入框的行为 MUST 满足：
+
+- 输入框仅用于创建：不做 tag 列表过滤/搜索；下方 tags 复选列表仍然完整可见。
+- 当用户在输入框内按下 `Enter` 时：
+  - 若输入内容为空（trim 后为空），系统 MUST 不执行创建。
+  - 若已存在同名 tag（trim 后、大小写不敏感匹配），系统 MUST 不创建重复 tag，而是直接选中该 tag。
+  - 否则系统 MUST 创建新 tag，并在创建成功后自动将其设为已选中。
+
+#### Scenario: Tags picker shows create input
+- **WHEN** 任务处于行内展开状态
+- **WHEN** 用户打开 `Tags` picker
+- **THEN** picker 面板顶部显示创建输入框
+- **THEN** 下方仍显示 tags 复选列表（不因输入而过滤）
+
+#### Scenario: Enter creates and selects a new tag
+- **WHEN** 用户打开 `Tags` picker
+- **WHEN** 用户在创建输入框中输入一个不存在的 tag 标题并按下 `Enter`
+- **THEN** 系统创建该 tag
+- **THEN** 系统自动将新 tag 选中（勾选）
+
+#### Scenario: Enter selects existing tag instead of creating duplicate
+- **WHEN** 用户打开 `Tags` picker
+- **WHEN** 已存在标题为 "Work" 的 tag
+- **WHEN** 用户在创建输入框中输入 " work " 并按下 `Enter`
+- **THEN** 系统不创建新的 tag
+- **THEN** 系统将标题为 "Work" 的 tag 设为已选中
+
+### Requirement: Checklist rows are edited inline without separate add or delete controls
+行内编辑器中的 checklist MUST 采用“每行可编辑”的结构：每项包含完成勾选与标题输入框。
+
+系统 MUST NOT 渲染独立的 `Add` 输入框、`Add` 按钮或显式 `Delete` 按钮；标题编辑 MUST NOT 通过 `prompt` 弹窗完成。
+
+#### Scenario: Checklist renders row-level inputs only
+- **WHEN** 用户打开任务行内编辑器并查看 checklist
+- **THEN** 每个 checklist 项以行内输入框形式可直接编辑标题
+- **THEN** UI 不显示 `Add` 按钮与 `Delete` 按钮
+- **THEN** 标题编辑不会触发浏览器 `prompt`
+
+### Requirement: Enter submits current checklist row and creates next row
+在 checklist 标题输入框中按下 `Enter`（非输入法组合态）时，系统 MUST 提交当前行，并在其后创建下一条空行继续编辑。
+
+#### Scenario: Enter on non-empty row creates next editable row
+- **WHEN** 用户正在编辑一个非空 checklist 项标题
+- **WHEN** 用户按下 `Enter`
+- **THEN** 系统持久化当前行变更
+- **THEN** 系统在其后创建一条空 checklist 行
+- **THEN** 焦点移动到新行标题输入框
+
+#### Scenario: Enter during IME composition does not submit
+- **WHEN** 用户正在使用输入法组合输入 checklist 标题
+- **WHEN** 用户按下 `Enter` 用于候选确认
+- **THEN** 系统不会提交当前 checklist 行
+- **THEN** 系统不会创建下一条 checklist 行
+
+### Requirement: Submitting an empty checklist title removes that row
+当 checklist 标题在提交时为空时，系统 MUST 视为删除该行。
+
+对已持久化项，系统 MUST 调用删除语义并从列表移除；对仅本地临时项，系统 MUST 直接丢弃且 MUST NOT 创建空标题持久化记录。
+
+#### Scenario: Submit empty title deletes persisted row
+- **WHEN** 某 checklist 项已存在于持久化数据中
+- **WHEN** 用户将其标题清空并提交（`Enter` 或失焦）
+- **THEN** 系统删除该 checklist 项并从 UI 移除
+
+#### Scenario: Submit empty title discards temporary row
+- **WHEN** 某 checklist 行为未持久化的临时空行
+- **WHEN** 用户提交空标题（`Enter` 或失焦）
+- **THEN** 系统直接移除该临时行
+- **THEN** 系统不会产生新的空标题 checklist 记录
 
