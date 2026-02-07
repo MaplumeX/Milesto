@@ -534,12 +534,6 @@ body {
   color: var(--muted);
 }
 
-.project-group-meta {
-  font-size: 10px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
 .project-group-actions {
   display: flex;
   gap: 8px;
@@ -622,11 +616,6 @@ body {
 
 .overlay-paper-title {
   font-weight: 700;
-}
-
-.overlay-paper-status {
-  font-size: 10px;
-  color: var(--muted);
 }
 
 @keyframes overlay-paper-in {
@@ -728,11 +717,6 @@ body {
   font-size: 21px;
   letter-spacing: -0.03em;
   margin: 0;
-}
-
-.page-meta {
-  color: var(--muted);
-  font-size: 11px;
 }
 
 .task-create {
@@ -939,11 +923,6 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.task-inline-status {
-  font-size: 10px;
-  color: var(--muted);
 }
 
 .task-inline-title {

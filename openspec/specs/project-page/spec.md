@@ -64,7 +64,7 @@ The Project page SHALL provide a single control to show/hide completed tasks.
 
 - Completed tasks SHALL be collapsed by default when entering the Project page.
 - The collapse state SHALL NOT be persisted (it resets on navigation / reload).
-- The control label SHALL include the total number of completed tasks in the project.
+- The control label SHALL use a stable text label (e.g. `Completed`) and SHALL NOT include numeric totals.
 
 #### Scenario: Completed tasks toggle expands and collapses
 - **WHEN** the user toggles the Completed control from collapsed to expanded
@@ -76,6 +76,10 @@ The Project page SHALL provide a single control to show/hide completed tasks.
 - **WHEN** the user expands completed tasks
 - **AND** the user navigates away and returns to the Project page
 - **THEN** completed tasks SHALL be collapsed again by default
+
+#### Scenario: Completed label does not expose numeric count
+- **WHEN** the user views the Project page
+- **THEN** the Completed control label SHALL NOT include a numeric count
 
 ### Requirement: Project actions are available via an overflow menu
 Project-level actions that exist today (e.g. rename project, move to area, reopen project) SHALL remain available from the Project page.
@@ -315,4 +319,22 @@ The system SHALL provide a keyboard-only interaction to reorder a selected secti
 - **WHEN** the user invokes the section reorder keyboard shortcut to move the section up or down by one position
 - **THEN** the system SHALL reorder the section accordingly
 - **AND** refreshing the Project page SHALL preserve the updated section order
+
+### Requirement: Project task surfaces do not display numeric counters
+On the Project page, task-related UI surfaces SHALL NOT display numeric counters for `open`, `done`, or `total` values.
+
+This rule applies to:
+- project header meta summary
+- section header meta summary
+- section drag overlay meta summary
+- project action labels (including completion action labels)
+
+#### Scenario: Header and section surfaces are counter-free
+- **WHEN** the user is on `/projects/:projectId`
+- **THEN** the project header SHALL NOT show `open/done/total` numeric summaries
+- **THEN** section headers and section drag overlays SHALL NOT show `open/done` numeric summaries
+
+#### Scenario: Project completion action label is counter-free
+- **WHEN** the user opens the Project actions menu
+- **THEN** the completion action label SHALL NOT include a numeric count suffix (e.g. `(N)`)
 

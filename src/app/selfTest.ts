@@ -1,3 +1,5 @@
+import type { TaskDetail } from '../../shared/schemas/task-detail'
+
 type SelfTestResult = {
   ok: boolean
   failures: string[]
@@ -19,6 +21,28 @@ async function waitFor<T>(
   while (Date.now() - start < timeoutMs) {
     const v = get()
     if (v) return v
+    await sleep(intervalMs)
+  }
+
+  throw new Error(`Timeout waiting for: ${label}`)
+}
+
+async function waitForTaskDetail(
+  label: string,
+  taskId: string,
+  predicate: (detail: TaskDetail) => boolean,
+  opts?: { timeoutMs?: number; intervalMs?: number }
+): Promise<TaskDetail> {
+  const timeoutMs = opts?.timeoutMs ?? 10_000
+  const intervalMs = opts?.intervalMs ?? 80
+  const start = Date.now()
+
+  while (Date.now() - start < timeoutMs) {
+    const res = await window.api.task.getDetail(taskId)
+    if (!res.ok) {
+      throw new Error(`${label}: getDetail failed: ${res.error.code}: ${res.error.message}`)
+    }
+    if (predicate(res.data)) return res.data
     await sleep(intervalMs)
   }
 
@@ -328,7 +352,7 @@ function assertInlineCalendarPopover(popover: HTMLElement, label: string) {
   assertPopoverWithinViewport(popover, label)
 }
 
-async function setScheduleToSomeday(paper: HTMLElement, label: string) {
+async function setScheduleToSomeday(paper: HTMLElement, label: string, taskId: string) {
   const rightBar = getInlineActionBarRight(paper)
   const scheduleBtn = findButtonByText(rightBar, 'Schedule')
   const scheduledChip = Array.from(paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find((b) =>
@@ -367,15 +391,16 @@ async function setScheduleToSomeday(paper: HTMLElement, label: string) {
     return (chip.textContent ?? '').includes('Someday') ? true : null
   })
 
-  // Wait for persistence (debounced + serialized save).
-  await waitFor(`${label}: save status is Saved`, () => {
-    const el = paper.querySelector<HTMLElement>('.task-inline-status')
-    if (!el) return null
-    return (el.textContent ?? '').trim() === 'Saved' ? true : null
-  }, { timeoutMs: 15_000 })
+  // Wait for persistence (debounced + serialized save) via task detail, not UI copy.
+  await waitForTaskDetail(
+    `${label}: schedule persisted`,
+    taskId,
+    (detail) => detail.task.is_someday && detail.task.scheduled_at === null,
+    { timeoutMs: 15_000 }
+  )
 }
 
-async function setDueToToday(paper: HTMLElement, label: string, today: string) {
+async function setDueToToday(paper: HTMLElement, label: string, today: string, taskId: string) {
   const rightBar = getInlineActionBarRight(paper)
   const dueBtn = findButtonByText(rightBar, 'Due')
   const dueChip = Array.from(paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find((b) =>
@@ -418,12 +443,13 @@ async function setDueToToday(paper: HTMLElement, label: string, today: string) {
     return (chip.textContent ?? '').includes(today) ? true : null
   })
 
-  // Wait for persistence (debounced + serialized save).
-  await waitFor(`${label}: save status is Saved (due)`, () => {
-    const el = paper.querySelector<HTMLElement>('.task-inline-status')
-    if (!el) return null
-    return (el.textContent ?? '').trim() === 'Saved' ? true : null
-  }, { timeoutMs: 15_000 })
+  // Wait for persistence (debounced + serialized save) via task detail, not UI copy.
+  await waitForTaskDetail(
+    `${label}: due persisted`,
+    taskId,
+    (detail) => detail.task.due_at === today,
+    { timeoutMs: 15_000 }
+  )
 }
 
 async function waitForUpcomingHeaderNearTop(params: {
@@ -503,14 +529,6 @@ async function openEditorByDoubleClick(params: {
     `${label}: notes input`,
     () => paper.querySelector<HTMLTextAreaElement>('#task-notes')
   )
-
-  const status = await waitFor(
-    `${label}: save status`,
-    () => paper.querySelector<HTMLElement>('.task-inline-status')
-  )
-  if (!(status.textContent ?? '').trim()) {
-    throw new Error(`${label}: missing save status text`)
-  }
 
   const bar = getInlineActionBarRight(paper)
   const scheduleBtn = findButtonByText(bar, 'Schedule')
@@ -964,10 +982,6 @@ async function runSelfTest(): Promise<SelfTestResult> {
     const finalInboxATitle = `${token} Inbox A FINAL ${Date.now()}`
     setNativeInputValue(openedA.titleInput, `${token} Inbox A 1`)
     await sleep(520)
-    await waitFor('Inbox A shows Saving…', () => {
-      const status = openedA.paper.querySelector<HTMLElement>('.task-inline-status')
-      return (status?.textContent ?? '').includes('Saving') ? true : null
-    })
     setNativeInputValue(openedA.titleInput, finalInboxATitle)
 
     dispatchDblClick(inboxBButton)
@@ -1761,7 +1775,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
       })
 
       // Picker QA (inline): ensure Due uses embedded calendar, and Tags quick-create works.
-      await setDueToToday(openedAnytime.paper, 'Anytime A', today)
+      await setDueToToday(openedAnytime.paper, 'Anytime A', today, anytimeId)
 
       const workTitle = `${token} Work`
       const workCreateRes = await window.api.tag.create({ title: workTitle })
@@ -1844,7 +1858,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
         document.querySelector<HTMLElement>('.task-inline-popover') ? null : true
       )
 
-      await setScheduleToSomeday(openedAnytime.paper, 'Anytime A')
+      await setScheduleToSomeday(openedAnytime.paper, 'Anytime A', anytimeId)
 
       const anytimeDetailAfter = await window.api.task.getDetail(anytimeId)
       if (!anytimeDetailAfter.ok) {

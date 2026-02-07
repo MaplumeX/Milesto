@@ -264,8 +264,6 @@ export const TaskEditorPaper = forwardRef<
       lastSavedRef.current = lastSaved
     }, [lastSaved])
 
-    const isDirty = !!draft && !!lastSaved && !isDraftEqual(normalizeDraft(draft), lastSaved)
-
     function focusTitle() {
       titleInputRef.current?.focus()
     }
@@ -765,9 +763,6 @@ export const TaskEditorPaper = forwardRef<
         setChecklistCreateRequestToken((v) => v + 1)
       }
 
-      const saveStatusLabel =
-        savePhase === 'saving' ? 'Saving…' : savePhase === 'error' ? 'Error' : isDirty ? 'Unsaved' : 'Saved'
-
       const openSchedulePicker = (anchorEl: HTMLElement) => {
         setActivePicker({ kind: 'schedule', anchorEl })
       }
@@ -1098,24 +1093,19 @@ export const TaskEditorPaper = forwardRef<
               placeholder="新建任务"
             />
 
-            <div className="task-inline-header-right">
-              <div className="task-inline-status" aria-live="polite">
-                {saveStatusLabel}
-              </div>
-
             {savePhase === 'error' ? (
-              <button
-                type="button"
-                className="button button-ghost"
-                onClick={() => {
-                  requestSave(draft)
-                }}
-              >
-                Retry
-              </button>
+              <div className="task-inline-header-right">
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => {
+                    requestSave(draft)
+                  }}
+                >
+                  Retry
+                </button>
+              </div>
             ) : null}
-
-            </div>
           </div>
 
           <div className="task-inline-content">
@@ -1294,16 +1284,6 @@ export const TaskEditorPaper = forwardRef<
       <div className={paperClassName}>
         <div className="overlay-paper-header">
           <div className="overlay-paper-title">Task</div>
-
-          <div className="overlay-paper-status" aria-live="polite">
-            {savePhase === 'saving'
-              ? 'Saving…'
-              : savePhase === 'error'
-                ? 'Error'
-                : isDirty
-                  ? 'Unsaved'
-                  : 'Saved'}
-          </div>
 
           {savePhase === 'error' ? (
             <button

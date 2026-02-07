@@ -19,12 +19,19 @@ TBD - created by archiving change task-editor-overlay-paper. Update Purpose afte
 - **THEN** 最终数据库状态与用户最后一次输入一致
 
 ### Requirement: Save state is visible
-任务编辑器 MUST 向用户展示保存状态（例如 Saving / Saved / Error），并在保存失败时明确告知。
+任务编辑器 MUST 采用“成功静默、失败可见”的保存反馈策略。
 
-#### Scenario: User sees saving feedback
-- **WHEN** 系统正在执行自动保存
-- **THEN** UI 显示“Saving”（或等价状态）
-- **THEN** 保存成功后 UI 显示“Saved”（或等价状态）
+- 自动保存成功时，UI MUST NOT 展示持续性的保存状态文本（例如 `Saving` / `Saved` / `Unsaved`）。
+- 自动保存失败时，UI MUST 明确展示错误状态，并提供可执行的重试路径。
+
+#### Scenario: Successful auto-save remains silent
+- **WHEN** 用户在任务编辑器中修改任意任务字段且自动保存成功
+- **THEN** UI 不显示 `Saving` / `Saved` / `Unsaved`（或等价持续状态文案）
+
+#### Scenario: Save failure remains visible and actionable
+- **WHEN** 自动保存失败
+- **THEN** UI 显示错误状态（或等价错误提示）
+- **THEN** 用户可以触发重试
 
 ### Requirement: Close flushes pending changes
 用户收起任务编辑器（Esc/关闭手势/Cmd+Return 或等价操作）时，系统 MUST flush 所有未持久化的变更，包括：

@@ -259,8 +259,6 @@ export function TaskList({
     },
   })
 
-  const openTasks = useMemo(() => orderedTasks.filter((t) => t.status === 'open'), [orderedTasks])
-
   const lastSelectedIndexRef = useRef(0)
   useEffect(() => {
     if (!selectedTaskId) return
@@ -377,7 +375,6 @@ export function TaskList({
         <h1 className="page-title">{title}</h1>
         <div className="row" style={{ marginTop: 0 }}>
           {headerActions}
-          <div className="page-meta">{openTasks.length} open</div>
         </div>
       </header>
 

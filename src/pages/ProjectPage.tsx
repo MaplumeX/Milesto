@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ForwardedRef, RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams } from 'react-router-dom'
@@ -133,7 +133,6 @@ export function ProjectPage() {
   }, [notesDraft, project?.id, project?.notes])
 
   const openCount = openTasks.length
-  const totalCount = openCount + doneCount
 
   useEffect(() => {
     if (!isCompletedExpanded) return
@@ -195,9 +194,7 @@ export function ProjectPage() {
     }
   }, [isMenuOpen])
 
-  const completedLabel = useMemo(() => {
-    return `Completed ${doneCount}`
-  }, [doneCount])
+  const completedLabel = 'Completed'
 
   if (!pid) {
     return (
@@ -255,9 +252,6 @@ export function ProjectPage() {
             >
               ...
             </button>
-            <div className="page-meta">
-              {openCount} open | {doneCount} done | {totalCount} total
-            </div>
           </div>
         </header>
 
@@ -268,7 +262,6 @@ export function ProjectPage() {
                 anchorEl={menuButtonRef.current}
                 project={project}
                 areas={areas}
-                openTaskCount={openCount}
                 onClose={() => setIsMenuOpen(false)}
                 onChangeArea={async (nextAreaId) => {
                   const res = await window.api.project.update({ id: project.id, area_id: nextAreaId })
@@ -451,7 +444,6 @@ const ProjectMenu = forwardRef(function ProjectMenu(
     anchorEl,
     project,
     areas,
-    openTaskCount,
     onClose,
     onChangeArea,
     onRename,
@@ -461,7 +453,6 @@ const ProjectMenu = forwardRef(function ProjectMenu(
     anchorEl: HTMLElement
     project: Project
     areas: Area[]
-    openTaskCount: number
     onClose: () => void
     onChangeArea: (nextAreaId: string | null) => Promise<void>
     onRename: () => Promise<void>
@@ -560,7 +551,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                 })()
               }}
             >
-              Mark Done ({openTaskCount})
+              Mark Done
             </button>
           </div>
         )}

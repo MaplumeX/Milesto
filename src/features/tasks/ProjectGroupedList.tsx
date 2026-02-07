@@ -42,8 +42,6 @@ type Row =
       key: string
       title: string
       sectionId: string | null
-      openCount: number
-      doneCount: number | null
     }
   | { type: 'task'; task: TaskListItem }
 
@@ -192,8 +190,6 @@ function ProjectGroupHeaderRow({
   containerId,
   sectionId,
   title,
-  openCount,
-  doneCount,
   isSelected,
   isDragging,
   isEditing,
@@ -211,8 +207,6 @@ function ProjectGroupHeaderRow({
   containerId: ContainerId
   sectionId: string
   title: string
-  openCount: number
-  doneCount: number | null
   isSelected: boolean
   isDragging: boolean
   isEditing: boolean
@@ -306,10 +300,6 @@ function ProjectGroupHeaderRow({
                 onCommitTitle(next)
               }}
             />
-            <div className="project-group-meta">
-              {openCount} open
-              {doneCount !== null ? ` · ${doneCount} done` : null}
-            </div>
           </div>
         ) : (
           <button
@@ -330,10 +320,6 @@ function ProjectGroupHeaderRow({
           >
             <div className={`project-group-title${title.trim() ? '' : ' is-placeholder'}`}>
               {title.trim() ? title : '(untitled)'}
-            </div>
-            <div className="project-group-meta">
-              {openCount} open
-              {doneCount !== null ? ` · ${doneCount} done` : null}
             </div>
           </button>
         )}
@@ -389,12 +375,8 @@ function SortableProjectTaskRow({
 
 function ProjectSectionDragOverlay({
   title,
-  openCount,
-  doneCount,
 }: {
   title: string
-  openCount: number
-  doneCount: number | null
 }) {
   const hasTitle = title.trim().length > 0
 
@@ -404,10 +386,6 @@ function ProjectSectionDragOverlay({
       <div className="project-section-dnd-overlay-edge project-section-dnd-overlay-edge-2" />
       <div className="project-section-dnd-overlay-card">
         <div className={`project-group-title${hasTitle ? '' : ' is-placeholder'}`}>{hasTitle ? title : '(untitled)'}</div>
-        <div className="project-group-meta">
-          {openCount} open
-          {doneCount !== null ? ` · ${doneCount} done` : null}
-        </div>
       </div>
     </div>
   )
@@ -891,14 +869,8 @@ export function ProjectGroupedList({
     const section = sections.find((s) => s.id === activeSectionId)
     if (!section) return null
 
-    const openCount = openTasks.filter((task) => task.section_id === activeSectionId).length
-    const doneCount = doneTasks ? doneTasks.filter((task) => task.section_id === activeSectionId).length : null
-    return {
-      section,
-      openCount,
-      doneCount,
-    }
-  }, [activeSectionId, doneTasks, openTasks, sections])
+    return { section }
+  }, [activeSectionId, sections])
 
   const listboxRef = useRef<HTMLDivElement | null>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
@@ -994,8 +966,6 @@ export function ProjectGroupedList({
         key: `g:${s.id}`,
         title: s.title,
         sectionId: s.id,
-        openCount: openIds.length,
-        doneCount: doneTasks ? (done?.length ?? 0) : null,
       })
       groupRowIndexBySectionId.set(s.id, groupIndex)
 
@@ -1319,8 +1289,6 @@ export function ProjectGroupedList({
                   containerId={containerId}
                   sectionId={sectionId}
                   title={row.title}
-                  openCount={row.openCount}
-                  doneCount={row.doneCount}
                   isSelected={isSelected}
                   isDragging={activeSectionId === sectionId}
                   isEditing={isEditing}
@@ -1429,11 +1397,7 @@ export function ProjectGroupedList({
         ? createPortal(
             <DragOverlay dropAnimation={dropAnimation}>
               {activeSection ? (
-                <ProjectSectionDragOverlay
-                  title={activeSection.section.title}
-                  openCount={activeSection.openCount}
-                  doneCount={activeSection.doneCount}
-                />
+                <ProjectSectionDragOverlay title={activeSection.section.title} />
               ) : activeTask ? (
                 <div className="task-dnd-overlay">
                   <TaskRow
