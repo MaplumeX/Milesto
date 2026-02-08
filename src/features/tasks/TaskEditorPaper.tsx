@@ -309,6 +309,17 @@ export const TaskEditorPaper = forwardRef<
         if (e.button !== 0) return
         if (!(e.target instanceof Node)) return
 
+        // When the inline editor is open, the app shows an edit-mode bottom bar (Move/Delete/More)
+        // rendered outside the editor root. Interacting with it should NOT trigger editor close.
+        // Same for its portal popovers.
+        const targetEl = e.target instanceof Element ? e.target : null
+        const isInsideEditBottomBar = !!targetEl?.closest('[data-content-bottom-actions-edit="true"]')
+        const isInsideBottomBarPopover = !!targetEl?.closest('[data-content-bottom-popover]')
+        if (isInsideEditBottomBar || isInsideBottomBarPopover) {
+          if (activePicker) setActivePicker(null)
+          return
+        }
+
         const root = inlineRootRef.current
         if (!root) return
         const popover = popoverRef.current
