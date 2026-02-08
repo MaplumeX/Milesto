@@ -17,6 +17,7 @@ export const messagesEn = {
     search: 'Search',
     schedule: 'Schedule',
     move: 'Move',
+    more: 'More',
     addProject: '+ Project',
     addTag: '+ Tag',
     untitled: '(untitled)',
@@ -104,6 +105,7 @@ export const messagesEn = {
     titlePlaceholder: 'New task',
     notesPlaceholder: 'Notes',
     restore: 'Restore',
+    deleteConfirm: 'Delete task?',
   },
   upcoming: {
     nextWeek: 'Next Week',
@@ -177,6 +179,7 @@ export const messagesZhCN = {
     search: '搜索',
     schedule: '计划',
     move: '移动',
+    more: '更多',
     addProject: '+ 项目',
     addTag: '+ 标签',
     untitled: '（无标题）',
@@ -264,6 +267,7 @@ export const messagesZhCN = {
     titlePlaceholder: '新建任务',
     notesPlaceholder: '备注',
     restore: '恢复',
+    deleteConfirm: '删除任务？',
   },
   upcoming: {
     nextWeek: '下周',

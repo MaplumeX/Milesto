@@ -18,32 +18,37 @@ type ActivePopover = {
 } | null
 
 export function ContentBottomBarActions({
-  selectedTaskId,
+  taskId,
+  variant = 'list',
+  onEditModeActionComplete,
   areas,
   openProjects,
   bumpRevision,
 }: {
-  selectedTaskId: string | null
+  taskId: string | null
+  variant?: 'list' | 'edit'
+  onEditModeActionComplete?: () => void
   areas: Area[]
   openProjects: Project[]
   bumpRevision: () => void
 }) {
   const { t } = useTranslation()
+  const isEditMode = variant === 'edit'
   const [activePopover, setActivePopover] = useState<ActivePopover>(null)
   const activePopoverRef = useRef<ActivePopover>(null)
   useEffect(() => {
     activePopoverRef.current = activePopover
   }, [activePopover])
 
-  const selectedTaskIdRef = useRef<string | null>(selectedTaskId)
+  const taskIdRef = useRef<string | null>(taskId)
   useEffect(() => {
-    selectedTaskIdRef.current = selectedTaskId
-  }, [selectedTaskId])
+    taskIdRef.current = taskId
+  }, [taskId])
 
   const popoverRef = useRef<HTMLDivElement | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
-  const isTaskSelected = selectedTaskId !== null
+  const isTaskSelected = taskId !== null
   const today = useMemo(() => formatLocalDate(new Date()), [])
 
   const closePopover = useCallback((opts?: { restoreFocus?: boolean }) => {
@@ -104,27 +109,32 @@ export function ContentBottomBarActions({
   useEffect(() => {
     // If selection is cleared while a popover is open, dismiss it.
     if (!activePopover) return
-    if (selectedTaskId !== null) return
+    if (taskId !== null) return
     closePopover({ restoreFocus: true })
-  }, [activePopover, closePopover, selectedTaskId])
+  }, [activePopover, closePopover, taskId])
 
   async function updateSelectedTask(patch: Partial<Omit<TaskUpdateInput, 'id'>>) {
-    const taskId = selectedTaskIdRef.current
-    if (!taskId) return
+    const activeTaskId = taskIdRef.current
+    if (!activeTaskId) return
 
     setActionError(null)
-    const res = await window.api.task.update({ id: taskId, ...patch })
+    const res = await window.api.task.update({ id: activeTaskId, ...patch })
     if (!res.ok) {
       setActionError(`${res.error.code}: ${res.error.message}`)
       return
     }
 
     bumpRevision()
-    closePopover({ restoreFocus: true })
+    closePopover({ restoreFocus: !isEditMode })
+
+    // In edit mode, moving the open task should exit the inline editor.
+    // This keeps the interaction consistent with the inline editor's own
+    // "done"/"close" behaviors after a structural change.
+    if (isEditMode) onEditModeActionComplete?.()
   }
 
   const openSchedule = (anchorEl: HTMLElement) => {
-    if (!isTaskSelected) return
+    if (!isTaskSelected || isEditMode) return
     setActionError(null)
     setActivePopover({ kind: 'schedule', anchorEl })
   }
@@ -136,6 +146,7 @@ export function ContentBottomBarActions({
   }
 
   const openSearch = () => {
+    if (isEditMode) return
     closePopover({ restoreFocus: false })
     window.dispatchEvent(new CustomEvent(UI_OPEN_SEARCH_PANEL_EVENT))
   }
@@ -300,25 +311,30 @@ export function ContentBottomBarActions({
 
   return (
     <>
-      <button
-        type="button"
-        className="button button-ghost"
-        disabled={!isTaskSelected}
-        onClick={(e) => openSchedule(e.currentTarget as HTMLElement)}
-      >
-        {t('common.schedule')}
-      </button>
+      {!isEditMode ? (
+        <button
+          type="button"
+          className="button button-ghost"
+          disabled={!isTaskSelected}
+          onClick={(e) => openSchedule(e.currentTarget as HTMLElement)}
+        >
+          {t('common.schedule')}
+        </button>
+      ) : null}
       <button
         type="button"
         className="button button-ghost"
         disabled={!isTaskSelected}
         onClick={(e) => openMove(e.currentTarget as HTMLElement)}
+        data-content-bottom-edit-action={isEditMode ? 'move' : undefined}
       >
         {t('common.move')}
       </button>
-      <button type="button" className="button button-ghost" onClick={openSearch}>
-        {t('common.search')}
-      </button>
+      {!isEditMode ? (
+        <button type="button" className="button button-ghost" onClick={openSearch}>
+          {t('common.search')}
+        </button>
+      ) : null}
 
       {renderPopover()}
     </>

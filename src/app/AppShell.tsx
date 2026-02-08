@@ -242,11 +242,57 @@ export function AppShell() {
 
       if (last.element && last.element.isConnected) {
         last.element.focus()
+        return
       }
+
+      // Last-resort focus target to avoid leaving focus on body.
+      contentScrollRef.current?.focus()
     }, 0)
 
     return () => clearTimeout(handle)
   }, [openTaskId])
+
+  const focusActiveTaskListbox = useCallback(() => {
+    // Prefer focusing the visible listbox to keep keyboard navigation flowing.
+    const listbox = document.querySelector<HTMLElement>('.task-scroll[role="listbox"]')
+    if (listbox && listbox.isConnected) {
+      listbox.focus()
+      return
+    }
+    contentScrollRef.current?.focus()
+  }, [])
+
+  const handleDeleteOpenTask = useCallback(async () => {
+    if (!openTaskId) return
+
+    const confirmed = confirm(t('task.deleteConfirm'))
+    if (!confirmed) return
+
+    const handle = openEditorHandleRef.current
+    if (!handle || handle.taskId !== openTaskId) return
+
+    const ok = await handle.flushPendingChanges()
+    if (!ok) {
+      handle.focusLastErrorTarget()
+      return
+    }
+
+    const res = await window.api.task.delete(openTaskId)
+    if (!res.ok) {
+      setSidebarError(`${res.error.code}: ${res.error.message}`)
+      return
+    }
+
+    // The currently selected task is now gone; clear selection to avoid enabling actions on a non-existent id.
+    setSelectedTaskId(null)
+    setOpenTaskId(null)
+    bumpRevision()
+
+    // Ensure focus doesn't end up on an arbitrary bottom-bar button after the editor unmounts.
+    window.setTimeout(() => {
+      focusActiveTaskListbox()
+    }, 0)
+  }, [bumpRevision, focusActiveTaskListbox, openTaskId, t])
 
   async function handleAddTask() {
     // Task titles can be empty strings; we want a new task to start blank.
@@ -1088,31 +1134,66 @@ export function AppShell() {
         <main className="content" aria-label={t('aria.content')}>
           <div className="content-grid">
             <div className="content-main">
-              <div ref={contentScrollRef} className="content-scroll">
+              <div ref={contentScrollRef} className="content-scroll" tabIndex={-1}>
                 <Outlet />
               </div>
 
                 <div
                   className="content-bottom-bar"
                   data-content-bottom-actions={openTaskId === null ? 'true' : undefined}
+                  data-content-bottom-actions-edit={openTaskId !== null ? 'true' : undefined}
                 >
-                  <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
-                    {t('shell.task')}
-                  </button>
-                  {projectIdFromRoute ? (
-                    <button type="button" className="button button-ghost" onClick={handleAddSection}>
-                      {t('shell.section')}
-                    </button>
-                  ) : null}
-
                   {openTaskId === null ? (
-                    <ContentBottomBarActions
-                      selectedTaskId={selectedTaskId}
-                      areas={sidebar.areas}
-                      openProjects={sidebar.openProjects}
-                      bumpRevision={bumpRevision}
-                    />
-                  ) : null}
+                    <>
+                      <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
+                        {t('shell.task')}
+                      </button>
+                      {projectIdFromRoute ? (
+                        <button type="button" className="button button-ghost" onClick={handleAddSection}>
+                          {t('shell.section')}
+                        </button>
+                      ) : null}
+
+                      <ContentBottomBarActions
+                        variant="list"
+                        taskId={selectedTaskId}
+                        areas={sidebar.areas}
+                        openProjects={sidebar.openProjects}
+                        bumpRevision={bumpRevision}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <ContentBottomBarActions
+                        variant="edit"
+                        taskId={openTaskId}
+                        areas={sidebar.areas}
+                        openProjects={sidebar.openProjects}
+                        bumpRevision={bumpRevision}
+                        onEditModeActionComplete={() => {
+                          void requestCloseTask()
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="button button-ghost"
+                        onClick={() => void handleDeleteOpenTask()}
+                        data-content-bottom-edit-action="delete"
+                      >
+                        {t('common.delete')}
+                      </button>
+                      <button
+                        type="button"
+                        className="button button-ghost"
+                        onClick={() => {
+                          // Placeholder: reserved for future menu.
+                        }}
+                        data-content-bottom-edit-action="more"
+                      >
+                        {t('common.more')}
+                      </button>
+                    </>
+                  )}
                 </div>
             </div>
           </div>
