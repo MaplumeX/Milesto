@@ -90,3 +90,9 @@ export const TaskRestoreInputSchema = z.object({
 })
 
 export type TaskRestoreInput = z.infer<typeof TaskRestoreInputSchema>
+
+export const TaskDeleteInputSchema = z.object({
+  id: IdSchema,
+})
+
+export type TaskDeleteInput = z.infer<typeof TaskDeleteInputSchema>

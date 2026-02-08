@@ -64,6 +64,7 @@ export type WindowApi = {
     update(input: TaskUpdateInput): Promise<Result<Task>>
     toggleDone(id: string, done: boolean): Promise<Result<Task>>
     restore(id: string): Promise<Result<Task>>
+    delete(id: string): Promise<Result<{ deleted: boolean }>>
 
     getDetail(id: string): Promise<Result<TaskDetail>>
 
