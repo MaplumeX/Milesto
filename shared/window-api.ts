@@ -40,6 +40,10 @@ export type SaveDialogResult = {
   filePath?: string
 }
 
+export type SidebarState = {
+  collapsedAreaIds: string[]
+}
+
 export type WindowApi = {
   app: {
     getVersion(): Promise<Result<string>>
@@ -57,6 +61,9 @@ export type WindowApi = {
   settings: {
     getLocaleState(): Promise<Result<{ locale: Locale; supportedLocales: Locale[] }>>
     setLocale(locale: Locale): Promise<Result<{ locale: Locale; supportedLocales: Locale[] }>>
+
+    getSidebarState(): Promise<Result<SidebarState>>
+    setSidebarState(state: SidebarState): Promise<Result<SidebarState>>
   }
 
   task: {

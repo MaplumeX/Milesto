@@ -179,8 +179,16 @@ const LocaleStateSchema = z.object({
 const LocaleStateResultSchema = resultSchema(LocaleStateSchema)
 const SetLocalePayloadSchema = z.object({ locale: z.unknown() })
 
+const SidebarStateSchema = z.object({
+  collapsedAreaIds: z.array(z.string()),
+})
+const SidebarStateResultSchema = resultSchema(SidebarStateSchema)
+const SetSidebarStatePayloadSchema = z.object({ state: z.unknown() })
+
 const DbLocaleRowSchema = z.object({ locale: z.string().nullable() })
 const DbSetLocaleResultSchema = z.object({ locale: z.string() })
+
+const DbSidebarStateSchema = SidebarStateSchema
 
 function createWindow() {
   win = new BrowserWindow({
@@ -218,7 +226,12 @@ function createWindow() {
     win.webContents.once('did-finish-load', async () => {
       if (!win) return
       try {
-        const fnName = SELF_TEST_SUITE === 'search' ? '__milestoRunSearchSmokeTest' : '__milestoRunSelfTest'
+        const fnName =
+          SELF_TEST_SUITE === 'search'
+            ? '__milestoRunSearchSmokeTest'
+            : SELF_TEST_SUITE === 'sidebar'
+              ? '__milestoRunSidebarSelfTest'
+              : '__milestoRunSelfTest'
         const result = (await win.webContents.executeJavaScript(
           `
             (async () => {
@@ -518,6 +531,70 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     const effective = normalizeLocale(parsedData.data.locale)
     cachedEffectiveLocale = effective
     return LocaleStateResultSchema.parse(ok({ locale: effective, supportedLocales }))
+  })
+
+  ipcMain.handle('settings:getSidebarState', async (event) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return SidebarStateResultSchema.parse(err(senderErr))
+
+    const res = await dbWorker.request('settings.getSidebarState', {})
+    if (!res.ok) return SidebarStateResultSchema.parse(err(res.error))
+
+    const parsedData = DbSidebarStateSchema.safeParse(res.data)
+    if (!parsedData.success) {
+      return SidebarStateResultSchema.parse(
+        err({
+          code: 'DB_INVALID_RETURN',
+          message: 'Invalid DB return value.',
+          details: { issues: parsedData.error.issues, action: 'settings.getSidebarState' },
+        })
+      )
+    }
+
+    return SidebarStateResultSchema.parse(ok(parsedData.data))
+  })
+
+  ipcMain.handle('settings:setSidebarState', async (event, payload) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return SidebarStateResultSchema.parse(err(senderErr))
+
+    const parsedPayload = SetSidebarStatePayloadSchema.safeParse(payload)
+    if (!parsedPayload.success) {
+      return SidebarStateResultSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid payload.',
+          details: { issues: parsedPayload.error.issues },
+        })
+      )
+    }
+
+    const parsedState = SidebarStateSchema.safeParse(parsedPayload.data.state)
+    if (!parsedState.success) {
+      return SidebarStateResultSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid payload.',
+          details: { issues: parsedState.error.issues },
+        })
+      )
+    }
+
+    const res = await dbWorker.request('settings.setSidebarState', parsedState.data)
+    if (!res.ok) return SidebarStateResultSchema.parse(err(res.error))
+
+    const parsedData = DbSidebarStateSchema.safeParse(res.data)
+    if (!parsedData.success) {
+      return SidebarStateResultSchema.parse(
+        err({
+          code: 'DB_INVALID_RETURN',
+          message: 'Invalid DB return value.',
+          details: { issues: parsedData.error.issues, action: 'settings.setSidebarState' },
+        })
+      )
+    }
+
+    return SidebarStateResultSchema.parse(ok(parsedData.data))
   })
 
   // DB IPC (Renderer -> Main -> DB Worker)

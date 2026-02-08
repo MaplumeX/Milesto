@@ -35,6 +35,8 @@ export const messagesEn = {
     projectActions: 'Project actions',
     markProjectDone: 'Mark project done',
     taskDone: 'Done',
+    collapseArea: 'Collapse area {{title}}',
+    expandArea: 'Expand area {{title}}',
   },
   nav: {
     inbox: 'Inbox',
@@ -197,6 +199,8 @@ export const messagesZhCN = {
     projectActions: '项目操作',
     markProjectDone: '标记项目完成',
     taskDone: '完成',
+    collapseArea: '折叠领域 {{title}}',
+    expandArea: '展开领域 {{title}}',
   },
   nav: {
     inbox: '收件箱',

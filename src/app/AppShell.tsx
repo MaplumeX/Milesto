@@ -146,11 +146,17 @@ export function AppShell() {
   const location = useLocation()
   const [sidebar, setSidebar] = useState<SidebarModel>({ areas: [], openProjects: [] })
   const [sidebarError, setSidebarError] = useState<string | null>(null)
+  const [collapsedAreaIds, setCollapsedAreaIds] = useState<string[]>([])
+  const collapsedAreaIdsRef = useRef<string[]>(collapsedAreaIds)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [openTaskId, setOpenTaskId] = useState<string | null>(null)
   const [createMode, setCreateMode] = useState<'project' | 'area' | null>(null)
   const [createTitle, setCreateTitle] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+
+  useEffect(() => {
+    collapsedAreaIdsRef.current = collapsedAreaIds
+  }, [collapsedAreaIds])
 
   useEffect(() => {
     const isSelfTest = new URL(window.location.href).searchParams.get('selfTest') === '1'
@@ -367,6 +373,24 @@ export function AppShell() {
     void refreshSidebar()
   }, [refreshSidebar, revision])
 
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      const res = await window.api.settings.getSidebarState()
+      if (!res.ok) return
+      if (cancelled) return
+
+      // Treat persisted state as untrusted; keep it trimmed + unique.
+      const unique = Array.from(new Set(res.data.collapsedAreaIds.map((id) => id.trim()).filter(Boolean)))
+      setCollapsedAreaIds(unique)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const [orderedAreaDragIds, setOrderedAreaDragIds] = useState<string[]>([])
   const orderedAreaDragIdsRef = useRef<string[]>(orderedAreaDragIds)
   useEffect(() => {
@@ -458,8 +482,16 @@ export function AppShell() {
 
   function focusSidebarRowByDndId(dndId: string) {
     window.setTimeout(() => {
-      const el = document.querySelector<HTMLElement>(`[data-sidebar-dnd-id="${CSS.escape(dndId)}"]`)
-      el?.focus()
+      const row = document.querySelector<HTMLElement>(`[data-sidebar-dnd-id="${CSS.escape(dndId)}"]`)
+      if (!row) return
+
+      // Row roots may not be focusable (e.g., an Area group wrapper). Prefer focusing the
+      // explicit activator element to keep focus stable after reorder.
+      const activator = row.matches('[data-sidebar-row-activator="true"]')
+        ? row
+        : row.querySelector<HTMLElement>('[data-sidebar-row-activator="true"]')
+
+      ;(activator ?? row).focus()
     }, 0)
   }
 
@@ -560,6 +592,11 @@ export function AppShell() {
     return m
   }, [sidebar.areas])
 
+  useEffect(() => {
+    // If Areas are deleted/renamed, drop any persisted ids that no longer exist.
+    setCollapsedAreaIds((prev) => prev.filter((id) => areaById.has(id)))
+  }, [areaById])
+
   const projectById = useMemo(() => {
     const m = new Map<string, Project>()
     for (const p of sidebar.openProjects) m.set(p.id, p)
@@ -627,6 +664,15 @@ export function AppShell() {
         const closestArea = closestCenter(args).filter((c) => typeof c.id === 'string' && isAreaDragId(String(c.id)))
         if (closestArea.length > 0) return closestArea
       }
+
+      // Prefer item hits over containers so intra-container sorting works.
+      const itemHits = pointerCollisions.filter(
+        (c) =>
+          typeof c.id === 'string' &&
+          !isSidebarContainerId(String(c.id)) &&
+          !isSidebarTailId(String(c.id))
+      )
+      if (itemHits.length > 0) return itemHits
 
       const containerHits = pointerCollisions.filter(
         (c) =>
@@ -1037,6 +1083,24 @@ export function AppShell() {
                   activeAreaDragId={activeAreaId}
                   activeProjectDragId={activeProjectId}
                   suppressClickRef={suppressClickRef}
+                  isCollapsed={collapsedAreaIds.includes(area.id)}
+                  onToggleCollapsed={() => {
+                    const prev = collapsedAreaIdsRef.current
+                    const nextSet = new Set(prev)
+                    if (nextSet.has(area.id)) nextSet.delete(area.id)
+                    else nextSet.add(area.id)
+                    const next = Array.from(nextSet)
+                    setCollapsedAreaIds(next)
+
+                    void (async () => {
+                      const res = await window.api.settings.setSidebarState({ collapsedAreaIds: next })
+                      if (res.ok) return
+
+                      // If persistence fails, revert UI state and surface an error.
+                      setCollapsedAreaIds(prev)
+                      setSidebarError(`${res.error.code}: ${res.error.message}`)
+                    })()
+                  }}
                 />
               ))}
             </SortableContext>
@@ -1219,6 +1283,44 @@ function SidebarContainerTailDropZone({
   return <div ref={setNodeRef} className="sidebar-tail-dropzone" aria-hidden="true" />
 }
 
+function SidebarFolderIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      width="1em"
+      height="1em"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 7.5c0-1.1.9-2 2-2h5l2 2h7c1.1 0 2 .9 2 2v9c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2v-11z" />
+    </svg>
+  )
+}
+
+function SidebarChevronIcon({ className, direction }: { className?: string; direction: 'right' | 'down' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 20 20"
+      width="1em"
+      height="1em"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {direction === 'right' ? <path d="M8 5l5 5-5 5" /> : <path d="M5 8l5 5 5-5" />}
+    </svg>
+  )
+}
+
 function SortableSidebarProjectNavItem({
   project,
   indent,
@@ -1255,6 +1357,7 @@ function SortableSidebarProjectNavItem({
         to={`/projects/${project.id}`}
         data-sidebar-dnd-kind="project"
         data-sidebar-dnd-id={dragId}
+        data-sidebar-row-activator="true"
         {...attributes}
         {...(listeners ?? {})}
         onPointerDown={(e) => {
@@ -1323,6 +1426,8 @@ function SortableSidebarAreaGroup({
   activeAreaDragId,
   activeProjectDragId,
   suppressClickRef,
+  isCollapsed,
+  onToggleCollapsed,
 }: {
   area: Area
   containerId: ContainerId
@@ -1331,6 +1436,8 @@ function SortableSidebarAreaGroup({
   activeAreaDragId: string | null
   activeProjectDragId: string | null
   suppressClickRef: React.MutableRefObject<boolean>
+  isCollapsed: boolean
+  onToggleCollapsed: () => void
 }) {
   const { t } = useTranslation()
   const { setNodeRef: setDroppableNodeRef } = useDroppable({
@@ -1358,56 +1465,88 @@ function SortableSidebarAreaGroup({
   return (
     <div
       ref={setGroupNodeRef}
-      className="nav-area"
+      className={`nav-area${isCollapsed ? ' is-collapsed' : ''}`}
+      data-sidebar-dnd-kind="area"
+      data-sidebar-dnd-id={dragId}
       style={{
         transform: DndCss.Transform.toString(transform),
         transition,
         visibility: isHiddenForOverlay ? 'hidden' : undefined,
       }}
     >
-      <NavLink
-        ref={setActivatorNodeRef}
-        className="nav-area-title"
-        to={`/areas/${area.id}`}
-        data-sidebar-dnd-kind="area"
-        data-sidebar-dnd-id={dragId}
-        {...attributes}
-        {...(listeners ?? {})}
-        onPointerDown={(e) => {
-          listeners?.onPointerDown?.(e)
-        }}
-        onClick={(e) => {
-          if (suppressClickRef.current) {
+      <div className="nav-area-header">
+        <NavLink
+          ref={setActivatorNodeRef}
+          className={({ isActive }) => `nav-item nav-area-row${isActive ? ' is-active' : ''}`}
+          to={`/areas/${area.id}`}
+          data-sidebar-row-activator="true"
+          {...attributes}
+          {...(listeners ?? {})}
+          onPointerDown={(e) => {
+            listeners?.onPointerDown?.(e)
+          }}
+          onClick={(e) => {
+            if (suppressClickRef.current) {
+              e.preventDefault()
+              e.stopPropagation()
+            }
+          }}
+        >
+          <SidebarFolderIcon className="nav-area-icon" />
+          <span className="nav-area-label">{area.title}</span>
+        </NavLink>
+
+        <button
+          type="button"
+          className="nav-area-collapse"
+          aria-expanded={!isCollapsed}
+          aria-label={
+            isCollapsed
+              ? t('aria.expandArea', { title: area.title })
+              : t('aria.collapseArea', { title: area.title })
+          }
+          data-sidebar-area-collapse="true"
+          onPointerDown={(e) => {
+            // Avoid accidental drag activation / click suppression interactions.
+            e.stopPropagation()
+          }}
+          onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
-          }
-        }}
-      >
-        {area.title}
-      </NavLink>
+            if (suppressClickRef.current) return
+            onToggleCollapsed()
+          }}
+        >
+          <SidebarChevronIcon className="nav-area-collapse-icon" direction={isCollapsed ? 'right' : 'down'} />
+        </button>
+      </div>
 
-      <SortableContext items={projectDragIds} strategy={verticalListSortingStrategy}>
-        {projectDragIds.map((pDragId) => {
-          const projectId = projectIdFromProjectDragId(pDragId)
-          if (!projectId) return null
-          const project = projectById.get(projectId)
-          if (!project) return null
-          return (
-            <SortableSidebarProjectNavItem
-              key={project.id}
-              project={project}
-              indent
-              activeProjectDragId={activeProjectDragId}
-              suppressClickRef={suppressClickRef}
-            />
-          )
-        })}
-      </SortableContext>
+      {!isCollapsed ? (
+        <>
+          <SortableContext items={projectDragIds} strategy={verticalListSortingStrategy}>
+            {projectDragIds.map((pDragId) => {
+              const projectId = projectIdFromProjectDragId(pDragId)
+              if (!projectId) return null
+              const project = projectById.get(projectId)
+              if (!project) return null
+              return (
+                <SortableSidebarProjectNavItem
+                  key={project.id}
+                  project={project}
+                  indent
+                  activeProjectDragId={activeProjectDragId}
+                  suppressClickRef={suppressClickRef}
+                />
+              )
+            })}
+          </SortableContext>
 
-      {projectDragIds.length === 0 ? (
-        <div className="nav-muted" aria-hidden="true">
-          {t('shell.empty')}
-        </div>
+          {projectDragIds.length === 0 ? (
+            <div className="nav-muted" aria-hidden="true">
+              {t('shell.empty')}
+            </div>
+          ) : null}
+        </>
       ) : null}
 
       <SidebarContainerTailDropZone containerId={containerId} />

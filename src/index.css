@@ -106,6 +106,70 @@ body {
   margin-top: 8px;
 }
 
+.nav-area-header {
+  position: relative;
+}
+
+.nav-area-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Leave space for the collapse button (absolutely positioned). */
+  padding-right: 34px;
+}
+
+.nav-area-icon {
+  flex: none;
+  color: var(--muted);
+}
+
+.nav-area-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* When interacting with the collapse button, keep the row hover affordance. */
+.nav-area-header:hover .nav-area-row:not(.is-active),
+.nav-area-header:focus-within .nav-area-row:not(.is-active) {
+  background: rgba(29, 29, 27, 0.06);
+}
+
+.nav-area-collapse {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.nav-area-header:hover .nav-area-collapse,
+.nav-area-collapse:focus-visible,
+.nav-area-row.is-active + .nav-area-collapse {
+  color: var(--text);
+}
+
+.nav-area-collapse:hover {
+  background: rgba(29, 29, 27, 0.06);
+}
+
+.nav-area-collapse:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.nav-area-collapse-icon {
+  display: block;
+}
+
 .nav-area-title {
   font-size: 10px;
   color: var(--muted);

@@ -17,6 +17,12 @@ The system SHALL allow the user to reorder Areas from the Sidebar.
 - **THEN** the Sidebar SHALL move the focused Area up/down by one position
 - **AND THEN** the new Area order SHALL be persisted
 
+#### Scenario: Reorder areas while focus is on an Area control
+- **WHEN** the user focuses a focusable control within the Area entry (e.g. the Area collapse button)
+- **AND WHEN** the user triggers the keyboard reorder shortcut (e.g. Cmd/Ctrl+Shift+ArrowUp/ArrowDown)
+- **THEN** the Sidebar SHALL move the owning Area up/down by one position
+- **AND THEN** the new Area order SHALL be persisted
+
 ### Requirement: Sidebar supports manual ordering of Projects within a group
 The system SHALL allow the user to reorder Projects within the same Sidebar group.
 

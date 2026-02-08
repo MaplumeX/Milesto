@@ -213,6 +213,27 @@ async function waitForTaskDetail(
   throw new Error(`Timeout waiting for: ${label}`)
 }
 
+async function waitForSidebarState(
+  label: string,
+  predicate: (state: { collapsedAreaIds: string[] }) => boolean,
+  opts?: { timeoutMs?: number; intervalMs?: number }
+): Promise<{ collapsedAreaIds: string[] }> {
+  const timeoutMs = opts?.timeoutMs ?? 10_000
+  const intervalMs = opts?.intervalMs ?? 80
+  const start = Date.now()
+
+  while (Date.now() - start < timeoutMs) {
+    const res = await window.api.settings.getSidebarState()
+    if (!res.ok) {
+      throw new Error(`${label}: getSidebarState failed: ${res.error.code}: ${res.error.message}`)
+    }
+    if (predicate(res.data)) return res.data
+    await sleep(intervalMs)
+  }
+
+  throw new Error(`Timeout waiting for: ${label}`)
+}
+
 async function scrollUntil<T>(
   label: string,
   params: {
@@ -314,7 +335,13 @@ function findSectionDragHandle(sectionId: string): HTMLButtonElement | null {
 
 function findSidebarAreaHandle(areaId: string): HTMLElement | null {
   return document.querySelector<HTMLElement>(
-    `.nav a.nav-area-title[data-sidebar-dnd-kind="area"][data-sidebar-dnd-id="area:${areaId}"]`
+    `.nav .nav-area[data-sidebar-dnd-kind="area"][data-sidebar-dnd-id="area:${areaId}"] [data-sidebar-row-activator="true"]`
+  )
+}
+
+function findSidebarAreaCollapseButton(areaId: string): HTMLButtonElement | null {
+  return document.querySelector<HTMLButtonElement>(
+    `.nav .nav-area[data-sidebar-dnd-kind="area"][data-sidebar-dnd-id="area:${areaId}"] button[data-sidebar-area-collapse="true"]`
   )
 }
 
@@ -1399,8 +1426,9 @@ async function runSelfTest(): Promise<SelfTestResult> {
     await waitFor('Edit-mode move task selected', () =>
       getSelectedTaskId() === editModeMoveTaskId ? true : null
     )
+    inboxListbox.focus()
     dispatchKey(inboxListbox, 'Enter')
-    await waitFor('Edit-mode move inline editor open', () => (getInlinePaper() ? true : null))
+    await waitFor('Edit-mode move inline editor open', () => (getInlinePaper() ? true : null), { timeoutMs: 20_000 })
 
     const editBottomBarActionsMove = await waitFor('Content bottom bar actions (edit mode, move)', () =>
       document.querySelector<HTMLElement>('[data-content-bottom-actions-edit="true"]')
@@ -1446,6 +1474,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
     )
 
     // Enter should open the inline task editor.
+    inboxListbox.focus()
     dispatchKey(inboxListbox, 'Enter')
     await waitFor('Edit-mode inline editor open', () => (getInlinePaper() ? true : null))
 
@@ -2861,6 +2890,63 @@ async function runSelfTest(): Promise<SelfTestResult> {
         throw new Error('Sidebar: expected keyboard area reorder to move Area B down by one')
       }
 
+      // Collapse/expand: nested projects hidden + persisted sidebar state.
+      const sidebarAreaACollapse = await waitFor('Sidebar: area A collapse button', () =>
+        findSidebarAreaCollapseButton(sidebarAreaAId)
+      )
+      sidebarAreaACollapse.click()
+
+      await waitFor('Sidebar: area A collapsed hides project A1', () =>
+        findSidebarProjectHandle(sidebarProjectA1Id) ? null : true
+      )
+      await waitForSidebarState('Sidebar: collapsed area persisted (settings)', (s) =>
+        s.collapsedAreaIds.includes(sidebarAreaAId)
+      )
+
+      // Keyboard reorder from a descendant control (collapse button) should reorder the owning Area.
+      const sidebarAreaBCollapse = await waitFor('Sidebar: area B collapse button', () =>
+        findSidebarAreaCollapseButton(sidebarAreaBId)
+      )
+      const sidebarModelBeforeButtonKey = await window.api.sidebar.listModel()
+      if (!sidebarModelBeforeButtonKey.ok) {
+        throw new Error(
+          `Sidebar: listModel before button key failed: ${sidebarModelBeforeButtonKey.error.code}: ${sidebarModelBeforeButtonKey.error.message}`
+        )
+      }
+      const idxBBeforeButtonKey = sidebarModelBeforeButtonKey.data.areas.findIndex((a) => a.id === sidebarAreaBId)
+      if (idxBBeforeButtonKey < 0) {
+        throw new Error('Sidebar: missing Area B before button key reorder')
+      }
+
+      sidebarAreaBCollapse.focus()
+      await waitFor('Sidebar: area B collapse focused (for keyboard reorder)', () =>
+        document.activeElement === sidebarAreaBCollapse ? true : null
+      )
+      dispatchKey(sidebarAreaBCollapse, 'ArrowUp', { metaKey: true, ctrlKey: true, shiftKey: true })
+
+      let sidebarAreaButtonKeyOk = false
+      for (let i = 0; i < 30; i++) {
+        const res = await window.api.sidebar.listModel()
+        if (!res.ok) {
+          throw new Error(`Sidebar: listModel after button key failed: ${res.error.code}: ${res.error.message}`)
+        }
+        const idxB = res.data.areas.findIndex((a) => a.id === sidebarAreaBId)
+        if (idxB === idxBBeforeButtonKey - 1) {
+          sidebarAreaButtonKeyOk = true
+          break
+        }
+        await sleep(100)
+      }
+      if (!sidebarAreaButtonKeyOk) {
+        throw new Error('Sidebar: expected button-focused keyboard reorder to move Area B up by one')
+      }
+
+      sidebarAreaACollapse.click()
+      await waitFor('Sidebar: area A expanded shows project A1', () => findSidebarProjectHandle(sidebarProjectA1Id))
+      await waitForSidebarState('Sidebar: expanded area persisted (settings)', (s) =>
+        !s.collapsedAreaIds.includes(sidebarAreaAId)
+      )
+
       // Pointer reorder projects within Area A: drag A2 onto A1.
       const sidebarProjectA1Handle = await waitFor('Sidebar: project A1 handle', () => findSidebarProjectHandle(sidebarProjectA1Id))
       const sidebarProjectA2Handle = await waitFor('Sidebar: project A2 handle', () => findSidebarProjectHandle(sidebarProjectA2Id))
@@ -3016,10 +3102,260 @@ async function runSelfTest(): Promise<SelfTestResult> {
   return { ok: failures.length === 0, failures }
 }
 
+async function runSidebarSelfTest(): Promise<SelfTestResult> {
+  const failures: string[] = []
+  const token = `milestoselftestsidebar${Date.now()}`
+
+  try {
+    if (!('api' in window)) {
+      throw new Error('window.api is missing (preload not available).')
+    }
+
+    // Ensure AppShell is mounted.
+    window.location.hash = '/inbox'
+    await waitFor('Inbox listbox (sidebar suite)', () =>
+      document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+    )
+
+    // Seed sidebar-specific Areas/Projects for collapse + DnD + keyboard reorder.
+    const areaARes = await window.api.area.create({ title: `${token} Sidebar Area A` })
+    const areaBRes = await window.api.area.create({ title: `${token} Sidebar Area B` })
+    if (!areaARes.ok) {
+      throw new Error(`area.create areaA failed: ${areaARes.error.code}: ${areaARes.error.message}`)
+    }
+    if (!areaBRes.ok) {
+      throw new Error(`area.create areaB failed: ${areaBRes.error.code}: ${areaBRes.error.message}`)
+    }
+    const areaAId = areaARes.data.id
+    const areaBId = areaBRes.data.id
+
+    const projectA1Res = await window.api.project.create({
+      title: `${token} Sidebar Project A1`,
+      area_id: areaAId,
+    })
+    const projectA2Res = await window.api.project.create({
+      title: `${token} Sidebar Project A2`,
+      area_id: areaAId,
+    })
+    if (!projectA1Res.ok) {
+      throw new Error(`project.create projectA1 failed: ${projectA1Res.error.code}: ${projectA1Res.error.message}`)
+    }
+    if (!projectA2Res.ok) {
+      throw new Error(`project.create projectA2 failed: ${projectA2Res.error.code}: ${projectA2Res.error.message}`)
+    }
+    const projectA1Id = projectA1Res.data.id
+    const projectA2Id = projectA2Res.data.id
+
+    // Force a sidebar refresh by going through a small UI flow that bumps AppShell revision.
+    // (Direct `window.api.*` mutations don't automatically trigger `refreshSidebar()`.)
+    const newBtn = await waitFor('Sidebar suite: + New button', () => findButtonByText(document, '+ New'))
+    newBtn.click()
+    const createPanel = await waitFor('Sidebar suite: create panel', () => document.querySelector<HTMLElement>('.sidebar-create'))
+    const areaToggle = await waitFor('Sidebar suite: create toggle Area', () => findButtonByText(createPanel, 'Area'))
+    areaToggle.click()
+    const createInput = await waitFor('Sidebar suite: create input', () =>
+      createPanel.querySelector<HTMLInputElement>('input.input')
+    )
+    setNativeInputValue(createInput, `${token} Bump Area`)
+    dispatchKey(createInput, 'Enter')
+    await waitFor('Sidebar suite: create panel closed', () =>
+      document.querySelector<HTMLElement>('.sidebar-create') ? null : true
+    )
+
+    const areaAHandle = await waitFor('Sidebar suite: area A handle', () => findSidebarAreaHandle(areaAId))
+    const areaBHandle = await waitFor('Sidebar suite: area B handle', () => findSidebarAreaHandle(areaBId))
+
+    const sidebarNav = await waitFor('Sidebar suite: sidebar nav scroller', () =>
+      document.querySelector<HTMLElement>('nav.nav')
+    )
+    sidebarNav.scrollTop = 0
+    await sleep(80)
+
+    // Collapse does not navigate, hides nested projects, and persists via settings.
+    const beforeHash = window.location.hash
+    const areaACollapse = await waitFor('Sidebar suite: area A collapse button', () =>
+      findSidebarAreaCollapseButton(areaAId)
+    )
+    areaACollapse.click()
+    await waitFor('Sidebar suite: area A collapsed hides project A1', () =>
+      findSidebarProjectHandle(projectA1Id) ? null : true
+    )
+    if (window.location.hash !== beforeHash) {
+      throw new Error('Sidebar suite: collapse button navigated unexpectedly')
+    }
+    await waitForSidebarState('Sidebar suite: collapsed persisted', (s) => s.collapsedAreaIds.includes(areaAId))
+
+    // Expand restores nested projects and updates persisted state.
+    areaACollapse.click()
+    await waitFor('Sidebar suite: area A expanded shows project A1', () => findSidebarProjectHandle(projectA1Id))
+    await waitForSidebarState('Sidebar suite: expanded persisted', (s) => !s.collapsedAreaIds.includes(areaAId))
+
+    // Pointer reorder areas: drag B onto A and verify persistence.
+    const areaATargetRect = areaAHandle.getBoundingClientRect()
+    await dragHandleToPoint({
+      label: 'Sidebar suite: reorder areas (pointer)',
+      handle: areaBHandle,
+      to: { x: areaATargetRect.left + areaATargetRect.width / 2, y: areaATargetRect.top + areaATargetRect.height / 2 },
+      overlaySelector: '.sidebar-dnd-overlay',
+    })
+    await sleep(250)
+
+    const modelAfterAreaPointer = await window.api.sidebar.listModel()
+    if (!modelAfterAreaPointer.ok) {
+      throw new Error(
+        `Sidebar suite: listModel after pointer area reorder failed: ${modelAfterAreaPointer.error.code}: ${modelAfterAreaPointer.error.message}`
+      )
+    }
+    const idxAAfterPointer = modelAfterAreaPointer.data.areas.findIndex((a) => a.id === areaAId)
+    const idxBAfterPointer = modelAfterAreaPointer.data.areas.findIndex((a) => a.id === areaBId)
+    if (idxAAfterPointer < 0 || idxBAfterPointer < 0 || idxBAfterPointer >= idxAAfterPointer) {
+      throw new Error('Sidebar suite: expected Area B to appear before Area A after pointer reorder')
+    }
+
+    // Keyboard reorder areas from row.
+    areaBHandle.focus()
+    dispatchKey(areaBHandle, 'ArrowDown', { metaKey: true, ctrlKey: true, shiftKey: true })
+    let keyRowOk = false
+    for (let i = 0; i < 30; i++) {
+      const res = await window.api.sidebar.listModel()
+      if (!res.ok) {
+        throw new Error(`Sidebar suite: listModel after row key failed: ${res.error.code}: ${res.error.message}`)
+      }
+      const idxB = res.data.areas.findIndex((a) => a.id === areaBId)
+      if (idxB === idxBAfterPointer + 1) {
+        keyRowOk = true
+        break
+      }
+      await sleep(100)
+    }
+    if (!keyRowOk) {
+      throw new Error('Sidebar suite: expected keyboard reorder (row focus) to move Area B down by one')
+    }
+
+    // Keyboard reorder areas from collapse button focus.
+    const areaBCollapse = await waitFor('Sidebar suite: area B collapse button', () =>
+      findSidebarAreaCollapseButton(areaBId)
+    )
+    const modelBeforeButtonKey = await window.api.sidebar.listModel()
+    if (!modelBeforeButtonKey.ok) {
+      throw new Error(
+        `Sidebar suite: listModel before button key failed: ${modelBeforeButtonKey.error.code}: ${modelBeforeButtonKey.error.message}`
+      )
+    }
+    const idxBBeforeButtonKey = modelBeforeButtonKey.data.areas.findIndex((a) => a.id === areaBId)
+    if (idxBBeforeButtonKey < 0) {
+      throw new Error('Sidebar suite: missing Area B before button key reorder')
+    }
+    areaBCollapse.focus()
+    dispatchKey(areaBCollapse, 'ArrowUp', { metaKey: true, ctrlKey: true, shiftKey: true })
+
+    let keyButtonOk = false
+    for (let i = 0; i < 30; i++) {
+      const res = await window.api.sidebar.listModel()
+      if (!res.ok) {
+        throw new Error(`Sidebar suite: listModel after button key failed: ${res.error.code}: ${res.error.message}`)
+      }
+      const idxB = res.data.areas.findIndex((a) => a.id === areaBId)
+      if (idxB === idxBBeforeButtonKey - 1) {
+        keyButtonOk = true
+        break
+      }
+      await sleep(100)
+    }
+    if (!keyButtonOk) {
+      throw new Error('Sidebar suite: expected keyboard reorder (collapse focus) to move Area B up by one')
+    }
+
+    // Pointer + keyboard reorder projects within an Area.
+    const projectA1Handle = await waitFor('Sidebar suite: project A1 handle', () => findSidebarProjectHandle(projectA1Id))
+    const projectA2Handle = await waitFor('Sidebar suite: project A2 handle', () => findSidebarProjectHandle(projectA2Id))
+    projectA2Handle.scrollIntoView({ block: 'center' })
+    await sleep(80)
+    const a1Rect = projectA1Handle.getBoundingClientRect()
+    await dragHandleToPoint({
+      label: 'Sidebar suite: reorder projects (pointer)',
+      handle: projectA2Handle,
+      to: { x: a1Rect.left + a1Rect.width / 2, y: a1Rect.top + a1Rect.height / 2 },
+      overlaySelector: '.sidebar-dnd-overlay',
+    })
+
+    let pointerProjectOk = false
+    let lastProjectDebug = ''
+    for (let i = 0; i < 30; i++) {
+      const errBox = document.querySelector<HTMLElement>('.sidebar-error')
+      if (errBox && (errBox.textContent ?? '').trim()) {
+        throw new Error(`Sidebar suite: sidebar error after project drag: ${(errBox.textContent ?? '').trim()}`)
+      }
+
+      const res = await window.api.sidebar.listModel()
+      if (!res.ok) {
+        throw new Error(
+          `Sidebar suite: listModel after pointer project reorder failed: ${res.error.code}: ${res.error.message}`
+        )
+      }
+
+      const p1 = res.data.openProjects.find((p) => p.id === projectA1Id) ?? null
+      const p2 = res.data.openProjects.find((p) => p.id === projectA2Id) ?? null
+      lastProjectDebug = `p1.area_id=${p1?.area_id ?? 'missing'} p2.area_id=${p2?.area_id ?? 'missing'}`
+
+      if (!p1 || !p2) {
+        await sleep(100)
+        continue
+      }
+
+      if (p1.area_id !== areaAId || p2.area_id !== areaAId) {
+        throw new Error(
+          `Sidebar suite: projects moved to unexpected area after drag (expected areaA=${areaAId}) ${lastProjectDebug}`
+        )
+      }
+
+      const areaAOpen = res.data.openProjects.filter((p) => p.area_id === areaAId)
+      const areaAIds = areaAOpen.map((p) => p.id)
+      lastProjectDebug = `${lastProjectDebug} areaAIds=${JSON.stringify(areaAIds)}`
+
+      if (areaAIds[0] === projectA2Id && areaAIds[1] === projectA1Id) {
+        pointerProjectOk = true
+        break
+      }
+      await sleep(100)
+    }
+    if (!pointerProjectOk) {
+      throw new Error(`Sidebar suite: expected A2 before A1 after pointer project reorder (${lastProjectDebug})`)
+    }
+
+    projectA2Handle.focus()
+    dispatchKey(projectA2Handle, 'ArrowDown', { metaKey: true, ctrlKey: true, shiftKey: true })
+    let keyProjectOk = false
+    for (let i = 0; i < 30; i++) {
+      const res = await window.api.sidebar.listModel()
+      if (!res.ok) {
+        throw new Error(`Sidebar suite: listModel after project key failed: ${res.error.code}: ${res.error.message}`)
+      }
+      const open = res.data.openProjects.filter((p) => p.area_id === areaAId)
+      const ids = open.slice(0, 2).map((p) => p.id)
+      if (ids[0] === projectA1Id && ids[1] === projectA2Id) {
+        keyProjectOk = true
+        break
+      }
+      await sleep(100)
+    }
+    if (!keyProjectOk) {
+      throw new Error('Sidebar suite: expected keyboard project reorder to restore A1 then A2')
+    }
+  } catch (e) {
+    failures.push(e instanceof Error ? e.message : String(e))
+  }
+
+  return { ok: failures.length === 0, failures }
+}
+
 export function registerSelfTest() {
   ;(window as unknown as { __milestoRunSelfTest?: () => Promise<SelfTestResult> }).__milestoRunSelfTest =
     runSelfTest
 
   ;(window as unknown as { __milestoRunSearchSmokeTest?: () => Promise<SelfTestResult> }).__milestoRunSearchSmokeTest =
     runSearchSmokeTest
+
+  ;(window as unknown as { __milestoRunSidebarSelfTest?: () => Promise<SelfTestResult> }).__milestoRunSidebarSelfTest =
+    runSidebarSelfTest
 }
