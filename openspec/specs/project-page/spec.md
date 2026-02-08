@@ -95,7 +95,7 @@ Section creation SHALL be available from the Project page without leaving the pa
 - **THEN** the menu SHALL NOT include an action to create a section
 
 ### Requirement: User can create a project section from the bottom bar and immediately edit its title inline
-When the user is viewing `/projects/:projectId`, the app SHALL provide a `+ Section` action in the global content bottom bar.
+When the user is viewing `/projects/:projectId` and no task editor is currently open, the app SHALL provide a `+ Section` action in the global content bottom bar.
 
 Clicking `+ Section` SHALL:
 
@@ -106,6 +106,7 @@ Project section titles MAY be an empty string when persisted. When displayed in 
 
 #### Scenario: Creating a section enters inline edit
 - **WHEN** the user is on `/projects/:projectId`
+- **AND** no task editor is currently open
 - **AND** the user clicks `+ Section` in the bottom bar
 - **THEN** a new section SHALL be created and appear in the Project task grouping
 - **AND** the section title editor SHALL receive focus
@@ -339,12 +340,15 @@ This rule applies to:
 - **THEN** the completion action label SHALL NOT include a numeric count suffix (e.g. `(N)`)
 
 ### Requirement: Project page bottom bar continues to offer + Section alongside global bottom bar actions
-When the user is viewing `/projects/:projectId`, the content bottom bar SHALL continue to offer the `+ Section` action.
+When the user is viewing `/projects/:projectId` and no task editor is currently open, the content bottom bar SHALL offer the `+ Section` action.
 
 If no task editor is currently open, the bottom bar SHALL also show the global bottom bar action group (`Schedule`, `Move`, `Search`).
 
-#### Scenario: + Section remains available on the Project page
+If a task editor is currently open, the bottom bar SHALL instead show the edit-mode action set (`Move`, `Delete`, `More`) and MUST NOT show `+ Section`.
+
+#### Scenario: + Section remains available on the Project page when no editor is open
 - **WHEN** the user is viewing `/projects/:projectId`
+- **AND** no task editor is currently open
 - **THEN** the content bottom bar displays a `+ Section` action
 
 #### Scenario: Global action group is visible on Project page when no editor is open
@@ -352,8 +356,11 @@ If no task editor is currently open, the bottom bar SHALL also show the global b
 - **AND** no task editor is currently open
 - **THEN** the content bottom bar displays `Schedule`, `Move`, and `Search`
 
-#### Scenario: Global action group is hidden on Project page when an editor is open
+#### Scenario: Edit-mode action group replaces bottom bar actions when an editor is open
 - **WHEN** the user is viewing `/projects/:projectId`
 - **AND** a task editor is currently open
-- **THEN** the content bottom bar MUST NOT display `Schedule`, `Move`, and `Search`
+- **THEN** the content bottom bar displays `Move`, `Delete`, and `More`
+- **AND** the content bottom bar MUST NOT display `+ Section`
+- **AND** the content bottom bar MUST NOT display `Schedule`
+- **AND** the content bottom bar MUST NOT display `Search`
 
