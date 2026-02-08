@@ -27,6 +27,7 @@ import { useAppEvents } from './AppEventsContext'
 import { ContentScrollProvider } from './ContentScrollContext'
 import { type OpenEditorHandle, TaskSelectionProvider } from '../features/tasks/TaskSelectionContext'
 import { CommandPalette } from './CommandPalette'
+import { ContentBottomBarActions } from './ContentBottomBarActions'
 import { formatLocalDate } from '../lib/dates'
 import {
   getTaskDropAnimationConfig,
@@ -1093,9 +1094,16 @@ export function AppShell() {
                         + Section
                       </button>
                     ) : null}
-                    <span className="content-bottom-hint">Cmd/Ctrl + K</span>
+
+                    {openTaskId === null ? (
+                      <ContentBottomBarActions
+                        selectedTaskId={selectedTaskId}
+                        areas={sidebar.areas}
+                        openProjects={sidebar.openProjects}
+                        bumpRevision={bumpRevision}
+                      />
+                    ) : null}
                   </div>
-                  <div className="content-bottom-right">Local, offline</div>
                 </div>
             </div>
           </div>

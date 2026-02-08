@@ -8,6 +8,8 @@ import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 
 type Mode = 'commands' | 'search'
 
+const UI_OPEN_COMMAND_PALETTE_EVENT = 'milesto:ui.openCommandPalette'
+
 export function CommandPalette() {
   const navigate = useNavigate()
   const { selectTask } = useTaskSelection()
@@ -44,6 +46,19 @@ export function CommandPalette() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
+  useEffect(() => {
+    function onOpen(_e: Event) {
+      setIsOpen(true)
+      // If we're already open, the isOpen-driven focus effect won't re-run.
+      window.setTimeout(() => {
+        inputRef.current?.focus()
+      }, 0)
+    }
+
+    window.addEventListener(UI_OPEN_COMMAND_PALETTE_EVENT, onOpen)
+    return () => window.removeEventListener(UI_OPEN_COMMAND_PALETTE_EVENT, onOpen)
   }, [])
 
   useEffect(() => {

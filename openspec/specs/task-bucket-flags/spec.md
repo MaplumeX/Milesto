@@ -103,3 +103,16 @@ Schedule 状态 MUST 支持三态：
 - **WHEN** 且该任务 `project_id` 非 null
 - **THEN** 系统默认导航到该 Project 页面（优先于 Anytime）
 
+### Requirement: Moving a task via bottom bar Move is treated as processing and clears Inbox
+When the user moves a task via the content bottom bar `Move` action, the system MUST treat the task as processed and MUST clear the Inbox flag.
+
+This requirement is scoped to the bottom bar Move action and does not change the general invariants for bucket flags.
+
+#### Scenario: Move to Area clears Inbox flag
+- **WHEN** the user uses the bottom bar `Move` action to move a task to an Area
+- **THEN** the task is persisted with `is_inbox=false`
+
+#### Scenario: Move to Project clears Inbox flag
+- **WHEN** the user uses the bottom bar `Move` action to move a task to a Project
+- **THEN** the task is persisted with `is_inbox=false`
+

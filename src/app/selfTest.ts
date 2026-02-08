@@ -733,6 +733,16 @@ async function runSelfTest(): Promise<SelfTestResult> {
     if (!inboxARes.ok) throw new Error(`task.create inboxA failed: ${inboxARes.error.code}: ${inboxARes.error.message}`)
     if (!inboxBRes.ok) throw new Error(`task.create inboxB failed: ${inboxBRes.error.code}: ${inboxBRes.error.message}`)
 
+    const bottomBarTaskRes = await window.api.task.create({
+      title: `${token} Bottom Bar Actions`,
+      is_inbox: true,
+    })
+    if (!bottomBarTaskRes.ok) {
+      throw new Error(
+        `task.create bottomBarTask failed: ${bottomBarTaskRes.error.code}: ${bottomBarTaskRes.error.message}`
+      )
+    }
+
     // Add enough Inbox tasks to exercise scrolling + virtualization stability.
     for (let i = 0; i < 28; i++) {
       const res = await window.api.task.create({ title: `${token} Inbox filler ${i}`, is_inbox: true })
@@ -800,6 +810,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
 
     const inboxAId = inboxARes.data.id
     const inboxBId = inboxBRes.data.id
+    const bottomBarTaskId = bottomBarTaskRes.data.id
     const todayAId = todayARes.data.id
     const todayBId = todayBRes.data.id
     const upcomingAId = upcomingARes.data.id
@@ -856,6 +867,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
     const sidebarAreaAId = sidebarAreaARes.data.id
     const sidebarAreaBId = sidebarAreaBRes.data.id
     const sidebarAreaEmptyId = sidebarAreaEmptyRes.data.id
+    const sidebarAreaATitle = sidebarAreaARes.data.title
 
     const sidebarProjectUnassignedRes = await window.api.project.create({ title: `${token} Sidebar Project Unassigned` })
     const sidebarProjectA1Res = await window.api.project.create({
@@ -894,6 +906,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
     const sidebarProjectA1Id = sidebarProjectA1Res.data.id
     const sidebarProjectA2Id = sidebarProjectA2Res.data.id
     const sidebarProjectB1Id = sidebarProjectB1Res.data.id
+    const sidebarProjectA1Title = sidebarProjectA1Res.data.title
 
     const areaTaskARes = await window.api.task.create({ title: `${token} Area Task A`, area_id: areaId })
     const areaTaskBRes = await window.api.task.create({ title: `${token} Area Task B`, area_id: areaId })
@@ -984,17 +997,200 @@ async function runSelfTest(): Promise<SelfTestResult> {
 
     // Inbox (virtualized TaskList)
     window.location.hash = '/inbox'
-    const inboxListbox = await waitFor('Inbox listbox', () =>
+    let inboxListbox = await waitFor('Inbox listbox', () =>
       document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
     )
-    const inboxAButton = await waitFor('Inbox A row button', () => findTaskButton(inboxAId))
-    const inboxBButton = await waitFor('Inbox B row button', () => findTaskButton(inboxBId))
+    let inboxAButton = await waitFor('Inbox A row button', () => findTaskButton(inboxAId))
+    let inboxBButton = await waitFor('Inbox B row button', () => findTaskButton(inboxBId))
+
+    // Bottom bar actions (Schedule / Move / Search)
+    const bottomBar = await waitFor('Content bottom bar', () =>
+      document.querySelector<HTMLElement>('.content-bottom-bar')
+    )
+    const bottomBarActions = await waitFor('Content bottom bar actions', () =>
+      bottomBar.querySelector<HTMLElement>('[data-content-bottom-actions="true"]')
+    )
+    const bottomBarScheduleBtn = await waitFor('Bottom bar Schedule button', () =>
+      findButtonByText(bottomBarActions, 'Schedule')
+    )
+    const bottomBarMoveBtn = await waitFor('Bottom bar Move button', () =>
+      findButtonByText(bottomBarActions, 'Move')
+    )
+    const bottomBarSearchBtn = await waitFor('Bottom bar Search button', () =>
+      findButtonByText(bottomBarActions, 'Search')
+    )
+
+    // When no task is selected, Schedule and Move should be disabled.
+    if (getSelectedTaskId() === null) {
+      if (!bottomBarScheduleBtn.disabled) throw new Error('Bottom bar: expected Schedule disabled when no task selected')
+      if (!bottomBarMoveBtn.disabled) throw new Error('Bottom bar: expected Move disabled when no task selected')
+    }
+
+    // Select a task and ensure Schedule/Move enable.
+    contentScroller.scrollTop = 0
+    await sleep(120)
+    const bottomBarTaskButton = await scrollUntil('Bottom bar task row button', {
+      scroller: contentScroller,
+      get: () => findTaskButton(bottomBarTaskId),
+      timeoutMs: 15_000,
+    })
+    bottomBarTaskButton.click()
+    await waitFor('Bottom bar task selected', () => (getSelectedTaskId() === bottomBarTaskId ? true : null))
+
+    await waitFor('Bottom bar Schedule enabled', () => {
+      const btn = findButtonByText(bottomBarActions, 'Schedule')
+      return btn && !btn.disabled ? true : null
+    })
+    await waitFor('Bottom bar Move enabled', () => {
+      const btn = findButtonByText(bottomBarActions, 'Move')
+      return btn && !btn.disabled ? true : null
+    })
+
+    // Search should open the command palette and focus its input.
+    bottomBarSearchBtn.click()
+    const paletteInput = await waitFor('Palette input (via Search)', () =>
+      document.querySelector<HTMLInputElement>('input.palette-input')
+    )
+    await waitFor('Palette input focused (via Search)', () => (document.activeElement === paletteInput ? true : null))
+    dispatchKey(paletteInput, 'Escape')
+    await waitFor('Palette closed (via Escape)', () =>
+      document.querySelector<HTMLElement>('.palette-overlay') ? null : true
+    )
+
+    // Schedule popover should open/close and restore focus.
+    bottomBarScheduleBtn.click()
+    const schedulePop = await waitFor('Bottom bar schedule popover', () =>
+      document.querySelector<HTMLElement>('[data-content-bottom-popover="schedule"]')
+    )
+    assertInlineCalendarPopover(schedulePop, 'Bottom bar schedule popover')
+    dispatchKey(schedulePop, 'Escape')
+    await waitFor('Bottom bar schedule popover closed (Escape)', () =>
+      document.querySelector<HTMLElement>('[data-content-bottom-popover="schedule"]') ? null : true
+    )
+    await waitFor('Bottom bar schedule focus restored', () =>
+      document.activeElement === bottomBarScheduleBtn ? true : null
+    )
+
+    // Apply a real schedule update (Someday) and verify persistence.
+    bottomBarScheduleBtn.click()
+    const schedulePop2 = await waitFor('Bottom bar schedule popover (Someday)', () =>
+      document.querySelector<HTMLElement>('[data-content-bottom-popover="schedule"]')
+    )
+    const somedayBtn = await waitFor('Bottom bar schedule Someday button', () =>
+      findButtonByText(schedulePop2, 'Someday')
+    )
+    somedayBtn.click()
+    await waitFor('Bottom bar schedule popover closed (Someday)', () =>
+      document.querySelector<HTMLElement>('[data-content-bottom-popover="schedule"]') ? null : true
+    )
+    await waitForTaskDetail(
+      'Bottom bar schedule persisted',
+      bottomBarTaskId,
+      (detail) => detail.task.is_someday && detail.task.scheduled_at === null,
+      { timeoutMs: 15_000 }
+    )
+
+    // Move popover: close on pointerdown outside, then move to Area and Project.
+    window.location.hash = '/someday'
+    await waitFor('Someday listbox (bottom bar move)', () =>
+      document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+    )
+    contentScroller.scrollTop = 0
+    await sleep(120)
+    const bottomBarSomedayBtn = await scrollUntil('Bottom bar task button (Someday)', {
+      scroller: contentScroller,
+      get: () => findTaskButton(bottomBarTaskId),
+      timeoutMs: 15_000,
+    })
+    bottomBarSomedayBtn.click()
+    await waitFor('Bottom bar task selected (Someday)', () => (getSelectedTaskId() === bottomBarTaskId ? true : null))
+
+    const moveBtn = await waitFor('Bottom bar Move button (Someday)', () =>
+      findButtonByText(document, 'Move')
+    )
+    moveBtn.click()
+    const movePop = await waitFor('Bottom bar move popover', () =>
+      document.querySelector<HTMLElement>('[data-content-bottom-popover="move"]')
+    )
+    assertPopoverWithinViewport(movePop, 'Bottom bar move popover')
+    document.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+    await waitFor('Bottom bar move popover closed (outside)', () =>
+      document.querySelector<HTMLElement>('[data-content-bottom-popover="move"]') ? null : true
+    )
+    await waitFor('Bottom bar move focus restored', () => (document.activeElement === moveBtn ? true : null))
+
+    moveBtn.click()
+    const movePop2 = await waitFor('Bottom bar move popover (Area)', () =>
+      document.querySelector<HTMLElement>('[data-content-bottom-popover="move"]')
+    )
+    const areaDestBtn = await waitFor('Bottom bar move Area destination', () =>
+      findButtonByText(movePop2, sidebarAreaATitle)
+    )
+    areaDestBtn.click()
+    await waitForTaskDetail(
+      'Bottom bar move to Area persisted',
+      bottomBarTaskId,
+      (detail) =>
+        detail.task.area_id === sidebarAreaAId &&
+        detail.task.project_id === null &&
+        detail.task.section_id === null &&
+        detail.task.is_inbox === false,
+      { timeoutMs: 15_000 }
+    )
+
+    window.location.hash = `/areas/${sidebarAreaAId}`
+    await waitFor('Area listbox (bottom bar move)', () =>
+      document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+    )
+    contentScroller.scrollTop = 0
+    await sleep(120)
+    const bottomBarAreaTaskBtn = await scrollUntil('Bottom bar task button (Area)', {
+      scroller: contentScroller,
+      get: () => findTaskButton(bottomBarTaskId),
+      timeoutMs: 15_000,
+    })
+    bottomBarAreaTaskBtn.click()
+    await waitFor('Bottom bar task selected (Area)', () => (getSelectedTaskId() === bottomBarTaskId ? true : null))
+
+    const moveBtn2 = await waitFor('Bottom bar Move button (Area)', () => findButtonByText(document, 'Move'))
+    moveBtn2.click()
+    const movePop3 = await waitFor('Bottom bar move popover (Project)', () =>
+      document.querySelector<HTMLElement>('[data-content-bottom-popover="move"]')
+    )
+    const projectDestBtn = await waitFor('Bottom bar move Project destination', () =>
+      findButtonByText(movePop3, sidebarProjectA1Title)
+    )
+    projectDestBtn.click()
+    await waitForTaskDetail(
+      'Bottom bar move to Project persisted',
+      bottomBarTaskId,
+      (detail) =>
+        detail.task.project_id === sidebarProjectA1Id &&
+        detail.task.area_id === null &&
+        detail.task.section_id === null &&
+        detail.task.is_inbox === false,
+      { timeoutMs: 15_000 }
+    )
+
+    // Return to Inbox to continue the rest of the Inbox flows.
+    window.location.hash = '/inbox'
+    inboxListbox = await waitFor('Inbox listbox (post bottom bar)', () =>
+      document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+    )
+    inboxAButton = await waitFor('Inbox A row button (post bottom bar)', () => findTaskButton(inboxAId))
+    inboxBButton = await waitFor('Inbox B row button (post bottom bar)', () => findTaskButton(inboxBId))
 
     // Open via mouse and validate inline editor basics.
     const openedA = await openEditorByDoubleClick({
       taskId: inboxAId,
       button: inboxAButton,
       label: 'Inbox A (dblclick)',
+    })
+
+    // Bottom bar action group should be hidden when an inline editor is open.
+    await waitFor('Bottom bar actions hidden when editor open', () => {
+      const actions = document.querySelector('[data-content-bottom-actions="true"]')
+      return actions ? null : true
     })
 
     // Done toggle exists in the editor header and does not collapse the editor.

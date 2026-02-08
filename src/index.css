@@ -227,7 +227,7 @@ body {
   border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   padding: 0 28px;
   background: rgba(255, 255, 255, 0.55);
   backdrop-filter: blur(10px);
@@ -243,6 +243,24 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.content-bottom-action-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.content-bottom-popover-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.content-bottom-popover-item {
+  width: 100%;
+  text-align: left;
+  border-color: transparent;
 }
 
 .content-bottom-hint {
