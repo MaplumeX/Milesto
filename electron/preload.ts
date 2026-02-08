@@ -30,6 +30,7 @@ const api: WindowApi = {
     update: (input) => invoke('db:task.update', input),
     toggleDone: (id, done) => invoke('db:task.toggleDone', { id, done }),
     restore: (id) => invoke('db:task.restore', { id }),
+    delete: (id) => invoke('db:task.delete', { id }),
 
     getDetail: (id) => invoke('db:task.getDetail', { id }),
 
