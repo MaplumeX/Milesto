@@ -288,6 +288,18 @@ function dispatchMouse(
   )
 }
 
+function dispatchPointerDown(target: Window | Document | HTMLElement, params: { clientX: number; clientY: number }) {
+  target.dispatchEvent(
+    new PointerEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: params.clientX,
+      clientY: params.clientY,
+    })
+  )
+}
+
 function findDragHandle(taskId: string): HTMLElement | null {
   return document.querySelector<HTMLElement>(
     `.task-title-button.is-dnd-activator[data-task-id="${taskId}"]`
@@ -907,6 +919,26 @@ async function runSelfTest(): Promise<SelfTestResult> {
       )
     }
 
+    const editModeDeleteTaskRes = await window.api.task.create({
+      title: `${token} Edit Mode Delete`,
+      is_inbox: true,
+    })
+    if (!editModeDeleteTaskRes.ok) {
+      throw new Error(
+        `task.create editModeDeleteTask failed: ${editModeDeleteTaskRes.error.code}: ${editModeDeleteTaskRes.error.message}`
+      )
+    }
+
+    const editModeMoveTaskRes = await window.api.task.create({
+      title: `${token} Edit Mode Move`,
+      is_inbox: true,
+    })
+    if (!editModeMoveTaskRes.ok) {
+      throw new Error(
+        `task.create editModeMoveTask failed: ${editModeMoveTaskRes.error.code}: ${editModeMoveTaskRes.error.message}`
+      )
+    }
+
     // Add enough Inbox tasks to exercise scrolling + virtualization stability.
     for (let i = 0; i < 28; i++) {
       const res = await window.api.task.create({ title: `${token} Inbox filler ${i}`, is_inbox: true })
@@ -975,6 +1007,8 @@ async function runSelfTest(): Promise<SelfTestResult> {
     const inboxAId = inboxARes.data.id
     const inboxBId = inboxBRes.data.id
     const bottomBarTaskId = bottomBarTaskRes.data.id
+    const editModeDeleteTaskId = editModeDeleteTaskRes.data.id
+    const editModeMoveTaskId = editModeMoveTaskRes.data.id
     const todayAId = todayARes.data.id
     const todayBId = todayBRes.data.id
     const upcomingAId = upcomingARes.data.id
@@ -1348,6 +1382,193 @@ async function runSelfTest(): Promise<SelfTestResult> {
         detail.task.is_inbox === false,
       { timeoutMs: 15_000 }
     )
+
+    // Edit-mode move should exit the inline editor after applying.
+    window.location.hash = '/inbox'
+    inboxListbox = await waitFor('Inbox listbox (edit-mode move)', () =>
+      document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+    )
+    contentScroller.scrollTop = 0
+    await sleep(120)
+    const editModeMoveRowBtn = await scrollUntil('Edit-mode move task row button', {
+      scroller: contentScroller,
+      get: () => findTaskButton(editModeMoveTaskId),
+      timeoutMs: 15_000,
+    })
+    editModeMoveRowBtn.click()
+    await waitFor('Edit-mode move task selected', () =>
+      getSelectedTaskId() === editModeMoveTaskId ? true : null
+    )
+    dispatchKey(inboxListbox, 'Enter')
+    await waitFor('Edit-mode move inline editor open', () => (getInlinePaper() ? true : null))
+
+    const editBottomBarActionsMove = await waitFor('Content bottom bar actions (edit mode, move)', () =>
+      document.querySelector<HTMLElement>('[data-content-bottom-actions-edit="true"]')
+    )
+    const editMoveBtnApply = await waitFor('Edit bottom bar Move button (apply)', () =>
+      findButtonByText(editBottomBarActionsMove, 'Move')
+    )
+    editMoveBtnApply.click()
+    const movePopApply = await waitFor('Edit bottom bar move popover (apply)', () =>
+      document.querySelector<HTMLElement>('[data-content-bottom-popover="move"]')
+    )
+    const moveToAreaBtn = await waitFor('Edit-mode move Area destination', () =>
+      findButtonByText(movePopApply, sidebarAreaATitle)
+    )
+    moveToAreaBtn.click()
+    await waitFor('Edit-mode editor closed after move', () => (getInlinePaper() ? null : true))
+    await waitForTaskDetail(
+      'Edit-mode move persisted',
+      editModeMoveTaskId,
+      (detail) =>
+        detail.task.area_id === sidebarAreaAId &&
+        detail.task.project_id === null &&
+        detail.task.section_id === null &&
+        detail.task.is_inbox === false,
+      { timeoutMs: 15_000 }
+    )
+
+    // Edit-mode bottom bar actions (Move / Delete / More) should replace list-mode buttons.
+    window.location.hash = '/inbox'
+    inboxListbox = await waitFor('Inbox listbox (edit-mode bottom bar)', () =>
+      document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+    )
+    contentScroller.scrollTop = 0
+    await sleep(120)
+    const editModeDeleteBtn = await scrollUntil('Edit-mode delete task row button', {
+      scroller: contentScroller,
+      get: () => findTaskButton(editModeDeleteTaskId),
+      timeoutMs: 15_000,
+    })
+    editModeDeleteBtn.click()
+    await waitFor('Edit-mode delete task selected', () =>
+      getSelectedTaskId() === editModeDeleteTaskId ? true : null
+    )
+
+    // Enter should open the inline task editor.
+    dispatchKey(inboxListbox, 'Enter')
+    await waitFor('Edit-mode inline editor open', () => (getInlinePaper() ? true : null))
+
+    const editBottomBarActions = await waitFor('Content bottom bar actions (edit mode)', () =>
+      document.querySelector<HTMLElement>('[data-content-bottom-actions-edit="true"]')
+    )
+
+    const editMoveBtn = await waitFor('Edit bottom bar Move button', () =>
+      findButtonByText(editBottomBarActions, 'Move')
+    )
+    if (editMoveBtn.disabled) {
+      throw new Error('Edit bottom bar: expected Move enabled when a task editor is open')
+    }
+
+    const editDeleteBtn2 = await waitFor('Edit bottom bar Delete button', () =>
+      findButtonByText(editBottomBarActions, 'Delete')
+    )
+    await waitFor('Edit bottom bar More button', () => findButtonByText(editBottomBarActions, 'More'))
+
+    // Real clicks fire pointerdown; ensure bottom bar interactions don't trigger editor close.
+    {
+      const r = editMoveBtn.getBoundingClientRect()
+      dispatchPointerDown(editMoveBtn, { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })
+      editMoveBtn.click()
+      const movePopEdit = await waitFor('Edit bottom bar move popover', () =>
+        document.querySelector<HTMLElement>('[data-content-bottom-popover="move"]')
+      )
+      if (!getInlinePaper()) {
+        throw new Error('Edit-mode Move: expected editor to remain open after opening move popover')
+      }
+      // Pointerdown inside the popover should not close the editor.
+      const pr = movePopEdit.getBoundingClientRect()
+      dispatchPointerDown(movePopEdit, { clientX: pr.left + 8, clientY: pr.top + 8 })
+      if (!getInlinePaper()) {
+        throw new Error('Edit-mode Move: expected editor to remain open after pointerdown inside popover')
+      }
+      dispatchKey(movePopEdit, 'Escape')
+      await waitFor('Edit bottom bar move popover closed (Escape)', () =>
+        document.querySelector<HTMLElement>('[data-content-bottom-popover="move"]') ? null : true
+      )
+    }
+
+    if (findButtonByText(editBottomBarActions, '+ Task')) {
+      throw new Error('Edit bottom bar: expected + Task hidden when a task editor is open')
+    }
+    if (findButtonByText(editBottomBarActions, '+ Section')) {
+      throw new Error('Edit bottom bar: expected + Section hidden when a task editor is open')
+    }
+    if (findButtonByText(editBottomBarActions, 'Schedule')) {
+      throw new Error('Edit bottom bar: expected Schedule hidden when a task editor is open')
+    }
+    if (findButtonByText(editBottomBarActions, 'Search')) {
+      throw new Error('Edit bottom bar: expected Search hidden when a task editor is open')
+    }
+
+    const prevConfirmDelete = window.confirm
+    try {
+      // Canceling delete should keep the editor open and the task intact.
+      ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = () => false
+      {
+        const r = editDeleteBtn2.getBoundingClientRect()
+        dispatchPointerDown(editDeleteBtn2, { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })
+      }
+      editDeleteBtn2.click()
+      await sleep(60)
+      if (!getInlinePaper()) {
+        throw new Error('Edit-mode delete: expected editor to remain open after canceling delete confirmation')
+      }
+
+      // More is a placeholder; clicking it should not close the editor.
+      const moreBtn = findButtonByText(editBottomBarActions, 'More')
+      if (!moreBtn) throw new Error('Edit bottom bar: missing More button')
+      {
+        const r = moreBtn.getBoundingClientRect()
+        dispatchPointerDown(moreBtn, { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })
+      }
+      moreBtn.click()
+      await sleep(60)
+      if (!getInlinePaper()) {
+        throw new Error('Edit-mode more: expected editor to remain open after clicking More')
+      }
+      const detailAfterCancel = await window.api.task.getDetail(editModeDeleteTaskId)
+      if (!detailAfterCancel.ok) {
+        throw new Error(
+          `Edit-mode delete: expected task to remain after cancel, got ${detailAfterCancel.error.code}: ${detailAfterCancel.error.message}`
+        )
+      }
+
+      // Confirming delete should soft-delete the task and close the editor.
+      ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = () => true
+      editDeleteBtn2.click()
+      await waitFor('Edit-mode editor closed after delete', () => (getInlinePaper() ? null : true))
+      await waitFor('Edit-mode focus restored to listbox after delete', () => {
+        const active = document.activeElement
+        if (!(active instanceof HTMLElement)) return null
+        if (active.classList.contains('task-scroll') && active.getAttribute('role') === 'listbox') return true
+        return null
+      })
+      await waitFor('Edit-mode deleted task removed from list', () =>
+        findTaskButton(editModeDeleteTaskId) ? null : true
+      )
+      const detailAfterDelete = await window.api.task.getDetail(editModeDeleteTaskId)
+      if (detailAfterDelete.ok) {
+        throw new Error('Edit-mode delete: expected getDetail to fail after delete')
+      }
+      if (detailAfterDelete.error.code !== 'NOT_FOUND') {
+        throw new Error(
+          `Edit-mode delete: expected NOT_FOUND after delete, got ${detailAfterDelete.error.code}: ${detailAfterDelete.error.message}`
+        )
+      }
+
+      const searchAfterDelete = await window.api.task.search(`${token} Edit Mode Delete`, { includeLogbook: true })
+      if (!searchAfterDelete.ok) {
+        throw new Error(
+          `Edit-mode delete: search after delete failed: ${searchAfterDelete.error.code}: ${searchAfterDelete.error.message}`
+        )
+      }
+      if (searchAfterDelete.data.some((r) => r.id === editModeDeleteTaskId)) {
+        throw new Error('Edit-mode delete: expected deleted task excluded from search results')
+      }
+    } finally {
+      ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = prevConfirmDelete
+    }
 
     // SearchPanel: Enter should navigate, select, and close.
     const bottomBarActionsEnter = await waitFor('Content bottom bar actions (SearchPanel Enter)', () =>
