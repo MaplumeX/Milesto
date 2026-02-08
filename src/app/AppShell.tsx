@@ -27,7 +27,7 @@ import type { Project } from '../../shared/schemas/project'
 import { useAppEvents } from './AppEventsContext'
 import { ContentScrollProvider } from './ContentScrollContext'
 import { type OpenEditorHandle, TaskSelectionProvider } from '../features/tasks/TaskSelectionContext'
-import { CommandPalette } from './CommandPalette'
+import { SearchPanel } from './SearchPanel'
 import { ContentBottomBarActions } from './ContentBottomBarActions'
 import { formatLocalDate } from '../lib/dates'
 import {
@@ -151,6 +151,12 @@ export function AppShell() {
   const [createMode, setCreateMode] = useState<'project' | 'area' | null>(null)
   const [createTitle, setCreateTitle] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+
+  useEffect(() => {
+    const isSelfTest = new URL(window.location.href).searchParams.get('selfTest') === '1'
+    if (!isSelfTest) return
+    ;(window as unknown as { __milestoSelectedTaskId?: string | null }).__milestoSelectedTaskId = selectedTaskId
+  }, [selectedTaskId])
 
   const projectIdFromRoute = useMemo(() => {
     const match = location.pathname.match(/^\/projects\/([^/]+)$/)
@@ -1111,7 +1117,7 @@ export function AppShell() {
           </div>
         </main>
 
-        <CommandPalette />
+        <SearchPanel />
       </div>
       </ContentScrollProvider>
     </TaskSelectionProvider>

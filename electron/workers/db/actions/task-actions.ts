@@ -41,6 +41,22 @@ const ChecklistDbRowSchema = ChecklistItemSchema.extend({
   done: z.preprocess((v) => Boolean(v), z.boolean()),
 })
 
+function buildFts5PrefixMatchQuery(raw: string): string | null {
+  // Convert arbitrary user input into a safe FTS5 prefix query.
+  // We intentionally do NOT pass raw user query into MATCH to avoid malformed query errors
+  // and to prevent exposing FTS query operators (OR/NEAR/title:...) to the user.
+  const normalized = raw.normalize('NFKC')
+  const tokens = normalized.match(/[\p{L}\p{N}]+/gu) ?? []
+  if (tokens.length === 0) return null
+
+  return tokens
+    .map((t) => {
+      const escaped = t.replace(/"/g, '""')
+      return `"${escaped}"*`
+    })
+    .join(' ')
+}
+
 function normalizeBucketFlags(input: {
   isInbox: boolean
   isSomeday: boolean
@@ -786,6 +802,11 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
 
       const includeLogbook = parsed.data.include_logbook ?? false
 
+      const matchQuery = buildFts5PrefixMatchQuery(parsed.data.query)
+      if (!matchQuery) {
+        return { ok: true, data: [] }
+      }
+
       try {
         const rows = db
           .prepare(
@@ -798,10 +819,10 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
              WHERE t.deleted_at IS NULL
                AND (${includeLogbook ? '1=1' : "t.status = 'open'"})
                AND tasks_fts MATCH @query
-             ORDER BY bm25(tasks_fts) ASC
-             LIMIT 200`
+              ORDER BY bm25(tasks_fts) ASC
+              LIMIT 200`
           )
-          .all({ query: parsed.data.query })
+          .all({ query: matchQuery })
 
         const items = z.array(TaskSearchResultItemSchema).parse(rows)
         return { ok: true, data: items }

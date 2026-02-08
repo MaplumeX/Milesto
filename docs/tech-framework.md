@@ -218,7 +218,7 @@ type DbWorkerResponse =
 4) Drizzle schema + migrations：dev/prod 路径策略打通（含基础索引/pragma 基线）
 5) v0.1 MVP 关键基建：FTS5 搜索、列表虚拟滚动、Today/项目内排序持久化、JSON 导入/导出
 6) 业务页面：AppShell + 核心列表/项目/标签/搜索/设置，贯通 DB->UI
-7) 交互增强（v0.1 要求）：键盘优先快捷键 + 命令面板（Command Palette）
+7) 交互增强（v0.1 要求）：键盘优先交互 + 搜索面板（SearchPanel）
 8) 打包验证：三平台产物可运行（重点验证 better-sqlite3 原生依赖）
 9) v0.2/v0.3 预留：提醒/重复的调度边界、sync-ready 数据约束（UUID/soft delete/updated_at）
 
@@ -268,9 +268,9 @@ PRD v0.1 需要全局搜索（title + notes），且对性能有硬指标。建�
 
 ---
 
-## 14. 键盘优先与命令面板（对齐 PRD 交互目标）
+## 14. 键盘优先与搜索面板（对齐 PRD 交互目标）
 
-PRD 强调低摩擦与键盘优先。建议把“命令”抽象成可复用的 command registry。
+PRD 强调低摩擦与键盘优先。v0.1 先提供 search-only 的 SearchPanel；命令体系可后续再引入。
 
 ### 14.1 快捷键分层
 
@@ -280,10 +280,11 @@ PRD 强调低摩擦与键盘优先。建议把“命令”抽象成可复用的 
 - 页面级快捷键（Renderer）
   - 例如：列表上下移动、完成任务、进入搜索框
 
-### 14.2 命令面板（Command Palette）
+### 14.2 搜索面板（SearchPanel）
 
-- 建议引入 `cmdk`（shadcn 社区常用组合），实现统一的“搜索 + 执行命令”入口
-- 命令面板支持：跳转列表/项目、创建任务、切换视图、打开设置、触发导出等
+- 入口：内容区底部栏的 `Search`
+- 交互：输入即搜索；上下键高亮；`Enter` 跳转并选中；`Escape`/点击遮罩关闭
+- 约束：仅搜索，不提供命令列表，不支持“无结果回车创建任务”；不提供 `Cmd/Ctrl+K` 全局入口
 
 ---
 

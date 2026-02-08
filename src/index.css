@@ -664,6 +664,10 @@ body {
   overflow: hidden;
 }
 
+.palette.search-panel {
+  width: min(480px, 100%);
+}
+
 .palette-input {
   width: 100%;
   border: 0;

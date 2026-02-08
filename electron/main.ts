@@ -91,6 +91,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win: BrowserWindow | null
 
 const IS_SELF_TEST = process.env.MILESTO_SELF_TEST === '1'
+const SELF_TEST_SUITE = process.env.MILESTO_SELF_TEST_SUITE ?? 'full'
 const SELF_TEST_USER_DATA_DIR = IS_SELF_TEST
   ? path.join(process.env.APP_ROOT ?? __dirname, '.tmp', 'milesto-selftest', `${Date.now()}-${process.pid}`)
   : null
@@ -216,17 +217,18 @@ function createWindow() {
     win.webContents.once('did-finish-load', async () => {
       if (!win) return
       try {
+        const fnName = SELF_TEST_SUITE === 'search' ? '__milestoRunSearchSmokeTest' : '__milestoRunSelfTest'
         const result = (await win.webContents.executeJavaScript(
           `
             (async () => {
               const start = Date.now()
-              while (typeof window.__milestoRunSelfTest !== 'function') {
+              while (typeof window[${JSON.stringify(fnName)}] !== 'function') {
                 if (Date.now() - start > 15000) {
-                  throw new Error('window.__milestoRunSelfTest not registered (timeout)')
+                  throw new Error('self-test function not registered (timeout)')
                 }
                 await new Promise((r) => setTimeout(r, 50))
               }
-              return window.__milestoRunSelfTest()
+              return window[${JSON.stringify(fnName)}]()
             })()
           `
         )) as unknown
@@ -236,7 +238,7 @@ function createWindow() {
         const failures = Array.isArray(parsed.failures) ? parsed.failures : []
 
         // Report to stdout so CLI can assert success.
-        console.log('[MILESTO_SELF_TEST]', JSON.stringify({ ok, failures }))
+        console.log('[MILESTO_SELF_TEST]', JSON.stringify({ suite: SELF_TEST_SUITE, ok, failures }))
 
         app.exit(ok ? 0 : 1)
       } catch (e) {

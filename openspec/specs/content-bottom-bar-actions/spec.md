@@ -122,7 +122,7 @@ Move semantics:
 - **AND** the selected task is persisted with `section_id=null`
 
 ### Requirement: Search button opens the floating search overlay
-Clicking `Search` SHALL open the existing floating search overlay (Command Palette style) and focus the search input.
+Clicking `Search` SHALL open the centered floating search overlay (SearchPanel) and focus the search input.
 
 #### Scenario: Clicking Search opens the overlay and focuses input
 - **WHEN** no task editor is currently open

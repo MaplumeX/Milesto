@@ -9,7 +9,7 @@ import type { TaskUpdateInput } from '../../shared/schemas/task'
 
 import { formatLocalDate } from '../lib/dates'
 
-const UI_OPEN_COMMAND_PALETTE_EVENT = 'milesto:ui.openCommandPalette'
+const UI_OPEN_SEARCH_PANEL_EVENT = 'milesto:ui.openSearchPanel'
 
 type PopoverKind = 'schedule' | 'move'
 type ActivePopover = {
@@ -137,7 +137,7 @@ export function ContentBottomBarActions({
 
   const openSearch = () => {
     closePopover({ restoreFocus: false })
-    window.dispatchEvent(new CustomEvent(UI_OPEN_COMMAND_PALETTE_EVENT))
+    window.dispatchEvent(new CustomEvent(UI_OPEN_SEARCH_PANEL_EVENT))
   }
 
   const renderPopover = () => {

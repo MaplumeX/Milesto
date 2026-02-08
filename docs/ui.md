@@ -49,9 +49,10 @@
 ### 3.2 导航与入口
 
 - 必须：路由策略遵循 `docs/tech-framework.md`，优先 `HashRouter`（适配 `file://` 场景）。
-- 必须：提供全局命令入口（计划引入 `cmdk` / shadcn `Command` 组合）：
-  - `Cmd/Ctrl + K`：打开命令面板
-  - 支持搜索/跳转/创建等高频动作
+- v0.1：提供全局搜索入口（SearchPanel）：
+  - 入口在内容区底部栏 `Search`（居中遮罩弹窗）
+  - 仅搜索 + 跳转：不提供命令列表 / 快速创建
+  - 暂不提供 `Cmd/Ctrl + K` 全局快捷键入口
 - 建议：侧边栏只承载“信息架构中的固定入口”（Inbox/Today/Upcoming/Projects/Tags/Settings 等），避免把低频功能塞满导航。
 
 ---
@@ -121,7 +122,7 @@
 - 表单与输入：`Button`、`Input`、`Textarea`、`Select`、`Checkbox`、`Switch`、`Popover`（日期选择可基于 Popover）
 - 结构与导航：`Tabs`、`Separator`、`ScrollArea`（谨慎使用，避免嵌套滚动）
 - 浮层：`Dialog`、`Sheet`、`DropdownMenu`、`Tooltip`
-- 命令入口：`Command`（配合 `cmdk` 生态）
+- （可选/后续）命令入口：`Command`（配合 `cmdk` 生态）
 - 反馈：`Toast/Sonner`（计划引入）、`Skeleton`、`Badge`
 
 ### 5.3 列表与虚拟滚动（强制）
@@ -136,7 +137,7 @@
 
 ### 6.1 全局快捷键（建议基线）
 
-- 必须：`Cmd/Ctrl + K` 打开命令面板（搜索/跳转/执行）。
+- v0.1：不提供 `Cmd/Ctrl + K` 打开命令面板。
 - 建议：`Cmd/Ctrl + F` 聚焦搜索（若产品提供常驻搜索框）。
 - 建议：`Cmd/Ctrl + N` 新建任务（或打开快速输入）。
 - 建议：`Cmd + ,` 打开设置（macOS 习惯；Windows 可提供等价入口）。

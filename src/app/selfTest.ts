@@ -5,6 +5,170 @@ type SelfTestResult = {
   failures: string[]
 }
 
+async function runSearchSmokeTest(): Promise<SelfTestResult> {
+  const failures: string[] = []
+
+  // Keep the token FTS-friendly.
+  const token = `milestoselftestsearch${Date.now()}`
+
+  try {
+    if (!('api' in window)) {
+      throw new Error('window.api is missing (preload not available).')
+    }
+
+    const contentScroller = await waitFor('Content scroller (search smoke)', () =>
+      document.querySelector<HTMLElement>('.content-scroll')
+    )
+
+    const tomorrow = formatLocalDate(addDays(new Date(), 1))
+
+    const inboxRes = await window.api.task.create({ title: `${token} Inbox A`, is_inbox: true })
+    const upcomingRes = await window.api.task.create({ title: `${token} Upcoming A`, scheduled_at: tomorrow })
+    const doneRes = await window.api.task.create({ title: `${token} Done A`, is_inbox: true })
+    if (!inboxRes.ok) throw new Error(`task.create inbox failed: ${inboxRes.error.code}: ${inboxRes.error.message}`)
+    if (!upcomingRes.ok) throw new Error(`task.create upcoming failed: ${upcomingRes.error.code}: ${upcomingRes.error.message}`)
+    if (!doneRes.ok) throw new Error(`task.create done failed: ${doneRes.error.code}: ${doneRes.error.message}`)
+
+    const doneToggle = await window.api.task.toggleDone(doneRes.data.id, true)
+    if (!doneToggle.ok) {
+      throw new Error(`task.toggleDone failed: ${doneToggle.error.code}: ${doneToggle.error.message}`)
+    }
+
+    // Ensure Cmd/Ctrl+K does nothing.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true, cancelable: true }))
+    await sleep(120)
+    if (document.querySelector<HTMLElement>('.palette-overlay')) {
+      throw new Error('Search smoke: expected no Cmd/Ctrl+K behavior (overlay should not open)')
+    }
+
+    // Open SearchPanel from bottom bar.
+    window.location.hash = '/inbox'
+    await waitFor('Inbox listbox (search smoke)', () =>
+      document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
+    )
+
+    const bottomBarActions = await waitFor('Content bottom bar actions (search smoke)', () =>
+      document.querySelector<HTMLElement>('[data-content-bottom-actions="true"]')
+    )
+    const searchBtn = await waitFor('Bottom bar Search button (search smoke)', () =>
+      findButtonByText(bottomBarActions, 'Search')
+    )
+    searchBtn.click()
+
+    const input = await waitFor('SearchPanel input (search smoke)', () =>
+      document.querySelector<HTMLInputElement>('input.palette-input')
+    )
+    await waitFor('SearchPanel input focused (search smoke)', () =>
+      document.activeElement === input ? true : null
+    )
+
+    // Scrim click closes.
+    const scrim = await waitFor('SearchPanel scrim (search smoke)', () =>
+      document.querySelector<HTMLElement>('.palette-overlay')
+    )
+    scrim.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+    await waitFor('SearchPanel closed (scrim, search smoke)', () =>
+      document.querySelector<HTMLElement>('.palette-overlay') ? null : true
+    )
+
+    // Enter on empty results MUST NOT create tasks.
+    searchBtn.click()
+    const inputNoRes = await waitFor('SearchPanel input (no results, search smoke)', () =>
+      document.querySelector<HTMLInputElement>('input.palette-input')
+    )
+    const noResTitle = `${token} NO_RESULT_SHOULD_NOT_CREATE_${Date.now()}`
+    setNativeInputValue(inputNoRes, noResTitle)
+    await sleep(200)
+    dispatchKey(inputNoRes, 'Enter')
+    await sleep(300)
+    const inboxAfterNoCreate = await window.api.task.listInbox()
+    if (!inboxAfterNoCreate.ok) {
+      throw new Error(
+        `task.listInbox after no-create failed: ${inboxAfterNoCreate.error.code}: ${inboxAfterNoCreate.error.message}`
+      )
+    }
+    if (inboxAfterNoCreate.data.some((t) => t.title === noResTitle)) {
+      throw new Error('Search smoke: Enter on empty results created a task unexpectedly')
+    }
+    dispatchKey(inputNoRes, 'Escape')
+    await waitFor('SearchPanel closed (Escape, search smoke)', () =>
+      document.querySelector<HTMLElement>('.palette-overlay') ? null : true
+    )
+
+    // Enter selects highlighted item, navigates, closes.
+    searchBtn.click()
+    const inputPick = await waitFor('SearchPanel input (pick, search smoke)', () =>
+      document.querySelector<HTMLInputElement>('input.palette-input')
+    )
+    setNativeInputValue(inputPick, `${token} Upco`)
+    const paletteRoot = await waitFor('SearchPanel root (pick, search smoke)', () =>
+      document.querySelector<HTMLElement>('.palette')
+    )
+    const upcomingBtn = await waitFor('SearchPanel result: Upcoming A (search smoke)', () =>
+      findButtonContainingText(paletteRoot, `${token} Upcoming A`)
+    )
+    upcomingBtn.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, cancelable: true }))
+    await waitFor('SearchPanel highlight: Upcoming A (search smoke)', () =>
+      upcomingBtn.classList.contains('is-active') ? true : null
+    )
+    dispatchKey(inputPick, 'Enter')
+    await waitFor('SearchPanel closed (Enter, search smoke)', () =>
+      document.querySelector<HTMLElement>('.palette-overlay') ? null : true
+    )
+    await waitFor('SearchPanel navigated to Upcoming (search smoke)', () =>
+      window.location.hash.includes('/upcoming') ? true : null
+    )
+    contentScroller.scrollTop = 0
+    await sleep(120)
+    await waitFor('Upcoming A row button (search smoke)', () => findTaskButton(upcomingRes.data.id))
+    // Selection is asserted via AppShell self-test hook.
+    await waitFor('Upcoming A selected (search smoke)', () => {
+      const v = (window as unknown as { __milestoSelectedTaskId?: string | null }).__milestoSelectedTaskId
+      return v === upcomingRes.data.id ? true : null
+    })
+
+    // SearchPage: prefix matching + includeLogbook behavior.
+    window.location.hash = '/search'
+    await waitFor('SearchPage route active (search smoke)', () =>
+      window.location.hash.includes('/search') ? true : null
+    )
+    const searchRow = await waitFor('SearchPage search row (search smoke)', () =>
+      document.querySelector<HTMLElement>('.task-create')
+    )
+    const searchInput = await waitFor('SearchPage input (search smoke)', () =>
+      searchRow.querySelector<HTMLInputElement>('input.input')
+    )
+    const includeLogbook = await waitFor('SearchPage includeLogbook checkbox (search smoke)', () =>
+      searchRow.querySelector<HTMLInputElement>('input[type="checkbox"]')
+    )
+
+    setNativeInputValue(searchInput, `${token} Inbo`)
+    await waitFor('SearchPage result: Inbox A (prefix, search smoke)', () =>
+      findButtonContainingText(document, `${token} Inbox A`)
+    )
+
+    setNativeInputValue(searchInput, `${token} Done`)
+    await sleep(350)
+    if (findButtonContainingText(document, `${token} Done A`)) {
+      throw new Error('Search smoke: expected done task excluded when includeLogbook=false')
+    }
+    includeLogbook.click()
+    await waitFor('SearchPage result: Done A (includeLogbook, search smoke)', () =>
+      findButtonContainingText(document, `${token} Done A`)
+    )
+
+    // Sanity: ensure prefix query builder tolerates punctuation-only input via worker short-circuit.
+    const punctRes = await window.api.task.search('---', { includeLogbook: true })
+    if (!punctRes.ok) {
+      throw new Error(`Search smoke: expected ok on punctuation-only query, got ${punctRes.error.code}`)
+    }
+  } catch (e) {
+    failures.push(e instanceof Error ? e.message : String(e))
+  }
+
+  return { ok: failures.length === 0, failures }
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
 }
@@ -995,6 +1159,8 @@ async function runSelfTest(): Promise<SelfTestResult> {
       )
     }
 
+    const projectDoneId = projectDoneRes.data.id
+
     // Inbox (virtualized TaskList)
     window.location.hash = '/inbox'
     let inboxListbox = await waitFor('Inbox listbox', () =>
@@ -1046,14 +1212,28 @@ async function runSelfTest(): Promise<SelfTestResult> {
       return btn && !btn.disabled ? true : null
     })
 
-    // Search should open the command palette and focus its input.
+    // Search should open the SearchPanel and focus its input.
     bottomBarSearchBtn.click()
-    const paletteInput = await waitFor('Palette input (via Search)', () =>
+    const paletteInput = await waitFor('SearchPanel input (via Search)', () =>
       document.querySelector<HTMLInputElement>('input.palette-input')
     )
-    await waitFor('Palette input focused (via Search)', () => (document.activeElement === paletteInput ? true : null))
-    dispatchKey(paletteInput, 'Escape')
-    await waitFor('Palette closed (via Escape)', () =>
+    await waitFor('SearchPanel input focused (via Search)', () => (document.activeElement === paletteInput ? true : null))
+
+    // Scrim click should close the SearchPanel.
+    const scrim = await waitFor('SearchPanel scrim', () => document.querySelector<HTMLElement>('.palette-overlay'))
+    scrim.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+    await waitFor('SearchPanel closed (via scrim)', () =>
+      document.querySelector<HTMLElement>('.palette-overlay') ? null : true
+    )
+
+    // Re-open for Escape behavior.
+    bottomBarSearchBtn.click()
+    const paletteInput2 = await waitFor('SearchPanel input (for Escape)', () =>
+      document.querySelector<HTMLInputElement>('input.palette-input')
+    )
+    await waitFor('SearchPanel input focused (for Escape)', () => (document.activeElement === paletteInput2 ? true : null))
+    dispatchKey(paletteInput2, 'Escape')
+    await waitFor('SearchPanel closed (via Escape)', () =>
       document.querySelector<HTMLElement>('.palette-overlay') ? null : true
     )
 
@@ -1171,6 +1351,83 @@ async function runSelfTest(): Promise<SelfTestResult> {
         detail.task.is_inbox === false,
       { timeoutMs: 15_000 }
     )
+
+    // SearchPanel: Enter should navigate, select, and close.
+    const bottomBarActionsEnter = await waitFor('Content bottom bar actions (SearchPanel Enter)', () =>
+      document.querySelector<HTMLElement>('[data-content-bottom-actions="true"]')
+    )
+    const bottomBarSearchBtnEnter = await waitFor('Bottom bar Search button (SearchPanel Enter)', () =>
+      findButtonByText(bottomBarActionsEnter, 'Search')
+    )
+    bottomBarSearchBtnEnter.click()
+    const searchInput = await waitFor('SearchPanel input (for Enter)', () =>
+      document.querySelector<HTMLInputElement>('input.palette-input')
+    )
+    setNativeInputValue(searchInput, `${token} Today A`)
+    const paletteRoot = await waitFor('SearchPanel root (for Enter)', () =>
+      document.querySelector<HTMLElement>('.palette')
+    )
+    const todayAResultBtn = await waitFor('SearchPanel result: Today A (for Enter)', () =>
+      findButtonContainingText(paletteRoot, `${token} Today A`)
+    )
+    // Ensure Enter selects the highlighted result.
+    todayAResultBtn.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, cancelable: true }))
+    await waitFor('SearchPanel highlight: Today A (for Enter)', () =>
+      todayAResultBtn.classList.contains('is-active') ? true : null
+    )
+    dispatchKey(searchInput, 'Enter')
+    await waitFor('SearchPanel closed (via Enter)', () =>
+      document.querySelector<HTMLElement>('.palette-overlay') ? null : true
+    )
+    await waitFor('SearchPanel navigated to Today (via Enter)', () =>
+      window.location.hash.includes('/today') ? true : null
+    )
+    // Ensure the selected row is actually mounted (virtualized list + shared scroller).
+    contentScroller.scrollTop = 0
+    await sleep(120)
+    await waitFor('Today A row button (via SearchPanel Enter)', () => findTaskButton(todayAId))
+    // Custom wait so we can report the last observed selection on failure.
+    {
+      const timeoutMs = 20_000
+      const start = Date.now()
+      let last: string | null | undefined
+      while (Date.now() - start < timeoutMs) {
+        last = (window as unknown as { __milestoSelectedTaskId?: string | null }).__milestoSelectedTaskId
+        if (last === todayAId) break
+        await sleep(50)
+      }
+      if (last !== todayAId) {
+        throw new Error(
+          `SearchPanel selection mismatch (Enter): expected=${todayAId} got=${String(last)} hash=${window.location.hash}`
+        )
+      }
+    }
+
+    // SearchPage should still work and benefit from prefix matching.
+    window.location.hash = '/search'
+    await waitFor('SearchPage route active', () => (window.location.hash.includes('/search') ? true : null))
+    const searchCreateRow = await waitFor('SearchPage search row', () => document.querySelector<HTMLElement>('.task-create'))
+    const searchPageInput = await waitFor('SearchPage input', () =>
+      searchCreateRow.querySelector<HTMLInputElement>('input.input')
+    )
+    const includeLogbookCheckbox = await waitFor('SearchPage includeLogbook checkbox', () =>
+      searchCreateRow.querySelector<HTMLInputElement>('input[type="checkbox"]')
+    )
+
+    // Prefix query: "Inbo" should match "Inbox".
+    setNativeInputValue(searchPageInput, `${token} Inbo`)
+    await waitFor('SearchPage result: Inbox A (prefix match)', () =>
+      findButtonContainingText(document, `${token} Inbox A`)
+    )
+
+    // include_logbook should control whether done tasks are eligible.
+    setNativeInputValue(searchPageInput, `${token} Project Don`)
+    await sleep(400)
+    if (findTaskButton(projectDoneId)) {
+      throw new Error('SearchPage: expected done task excluded when includeLogbook=false')
+    }
+    includeLogbookCheckbox.click()
+    await waitFor('SearchPage result: Project Done (includeLogbook)', () => findTaskButton(projectDoneId))
 
     // Return to Inbox to continue the rest of the Inbox flows.
     window.location.hash = '/inbox'
@@ -2544,4 +2801,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
 export function registerSelfTest() {
   ;(window as unknown as { __milestoRunSelfTest?: () => Promise<SelfTestResult> }).__milestoRunSelfTest =
     runSelfTest
+
+  ;(window as unknown as { __milestoRunSearchSmokeTest?: () => Promise<SelfTestResult> }).__milestoRunSearchSmokeTest =
+    runSearchSmokeTest
 }

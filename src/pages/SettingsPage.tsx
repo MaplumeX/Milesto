@@ -174,10 +174,6 @@ export function SettingsPage() {
             <div className="mono">{userDataPath}</div>
           </div>
           <div className="row">
-            <div>{t('settings.shortcuts')}</div>
-            <div className="mono">{t('settings.commandPaletteShortcut')}</div>
-          </div>
-          <div className="row">
             <button
               type="button"
               className="button button-ghost"
