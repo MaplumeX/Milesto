@@ -1170,11 +1170,8 @@ async function runSelfTest(): Promise<SelfTestResult> {
     let inboxBButton = await waitFor('Inbox B row button', () => findTaskButton(inboxBId))
 
     // Bottom bar actions (Schedule / Move / Search)
-    const bottomBar = await waitFor('Content bottom bar', () =>
-      document.querySelector<HTMLElement>('.content-bottom-bar')
-    )
     const bottomBarActions = await waitFor('Content bottom bar actions', () =>
-      bottomBar.querySelector<HTMLElement>('[data-content-bottom-actions="true"]')
+      document.querySelector<HTMLElement>('[data-content-bottom-actions="true"]')
     )
     const bottomBarScheduleBtn = await waitFor('Bottom bar Schedule button', () =>
       findButtonByText(bottomBarActions, 'Schedule')

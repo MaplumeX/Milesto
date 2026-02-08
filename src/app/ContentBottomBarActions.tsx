@@ -300,27 +300,25 @@ export function ContentBottomBarActions({
 
   return (
     <>
-      <div className="content-bottom-action-group" data-content-bottom-actions="true">
-        <button
-          type="button"
-          className="button button-ghost"
-          disabled={!isTaskSelected}
-          onClick={(e) => openSchedule(e.currentTarget as HTMLElement)}
-        >
-          {t('common.schedule')}
-        </button>
-        <button
-          type="button"
-          className="button button-ghost"
-          disabled={!isTaskSelected}
-          onClick={(e) => openMove(e.currentTarget as HTMLElement)}
-        >
-          {t('common.move')}
-        </button>
-        <button type="button" className="button button-ghost" onClick={openSearch}>
-          {t('common.search')}
-        </button>
-      </div>
+      <button
+        type="button"
+        className="button button-ghost"
+        disabled={!isTaskSelected}
+        onClick={(e) => openSchedule(e.currentTarget as HTMLElement)}
+      >
+        {t('common.schedule')}
+      </button>
+      <button
+        type="button"
+        className="button button-ghost"
+        disabled={!isTaskSelected}
+        onClick={(e) => openMove(e.currentTarget as HTMLElement)}
+      >
+        {t('common.move')}
+      </button>
+      <button type="button" className="button button-ghost" onClick={openSearch}>
+        {t('common.search')}
+      </button>
 
       {renderPopover()}
     </>

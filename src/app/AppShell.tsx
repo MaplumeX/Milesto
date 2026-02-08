@@ -1092,26 +1092,27 @@ export function AppShell() {
                 <Outlet />
               </div>
 
-                <div className="content-bottom-bar">
-                  <div className="content-bottom-left">
-                    <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
-                      {t('shell.task')}
+                <div
+                  className="content-bottom-bar"
+                  data-content-bottom-actions={openTaskId === null ? 'true' : undefined}
+                >
+                  <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
+                    {t('shell.task')}
+                  </button>
+                  {projectIdFromRoute ? (
+                    <button type="button" className="button button-ghost" onClick={handleAddSection}>
+                      {t('shell.section')}
                     </button>
-                    {projectIdFromRoute ? (
-                      <button type="button" className="button button-ghost" onClick={handleAddSection}>
-                        {t('shell.section')}
-                      </button>
-                    ) : null}
+                  ) : null}
 
-                    {openTaskId === null ? (
-                      <ContentBottomBarActions
-                        selectedTaskId={selectedTaskId}
-                        areas={sidebar.areas}
-                        openProjects={sidebar.openProjects}
-                        bumpRevision={bumpRevision}
-                      />
-                    ) : null}
-                  </div>
+                  {openTaskId === null ? (
+                    <ContentBottomBarActions
+                      selectedTaskId={selectedTaskId}
+                      areas={sidebar.areas}
+                      openProjects={sidebar.openProjects}
+                      bumpRevision={bumpRevision}
+                    />
+                  ) : null}
                 </div>
             </div>
           </div>

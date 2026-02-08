@@ -228,27 +228,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--muted);
   padding: 0 28px;
   background: rgba(255, 255, 255, 0.55);
   backdrop-filter: blur(10px);
-}
-
-.content-bottom-left,
-.content-bottom-right {
-  font-size: 10px;
-  color: var(--muted);
-}
-
-.content-bottom-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.content-bottom-action-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .content-bottom-popover-list {
