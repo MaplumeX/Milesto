@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 import {
   DndContext,
@@ -139,6 +140,7 @@ type SidebarModel = {
 }
 
 export function AppShell() {
+  const { t } = useTranslation()
   const { revision, bumpRevision } = useAppEvents()
   const navigate = useNavigate()
   const location = useLocation()
@@ -936,23 +938,23 @@ export function AppShell() {
     >
       <ContentScrollProvider scrollRef={contentScrollRef}>
       <div className="app-shell">
-        <aside className="sidebar" aria-label="Sidebar">
+        <aside className="sidebar" aria-label={t('aria.sidebar')}>
         <div className="sidebar-top">
           <div className="app-title">Milesto</div>
         </div>
 
-        <nav className="nav" aria-label="Main navigation" onKeyDown={handleSidebarKeyDown}>
-          <NavItem to="/inbox" label="Inbox" />
-          <NavItem to="/today" label="Today" />
-          <NavItem to="/upcoming" label="Upcoming" />
-          <NavItem to="/anytime" label="Anytime" />
-          <NavItem to="/someday" label="Someday" />
+        <nav className="nav" aria-label={t('aria.mainNavigation')} onKeyDown={handleSidebarKeyDown}>
+          <NavItem to="/inbox" label={t('nav.inbox')} />
+          <NavItem to="/today" label={t('nav.today')} />
+          <NavItem to="/upcoming" label={t('nav.upcoming')} />
+          <NavItem to="/anytime" label={t('nav.anytime')} />
+          <NavItem to="/someday" label={t('nav.someday')} />
 
           <div className="nav-sep" />
-          <NavItem to="/logbook" label="Logbook" />
+          <NavItem to="/logbook" label={t('nav.logbook')} />
 
           <div className="nav-sep" />
-          <div className="nav-section-title">Projects</div>
+          <div className="nav-section-title">{t('nav.projects')}</div>
 
           {sidebarError ? <div className="sidebar-error">{sidebarError}</div> : null}
 
@@ -1009,14 +1011,14 @@ export function AppShell() {
                 className={`create-toggle-item${createMode === 'project' ? ' is-active' : ''}`}
                 onClick={() => setCreateMode('project')}
               >
-                Project
+                {t('shell.project')}
               </button>
               <button
                 type="button"
                 className={`create-toggle-item${createMode === 'area' ? ' is-active' : ''}`}
                 onClick={() => setCreateMode('area')}
               >
-                Area
+                {t('shell.area')}
               </button>
             </div>
 
@@ -1024,7 +1026,7 @@ export function AppShell() {
               className="input"
               value={createTitle}
               onChange={(e) => setCreateTitle(e.target.value)}
-              placeholder={createMode === 'project' ? 'Project title…' : 'Area title…'}
+              placeholder={createMode === 'project' ? t('shell.projectTitlePlaceholder') : t('shell.areaTitlePlaceholder')}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   setCreateMode(null)
@@ -1044,7 +1046,7 @@ export function AppShell() {
                 onClick={() => void handleCreate()}
                 disabled={isCreating}
               >
-                Create
+                {t('shell.create')}
               </button>
               <button
                 type="button"
@@ -1055,7 +1057,7 @@ export function AppShell() {
                 }}
                 disabled={isCreating}
               >
-                Cancel
+                {t('shell.cancel')}
               </button>
             </div>
           </div>
@@ -1070,14 +1072,14 @@ export function AppShell() {
               setCreateTitle('')
             }}
           >
-            + New
+            {t('shell.new')}
           </button>
 
-          <NavItem to="/settings" label="Settings" />
+          <NavItem to="/settings" label={t('nav.settings')} />
         </div>
       </aside>
 
-        <main className="content" aria-label="Content">
+        <main className="content" aria-label={t('aria.content')}>
           <div className="content-grid">
             <div className="content-main">
               <div ref={contentScrollRef} className="content-scroll">
@@ -1087,11 +1089,11 @@ export function AppShell() {
                 <div className="content-bottom-bar">
                   <div className="content-bottom-left">
                     <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
-                      + Task
+                      {t('shell.task')}
                     </button>
                     {projectIdFromRoute ? (
                       <button type="button" className="button button-ghost" onClick={handleAddSection}>
-                        + Section
+                        {t('shell.section')}
                       </button>
                     ) : null}
 
@@ -1242,6 +1244,7 @@ function SortableSidebarAreaGroup({
   activeProjectDragId: string | null
   suppressClickRef: React.MutableRefObject<boolean>
 }) {
+  const { t } = useTranslation()
   const { setNodeRef: setDroppableNodeRef } = useDroppable({
     id: containerId,
     data: { type: 'container', containerId },
@@ -1315,7 +1318,7 @@ function SortableSidebarAreaGroup({
 
       {projectDragIds.length === 0 ? (
         <div className="nav-muted" aria-hidden="true">
-          (empty)
+          {t('shell.empty')}
         </div>
       ) : null}
 

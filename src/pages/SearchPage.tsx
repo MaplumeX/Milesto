@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
 import type { TaskSearchResultItem } from '../../shared/schemas/search'
@@ -7,6 +8,7 @@ import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 import { TaskInlineEditorRow } from '../features/tasks/TaskInlineEditorRow'
 
 export function SearchPage() {
+  const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
   const [query, setQuery] = useState('')
   const [includeLogbook, setIncludeLogbook] = useState(false)
@@ -40,7 +42,7 @@ export function SearchPage() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1 className="page-title">Search</h1>
+        <h1 className="page-title">{t('search.title')}</h1>
       </header>
 
       <div className="task-create">
@@ -48,7 +50,7 @@ export function SearchPage() {
           className="input"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search title + notes…"
+          placeholder={t('search.placeholder')}
         />
         <label className="tag-pill" style={{ marginLeft: 'auto' }}>
           <input
@@ -56,7 +58,7 @@ export function SearchPage() {
             checked={includeLogbook}
             onChange={(e) => setIncludeLogbook(e.target.checked)}
           />
-          <span>Include Logbook</span>
+          <span>{t('search.includeLogbook')}</span>
         </label>
       </div>
 
@@ -70,7 +72,7 @@ export function SearchPage() {
       <div
         tabIndex={0}
         role="listbox"
-        aria-label="Search results"
+        aria-label={t('search.resultsAriaLabel')}
         onKeyDown={(e) => {
           if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') return
 
@@ -132,14 +134,14 @@ export function SearchPage() {
                   onDoubleClick={() => void openTask(r.id)}
                 >
                   <span className={r.title.trim() ? undefined : 'task-title-placeholder'}>
-                    {r.title.trim() ? r.title : '新建任务'}
+                    {r.title.trim() ? r.title : t('task.untitled')}
                   </span>
                 </button>
                 <div className="mono">{r.snippet ?? ''}</div>
               </li>
             )
           })}
-          {results.length === 0 && query.trim() ? <li className="nav-muted">No results</li> : null}
+          {results.length === 0 && query.trim() ? <li className="nav-muted">{t('search.noResults')}</li> : null}
         </ul>
       </div>
     </div>

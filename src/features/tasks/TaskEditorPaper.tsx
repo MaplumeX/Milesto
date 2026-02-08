@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { DayPicker } from 'react-day-picker'
+import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../../shared/app-error'
 import type { Area } from '../../../shared/schemas/area'
@@ -193,6 +194,7 @@ export const TaskEditorPaper = forwardRef<
   TaskEditorPaperHandle,
   { taskId: string; onRequestClose: () => void; variant?: TaskEditorVariant }
   >(function TaskEditorPaper({ taskId, onRequestClose, variant = 'overlay' }, ref) {
+    const { t } = useTranslation()
     const titleInputRef = useRef<HTMLInputElement | null>(null)
     const notesInputRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -614,9 +616,9 @@ export const TaskEditorPaper = forwardRef<
       return (
         <div className={paperClassName}>
           <div className="overlay-paper-header">
-            <div className="overlay-paper-title">Task</div>
+            <div className="overlay-paper-title">{t('taskEditor.taskTitle')}</div>
             <button type="button" className="button button-ghost" onClick={onRequestClose}>
-              Close
+              {t('common.close')}
             </button>
           </div>
           <div className="error">
@@ -631,17 +633,17 @@ export const TaskEditorPaper = forwardRef<
       return (
         <div className={paperClassName}>
           <div className="overlay-paper-header">
-            <div className="overlay-paper-title">Task</div>
+            <div className="overlay-paper-title">{t('taskEditor.taskTitle')}</div>
             <button type="button" className="button button-ghost" onClick={onRequestClose}>
-              Close
+              {t('common.close')}
             </button>
           </div>
-          <div className="nav-muted">Loading…</div>
+          <div className="nav-muted">{t('common.loading')}</div>
         </div>
       )
     }
 
-    const statusLabel = detail.task.status === 'done' ? 'Done' : 'Open'
+    const statusLabel = detail.task.status === 'done' ? t('taskEditor.statusDone') : t('taskEditor.statusOpen')
 
     const createChecklistItem = async (title: string): Promise<ChecklistItem | null> => {
       const nextTitle = title.trim()
@@ -856,10 +858,10 @@ export const TaskEditorPaper = forwardRef<
           >
             {activePicker.kind === 'tags' ? (
               <div className="task-inline-popover-body">
-                <div className="task-inline-popover-title">Tags</div>
+                <div className="task-inline-popover-title">{t('taskEditor.tagsLabel')}</div>
                 <input
                   className="input"
-                  placeholder="New tag"
+                  placeholder={t('taskEditor.newTagPlaceholder')}
                   value={tagCreateTitle}
                   onChange={(e) => {
                     setTagCreateTitle(e.target.value)
@@ -938,7 +940,7 @@ export const TaskEditorPaper = forwardRef<
               </div>
             ) : activePicker.kind === 'schedule' ? (
               <div className="task-inline-popover-body">
-                <div className="task-inline-popover-title">Scheduled</div>
+                <div className="task-inline-popover-title">{t('taskEditor.popoverScheduleTitle')}</div>
                 <div className="task-inline-calendar" style={{ marginTop: 8 }}>
                   <DayPicker
                     mode="single"
@@ -973,7 +975,7 @@ export const TaskEditorPaper = forwardRef<
                       closeActivePicker({ restoreFocus: true })
                     }}
                   >
-                    Someday
+                    {t('nav.someday')}
                   </button>
                   <button
                     type="button"
@@ -985,7 +987,7 @@ export const TaskEditorPaper = forwardRef<
                       closeActivePicker({ restoreFocus: true })
                     }}
                   >
-                    Today
+                    {t('nav.today')}
                   </button>
                   <button
                     type="button"
@@ -997,13 +999,13 @@ export const TaskEditorPaper = forwardRef<
                       closeActivePicker({ restoreFocus: true })
                     }}
                   >
-                    Clear
+                    {t('common.clear')}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="task-inline-popover-body">
-                <div className="task-inline-popover-title">Due</div>
+                <div className="task-inline-popover-title">{t('taskEditor.popoverDueTitle')}</div>
                 <div className="task-inline-calendar" style={{ marginTop: 8 }}>
                   <DayPicker
                     mode="single"
@@ -1031,7 +1033,7 @@ export const TaskEditorPaper = forwardRef<
                       closeActivePicker({ restoreFocus: true })
                     }}
                   >
-                    Clear
+                    {t('common.clear')}
                   </button>
                 </div>
               </div>
@@ -1054,7 +1056,7 @@ export const TaskEditorPaper = forwardRef<
           }}
         >
           <div className="task-inline-header">
-            <label className="task-checkbox" aria-label="Done">
+            <label className="task-checkbox" aria-label={t('aria.taskDone')}>
               <input
                 type="checkbox"
                 checked={detail.task.status === 'done'}
@@ -1090,7 +1092,7 @@ export const TaskEditorPaper = forwardRef<
                 e.stopPropagation()
                 onRequestClose()
               }}
-              placeholder="新建任务"
+              placeholder={t('task.titlePlaceholder')}
             />
 
             {savePhase === 'error' ? (
@@ -1102,7 +1104,7 @@ export const TaskEditorPaper = forwardRef<
                     requestSave(draft)
                   }}
                 >
-                  Retry
+                  {t('common.retry')}
                 </button>
               </div>
             ) : null}
@@ -1147,7 +1149,7 @@ export const TaskEditorPaper = forwardRef<
                 setDraft(next)
                 scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
               }}
-              placeholder="备注"
+              placeholder={t('task.notesPlaceholder')}
             />
 
             {isChecklistExpanded ? (
@@ -1175,12 +1177,12 @@ export const TaskEditorPaper = forwardRef<
                     className="task-inline-chip-main"
                     onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
                   >
-                    Scheduled: {draft.is_someday ? 'Someday' : draft.scheduled_at === today ? 'Today' : draft.scheduled_at}
+                    {t('taskEditor.scheduledPrefix')} {draft.is_someday ? t('nav.someday') : draft.scheduled_at === today ? t('nav.today') : draft.scheduled_at}
                   </button>
                   <button
                     type="button"
                     className="task-inline-chip-close"
-                    aria-label="Clear scheduled"
+                    aria-label={t('taskEditor.clearScheduledAria')}
                     onClick={(e) => {
                       e.preventDefault()
                       const next = draft.is_someday ? { ...draft, is_someday: false } : { ...draft, scheduled_at: null }
@@ -1196,12 +1198,12 @@ export const TaskEditorPaper = forwardRef<
               {draft.due_at ? (
                 <div className="task-inline-chip">
                   <button type="button" className="task-inline-chip-main" onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}>
-                    Due: {draft.due_at}
+                    {t('taskEditor.duePrefix')} {draft.due_at}
                   </button>
                   <button
                     type="button"
                     className="task-inline-chip-close"
-                    aria-label="Clear due"
+                    aria-label={t('taskEditor.clearDueAria')}
                     onClick={(e) => {
                       e.preventDefault()
                       const next = { ...draft, due_at: null }
@@ -1217,12 +1219,12 @@ export const TaskEditorPaper = forwardRef<
               {selectedTagIds.size > 0 ? (
                 <div className="task-inline-chip">
                   <button type="button" className="task-inline-chip-main" onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}>
-                    Tags: {selectedTagIds.size}
+                    {t('taskEditor.tagsPrefix')} {selectedTagIds.size}
                   </button>
                   <button
                     type="button"
                     className="task-inline-chip-close"
-                    aria-label="Clear tags"
+                    aria-label={t('taskEditor.clearTagsAria')}
                     onClick={(e) => {
                       e.preventDefault()
                       persistTags([])
@@ -1241,7 +1243,7 @@ export const TaskEditorPaper = forwardRef<
                   className="button button-ghost"
                   onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
                 >
-                  Schedule
+                  {t('common.schedule')}
                 </button>
               ) : null}
 
@@ -1251,12 +1253,12 @@ export const TaskEditorPaper = forwardRef<
                 className="button button-ghost"
                 onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
               >
-                Tags
+                {t('taskEditor.tagsLabel')}
               </button>
 
               {!draft.due_at ? (
                 <button type="button" className="button button-ghost" onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}>
-                  Due
+                  {t('taskEditor.dueLabel')}
                 </button>
               ) : null}
 
@@ -1267,7 +1269,7 @@ export const TaskEditorPaper = forwardRef<
                   className="button"
                   onClick={() => openChecklistAndFocus()}
                 >
-                  Checklist
+                  {t('taskEditor.checklistLabel')}
                 </button>
               ) : null}
             </div>
@@ -1283,7 +1285,7 @@ export const TaskEditorPaper = forwardRef<
     return (
       <div className={paperClassName}>
         <div className="overlay-paper-header">
-          <div className="overlay-paper-title">Task</div>
+          <div className="overlay-paper-title">{t('taskEditor.taskTitle')}</div>
 
           {savePhase === 'error' ? (
             <button
@@ -1294,12 +1296,12 @@ export const TaskEditorPaper = forwardRef<
                 requestSave(draft)
               }}
             >
-              Retry
+              {t('common.retry')}
             </button>
           ) : null}
 
           <button type="button" className="button button-ghost" onClick={onRequestClose}>
-            Close
+            {t('common.close')}
           </button>
         </div>
 
@@ -1327,16 +1329,24 @@ export const TaskEditorPaper = forwardRef<
         <div className="detail-meta" style={{ marginTop: 6 }}>
           <span className={`badge ${detail.task.status === 'done' ? 'badge-done' : 'badge-open'}`}>{statusLabel}</span>
           {detail.task.is_someday ? (
-            <span className="badge">Scheduled: Someday</span>
+            <span className="badge">
+              {t('taskEditor.scheduledPrefix')} {t('nav.someday')}
+            </span>
           ) : detail.task.scheduled_at ? (
-            <span className="badge">Scheduled: {detail.task.scheduled_at}</span>
+            <span className="badge">
+              {t('taskEditor.scheduledPrefix')} {detail.task.scheduled_at}
+            </span>
           ) : null}
-          {detail.task.due_at ? <span className="badge">Due: {detail.task.due_at}</span> : null}
+          {detail.task.due_at ? (
+            <span className="badge">
+              {t('taskEditor.duePrefix')} {detail.task.due_at}
+            </span>
+          ) : null}
         </div>
 
         <div className="detail-field">
           <label className="label" htmlFor="task-title">
-            Title
+            {t('taskEditor.titleLabel')}
           </label>
           <input
             id="task-title"
@@ -1353,7 +1363,7 @@ export const TaskEditorPaper = forwardRef<
 
         <div className="detail-field">
           <label className="label" htmlFor="task-notes">
-            Notes
+            {t('taskEditor.notesLabel')}
           </label>
           <textarea
             id="task-notes"
@@ -1365,14 +1375,14 @@ export const TaskEditorPaper = forwardRef<
               setDraft(next)
               scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
             }}
-            placeholder="Markdown supported (stored as plain text in v0.1)."
+            placeholder={t('taskEditor.markdownPlaceholder')}
           />
         </div>
 
         <div className="detail-grid">
           <div className="detail-field">
             <label className="label" htmlFor="task-project">
-              Project
+              {t('taskEditor.projectLabel')}
             </label>
             <select
               id="task-project"
@@ -1385,7 +1395,7 @@ export const TaskEditorPaper = forwardRef<
                 scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
               }}
             >
-              <option value="">(none)</option>
+              <option value="">{t('common.noneOption')}</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.title}
@@ -1396,7 +1406,7 @@ export const TaskEditorPaper = forwardRef<
               type="button"
               className="button button-ghost"
               onClick={() => {
-                const title = prompt('New project title')
+                const title = prompt(t('project.newTitlePrompt'))
                 if (!title) return
                 void (async () => {
                   const res = await window.api.project.create({ title })
@@ -1419,7 +1429,7 @@ export const TaskEditorPaper = forwardRef<
 
           <div className="detail-field">
             <label className="label" htmlFor="task-section">
-              Section
+              {t('taskEditor.sectionLabel')}
             </label>
             <select
               id="task-section"
@@ -1432,10 +1442,10 @@ export const TaskEditorPaper = forwardRef<
               }}
               disabled={!draft.project_id}
             >
-              <option value="">(none)</option>
+              <option value="">{t('common.noneOption')}</option>
               {sections.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.title.trim() ? s.title : '(untitled)'}
+                  {s.title.trim() ? s.title : t('common.untitled')}
                 </option>
               ))}
             </select>
@@ -1443,7 +1453,7 @@ export const TaskEditorPaper = forwardRef<
 
           <div className="detail-field">
             <label className="label" htmlFor="task-area">
-              Area
+              {t('taskEditor.areaLabel')}
             </label>
             <select
               id="task-area"
@@ -1455,7 +1465,7 @@ export const TaskEditorPaper = forwardRef<
                 scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
               }}
             >
-              <option value="">(none)</option>
+              <option value="">{t('common.noneOption')}</option>
               {areas.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.title}
@@ -1466,7 +1476,7 @@ export const TaskEditorPaper = forwardRef<
 
           <div className="detail-field">
             <label className="label" htmlFor="task-scheduled">
-              Scheduled
+              {t('taskEditor.scheduledLabel')}
             </label>
             <input
               id="task-scheduled"
@@ -1489,7 +1499,7 @@ export const TaskEditorPaper = forwardRef<
                   scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
                 }}
               >
-                Today
+                {t('nav.today')}
               </button>
               <button
                 type="button"
@@ -1500,14 +1510,14 @@ export const TaskEditorPaper = forwardRef<
                   scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
                 }}
               >
-                Clear
+                {t('common.clear')}
               </button>
             </div>
           </div>
 
           <div className="detail-field">
             <label className="label" htmlFor="task-due">
-              Due
+              {t('taskEditor.dueLabel')}
             </label>
             <input
               id="task-due"
@@ -1530,14 +1540,14 @@ export const TaskEditorPaper = forwardRef<
                   scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
                 }}
               >
-                Clear
+                {t('common.clear')}
               </button>
             </div>
           </div>
         </div>
 
         <div className="detail-field">
-          <div className="label">Tags</div>
+          <div className="label">{t('taskEditor.tagsLabel')}</div>
           <div className="tag-grid">
             {tags.map((tag) => {
               const checked = selectedTagIds.has(tag.id)
@@ -1596,7 +1606,7 @@ export const TaskEditorPaper = forwardRef<
                     type="button"
                     className="button button-ghost"
                     onClick={() => {
-                      const next = prompt('Rename tag', tag.title)
+                      const next = prompt(t('tag.renamePromptTitle'), tag.title)
                       if (!next) return
                       void (async () => {
                         const res = await window.api.tag.update({ id: tag.id, title: next })
@@ -1610,14 +1620,14 @@ export const TaskEditorPaper = forwardRef<
                       })()
                     }}
                   >
-                    Rename
+                    {t('common.rename')}
                   </button>
 
                   <button
                     type="button"
                     className="button button-ghost"
                     onClick={() => {
-                      const confirmed = confirm('Delete tag?')
+                      const confirmed = confirm(t('tag.deleteConfirm'))
                       if (!confirmed) return
                       void (async () => {
                         const res = await window.api.tag.delete(tag.id)
@@ -1631,7 +1641,7 @@ export const TaskEditorPaper = forwardRef<
                       })()
                     }}
                   >
-                    Delete
+                    {t('common.delete')}
                   </button>
                 </div>
               )
@@ -1642,7 +1652,7 @@ export const TaskEditorPaper = forwardRef<
             type="button"
             className="button button-ghost"
             onClick={() => {
-              const title = prompt('New tag')
+              const title = prompt(t('tag.newPromptTitle'))
               if (!title) return
               void (async () => {
                 const res = await window.api.tag.create({ title })
@@ -1656,12 +1666,12 @@ export const TaskEditorPaper = forwardRef<
               })()
             }}
           >
-            + Tag
+            {t('common.addTag')}
           </button>
         </div>
 
         <div className="detail-field">
-          <div className="label">Checklist</div>
+          <div className="label">{t('taskEditor.checklistLabel')}</div>
           <Checklist
             items={checklist}
             variant="overlay"
@@ -1689,7 +1699,7 @@ export const TaskEditorPaper = forwardRef<
                 })()
               }}
             >
-              Restore
+              {t('task.restore')}
             </button>
           ) : (
             <button
@@ -1707,7 +1717,7 @@ export const TaskEditorPaper = forwardRef<
                 })()
               }}
             >
-              Mark Done
+              {t('taskEditor.markDone')}
             </button>
           )}
         </div>
@@ -1737,6 +1747,7 @@ function Checklist({
   onDelete: (id: string) => Promise<boolean>
   onCollapseWhenEmpty?: () => void
 }) {
+  const { t } = useTranslation()
   const rowKeyCounterRef = useRef(0)
   const keyByIdRef = useRef(new Map<string, string>())
   const editingRowKeyRef = useRef<string | null>(null)
@@ -1963,7 +1974,7 @@ function Checklist({
     <ul className="checklist">
       {rows.map((row) => (
         <li key={row.key} className={`checklist-row${row.done ? ' is-done' : ''}`}>
-          <label className="task-checkbox" aria-label="Checklist item done">
+          <label className="task-checkbox" aria-label={t('taskEditor.checklistItemDoneAria')}>
             <input
               type="checkbox"
               checked={row.done}
@@ -1979,7 +1990,7 @@ function Checklist({
             }}
             className="checklist-title-input"
             value={row.titleDraft}
-            placeholder="Checklist item"
+            placeholder={t('taskEditor.checklistItemPlaceholder')}
             onFocus={() => {
               editingRowKeyRef.current = row.key
             }}

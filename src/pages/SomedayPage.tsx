@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
 import type { TaskListItem } from '../../shared/schemas/task-list'
@@ -7,6 +8,7 @@ import { TaskList } from '../features/tasks/TaskList'
 import { useAppEvents } from '../app/AppEventsContext'
 
 export function SomedayPage() {
+  const { t } = useTranslation()
   const { revision } = useAppEvents()
   const [tasks, setTasks] = useState<TaskListItem[]>([])
   const [error, setError] = useState<AppError | null>(null)
@@ -30,7 +32,7 @@ export function SomedayPage() {
     <>
       {error ? <ErrorBanner error={error} /> : null}
       <TaskList
-        title="Someday"
+        title={t('nav.someday')}
         listId={TASK_LIST_ID_SOMEDAY}
         tasks={tasks}
         onAfterReorder={refresh}

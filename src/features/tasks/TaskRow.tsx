@@ -1,4 +1,5 @@
 import type { TaskListItem } from '../../../shared/schemas/task-list'
+import { useTranslation } from 'react-i18next'
 
 export function TaskRow({
   task,
@@ -25,6 +26,7 @@ export function TaskRow({
   onRestore?: (taskId: string) => void
   isOverlay?: boolean
 }) {
+  const { t } = useTranslation()
   const isTitleActivator = !!titleActivatorProps
   const {
     className: titleActivatorClassName,
@@ -76,7 +78,7 @@ export function TaskRow({
         }}
       >
         <span className={task.title.trim() ? undefined : 'task-title-placeholder'}>
-          {task.title.trim() ? task.title : '新建任务'}
+          {task.title.trim() ? task.title : t('task.untitled')}
         </span>
       </button>
 
@@ -90,7 +92,7 @@ export function TaskRow({
             onRestore(task.id)
           }}
         >
-          Restore
+          {t('task.restore')}
         </button>
       ) : null}
     </div>

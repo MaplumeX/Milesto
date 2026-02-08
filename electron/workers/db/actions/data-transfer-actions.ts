@@ -169,6 +169,7 @@ export function createDataTransferActions(db: Database.Database): Record<string,
 
       const tx = db.transaction(() => {
         db.exec(`
+          -- Keep app_settings (e.g. locale preference) when importing.
           DELETE FROM task_tags;
           DELETE FROM task_checklist_items;
           DELETE FROM list_positions;

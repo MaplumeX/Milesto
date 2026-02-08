@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 import type { TaskSearchResultItem } from '../../shared/schemas/search'
 
@@ -11,9 +12,12 @@ type Mode = 'commands' | 'search'
 const UI_OPEN_COMMAND_PALETTE_EVENT = 'milesto:ui.openCommandPalette'
 
 export function CommandPalette() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { selectTask } = useTaskSelection()
   const inputRef = useRef<HTMLInputElement | null>(null)
+
+  const commands = buildCommands(t)
 
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -24,11 +28,11 @@ export function CommandPalette() {
   const mode: Mode = query.trim() ? 'search' : 'commands'
 
   function getTaskHint(item: TaskSearchResultItem): string {
-    if (item.is_someday) return 'Someday'
-    if (item.scheduled_at) return item.scheduled_at === today ? 'Today' : item.scheduled_at
-    if (item.is_inbox) return 'Inbox'
-    if (item.project_id) return 'Project'
-    return 'Anytime'
+    if (item.is_someday) return t('nav.someday')
+    if (item.scheduled_at) return item.scheduled_at === today ? t('nav.today') : item.scheduled_at
+    if (item.is_inbox) return t('nav.inbox')
+    if (item.project_id) return t('shell.project')
+    return t('nav.anytime')
   }
 
   useEffect(() => {
@@ -139,7 +143,7 @@ export function CommandPalette() {
         <input
           ref={inputRef}
           className="input palette-input"
-          placeholder="Type to search, or type a new task…"
+          placeholder={t('commandPalette.inputPlaceholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -151,7 +155,7 @@ export function CommandPalette() {
 
             if (e.key === 'ArrowDown') {
               e.preventDefault()
-              const max = mode === 'commands' ? COMMANDS.length - 1 : results.length
+              const max = mode === 'commands' ? commands.length - 1 : results.length
               setHighlight((v) => Math.min(v + 1, Math.max(0, max)))
               return
             }
@@ -165,7 +169,7 @@ export function CommandPalette() {
               e.preventDefault()
 
               if (mode === 'commands') {
-                const cmd = COMMANDS[highlight]
+                const cmd = commands[highlight]
                 if (cmd) {
                   cmd.run({ navigate })
                   close()
@@ -187,7 +191,7 @@ export function CommandPalette() {
         <div className="palette-list">
           {mode === 'commands' ? (
             <>
-              {COMMANDS.map((cmd, idx) => (
+              {commands.map((cmd, idx) => (
                 <button
                   key={cmd.id}
                   type="button"
@@ -212,7 +216,7 @@ export function CommandPalette() {
                   onClick={() => jumpToTask(item)}
                 >
                   <div className={item.title.trim() ? 'palette-item-title' : 'palette-item-title palette-item-placeholder'}>
-                    {item.title.trim() ? item.title : '新建任务'}
+                    {item.title.trim() ? item.title : t('task.untitled')}
                   </div>
                   <div className="palette-item-hint">{item.snippet ?? getTaskHint(item)}</div>
                 </button>
@@ -223,7 +227,7 @@ export function CommandPalette() {
                 className={`palette-item${highlight === results.length ? ' is-active' : ''}`}
                 onClick={() => void createTaskFromQuery()}
               >
-                <div className="palette-item-title">Create task</div>
+                <div className="palette-item-title">{t('commandPalette.createTask')}</div>
                 <div className="palette-item-hint">{query.trim()}</div>
               </button>
             </>
@@ -234,17 +238,19 @@ export function CommandPalette() {
   )
 }
 
-const COMMANDS: Array<{
+function buildCommands(t: (key: string) => string): Array<{
   id: string
   title: string
   hint: string
   run: (ctx: { navigate: (to: string) => void }) => void
-}> = [
-  { id: 'go-today', title: 'Go to Today', hint: 'View', run: ({ navigate }) => navigate('/today') },
-  { id: 'go-inbox', title: 'Go to Inbox', hint: 'View', run: ({ navigate }) => navigate('/inbox') },
-  { id: 'go-upcoming', title: 'Go to Upcoming', hint: 'View', run: ({ navigate }) => navigate('/upcoming') },
-  { id: 'go-anytime', title: 'Go to Anytime', hint: 'View', run: ({ navigate }) => navigate('/anytime') },
-  { id: 'go-someday', title: 'Go to Someday', hint: 'View', run: ({ navigate }) => navigate('/someday') },
-  { id: 'go-logbook', title: 'Go to Logbook', hint: 'View', run: ({ navigate }) => navigate('/logbook') },
-  { id: 'go-settings', title: 'Go to Settings', hint: 'App', run: ({ navigate }) => navigate('/settings') },
-]
+}> {
+  return [
+    { id: 'go-today', title: t('commandPalette.goToToday'), hint: t('commandPalette.hintView'), run: ({ navigate }) => navigate('/today') },
+    { id: 'go-inbox', title: t('commandPalette.goToInbox'), hint: t('commandPalette.hintView'), run: ({ navigate }) => navigate('/inbox') },
+    { id: 'go-upcoming', title: t('commandPalette.goToUpcoming'), hint: t('commandPalette.hintView'), run: ({ navigate }) => navigate('/upcoming') },
+    { id: 'go-anytime', title: t('commandPalette.goToAnytime'), hint: t('commandPalette.hintView'), run: ({ navigate }) => navigate('/anytime') },
+    { id: 'go-someday', title: t('commandPalette.goToSomeday'), hint: t('commandPalette.hintView'), run: ({ navigate }) => navigate('/someday') },
+    { id: 'go-logbook', title: t('commandPalette.goToLogbook'), hint: t('commandPalette.hintView'), run: ({ navigate }) => navigate('/logbook') },
+    { id: 'go-settings', title: t('commandPalette.goToSettings'), hint: t('commandPalette.hintApp'), run: ({ navigate }) => navigate('/settings') },
+  ]
+}

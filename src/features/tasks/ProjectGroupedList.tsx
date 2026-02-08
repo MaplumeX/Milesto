@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 
 import { useVirtualizer } from '@tanstack/react-virtual'
 
@@ -221,6 +222,7 @@ function ProjectGroupHeaderRow({
   index: number
   translateY: number
 }) {
+  const { t } = useTranslation()
   const { setNodeRef: setDroppableNodeRef } = useDroppable({
     id: containerId,
     data: { type: 'container', containerId },
@@ -268,8 +270,8 @@ function ProjectGroupHeaderRow({
               ref={editTitleInputRef}
               className="project-group-title project-group-title-input"
               value={editTitleDraft}
-              placeholder="(untitled)"
-              aria-label="Section title"
+              placeholder={t('common.untitled')}
+              aria-label={t('aria.sectionTitle')}
               onChange={(e) => setEditTitleDraft(e.target.value)}
               onKeyDown={(e) => {
                 // Prevent listbox navigation and allow inline editing.
@@ -319,7 +321,7 @@ function ProjectGroupHeaderRow({
             }}
           >
             <div className={`project-group-title${title.trim() ? '' : ' is-placeholder'}`}>
-              {title.trim() ? title : '(untitled)'}
+              {title.trim() ? title : t('common.untitled')}
             </div>
           </button>
         )}
@@ -378,6 +380,7 @@ function ProjectSectionDragOverlay({
 }: {
   title: string
 }) {
+  const { t } = useTranslation()
   const hasTitle = title.trim().length > 0
 
   return (
@@ -385,7 +388,9 @@ function ProjectSectionDragOverlay({
       <div className="project-section-dnd-overlay-edge project-section-dnd-overlay-edge-1" />
       <div className="project-section-dnd-overlay-edge project-section-dnd-overlay-edge-2" />
       <div className="project-section-dnd-overlay-card">
-        <div className={`project-group-title${hasTitle ? '' : ' is-placeholder'}`}>{hasTitle ? title : '(untitled)'}</div>
+        <div className={`project-group-title${hasTitle ? '' : ' is-placeholder'}`}>
+          {hasTitle ? title : t('common.untitled')}
+        </div>
       </div>
     </div>
   )
@@ -414,6 +419,7 @@ export function ProjectGroupedList({
   onToggleDone: (taskId: string, done: boolean) => Promise<void>
   onAfterReorder?: () => Promise<void>
 }) {
+  const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId, requestCloseTask } = useTaskSelection()
   const contentScrollRef = useContentScrollRef()
 
@@ -1158,7 +1164,7 @@ export function ProjectGroupedList({
         className="task-scroll"
         tabIndex={0}
         role="listbox"
-        aria-label="Project tasks"
+        aria-label={t('aria.projectTasks')}
         onKeyDown={(e) => {
           const isReorderChord =
             (e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')

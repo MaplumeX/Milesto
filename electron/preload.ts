@@ -21,6 +21,10 @@ const api: WindowApi = {
     importFromFile: () => invoke('data:importFromFile'),
     resetAllData: () => invoke('data:resetAllData'),
   },
+  settings: {
+    getLocaleState: () => invoke('settings:getLocaleState'),
+    setLocale: (locale) => invoke('settings:setLocale', { locale }),
+  },
   task: {
     create: (input) => invoke('db:task.create', input),
     update: (input) => invoke('db:task.update', input),

@@ -1,5 +1,6 @@
 import { useLayoutEffect, useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { useTranslation } from 'react-i18next'
 
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
@@ -24,6 +25,7 @@ export function UpcomingGroupedList({
   nextWeekStart: string
   nextMonthStart: string
 }) {
+  const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
   const contentScrollRef = useContentScrollRef()
   const listboxRef = useRef<HTMLDivElement | null>(null)
@@ -143,14 +145,14 @@ export function UpcomingGroupedList({
   return (
     <div className="page">
       <header className="page-header">
-        <h1 className="page-title">Upcoming</h1>
+        <h1 className="page-title">{t('nav.upcoming')}</h1>
         <div className="row" style={{ marginTop: 0 }}>
           <button
             type="button"
             className="button button-ghost"
             onClick={() => scrollTo(0)}
           >
-            Today
+            {t('nav.today')}
           </button>
           <button
             type="button"
@@ -161,7 +163,7 @@ export function UpcomingGroupedList({
               scrollTo(nextWeekIndex)
             }}
           >
-            Next Week
+            {t('upcoming.nextWeek')}
           </button>
           <button
             type="button"
@@ -172,7 +174,7 @@ export function UpcomingGroupedList({
               scrollTo(nextMonthIndex)
             }}
           >
-            Next Month
+            {t('upcoming.nextMonth')}
           </button>
         </div>
       </header>
@@ -182,7 +184,7 @@ export function UpcomingGroupedList({
         className="task-scroll"
         tabIndex={0}
         role="listbox"
-        aria-label="Upcoming tasks"
+        aria-label={t('aria.upcomingTasks')}
         onKeyDown={(e) => {
           if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') return
 
@@ -323,10 +325,10 @@ export function UpcomingGroupedList({
         </ul>
       </div>
 
-      {rows.length === 0 ? <div className="nav-muted">No upcoming tasks</div> : null}
+      {rows.length === 0 ? <div className="nav-muted">{t('upcoming.empty')}</div> : null}
 
       <div className="nav-muted" style={{ marginTop: 10 }}>
-        Showing tasks scheduled after {today}
+        {t('upcoming.showingAfter', { date: today })}
       </div>
     </div>
   )

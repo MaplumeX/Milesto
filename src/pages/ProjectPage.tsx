@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState }
 import type { ForwardedRef, RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
 import type { Area } from '../../shared/schemas/area'
@@ -13,6 +14,7 @@ import { ProjectGroupedList } from '../features/tasks/ProjectGroupedList'
 const PROJECT_CREATE_SECTION_EVENT = 'milesto:project.createSection'
 
 export function ProjectPage() {
+  const { t } = useTranslation()
   const { revision, bumpRevision } = useAppEvents()
   const { projectId } = useParams<{ projectId: string }>()
   const pid = projectId ?? ''
@@ -194,18 +196,18 @@ export function ProjectPage() {
     }
   }, [isMenuOpen])
 
-  const completedLabel = 'Completed'
+  const completedLabel = t('projectPage.completed')
 
   if (!pid) {
     return (
       <div className="page">
-        <h1 className="page-title">Project</h1>
-        <div className="error">Missing project id.</div>
+        <h1 className="page-title">{t('shell.project')}</h1>
+        <div className="error">{t('errors.missingProjectId')}</div>
       </div>
     )
   }
 
-  const title = project?.title ?? 'Project'
+  const title = project?.title ?? t('shell.project')
 
   return (
     <>
@@ -215,14 +217,14 @@ export function ProjectPage() {
         <header className="page-header">
           <div className="project-header-left">
             {project ? (
-              <label className="task-checkbox" aria-label="Mark project done">
+              <label className="task-checkbox" aria-label={t('aria.markProjectDone')}>
                 <input
                   type="checkbox"
                   checked={project.status === 'done'}
                   disabled={project.status === 'done'}
                   onChange={() => {
                     if (!project) return
-                    const confirmed = confirm(`Mark project done and complete ${openCount} open tasks?`)
+                    const confirmed = confirm(t('project.completeConfirm', { count: openCount }))
                     if (!confirmed) return
 
                     void (async () => {
@@ -273,7 +275,7 @@ export function ProjectPage() {
                   await refresh()
                 }}
                 onRename={async () => {
-                  const next = prompt('Rename project', project.title)
+                  const next = prompt(t('project.renamePromptTitle'), project.title)
                   if (!next) return
                   const res = await window.api.project.update({ id: project.id, title: next })
                   if (!res.ok) {
@@ -284,7 +286,7 @@ export function ProjectPage() {
                   await refresh()
                 }}
                 onMarkDone={async () => {
-                  const confirmed = confirm(`Mark project done and complete ${openCount} open tasks?`)
+                  const confirmed = confirm(t('project.completeConfirm', { count: openCount }))
                   if (!confirmed) return
                   const res = await window.api.project.complete(project.id)
                   if (!res.ok) {
@@ -400,7 +402,7 @@ export function ProjectPage() {
 
         {openCount === 0 && (!isCompletedExpanded || doneCount === 0) ? (
           <div className="nav-muted" style={{ marginTop: 10 }}>
-            No open tasks
+            {t('projectPage.noOpenTasks')}
           </div>
         ) : null}
       </div>
@@ -419,6 +421,8 @@ function ProjectNotes({
   onChange: (next: string) => void
   onBlur: () => void
 }) {
+  const { t } = useTranslation()
+
   useLayoutEffect(() => {
     void value
     const el = textareaRef.current
@@ -434,7 +438,7 @@ function ProjectNotes({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}
-      placeholder="Add notes…"
+      placeholder={t('projectPage.notesPlaceholder')}
     />
   )
 }
@@ -461,6 +465,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
   },
   ref: ForwardedRef<HTMLDivElement>
 ) {
+  const { t } = useTranslation()
   const rect = anchorEl.getBoundingClientRect()
   const maxWidth = 320
   const left = Math.min(Math.max(12, rect.left), window.innerWidth - maxWidth - 12)
@@ -471,7 +476,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
       ref={ref}
       className="task-inline-popover"
       role="dialog"
-      aria-label="Project actions"
+      aria-label={t('aria.projectActions')}
       style={{ position: 'fixed', top, left, width: maxWidth, zIndex: 45 }}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
@@ -482,11 +487,11 @@ const ProjectMenu = forwardRef(function ProjectMenu(
       }}
     >
       <div className="task-inline-popover-body">
-        <div className="task-inline-popover-title">Project</div>
+        <div className="task-inline-popover-title">{t('projectPage.menuTitle')}</div>
 
         <div className="detail-field" style={{ marginTop: 10 }}>
           <label className="label" htmlFor="project-area">
-            Area
+            {t('projectPage.areaLabel')}
           </label>
           <select
             id="project-area"
@@ -500,7 +505,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
               })()
             }}
           >
-            <option value="">(none)</option>
+            <option value="">{t('common.noneOption')}</option>
             {areas.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.title}
@@ -520,7 +525,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
               })()
             }}
           >
-            Rename
+            {t('common.rename')}
           </button>
         </div>
 
@@ -536,7 +541,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                 })()
               }}
             >
-              Reopen
+              {t('projectPage.reopen')}
             </button>
           </div>
         ) : (
@@ -551,7 +556,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                 })()
               }}
             >
-              Mark Done
+              {t('projectPage.markDone')}
             </button>
           </div>
         )}

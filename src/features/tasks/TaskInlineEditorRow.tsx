@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { TaskEditorPaper, type TaskEditorPaperHandle } from './TaskEditorPaper'
 import { useTaskSelection } from './TaskSelectionContext'
 
 export function TaskInlineEditorRow({ taskId }: { taskId: string }) {
+  const { t } = useTranslation()
   const { closeTask, registerOpenEditor } = useTaskSelection()
   const editorRef = useRef<TaskEditorPaperHandle | null>(null)
   const isClosingRef = useRef(false)
@@ -37,7 +39,7 @@ export function TaskInlineEditorRow({ taskId }: { taskId: string }) {
   return (
     <section
       className="task-inline-editor"
-      aria-label="Task editor"
+      aria-label={t('aria.taskEditor')}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.preventDefault()

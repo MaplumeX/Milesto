@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { DayPicker } from 'react-day-picker'
+import { useTranslation } from 'react-i18next'
 
 import type { Area } from '../../shared/schemas/area'
 import type { Project } from '../../shared/schemas/project'
@@ -27,6 +28,7 @@ export function ContentBottomBarActions({
   openProjects: Project[]
   bumpRevision: () => void
 }) {
+  const { t } = useTranslation()
   const [activePopover, setActivePopover] = useState<ActivePopover>(null)
   const activePopoverRef = useRef<ActivePopover>(null)
   useEffect(() => {
@@ -183,11 +185,13 @@ export function ContentBottomBarActions({
         }}
       >
         <div className="task-inline-popover-body">
-          <div className="task-inline-popover-title">{activePopover.kind === 'schedule' ? 'Schedule' : 'Move'}</div>
+          <div className="task-inline-popover-title">
+            {activePopover.kind === 'schedule' ? t('common.schedule') : t('common.move')}
+          </div>
 
           {actionError ? (
             <div className="error" style={{ margin: '10px 0 0' }}>
-              <div className="error-code">Action failed</div>
+              <div className="error-code">{t('taskEditor.actionFailedTitle')}</div>
               <div>{actionError}</div>
             </div>
           ) : null}
@@ -215,21 +219,21 @@ export function ContentBottomBarActions({
                   className="button button-ghost"
                   onClick={() => void updateSelectedTask({ is_someday: true, scheduled_at: null, is_inbox: false })}
                 >
-                  Someday
+                  {t('nav.someday')}
                 </button>
                 <button
                   type="button"
                   className="button button-ghost"
                   onClick={() => void updateSelectedTask({ is_someday: false, scheduled_at: today, is_inbox: false })}
                 >
-                  Today
+                  {t('nav.today')}
                 </button>
                 <button
                   type="button"
                   className="button button-ghost"
                   onClick={() => void updateSelectedTask({ is_someday: false, scheduled_at: null })}
                 >
-                  None
+                  {t('common.none')}
                 </button>
               </div>
             </>
@@ -237,10 +241,10 @@ export function ContentBottomBarActions({
             <div style={{ marginTop: 10 }}>
               <div className="content-bottom-popover-section">
                 <div className="label" style={{ marginBottom: 8 }}>
-                  Areas
+                  {t('shell.areas')}
                 </div>
                 <div className="content-bottom-popover-list">
-                  {areas.length === 0 ? <div className="nav-muted">(empty)</div> : null}
+                  {areas.length === 0 ? <div className="nav-muted">{t('shell.empty')}</div> : null}
                   {areas.map((a) => (
                     <button
                       key={a.id}
@@ -263,10 +267,10 @@ export function ContentBottomBarActions({
 
               <div className="content-bottom-popover-section" style={{ marginTop: 10 }}>
                 <div className="label" style={{ marginBottom: 8 }}>
-                  Projects
+                  {t('nav.projects')}
                 </div>
                 <div className="content-bottom-popover-list">
-                  {openProjects.length === 0 ? <div className="nav-muted">(empty)</div> : null}
+                  {openProjects.length === 0 ? <div className="nav-muted">{t('shell.empty')}</div> : null}
                   {openProjects.map((p) => (
                     <button
                       key={p.id}
@@ -303,7 +307,7 @@ export function ContentBottomBarActions({
           disabled={!isTaskSelected}
           onClick={(e) => openSchedule(e.currentTarget as HTMLElement)}
         >
-          Schedule
+          {t('common.schedule')}
         </button>
         <button
           type="button"
@@ -311,10 +315,10 @@ export function ContentBottomBarActions({
           disabled={!isTaskSelected}
           onClick={(e) => openMove(e.currentTarget as HTMLElement)}
         >
-          Move
+          {t('common.move')}
         </button>
         <button type="button" className="button button-ghost" onClick={openSearch}>
-          Search
+          {t('common.search')}
         </button>
       </div>
 

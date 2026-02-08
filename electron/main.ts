@@ -10,6 +10,9 @@ import { err, ok, resultSchema } from '../shared/result'
 
 import { DbWorkerClient } from './workers/db/db-worker-client'
 
+import { LocaleSchema, getSupportedLocales, normalizeLocale, type Locale } from '../shared/i18n/locale'
+import { translate } from '../shared/i18n/translate'
+
 import {
   DataExportSchema,
   ProjectCompleteInputSchema,
@@ -167,6 +170,16 @@ const ImportResultSchema = resultSchema(
   })
 )
 
+const LocaleStateSchema = z.object({
+  locale: LocaleSchema,
+  supportedLocales: z.array(LocaleSchema),
+})
+const LocaleStateResultSchema = resultSchema(LocaleStateSchema)
+const SetLocalePayloadSchema = z.object({ locale: z.unknown() })
+
+const DbLocaleRowSchema = z.object({ locale: z.string().nullable() })
+const DbSetLocaleResultSchema = z.object({ locale: z.string() })
+
 function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
@@ -235,6 +248,32 @@ function createWindow() {
 }
 
 function registerIpcHandlers(dbWorker: DbWorkerClient) {
+  const supportedLocales = getSupportedLocales()
+  let cachedEffectiveLocale: Locale | null = null
+
+  async function resolveEffectiveLocale(): Promise<Locale> {
+    if (IS_SELF_TEST) return 'en'
+    if (cachedEffectiveLocale) return cachedEffectiveLocale
+
+    const persistedRes = await dbWorker.request('settings.getLocale', {})
+    if (persistedRes.ok) {
+      const parsed = DbLocaleRowSchema.safeParse(persistedRes.data)
+      const persisted = parsed.success ? parsed.data.locale : null
+
+      if (persisted) {
+        const allowlisted = LocaleSchema.safeParse(persisted)
+        if (allowlisted.success) {
+          cachedEffectiveLocale = allowlisted.data
+          return cachedEffectiveLocale
+        }
+      }
+    }
+
+    // Fallback chain: system locale (normalized) -> en.
+    cachedEffectiveLocale = normalizeLocale(app.getLocale())
+    return cachedEffectiveLocale
+  }
+
   function handleDb<TPayload, TData>(
     channel: string,
     action: string,
@@ -340,11 +379,13 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     const senderErr = ensureTrustedSender(event)
     if (senderErr) return ExportResultSchema.parse(err(senderErr))
 
+    const locale = await resolveEffectiveLocale()
+
     // Placeholder until DB worker is wired. Still provides a safe flow and does not expose raw fs.
     const result = await dialog.showSaveDialog({
-      title: 'Export Milesto Data',
+      title: translate(locale, 'dialog.export.title'),
       defaultPath: path.join(app.getPath('downloads'), `milesto-export-${Date.now()}.json`),
-      filters: [{ name: 'JSON', extensions: ['json'] }],
+      filters: [{ name: translate(locale, 'fileFilter.json'), extensions: ['json'] }],
     })
 
     if (result.canceled || !result.filePath) {
@@ -374,10 +415,12 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     const senderErr = ensureTrustedSender(event)
     if (senderErr) return ImportResultSchema.parse(err(senderErr))
 
+    const locale = await resolveEffectiveLocale()
+
     const result = await dialog.showOpenDialog({
-      title: 'Import Milesto Data',
+      title: translate(locale, 'dialog.import.title'),
       properties: ['openFile'],
-      filters: [{ name: 'JSON', extensions: ['json'] }],
+      filters: [{ name: translate(locale, 'fileFilter.json'), extensions: ['json'] }],
     })
     if (result.canceled || result.filePaths.length === 0) {
       return ImportResultSchema.parse(ok({ canceled: true, imported: false }))
@@ -423,6 +466,55 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     const res = await dbWorker.request('db.resetAllData', {})
     if (!res.ok) return ResultVoidSchema.parse(err(res.error))
     return ResultVoidSchema.parse(ok(undefined))
+  })
+
+  ipcMain.handle('settings:getLocaleState', async (event) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return LocaleStateResultSchema.parse(err(senderErr))
+
+    const locale = await resolveEffectiveLocale()
+    return LocaleStateResultSchema.parse(ok({ locale, supportedLocales }))
+  })
+
+  ipcMain.handle('settings:setLocale', async (event, payload) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return LocaleStateResultSchema.parse(err(senderErr))
+
+    const parsed = SetLocalePayloadSchema.safeParse(payload)
+    if (!parsed.success) {
+      return LocaleStateResultSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid payload.',
+          details: { issues: parsed.error.issues },
+        })
+      )
+    }
+
+    // Self-test mode forces English regardless of persisted preference.
+    if (IS_SELF_TEST) {
+      cachedEffectiveLocale = 'en'
+      return LocaleStateResultSchema.parse(ok({ locale: 'en', supportedLocales }))
+    }
+
+    const nextLocale = normalizeLocale(parsed.data.locale)
+    const res = await dbWorker.request('settings.setLocale', { locale: nextLocale })
+    if (!res.ok) return LocaleStateResultSchema.parse(err(res.error))
+
+    const parsedData = DbSetLocaleResultSchema.safeParse(res.data)
+    if (!parsedData.success) {
+      return LocaleStateResultSchema.parse(
+        err({
+          code: 'DB_INVALID_RETURN',
+          message: 'Invalid DB return value.',
+          details: { issues: parsedData.error.issues, action: 'settings.setLocale' },
+        })
+      )
+    }
+
+    const effective = normalizeLocale(parsedData.data.locale)
+    cachedEffectiveLocale = effective
+    return LocaleStateResultSchema.parse(ok({ locale: effective, supportedLocales }))
   })
 
   // DB IPC (Renderer -> Main -> DB Worker)

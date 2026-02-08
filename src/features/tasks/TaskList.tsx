@@ -1,6 +1,7 @@
 import { useLayoutEffect, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { useTranslation } from 'react-i18next'
 
 import {
   DndContext,
@@ -97,6 +98,7 @@ export function TaskList({
   onAfterReorder?: () => Promise<void>
   headerActions?: React.ReactNode
 }) {
+  const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
 
   const contentScrollRef = useContentScrollRef()
@@ -389,10 +391,10 @@ export function TaskList({
         <div
           ref={listboxRef}
           className="task-scroll"
-          tabIndex={0}
-          role="listbox"
-          aria-label="Tasks"
-          onKeyDown={(e) => {
+        tabIndex={0}
+        role="listbox"
+        aria-label={t('aria.tasks')}
+        onKeyDown={(e) => {
             // Keyboard-first list navigation (ArrowUp/Down, Enter to open, Space to toggle).
             const isReorderChord = (e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')
 

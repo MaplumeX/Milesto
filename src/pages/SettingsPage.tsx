@@ -1,18 +1,27 @@
 import { useEffect, useState } from 'react'
 
+import { useTranslation } from 'react-i18next'
+
 import type { AppError } from '../../shared/app-error'
+import { LocaleSchema, type Locale } from '../../shared/i18n/locale'
+
+import i18n from '../i18n/i18n'
 
 export function SettingsPage() {
+  const { t } = useTranslation()
   const [version, setVersion] = useState<string>('')
   const [userDataPath, setUserDataPath] = useState<string>('')
   const [error, setError] = useState<AppError | null>(null)
   const [lastExportPath, setLastExportPath] = useState<string | null>(null)
+  const [locale, setLocale] = useState<Locale>('en')
+  const [supportedLocales, setSupportedLocales] = useState<Locale[]>(['en', 'zh-CN'])
 
   useEffect(() => {
     void (async () => {
-      const [verRes, pathRes] = await Promise.all([
+      const [verRes, pathRes, localeRes] = await Promise.all([
         window.api.app.getVersion(),
         window.api.app.getUserDataPath(),
+        window.api.settings.getLocaleState(),
       ])
       if (!verRes.ok) {
         setError(verRes.error)
@@ -22,16 +31,26 @@ export function SettingsPage() {
         setError(pathRes.error)
         return
       }
+      if (!localeRes.ok) {
+        setError(localeRes.error)
+        return
+      }
       setError(null)
       setVersion(verRes.data)
       setUserDataPath(pathRes.data)
+      setLocale(localeRes.data.locale)
+      setSupportedLocales(localeRes.data.supportedLocales)
     })()
   }, [])
+
+  function getLocaleLabel(l: Locale): string {
+    return l === 'en' ? t('settings.languageEnglish') : t('settings.languageChinese')
+  }
 
   return (
     <div className="page">
       <header className="page-header">
-        <h1 className="page-title">Settings</h1>
+        <h1 className="page-title">{t('settings.title')}</h1>
       </header>
 
       {error ? (
@@ -43,7 +62,39 @@ export function SettingsPage() {
 
       <div className="settings-grid">
         <section className="card">
-          <h2 className="card-title">Data</h2>
+          <h2 className="card-title">{t('settings.language')}</h2>
+          <div className="row">
+            <select
+              className="input"
+              value={locale}
+              onChange={(e) => {
+                const parsed = LocaleSchema.safeParse(e.target.value)
+                if (!parsed.success) return
+                void (async () => {
+                  const res = await window.api.settings.setLocale(parsed.data)
+                  if (!res.ok) {
+                    setError(res.error)
+                    return
+                  }
+                  setError(null)
+                  setLocale(res.data.locale)
+                  setSupportedLocales(res.data.supportedLocales)
+                  document.documentElement.lang = res.data.locale
+                  await i18n.changeLanguage(res.data.locale)
+                })()
+              }}
+            >
+              {supportedLocales.map((l) => (
+                <option key={l} value={l}>
+                  {getLocaleLabel(l)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+
+        <section className="card">
+          <h2 className="card-title">{t('settings.data')}</h2>
           <div className="row">
             <button
               type="button"
@@ -60,7 +111,7 @@ export function SettingsPage() {
                 })()
               }}
             >
-              Export…
+              {t('settings.export')}
             </button>
             <button
               type="button"
@@ -75,13 +126,13 @@ export function SettingsPage() {
                 })()
               }}
             >
-              Import…
+              {t('settings.import')}
             </button>
             <button
               type="button"
               className="button button-ghost"
               onClick={() => {
-                const confirmed = confirm('Reset all local data?')
+                const confirmed = confirm(t('settings.resetConfirm'))
                 if (!confirmed) return
                 void (async () => {
                   const res = await window.api.data.resetAllData()
@@ -92,7 +143,7 @@ export function SettingsPage() {
                 })()
               }}
             >
-              Reset All Data
+              {t('settings.resetAllData')}
             </button>
           </div>
 
@@ -106,25 +157,25 @@ export function SettingsPage() {
                   void window.api.app.showItemInFolder(lastExportPath)
                 }}
               >
-                Show In Folder
+                {t('settings.showInFolder')}
               </button>
             </div>
           ) : null}
         </section>
 
         <section className="card">
-          <h2 className="card-title">About</h2>
+          <h2 className="card-title">{t('settings.about')}</h2>
           <div className="row">
-            <div>Version</div>
+            <div>{t('settings.version')}</div>
             <div className="mono">{version}</div>
           </div>
           <div className="row">
-            <div>User data</div>
+            <div>{t('settings.userData')}</div>
             <div className="mono">{userDataPath}</div>
           </div>
           <div className="row">
-            <div>Shortcuts</div>
-            <div className="mono">Cmd/Ctrl+K (Command Palette)</div>
+            <div>{t('settings.shortcuts')}</div>
+            <div className="mono">{t('settings.commandPaletteShortcut')}</div>
           </div>
           <div className="row">
             <button
@@ -134,7 +185,7 @@ export function SettingsPage() {
                 void window.api.app.openPath(userDataPath)
               }}
             >
-              Open Data Folder
+              {t('settings.openDataFolder')}
             </button>
           </div>
         </section>

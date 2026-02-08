@@ -15,6 +15,7 @@ export function createDbActions(db: Database.Database): Record<string, DbActionH
     'db.resetAllData': () => {
       const tx = db.transaction(() => {
         db.exec(`
+          -- Keep app_settings (e.g. locale preference).
           DELETE FROM task_tags;
           DELETE FROM task_checklist_items;
           DELETE FROM list_positions;

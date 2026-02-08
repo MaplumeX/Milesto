@@ -1,5 +1,7 @@
 import type { Result } from './result'
 
+import type { Locale } from './i18n/locale'
+
 import type { Area, AreaCreateInput, AreaUpdateInput } from './schemas/area'
 import type {
   ChecklistItem,
@@ -50,6 +52,11 @@ export type WindowApi = {
     exportToFile(): Promise<Result<{ canceled: boolean; filePath?: string }>>
     importFromFile(): Promise<Result<{ canceled: boolean; imported: boolean }>>
     resetAllData(): Promise<Result<void>>
+  }
+
+  settings: {
+    getLocaleState(): Promise<Result<{ locale: Locale; supportedLocales: Locale[] }>>
+    setLocale(locale: Locale): Promise<Result<{ locale: Locale; supportedLocales: Locale[] }>>
   }
 
   task: {

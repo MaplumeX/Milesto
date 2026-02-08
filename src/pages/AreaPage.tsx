@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { NavLink, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
 import type { Area } from '../../shared/schemas/area'
@@ -11,6 +12,7 @@ import { useAppEvents } from '../app/AppEventsContext'
 import { TaskList } from '../features/tasks/TaskList'
 
 export function AreaPage() {
+  const { t } = useTranslation()
   const { revision, bumpRevision } = useAppEvents()
   const { areaId } = useParams<{ areaId: string }>()
   const aid = areaId ?? ''
@@ -53,7 +55,7 @@ export function AreaPage() {
     void refresh()
   }, [refresh, revision])
 
-  const title = area?.title ?? 'Area'
+  const title = area?.title ?? t('shell.area')
   const sortedProjects = useMemo(
     () => [...projects].sort((a, b) => a.title.localeCompare(b.title)),
     [projects]
@@ -62,8 +64,8 @@ export function AreaPage() {
   if (!aid) {
     return (
       <div className="page">
-        <h1 className="page-title">Area</h1>
-        <div className="error">Missing area id.</div>
+        <h1 className="page-title">{t('shell.area')}</h1>
+        <div className="error">{t('errors.missingAreaId')}</div>
       </div>
     )
   }
@@ -84,7 +86,7 @@ export function AreaPage() {
               className="button button-ghost"
               onClick={() => {
                 if (!area) return
-                const next = prompt('Rename area', area.title)
+                const next = prompt(t('area.renamePromptTitle'), area.title)
                 if (!next) return
                 void (async () => {
                   const res = await window.api.area.update({ id: area.id, title: next })
@@ -96,13 +98,13 @@ export function AreaPage() {
                 })()
               }}
             >
-              Rename
+              {t('common.rename')}
             </button>
             <button
               type="button"
               className="button button-ghost"
               onClick={() => {
-                const confirmed = confirm('Delete this area? Projects and tasks under it will be soft-deleted.')
+                const confirmed = confirm(t('area.deleteConfirm'))
                 if (!confirmed) return
                 void (async () => {
                   const res = await window.api.area.delete(aid)
@@ -114,13 +116,13 @@ export function AreaPage() {
                 })()
               }}
             >
-              Delete
+              {t('common.delete')}
             </button>
             <button
               type="button"
               className="button button-ghost"
               onClick={() => {
-                const title = prompt('New project title')
+                const title = prompt(t('project.newTitlePrompt'))
                 if (!title) return
                 void (async () => {
                   const res = await window.api.project.create({ title, area_id: aid })
@@ -132,7 +134,7 @@ export function AreaPage() {
                 })()
               }}
             >
-              + Project
+              {t('common.addProject')}
             </button>
           </>
         }
@@ -145,7 +147,7 @@ export function AreaPage() {
 
       <div className="page">
         <div className="sections-header">
-          <div className="sections-title">Projects</div>
+          <div className="sections-title">{t('nav.projects')}</div>
         </div>
         <ul className="task-list">
           {sortedProjects.map((p) => (
@@ -155,7 +157,7 @@ export function AreaPage() {
               </NavLink>
             </li>
           ))}
-          {sortedProjects.length === 0 ? <li className="nav-muted">(empty)</li> : null}
+          {sortedProjects.length === 0 ? <li className="nav-muted">{t('shell.empty')}</li> : null}
         </ul>
       </div>
     </>

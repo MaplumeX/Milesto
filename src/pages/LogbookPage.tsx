@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
 import type { Project } from '../../shared/schemas/project'
@@ -8,6 +9,7 @@ import { useAppEvents } from '../app/AppEventsContext'
 import { NavLink } from 'react-router-dom'
 
 export function LogbookPage() {
+  const { t } = useTranslation()
   const { revision } = useAppEvents()
   const [tasks, setTasks] = useState<TaskListItem[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -42,7 +44,7 @@ export function LogbookPage() {
     <>
       {error ? <ErrorBanner error={error} /> : null}
       <TaskList
-        title="Logbook"
+        title={t('nav.logbook')}
         tasks={tasks}
         onToggleDone={undefined}
         onRestore={async (taskId) => {
@@ -54,7 +56,7 @@ export function LogbookPage() {
 
       <div className="page">
         <div className="sections-header">
-          <div className="sections-title">Completed Projects</div>
+          <div className="sections-title">{t('logbook.completedProjects')}</div>
         </div>
         <ul className="task-list">
           {projects.map((p) => (
@@ -64,7 +66,7 @@ export function LogbookPage() {
               </NavLink>
             </li>
           ))}
-          {projects.length === 0 ? <li className="nav-muted">(empty)</li> : null}
+          {projects.length === 0 ? <li className="nav-muted">{t('shell.empty')}</li> : null}
         </ul>
       </div>
     </>

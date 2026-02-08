@@ -13,6 +13,7 @@ import { createChecklistActions } from './actions/checklist-actions'
 import { createListPositionActions } from './actions/list-position-actions'
 import { createDataTransferActions } from './actions/data-transfer-actions'
 import { createSidebarActions } from './actions/sidebar-actions'
+import { createSettingsActions } from './actions/settings-actions'
 import type { DbActionHandler } from './actions/db-actions'
 
 type WorkerData = {
@@ -207,6 +208,19 @@ function migrate(db: Database.Database) {
 
     db.pragma('user_version = 2')
   }
+
+  if (userVersion < 3) {
+    // v3: App settings key/value store (currently used for locale preference).
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `)
+
+    db.pragma('user_version = 3')
+  }
 }
 
 function respond(response: DbWorkerResponse) {
@@ -216,6 +230,7 @@ function respond(response: DbWorkerResponse) {
 function buildHandlers(db: Database.Database) {
   return {
     ...createDbActions(db),
+    ...createSettingsActions(db),
     ...createTaskActions(db),
     ...createProjectActions(db),
     ...createAreaActions(db),
