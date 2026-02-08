@@ -7,6 +7,7 @@ import { nowIso, uuidv7 } from './utils'
 
 import {
   TaskCreateInputSchema,
+  TaskDeleteInputSchema,
   TaskRestoreInputSchema,
   TaskSchema,
   TaskToggleDoneInputSchema,
@@ -365,6 +366,46 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
           )
           .get(parsed.data.id)
         return { ok: true as const, data: TaskSchema.parse(row) }
+      })
+
+      return tx()
+    },
+
+    'task.delete': (payload) => {
+      const parsed = TaskDeleteInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid task.delete payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const deletedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        const res = db
+          .prepare(
+            `UPDATE tasks
+             SET deleted_at = @deleted_at, updated_at = @updated_at
+             WHERE id = @id AND deleted_at IS NULL`
+          )
+          .run({ id: parsed.data.id, deleted_at: deletedAt, updated_at: deletedAt })
+        if (res.changes === 0) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Task not found.',
+              details: { id: parsed.data.id },
+            },
+          }
+        }
+
+        return { ok: true as const, data: { deleted: true } }
       })
 
       return tx()
