@@ -26,6 +26,8 @@ const api: WindowApi = {
     setLocale: (locale) => invoke('settings:setLocale', { locale }),
     getSidebarState: () => invoke('settings:getSidebarState'),
     setSidebarState: (state) => invoke('settings:setSidebarState', { state }),
+    getThemeState: () => invoke('settings:getThemeState'),
+    setThemePreference: (preference) => invoke('settings:setThemePreference', { preference }),
   },
   task: {
     create: (input) => invoke('db:task.create', input),

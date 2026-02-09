@@ -1,6 +1,8 @@
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   --bottom-bar-height: 56px;
+
+  /* Core semantic tokens */
   --bg: #f7f6f3;
   --panel: #ffffff;
   --text: #1d1d1b;
@@ -8,6 +10,45 @@
   --border: rgba(29, 29, 27, 0.12);
   --shadow: rgba(29, 29, 27, 0.12);
   --focus: rgba(29, 29, 27, 0.35);
+
+  /* Derived tokens (used to migrate away from hardcoded rgba values). */
+  --bg-gradient: radial-gradient(1200px 800px at 20% 10%, #ffffff 0%, var(--bg) 55%, #efede7 100%);
+  --wash: rgba(29, 29, 27, 0.06);
+  --wash-strong: rgba(29, 29, 27, 0.1);
+  --glass: rgba(255, 255, 255, 0.6);
+  --glass-soft: rgba(255, 255, 255, 0.8);
+  --glass-strong: rgba(255, 255, 255, 0.92);
+  --paper: rgba(255, 255, 255, 0.96);
+  --scrim: rgba(20, 18, 16, 0.35);
+  --shadow-float: 0 20px 60px rgba(0, 0, 0, 0.25);
+  --rdp-selected-border-color: rgba(29, 29, 27, 0.25);
+
+  /* Component-specific tokens */
+  --badge-open-bg: rgba(70, 120, 90, 0.12);
+  --badge-done-bg: rgba(90, 90, 90, 0.12);
+  --swatch-border: rgba(29, 29, 27, 0.18);
+  --danger-border: rgba(160, 80, 60, 0.35);
+  --danger-bg: rgba(240, 210, 190, 0.5);
+  --danger-text: rgba(120, 50, 40, 0.9);
+
+  /* Multi-layer elevation shadows */
+  --shadow-sheet:
+    0 1px 1px rgba(0, 0, 0, 0.05),
+    0 2px 2px rgba(0, 0, 0, 0.05),
+    0 6px 10px rgba(0, 0, 0, 0.08),
+    0 18px 40px rgba(0, 0, 0, 0.18);
+  --shadow-popover:
+    0 1px 1px rgba(0, 0, 0, 0.05),
+    0 2px 2px rgba(0, 0, 0, 0.05),
+    0 10px 22px rgba(0, 0, 0, 0.12);
+  --shadow-dnd:
+    0 0 0 1px rgba(29, 29, 27, 0.14),
+    0 1px 0 var(--shadow),
+    0 16px 22px rgba(0, 0, 0, 0.12);
+  --shadow-inline:
+    0 0 0 1px rgba(29, 29, 27, 0.12),
+    0 1px 0 var(--shadow),
+    0 12px 18px rgba(0, 0, 0, 0.08);
 
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 12px;
@@ -24,8 +65,67 @@ body {
 
 body {
   margin: 0;
-  background: radial-gradient(1200px 800px at 20% 10%, #ffffff 0%, var(--bg) 55%, #efede7 100%);
+  background: var(--bg-gradient);
   color: var(--text);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1114;
+    --panel: #14171c;
+    --text: #f2f1ee;
+    --muted: #a5a29a;
+    --border: rgba(255, 255, 255, 0.14);
+    --shadow: rgba(0, 0, 0, 0.35);
+    --focus: rgba(190, 210, 255, 0.38);
+
+    --bg-gradient: radial-gradient(
+      1200px 800px at 20% 10%,
+      rgba(120, 150, 160, 0.18) 0%,
+      var(--bg) 55%,
+      rgba(10, 12, 16, 1) 100%
+    );
+    --wash: rgba(255, 255, 255, 0.08);
+    --wash-strong: rgba(255, 255, 255, 0.14);
+    --glass: rgba(20, 22, 26, 0.7);
+    --glass-soft: rgba(20, 22, 26, 0.82);
+    --glass-strong: rgba(20, 22, 26, 0.92);
+    --paper: rgba(20, 22, 26, 0.96);
+    --scrim: rgba(0, 0, 0, 0.55);
+    --shadow-float: 0 20px 60px rgba(0, 0, 0, 0.55);
+    --rdp-selected-border-color: rgba(255, 255, 255, 0.25);
+
+    --badge-open-bg: rgba(70, 160, 110, 0.18);
+    --badge-done-bg: rgba(200, 200, 200, 0.12);
+    --swatch-border: rgba(255, 255, 255, 0.18);
+    --danger-border: rgba(255, 130, 120, 0.25);
+    --danger-bg: rgba(70, 20, 18, 0.55);
+    --danger-text: rgba(255, 190, 180, 0.92);
+
+    --shadow-sheet:
+      0 1px 1px rgba(0, 0, 0, 0.25),
+      0 2px 2px rgba(0, 0, 0, 0.25),
+      0 10px 22px rgba(0, 0, 0, 0.45),
+      0 24px 56px rgba(0, 0, 0, 0.6);
+    --shadow-popover:
+      0 1px 1px rgba(0, 0, 0, 0.22),
+      0 2px 2px rgba(0, 0, 0, 0.22),
+      0 10px 22px rgba(0, 0, 0, 0.42);
+    --shadow-dnd:
+      0 0 0 1px rgba(255, 255, 255, 0.08),
+      0 1px 0 rgba(0, 0, 0, 0.45),
+      0 16px 22px rgba(0, 0, 0, 0.55);
+    --shadow-inline:
+      0 0 0 1px rgba(255, 255, 255, 0.08),
+      0 1px 0 rgba(0, 0, 0, 0.35),
+      0 12px 18px rgba(0, 0, 0, 0.5);
+  }
+
+  .overlay-paper::before {
+    /* Multiply makes dark surfaces muddy; use a gentler blend instead. */
+    mix-blend-mode: screen;
+    opacity: 0.05;
+  }
 }
 
 * {
@@ -40,7 +140,7 @@ body {
 .sidebar {
   width: 280px;
   border-right: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--glass);
   backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
@@ -90,11 +190,11 @@ body {
 }
 
 .nav-item:hover {
-  background: rgba(29, 29, 27, 0.06);
+  background: var(--wash);
 }
 
 .nav-item.is-active {
-  background: rgba(29, 29, 27, 0.1);
+  background: var(--wash-strong);
   box-shadow: 0 1px 0 var(--shadow);
 }
 
@@ -132,7 +232,7 @@ body {
 /* When interacting with the collapse button, keep the row hover affordance. */
 .nav-area-header:hover .nav-area-row:not(.is-active),
 .nav-area-header:focus-within .nav-area-row:not(.is-active) {
-  background: rgba(29, 29, 27, 0.06);
+  background: var(--wash);
 }
 
 .nav-area-collapse {
@@ -158,7 +258,7 @@ body {
 }
 
 .nav-area-collapse:hover {
-  background: rgba(29, 29, 27, 0.06);
+  background: var(--wash);
 }
 
 .nav-area-collapse:focus-visible {
@@ -192,7 +292,7 @@ body {
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--glass-strong);
   color: var(--muted);
   margin: 8px 0;
 }
@@ -215,12 +315,12 @@ body {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--glass);
   cursor: pointer;
 }
 
 .create-toggle-item.is-active {
-  background: rgba(29, 29, 27, 0.08);
+  background: var(--wash);
 }
 
 .sidebar-bottom {
@@ -252,7 +352,7 @@ body {
 .sidebar-bottom > .button:hover,
 .sidebar-bottom > .button:focus-visible {
   border-color: var(--border);
-  background: rgba(255, 255, 255, 0.65);
+  background: var(--glass);
   box-shadow: 0 1px 0 var(--shadow);
 }
 
@@ -296,7 +396,7 @@ body {
   font-size: 10px;
   color: var(--muted);
   padding: 0 28px;
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--glass);
   backdrop-filter: blur(10px);
 }
 
@@ -326,14 +426,14 @@ body {
 .content-bottom-bar .button:hover,
 .content-bottom-bar .button:focus-visible {
   border-color: var(--border);
-  background: rgba(255, 255, 255, 0.65);
+  background: var(--glass);
   box-shadow: 0 1px 0 var(--shadow);
 }
 
 .detail {
   width: 420px;
   border-left: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--glass-strong);
   backdrop-filter: blur(10px);
   padding: 18px;
   overflow: auto;
@@ -363,15 +463,15 @@ body {
   padding: 4px 8px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: rgba(29, 29, 27, 0.04);
+  background: var(--wash);
 }
 
 .badge-open {
-  background: rgba(70, 120, 90, 0.12);
+  background: var(--badge-open-bg);
 }
 
 .badge-done {
-  background: rgba(90, 90, 90, 0.12);
+  background: var(--badge-done-bg);
 }
 
 .detail-field {
@@ -407,7 +507,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--glass);
 }
 
 .tag-checkbox {
@@ -420,14 +520,14 @@ body {
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  border: 1px solid rgba(29, 29, 27, 0.18);
+  border: 1px solid var(--swatch-border);
 }
 
 .tag-color {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--glass-strong);
 }
 
 .checklist {
@@ -441,7 +541,7 @@ body {
   align-items: center;
   gap: 10px;
   padding: 8px;
-  border-bottom: 1px solid rgba(29, 29, 27, 0.08);
+  border-bottom: 1px solid var(--border);
 }
 
 .checklist-row.is-done .checklist-title-input {
@@ -472,15 +572,15 @@ body {
 .checklist-empty-entry {
   width: 100%;
   text-align: left;
-  border: 1px dashed rgba(29, 29, 27, 0.2);
+  border: 1px dashed var(--border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--glass);
   color: var(--muted);
   padding: 8px 10px;
 }
 
 .checklist-empty-entry:hover {
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--glass-soft);
   color: var(--text);
 }
 
@@ -490,8 +590,8 @@ body {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  background: rgba(255, 255, 255, 0.7);
-  border-bottom: 1px solid rgba(29, 29, 27, 0.08);
+  background: var(--glass-strong);
+  border-bottom: 1px solid var(--border);
 }
 
 /* Project page grouping headers (sections + no-section group). */
@@ -503,11 +603,11 @@ body {
   padding: 8px 12px;
   /* Keep grouping headers visually flat (no card background). */
   background: transparent;
-  border-bottom: 1px solid rgba(29, 29, 27, 0.08);
+  border-bottom: 1px solid var(--border);
 }
 
 .project-group-header.is-selected {
-  background: rgba(29, 29, 27, 0.05);
+  background: var(--wash);
   border-radius: 12px;
   border-bottom-color: transparent;
 }
@@ -617,7 +717,7 @@ body {
 .palette-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(20, 18, 16, 0.35);
+  background: var(--scrim);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -634,7 +734,7 @@ body {
 .overlay-paper-scrim {
   position: absolute;
   inset: 0;
-  background: rgba(20, 18, 16, 0.35);
+  background: var(--scrim);
 }
 
 .overlay-paper-scroll {
@@ -650,14 +750,10 @@ body {
 
 .overlay-paper {
   width: min(820px, 100%);
-  border: 1px solid rgba(29, 29, 27, 0.12);
+  border: 1px solid var(--border);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow:
-    0 1px 1px rgba(0, 0, 0, 0.05),
-    0 2px 2px rgba(0, 0, 0, 0.05),
-    0 6px 10px rgba(0, 0, 0, 0.08),
-    0 18px 40px rgba(0, 0, 0, 0.18);
+  background: var(--paper);
+  box-shadow: var(--shadow-sheet);
   padding: 18px;
   position: relative;
   overflow: hidden;
@@ -705,10 +801,10 @@ body {
 
 .palette {
   width: min(720px, 100%);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid var(--border);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  background: var(--glass-strong);
+  box-shadow: var(--shadow-float);
   backdrop-filter: blur(12px);
   overflow: hidden;
 }
@@ -747,7 +843,7 @@ body {
 
 .palette-item:hover,
 .palette-item.is-active {
-  background: rgba(29, 29, 27, 0.06);
+  background: var(--wash);
 }
 
 .palette-item-title {
@@ -802,7 +898,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--glass-strong);
   box-shadow: 0 1px 0 var(--shadow);
 }
 
@@ -820,7 +916,7 @@ body {
 }
 
 .button:hover {
-  background: rgba(29, 29, 27, 0.04);
+  background: var(--wash);
 }
 
 .button:focus {
@@ -907,11 +1003,8 @@ body {
   max-width: 260px;
   padding: 8px 10px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow:
-    0 0 0 1px rgba(29, 29, 27, 0.14),
-    0 1px 0 var(--shadow),
-    0 16px 22px rgba(0, 0, 0, 0.12);
+  background: var(--paper);
+  box-shadow: var(--shadow-dnd);
   pointer-events: none;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -920,11 +1013,8 @@ body {
 
 .task-dnd-overlay {
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow:
-    0 0 0 1px rgba(29, 29, 27, 0.14),
-    0 1px 0 var(--shadow),
-    0 16px 22px rgba(0, 0, 0, 0.12);
+  background: var(--paper);
+  box-shadow: var(--shadow-dnd);
   pointer-events: none;
 }
 
@@ -942,8 +1032,8 @@ body {
   position: absolute;
   inset: 0;
   border-radius: 12px;
-  border: 1px solid rgba(29, 29, 27, 0.12);
-  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border);
+  background: var(--paper);
   pointer-events: none;
   will-change: transform;
 }
@@ -966,11 +1056,9 @@ body {
   gap: 10px;
   padding: 8px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(29, 29, 27, 0.14);
-  background: rgba(255, 255, 255, 0.97);
-  box-shadow:
-    0 1px 0 var(--shadow),
-    0 14px 22px rgba(0, 0, 0, 0.11);
+  border: 1px solid var(--border);
+  background: var(--paper);
+  box-shadow: var(--shadow-popover);
   pointer-events: none;
   will-change: transform;
 }
@@ -986,17 +1074,14 @@ body {
 
 .task-editor-row {
   padding: 0 8px 12px 34px;
-  border-bottom: 1px solid rgba(29, 29, 27, 0.08);
+  border-bottom: 1px solid var(--border);
 }
 
 .task-inline-paper {
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--glass-soft);
   /* Border via box-shadow avoids shifting content (no border width). */
-  box-shadow:
-    0 0 0 1px rgba(29, 29, 27, 0.12),
-    0 1px 0 var(--shadow),
-    0 12px 18px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-inline);
   /* Keep title/notes aligned with collapsed rows (8px left padding). */
   padding: 12px 8px;
   --task-inline-indent: 26px;
@@ -1064,7 +1149,7 @@ body {
 .task-inline-section {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid rgba(29, 29, 27, 0.08);
+  border-top: 1px solid var(--border);
 }
 
 .task-inline-action-bar {
@@ -1090,8 +1175,8 @@ body {
   gap: 8px;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(29, 29, 27, 0.1);
-  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--border);
+  background: var(--glass);
 }
 
 .task-inline-chip-main {
@@ -1119,13 +1204,10 @@ body {
 }
 
 .task-inline-popover {
-  border: 1px solid rgba(29, 29, 27, 0.12);
+  border: 1px solid var(--border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow:
-    0 1px 1px rgba(0, 0, 0, 0.05),
-    0 2px 2px rgba(0, 0, 0, 0.05),
-    0 10px 22px rgba(0, 0, 0, 0.12);
+  background: var(--paper);
+  box-shadow: var(--shadow-popover);
   overflow: hidden;
 }
 
@@ -1175,9 +1257,18 @@ body {
 }
 
 .task-inline-popover-calendar .rdp-root {
-  --rdp-accent-color: rgba(29, 29, 27, 0.85);
-  --rdp-accent-background-color: rgba(29, 29, 27, 0.08);
-  --rdp-today-color: rgba(29, 29, 27, 0.85);
+  --rdp-accent-color: var(--text);
+  --rdp-accent-background-color: var(--wash-strong);
+  --rdp-today-color: var(--text);
+
+  --rdp-disabled-opacity: 0.5;
+  --rdp-outside-opacity: 0.65;
+
+  /* Keep range styling theme-safe even if we only use single mode today. */
+  --rdp-range_middle-background-color: var(--wash);
+  --rdp-range_middle-color: inherit;
+  --rdp-range_start-color: var(--bg);
+  --rdp-range_end-color: var(--bg);
 
   --rdp-day-height: 30px;
   --rdp-day-width: 30px;
@@ -1188,7 +1279,7 @@ body {
   --rdp-nav_button-width: 1.75rem;
   --rdp-nav-height: 2rem;
   --rdp-weekday-padding: 0.2rem 0;
-  --rdp-selected-border: 2px solid rgba(29, 29, 27, 0.25);
+  --rdp-selected-border: 2px solid var(--rdp-selected-border-color);
 }
 
 .task-inline-popover-calendar .row {
@@ -1209,7 +1300,7 @@ body {
 }
 
 .task-inline-popover-calendar .rdp-day_button:hover:not(:disabled) {
-  background: rgba(29, 29, 27, 0.06);
+  background: var(--wash);
 }
 
 .task-inline-popover-calendar .rdp-day_button:focus-visible {
@@ -1257,7 +1348,7 @@ body {
 }
 
 .task-row.is-selected {
-  background: rgba(29, 29, 27, 0.05);
+  background: var(--wash);
   border-radius: 12px;
 }
 
@@ -1267,7 +1358,7 @@ body {
 }
 
 .task-row.task-row-virtual.is-selected .task-row-inner {
-  background: rgba(29, 29, 27, 0.05);
+  background: var(--wash);
   border-radius: 12px;
 }
 
@@ -1278,16 +1369,17 @@ body {
 
 .error {
   padding: 10px 12px;
-  border: 1px solid rgba(160, 80, 60, 0.35);
+  border: 1px solid var(--danger-border);
   border-radius: 12px;
-  background: rgba(240, 210, 190, 0.5);
+  background: var(--danger-bg);
+  color: var(--danger-text);
   margin: 14px 0;
 }
 
 .error-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 10px;
-  color: rgba(120, 50, 40, 0.9);
+  color: var(--danger-text);
   margin-bottom: 6px;
 }
 
@@ -1300,7 +1392,7 @@ body {
 .card {
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--glass-strong);
   box-shadow: 0 1px 0 var(--shadow);
   padding: 16px;
 }
@@ -1343,7 +1435,7 @@ body {
 .section {
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--glass-soft);
   box-shadow: 0 1px 0 var(--shadow);
   padding: 14px;
   margin-top: 12px;

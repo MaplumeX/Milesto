@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, session, shell } from 'electron'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs/promises'
@@ -67,6 +67,10 @@ import {
   SidebarReorderAreasInputSchema,
   SidebarReorderProjectsInputSchema,
   SidebarReorderResultSchema,
+  ThemePreferenceSchema,
+  ThemeStateSchema,
+  type EffectiveTheme,
+  type ThemePreference,
 } from '../shared/schemas'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -185,14 +189,61 @@ const SidebarStateSchema = z.object({
 const SidebarStateResultSchema = resultSchema(SidebarStateSchema)
 const SetSidebarStatePayloadSchema = z.object({ state: z.unknown() })
 
+const ThemeStateResultSchema = resultSchema(ThemeStateSchema)
+const SetThemePreferencePayloadSchema = z.object({ preference: z.unknown() })
+
 const DbLocaleRowSchema = z.object({ locale: z.string().nullable() })
 const DbSetLocaleResultSchema = z.object({ locale: z.string() })
 
+const DbThemePreferenceRowSchema = z.object({ preference: z.string().nullable() })
+const DbSetThemePreferenceResultSchema = z.object({ preference: z.string() })
+
 const DbSidebarStateSchema = SidebarStateSchema
 
-function createWindow() {
+function getEffectiveThemeFromNative(): EffectiveTheme {
+  return nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
+}
+
+function resolveEffectiveTheme(preference: ThemePreference): EffectiveTheme {
+  if (preference === 'light') return 'light'
+  if (preference === 'dark') return 'dark'
+  return getEffectiveThemeFromNative()
+}
+
+function getWindowBackgroundColor(effectiveTheme: EffectiveTheme): string {
+  // Match the renderer's base --bg token to reduce first-paint flash.
+  return effectiveTheme === 'dark' ? '#0f1114' : '#f7f6f3'
+}
+
+async function loadThemePreference(dbWorker: DbWorkerClient): Promise<ThemePreference> {
+  const persistedRes = await dbWorker.request('settings.getThemePreference', {})
+  if (!persistedRes.ok) return 'system'
+
+  const parsed = DbThemePreferenceRowSchema.safeParse(persistedRes.data)
+  const persisted = parsed.success ? parsed.data.preference : null
+  if (!persisted) return 'system'
+
+  const allowlisted = ThemePreferenceSchema.safeParse(persisted)
+  return allowlisted.success ? allowlisted.data : 'system'
+}
+
+async function resolveThemeState(dbWorker: DbWorkerClient): Promise<{ preference: ThemePreference; effectiveTheme: EffectiveTheme }> {
+  const preference = await loadThemePreference(dbWorker)
+
+  // Self-test mode: keep the renderer deterministic regardless of machine appearance.
+  if (IS_SELF_TEST) {
+    nativeTheme.themeSource = 'light'
+    return { preference, effectiveTheme: 'light' }
+  }
+
+  nativeTheme.themeSource = preference
+  return { preference, effectiveTheme: resolveEffectiveTheme(preference) }
+}
+
+function createWindow(opts?: { backgroundColor?: string }) {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+    backgroundColor: opts?.backgroundColor,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
@@ -597,6 +648,88 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     return SidebarStateResultSchema.parse(ok(parsedData.data))
   })
 
+  ipcMain.handle('settings:getThemeState', async (event) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return ThemeStateResultSchema.parse(err(senderErr))
+
+    const state = await resolveThemeState(dbWorker)
+    return ThemeStateResultSchema.parse(ok(state))
+  })
+
+  ipcMain.handle('settings:setThemePreference', async (event, payload) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return ThemeStateResultSchema.parse(err(senderErr))
+
+    const parsedPayload = SetThemePreferencePayloadSchema.safeParse(payload)
+    if (!parsedPayload.success) {
+      return ThemeStateResultSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid payload.',
+          details: { issues: parsedPayload.error.issues },
+        })
+      )
+    }
+
+    const preferenceParsed = ThemePreferenceSchema.safeParse(parsedPayload.data.preference)
+    if (!preferenceParsed.success) {
+      return ThemeStateResultSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid theme preference.',
+          details: { issues: preferenceParsed.error.issues },
+        })
+      )
+    }
+
+    const preference = preferenceParsed.data
+
+    const res = await dbWorker.request('settings.setThemePreference', { preference })
+    if (!res.ok) return ThemeStateResultSchema.parse(err(res.error))
+
+    const parsedData = DbSetThemePreferenceResultSchema.safeParse(res.data)
+    if (!parsedData.success) {
+      return ThemeStateResultSchema.parse(
+        err({
+          code: 'DB_INVALID_RETURN',
+          message: 'Invalid DB return value.',
+          details: { issues: parsedData.error.issues, action: 'settings.setThemePreference' },
+        })
+      )
+    }
+
+    const dbPreferenceParsed = ThemePreferenceSchema.safeParse(parsedData.data.preference)
+    if (!dbPreferenceParsed.success) {
+      return ThemeStateResultSchema.parse(
+        err({
+          code: 'DB_INVALID_RETURN',
+          message: 'Invalid DB return value.',
+          details: { issues: dbPreferenceParsed.error.issues, action: 'settings.setThemePreference' },
+        })
+      )
+    }
+
+    const persistedPreference = dbPreferenceParsed.data
+
+    // Apply effective theme immediately (no restart).
+    const state = {
+      preference: persistedPreference,
+      effectiveTheme: IS_SELF_TEST ? 'light' : resolveEffectiveTheme(persistedPreference),
+    } satisfies { preference: ThemePreference; effectiveTheme: EffectiveTheme }
+
+    if (IS_SELF_TEST) {
+      nativeTheme.themeSource = 'light'
+    } else {
+      nativeTheme.themeSource = persistedPreference
+    }
+
+    if (win) {
+      win.setBackgroundColor(getWindowBackgroundColor(state.effectiveTheme))
+    }
+
+    return ThemeStateResultSchema.parse(ok(state))
+  })
+
   // DB IPC (Renderer -> Main -> DB Worker)
   handleDb('db:task.create', 'task.create', TaskCreateInputSchema, TaskSchema)
   handleDb('db:task.update', 'task.update', TaskUpdateInputSchema, TaskSchema)
@@ -713,7 +846,7 @@ app.on('activate', () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow()
+    createWindow({ backgroundColor: getWindowBackgroundColor(getEffectiveThemeFromNative()) })
   }
 })
 
@@ -741,8 +874,10 @@ if (!gotTheLock) {
       void dbWorker.terminate()
     })
 
+    const themeState = await resolveThemeState(dbWorker)
+
     registerIpcHandlers(dbWorker)
     installCspOnce()
-    createWindow()
+    createWindow({ backgroundColor: getWindowBackgroundColor(themeState.effectiveTheme) })
   })
 }

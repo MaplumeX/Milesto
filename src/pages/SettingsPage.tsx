@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
 import { LocaleSchema, type Locale } from '../../shared/i18n/locale'
+import { ThemePreferenceSchema, type EffectiveTheme, type ThemePreference } from '../../shared/schemas'
 
 import i18n from '../i18n/i18n'
 
@@ -15,13 +16,16 @@ export function SettingsPage() {
   const [lastExportPath, setLastExportPath] = useState<string | null>(null)
   const [locale, setLocale] = useState<Locale>('en')
   const [supportedLocales, setSupportedLocales] = useState<Locale[]>(['en', 'zh-CN'])
+  const [themePreference, setThemePreference] = useState<ThemePreference>('system')
+  const [effectiveTheme, setEffectiveTheme] = useState<EffectiveTheme>('light')
 
   useEffect(() => {
     void (async () => {
-      const [verRes, pathRes, localeRes] = await Promise.all([
+      const [verRes, pathRes, localeRes, themeRes] = await Promise.all([
         window.api.app.getVersion(),
         window.api.app.getUserDataPath(),
         window.api.settings.getLocaleState(),
+        window.api.settings.getThemeState(),
       ])
       if (!verRes.ok) {
         setError(verRes.error)
@@ -35,11 +39,17 @@ export function SettingsPage() {
         setError(localeRes.error)
         return
       }
+      if (!themeRes.ok) {
+        setError(themeRes.error)
+        return
+      }
       setError(null)
       setVersion(verRes.data)
       setUserDataPath(pathRes.data)
       setLocale(localeRes.data.locale)
       setSupportedLocales(localeRes.data.supportedLocales)
+      setThemePreference(themeRes.data.preference)
+      setEffectiveTheme(themeRes.data.effectiveTheme)
     })()
   }, [])
 
@@ -90,6 +100,40 @@ export function SettingsPage() {
                 </option>
               ))}
             </select>
+          </div>
+        </section>
+
+        <section className="card" data-settings-theme-card="true">
+          <h2 className="card-title">{t('settings.theme')}</h2>
+          <div className="row">
+            <select
+              className="input"
+              value={themePreference}
+              data-settings-theme-select="true"
+              onChange={(e) => {
+                const parsed = ThemePreferenceSchema.safeParse(e.target.value)
+                if (!parsed.success) return
+                void (async () => {
+                  const res = await window.api.settings.setThemePreference(parsed.data)
+                  if (!res.ok) {
+                    setError(res.error)
+                    return
+                  }
+                  setError(null)
+                  setThemePreference(res.data.preference)
+                  setEffectiveTheme(res.data.effectiveTheme)
+                })()
+              }}
+            >
+              <option value="system">{t('settings.themeSystem')}</option>
+              <option value="light">{t('settings.themeLight')}</option>
+              <option value="dark">{t('settings.themeDark')}</option>
+            </select>
+            <div className="mono">
+              {t('settings.themeEffective', {
+                theme: effectiveTheme === 'dark' ? t('settings.themeDark') : t('settings.themeLight'),
+              })}
+            </div>
           </div>
         </section>
 

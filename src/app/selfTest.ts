@@ -234,6 +234,27 @@ async function waitForSidebarState(
   throw new Error(`Timeout waiting for: ${label}`)
 }
 
+async function waitForThemeState(
+  label: string,
+  predicate: (state: { preference: string; effectiveTheme: string }) => boolean,
+  opts?: { timeoutMs?: number; intervalMs?: number }
+): Promise<{ preference: string; effectiveTheme: string }> {
+  const timeoutMs = opts?.timeoutMs ?? 10_000
+  const intervalMs = opts?.intervalMs ?? 80
+  const start = Date.now()
+
+  while (Date.now() - start < timeoutMs) {
+    const res = await window.api.settings.getThemeState()
+    if (!res.ok) {
+      throw new Error(`${label}: getThemeState failed: ${res.error.code}: ${res.error.message}`)
+    }
+    if (predicate(res.data)) return res.data
+    await sleep(intervalMs)
+  }
+
+  throw new Error(`Timeout waiting for: ${label}`)
+ }
+
 async function scrollUntil<T>(
   label: string,
   params: {
@@ -906,6 +927,33 @@ async function runSelfTest(): Promise<SelfTestResult> {
   try {
     if (!('api' in window)) {
       throw new Error('window.api is missing (preload not available).')
+    }
+
+    // Theme: should be deterministic in self-test, but still persist preference updates.
+    {
+      const initialThemeRes = await window.api.settings.getThemeState()
+      if (!initialThemeRes.ok) {
+        throw new Error(
+          `Theme suite: getThemeState failed: ${initialThemeRes.error.code}: ${initialThemeRes.error.message}`
+        )
+      }
+      if (initialThemeRes.data.effectiveTheme !== 'light') {
+        throw new Error(`Theme suite: expected effectiveTheme=light in self-test, got ${initialThemeRes.data.effectiveTheme}`)
+      }
+
+      window.location.hash = '/settings'
+      const themeSelect = await waitFor('Theme select (settings)', () =>
+        document.querySelector<HTMLSelectElement>('select[data-settings-theme-select="true"]')
+      )
+
+      themeSelect.value = 'dark'
+      themeSelect.dispatchEvent(new Event('change', { bubbles: true }))
+
+      await waitForThemeState('Theme suite: preference persisted (dark)', (s) => s.preference === 'dark')
+
+      themeSelect.value = 'system'
+      themeSelect.dispatchEvent(new Event('change', { bubbles: true }))
+      await waitForThemeState('Theme suite: preference persisted (system)', (s) => s.preference === 'system')
     }
 
     const contentScroller = await waitFor('Content scroller', () =>

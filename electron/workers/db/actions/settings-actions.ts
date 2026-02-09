@@ -5,15 +5,21 @@ import type { DbActionHandler } from './db-actions'
 import { nowIso } from './utils'
 
 import { normalizeLocale, type Locale } from '../../../../shared/i18n/locale'
+import { ThemePreferenceSchema, type ThemePreference } from '../../../../shared/schemas/theme'
 
 const GetLocaleInputSchema = z.object({})
 const SetLocaleInputSchema = z.object({ locale: z.unknown() })
 
 const SIDEBAR_COLLAPSED_AREA_IDS_KEY = 'sidebar.collapsedAreaIds'
 
+const THEME_PREFERENCE_KEY = 'theme.preference'
+
 const GetSidebarStateInputSchema = z.object({})
 const SetSidebarStateInputSchema = z.object({ collapsedAreaIds: z.unknown() })
 const SidebarCollapsedAreaIdsSchema = z.array(z.string())
+
+const GetThemePreferenceInputSchema = z.object({})
+const SetThemePreferenceInputSchema = z.object({ preference: z.unknown() })
 
 export function createSettingsActions(db: Database.Database): Record<string, DbActionHandler> {
   return {
@@ -151,6 +157,77 @@ export function createSettingsActions(db: Database.Database): Record<string, DbA
       tx()
 
       return { ok: true, data: { collapsedAreaIds } }
+    },
+
+    'settings.getThemePreference': (payload) => {
+      const parsed = GetThemePreferenceInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid settings.getThemePreference payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const row = db
+        .prepare('SELECT value FROM app_settings WHERE key = ? LIMIT 1')
+        .get(THEME_PREFERENCE_KEY) as { value?: unknown } | undefined
+
+      if (!row || typeof row.value !== 'string' || !row.value.trim()) {
+        return { ok: true, data: { preference: null } }
+      }
+
+      const allowlisted = ThemePreferenceSchema.safeParse(row.value)
+      if (!allowlisted.success) {
+        return { ok: true, data: { preference: null } }
+      }
+
+      return { ok: true, data: { preference: allowlisted.data } satisfies { preference: ThemePreference } }
+    },
+
+    'settings.setThemePreference': (payload) => {
+      const parsed = SetThemePreferenceInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid settings.setThemePreference payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const preferenceParsed = ThemePreferenceSchema.safeParse(parsed.data.preference)
+      if (!preferenceParsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid theme preference.',
+            details: { issues: preferenceParsed.error.issues },
+          },
+        }
+      }
+
+      const preference = preferenceParsed.data
+      const updatedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        db.prepare(
+          `INSERT INTO app_settings (key, value, updated_at)
+           VALUES (@key, @value, @updated_at)
+           ON CONFLICT(key) DO UPDATE SET
+             value = excluded.value,
+             updated_at = excluded.updated_at`
+        ).run({ key: THEME_PREFERENCE_KEY, value: preference, updated_at: updatedAt })
+      })
+      tx()
+
+      return { ok: true, data: { preference } satisfies { preference: ThemePreference } }
     },
   }
 }

@@ -21,6 +21,7 @@ import type { Task, TaskCreateInput, TaskUpdateInput } from './schemas/task'
 import type { TaskCountResult, TaskListItem } from './schemas/task-list'
 import type { TaskSearchResultItem } from './schemas/search'
 import type { TaskDetail } from './schemas/task-detail'
+import type { ThemePreference, ThemeState } from './schemas/theme'
 import type {
   SidebarListModel,
   SidebarMoveProjectInput,
@@ -64,6 +65,9 @@ export type WindowApi = {
 
     getSidebarState(): Promise<Result<SidebarState>>
     setSidebarState(state: SidebarState): Promise<Result<SidebarState>>
+
+    getThemeState(): Promise<Result<ThemeState>>
+    setThemePreference(preference: ThemePreference): Promise<Result<ThemeState>>
   }
 
   task: {
