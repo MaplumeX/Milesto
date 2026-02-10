@@ -1,15 +1,18 @@
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ForwardedRef, RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import { useParams } from 'react-router-dom'
+import { DayPicker } from 'react-day-picker'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
 import type { Area } from '../../shared/schemas/area'
 import type { Project, ProjectSection } from '../../shared/schemas/project'
+import type { Tag } from '../../shared/schemas/tag'
 import type { TaskListItem } from '../../shared/schemas/task-list'
 import { useAppEvents } from '../app/AppEventsContext'
 import { ProjectGroupedList } from '../features/tasks/ProjectGroupedList'
+import { formatLocalDate, parseLocalDate } from '../lib/dates'
 
 const PROJECT_CREATE_SECTION_EVENT = 'milesto:project.createSection'
 
@@ -17,9 +20,11 @@ export function ProjectPage() {
   const { t } = useTranslation()
   const { revision, bumpRevision } = useAppEvents()
   const { projectId } = useParams<{ projectId: string }>()
+  const navigate = useNavigate()
   const pid = projectId ?? ''
 
   const [project, setProject] = useState<Project | null>(null)
+  const [projectTags, setProjectTags] = useState<Tag[]>([])
   const [areas, setAreas] = useState<Area[]>([])
   const [openTasks, setOpenTasks] = useState<TaskListItem[]>([])
   const [doneCount, setDoneCount] = useState(0)
@@ -45,19 +50,24 @@ export function ProjectPage() {
   const menuButtonRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
+  const closeMenu = useCallback(() => {
+    setIsMenuOpen(false)
+    menuButtonRef.current?.focus()
+  }, [])
+
   const refresh = useCallback(async () => {
     if (!pid) return
 
-    const [projectRes, areasRes, openTasksRes, sectionsRes, doneCountRes] = await Promise.all([
-      window.api.project.get(pid),
+    const [projectDetailRes, areasRes, openTasksRes, sectionsRes, doneCountRes] = await Promise.all([
+      window.api.project.getDetail(pid),
       window.api.area.list(),
       window.api.task.listProject(pid),
       window.api.project.listSections(pid),
       window.api.task.countProjectDone(pid),
     ])
 
-    if (!projectRes.ok) {
-      setError(projectRes.error)
+    if (!projectDetailRes.ok) {
+      setError(projectDetailRes.error)
       return
     }
     if (!areasRes.ok) {
@@ -78,7 +88,8 @@ export function ProjectPage() {
     }
 
     setError(null)
-    setProject(projectRes.data)
+    setProject(projectDetailRes.data.project)
+    setProjectTags(projectDetailRes.data.tags)
     setAreas(areasRes.data)
     setOpenTasks(openTasksRes.data)
     setSections(sectionsRes.data)
@@ -155,6 +166,11 @@ export function ProjectPage() {
 
   const openCount = openTasks.length
 
+  const mutateAndRefresh = useCallback(async () => {
+    bumpRevision()
+    await refresh()
+  }, [bumpRevision, refresh])
+
   useEffect(() => {
     if (!isCompletedExpanded) return
     if (!pid) return
@@ -176,11 +192,6 @@ export function ProjectPage() {
   useEffect(() => {
     if (!isMenuOpen) return
 
-    function close() {
-      setIsMenuOpen(false)
-      menuButtonRef.current?.focus()
-    }
-
     function handlePointerDown(e: PointerEvent) {
       if (e.button !== 0) return
       if (!(e.target instanceof Node)) return
@@ -189,18 +200,18 @@ export function ProjectPage() {
       if (pop?.contains(e.target) || btn?.contains(e.target)) return
       e.preventDefault()
       e.stopPropagation()
-      close()
+      closeMenu()
     }
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return
       e.preventDefault()
       e.stopPropagation()
-      close()
+      closeMenu()
     }
 
     function handleClose() {
-      close()
+      closeMenu()
     }
 
     document.addEventListener('pointerdown', handlePointerDown, true)
@@ -213,7 +224,7 @@ export function ProjectPage() {
       window.removeEventListener('resize', handleClose)
       window.removeEventListener('scroll', handleClose, true)
     }
-  }, [isMenuOpen])
+  }, [closeMenu, isMenuOpen])
 
   const completedLabel = t('projectPage.completed')
 
@@ -350,9 +361,7 @@ export function ProjectPage() {
                 title
               )}
             </h1>
-          </div>
 
-          <div className="row" style={{ marginTop: 0 }}>
             <button
               ref={menuButtonRef}
               type="button"
@@ -372,52 +381,57 @@ export function ProjectPage() {
                 ref={menuRef}
                 anchorEl={menuButtonRef.current}
                 project={project}
+                projectTags={projectTags}
                 areas={areas}
-                onClose={() => setIsMenuOpen(false)}
-                onChangeArea={async (nextAreaId) => {
-                  const res = await window.api.project.update({ id: project.id, area_id: nextAreaId })
-                  if (!res.ok) {
-                    setError(res.error)
-                    return
-                  }
-                  bumpRevision()
-                  await refresh()
-                }}
-                onRename={async () => {
-                  const next = prompt(t('project.renamePromptTitle'), project.title)
-                  if (!next) return
-                  const res = await window.api.project.update({ id: project.id, title: next })
-                  if (!res.ok) {
-                    setError(res.error)
-                    return
-                  }
-                  bumpRevision()
-                  await refresh()
-                }}
-                onMarkDone={async () => {
-                  const confirmed = confirm(t('project.completeConfirm', { count: openCount }))
-                  if (!confirmed) return
-                  const res = await window.api.project.complete(project.id)
-                  if (!res.ok) {
-                    setError(res.error)
-                    return
-                  }
-                  bumpRevision()
-                  await refresh()
-                }}
-                onReopen={async () => {
-                  const res = await window.api.project.update({ id: project.id, status: 'open' })
-                  if (!res.ok) {
-                    setError(res.error)
-                    return
-                  }
-                  bumpRevision()
-                  await refresh()
-                }}
+                openTaskCount={openCount}
+                onClose={closeMenu}
+                onMutate={mutateAndRefresh}
+                onBumpRevision={bumpRevision}
+                onError={setError}
+                onNavigate={navigate}
               />,
               document.body
             )
           : null}
+
+        {project ? (
+          <ProjectMetaRow
+            project={project}
+            tags={projectTags}
+            onClearPlan={async () => {
+              const res = await window.api.project.update({
+                id: project.id,
+                scheduled_at: null,
+                is_someday: false,
+              })
+              if (!res.ok) {
+                setError(res.error)
+                return
+              }
+              bumpRevision()
+              await refresh()
+            }}
+            onClearDue={async () => {
+              const res = await window.api.project.update({ id: project.id, due_at: null })
+              if (!res.ok) {
+                setError(res.error)
+                return
+              }
+              bumpRevision()
+              await refresh()
+            }}
+            onRemoveTag={async (tagId) => {
+              const nextIds = projectTags.filter((t) => t.id !== tagId).map((t) => t.id)
+              const res = await window.api.project.setTags(project.id, nextIds)
+              if (!res.ok) {
+                setError(res.error)
+                return
+              }
+              bumpRevision()
+              await refresh()
+            }}
+          />
+        ) : null}
 
         <div className="project-notes" style={{ marginTop: 12 }}>
           <ProjectNotes
@@ -519,6 +533,97 @@ export function ProjectPage() {
   )
 }
 
+function ProjectMetaRow({
+  project,
+  tags,
+  onClearPlan,
+  onClearDue,
+  onRemoveTag,
+}: {
+  project: Project
+  tags: Tag[]
+  onClearPlan: () => Promise<void>
+  onClearDue: () => Promise<void>
+  onRemoveTag: (tagId: string) => Promise<void>
+}) {
+  const { t } = useTranslation()
+  const today = formatLocalDate(new Date())
+
+  const hasPlan = Boolean(project.is_someday || project.scheduled_at)
+  const hasDue = Boolean(project.due_at)
+  const hasTags = tags.length > 0
+
+  if (!hasPlan && !hasDue && !hasTags) return null
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div className="task-inline-action-bar-left">
+        {hasPlan ? (
+          <div className="task-inline-chip">
+            <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
+              {t('taskEditor.scheduledPrefix')}{' '}
+              {project.is_someday
+                ? t('nav.someday')
+                : project.scheduled_at === today
+                  ? t('nav.today')
+                  : project.scheduled_at}
+            </span>
+            <button
+              type="button"
+              className="task-inline-chip-close"
+              aria-label={t('taskEditor.clearScheduledAria')}
+              onClick={(e) => {
+                e.preventDefault()
+                void onClearPlan()
+              }}
+            >
+              ×
+            </button>
+          </div>
+        ) : null}
+
+        {hasDue ? (
+          <div className="task-inline-chip">
+            <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
+              {t('taskEditor.duePrefix')} {project.due_at}
+            </span>
+            <button
+              type="button"
+              className="task-inline-chip-close"
+              aria-label={t('taskEditor.clearDueAria')}
+              onClick={(e) => {
+                e.preventDefault()
+                void onClearDue()
+              }}
+            >
+              ×
+            </button>
+          </div>
+        ) : null}
+
+        {tags.map((tag) => (
+          <div key={tag.id} className="task-inline-chip">
+            <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
+              {tag.title}
+            </span>
+            <button
+              type="button"
+              className="task-inline-chip-close"
+              aria-label={t('aria.removeTag', { title: tag.title })}
+              onClick={(e) => {
+                e.preventDefault()
+                void onRemoveTag(tag.id)
+              }}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function ProjectNotes({
   textareaRef,
   value,
@@ -556,34 +661,120 @@ const ProjectMenu = forwardRef(function ProjectMenu(
   {
     anchorEl,
     project,
+    projectTags,
     areas,
+    openTaskCount,
     onClose,
-    onChangeArea,
-    onRename,
-    onMarkDone,
-    onReopen,
+    onMutate,
+    onBumpRevision,
+    onError,
+    onNavigate,
   }: {
     anchorEl: HTMLElement
     project: Project
+    projectTags: Tag[]
     areas: Area[]
     onClose: () => void
-    onChangeArea: (nextAreaId: string | null) => Promise<void>
-    onRename: () => Promise<void>
-    onMarkDone: () => Promise<void>
-    onReopen: () => Promise<void>
+    openTaskCount: number
+    onMutate: () => Promise<void>
+    onBumpRevision: () => void
+    onError: (error: AppError | null) => void
+    onNavigate: (to: string) => void
   },
   ref: ForwardedRef<HTMLDivElement>
 ) {
   const { t } = useTranslation()
+  type View = 'root' | 'plan' | 'due' | 'move' | 'tags'
+  type RootKey = 'complete' | 'plan' | 'due' | 'move' | 'tags' | 'delete'
+
+  const [view, setView] = useState<View>('root')
+
+  const lastRootFocusRef = useRef<RootKey>('complete')
+  const backButtonRef = useRef<HTMLButtonElement | null>(null)
+  const tagsInputRef = useRef<HTMLInputElement | null>(null)
+
+  const completeBtnRef = useRef<HTMLButtonElement | null>(null)
+  const planBtnRef = useRef<HTMLButtonElement | null>(null)
+  const dueBtnRef = useRef<HTMLButtonElement | null>(null)
+  const moveBtnRef = useRef<HTMLButtonElement | null>(null)
+  const tagsBtnRef = useRef<HTMLButtonElement | null>(null)
+  const deleteBtnRef = useRef<HTMLButtonElement | null>(null)
+
+  const [allTags, setAllTags] = useState<Tag[]>([])
+  const [tagsError, setTagsError] = useState<AppError | null>(null)
+  const [tagCreateTitle, setTagCreateTitle] = useState('')
+  const [tagCreateError, setTagCreateError] = useState<AppError | null>(null)
+
+  const today = formatLocalDate(new Date())
+
+  const rootRefs: Record<RootKey, RefObject<HTMLButtonElement | null>> = {
+    complete: completeBtnRef,
+    plan: planBtnRef,
+    due: dueBtnRef,
+    move: moveBtnRef,
+    tags: tagsBtnRef,
+    delete: deleteBtnRef,
+  }
+
+  const focusRoot = (key: RootKey) => {
+    rootRefs[key].current?.focus()
+  }
+
+  const goRoot = (focusKey?: RootKey) => {
+    setView('root')
+    const key = focusKey ?? lastRootFocusRef.current
+    window.setTimeout(() => focusRoot(key), 0)
+  }
+
+  const goSubview = (nextView: View, returnFocus: RootKey) => {
+    lastRootFocusRef.current = returnFocus
+    setView(nextView)
+  }
+
+  useLayoutEffect(() => {
+    if (view === 'root') return
+    if (view === 'tags') {
+      tagsInputRef.current?.focus()
+      return
+    }
+    backButtonRef.current?.focus()
+  }, [view])
+
+  useEffect(() => {
+    if (view !== 'tags') return
+
+    void (async () => {
+      const res = await window.api.tag.list()
+      if (!res.ok) {
+        setTagsError(res.error)
+        return
+      }
+      setTagsError(null)
+      setAllTags(res.data)
+    })()
+  }, [view])
+
+  function normalizeTagTitle(title: string): string {
+    return title.trim().replace(/\s+/g, ' ').toLowerCase()
+  }
   const rect = anchorEl.getBoundingClientRect()
   const maxWidth = 320
   const left = Math.min(Math.max(12, rect.left), window.innerWidth - maxWidth - 12)
   const top = Math.min(rect.bottom + 8, window.innerHeight - 12)
 
+  const isCalendar = view === 'plan' || view === 'due'
+  const isTags = view === 'tags'
+
   return (
     <div
       ref={ref}
-      className="task-inline-popover"
+      className={
+        isCalendar
+          ? 'task-inline-popover task-inline-popover-calendar'
+          : isTags
+            ? 'task-inline-popover task-inline-popover-tags'
+            : 'task-inline-popover'
+      }
       role="dialog"
       aria-label={t('aria.projectActions')}
       style={{ position: 'fixed', top, left, width: maxWidth, zIndex: 45 }}
@@ -596,78 +787,447 @@ const ProjectMenu = forwardRef(function ProjectMenu(
       }}
     >
       <div className="task-inline-popover-body">
-        <div className="task-inline-popover-title">{t('projectPage.menuTitle')}</div>
+        {view === 'root' ? (
+          <>
+            <div className="task-inline-popover-title">{t('projectPage.menuTitle')}</div>
+            <div className="row" style={{ justifyContent: 'flex-start', flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+              <button
+                ref={completeBtnRef}
+                type="button"
+                className="button button-ghost"
+                onClick={() => {
+                  void (async () => {
+                    onError(null)
 
-        <div className="detail-field" style={{ marginTop: 10 }}>
-          <label className="label" htmlFor="project-area">
-            {t('projectPage.areaLabel')}
-          </label>
-          <select
-            id="project-area"
-            className="input"
-            value={project.area_id ?? ''}
-            onChange={(e) => {
-              const next = e.target.value ? e.target.value : null
-              void (async () => {
-                await onChangeArea(next)
-                onClose()
-              })()
-            }}
-          >
-            <option value="">{t('common.noneOption')}</option>
-            {areas.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.title}
-              </option>
-            ))}
-          </select>
-        </div>
+                    if (project.status === 'done') {
+                      const res = await window.api.project.update({ id: project.id, status: 'open' })
+                      if (!res.ok) {
+                        onError(res.error)
+                        return
+                      }
+                      await onMutate()
+                      onClose()
+                      return
+                    }
 
-        <div className="row" style={{ justifyContent: 'flex-start' }}>
-          <button
-            type="button"
-            className="button button-ghost"
-            onClick={() => {
-              void (async () => {
-                await onRename()
-                onClose()
-              })()
-            }}
-          >
-            {t('common.rename')}
-          </button>
-        </div>
+                    const confirmed = confirm(t('project.completeConfirm', { count: openTaskCount }))
+                    if (!confirmed) return
+                    const res = await window.api.project.complete(project.id)
+                    if (!res.ok) {
+                      onError(res.error)
+                      return
+                    }
+                    await onMutate()
+                    onClose()
+                  })()
+                }}
+              >
+                {project.status === 'done' ? t('projectPage.reopen') : t('projectPage.markDone')}
+              </button>
 
-        {project.status === 'done' ? (
-          <div className="row" style={{ justifyContent: 'flex-start' }}>
-            <button
-              type="button"
-              className="button button-ghost"
-              onClick={() => {
-                void (async () => {
-                  await onReopen()
-                  onClose()
-                })()
-              }}
-            >
-              {t('projectPage.reopen')}
-            </button>
-          </div>
+              <button
+                ref={planBtnRef}
+                type="button"
+                className="button button-ghost"
+                onClick={() => goSubview('plan', 'plan')}
+              >
+                {t('common.schedule')}
+              </button>
+
+              <button
+                ref={dueBtnRef}
+                type="button"
+                className="button button-ghost"
+                onClick={() => goSubview('due', 'due')}
+              >
+                {t('taskEditor.dueLabel')}
+              </button>
+
+              <button
+                ref={moveBtnRef}
+                type="button"
+                className="button button-ghost"
+                onClick={() => goSubview('move', 'move')}
+              >
+                {t('common.move')}
+              </button>
+
+              <button
+                ref={tagsBtnRef}
+                type="button"
+                className="button button-ghost"
+                onClick={() => {
+                  setTagCreateError(null)
+                  setTagsError(null)
+                  setTagCreateTitle('')
+                  goSubview('tags', 'tags')
+                }}
+              >
+                {t('taskEditor.tagsLabel')}
+              </button>
+
+              <button
+                ref={deleteBtnRef}
+                type="button"
+                className="button button-ghost"
+                onClick={() => {
+                  void (async () => {
+                    onError(null)
+
+                    const confirmed = confirm(t('project.deleteConfirm'))
+                    if (!confirmed) return
+
+                    const res = await window.api.project.delete(project.id)
+                    if (!res.ok) {
+                      onError(res.error)
+                      return
+                    }
+
+                    onBumpRevision()
+                    onClose()
+                    onNavigate('/today')
+                  })()
+                }}
+              >
+                {t('common.delete')}
+              </button>
+            </div>
+          </>
         ) : (
-          <div className="row" style={{ justifyContent: 'flex-start' }}>
-            <button
-              type="button"
-              className="button button-ghost"
-              onClick={() => {
-                void (async () => {
-                  await onMarkDone()
-                  onClose()
-                })()
-              }}
-            >
-              {t('projectPage.markDone')}
-            </button>
-          </div>
+          <>
+            <div className="row" style={{ justifyContent: 'flex-start', marginTop: 0 }}>
+              <button
+                ref={backButtonRef}
+                type="button"
+                className="button button-ghost"
+                onClick={() => goRoot()}
+              >
+                {t('common.back')}
+              </button>
+              <div className="task-inline-popover-title">
+                {view === 'plan'
+                  ? t('taskEditor.popoverScheduleTitle')
+                  : view === 'due'
+                    ? t('taskEditor.dueLabel')
+                    : view === 'move'
+                      ? t('common.move')
+                      : t('taskEditor.tagsLabel')}
+              </div>
+            </div>
+
+            {view === 'plan' ? (
+              <>
+                <div className="task-inline-calendar" style={{ marginTop: 8 }}>
+                  <DayPicker
+                    mode="single"
+                    selected={!project.is_someday && project.scheduled_at ? parseLocalDate(project.scheduled_at) ?? undefined : undefined}
+                    onSelect={(date) => {
+                      const nextDate = date ? formatLocalDate(date) : null
+                      void (async () => {
+                        onError(null)
+                        const res = await window.api.project.update({
+                          id: project.id,
+                          scheduled_at: nextDate,
+                          is_someday: false,
+                        })
+                        if (!res.ok) {
+                          onError(res.error)
+                          return
+                        }
+                        await onMutate()
+                        goRoot('plan')
+                      })()
+                    }}
+                    weekStartsOn={1}
+                    showOutsideDays
+                    fixedWeeks
+                  />
+                </div>
+                <div className="row" style={{ justifyContent: 'flex-start' }}>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() => {
+                      void (async () => {
+                        onError(null)
+                        const res = await window.api.project.update({
+                          id: project.id,
+                          is_someday: true,
+                          scheduled_at: null,
+                        })
+                        if (!res.ok) {
+                          onError(res.error)
+                          return
+                        }
+                        await onMutate()
+                        goRoot('plan')
+                      })()
+                    }}
+                  >
+                    {t('nav.someday')}
+                  </button>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() => {
+                      void (async () => {
+                        onError(null)
+                        const res = await window.api.project.update({
+                          id: project.id,
+                          scheduled_at: today,
+                          is_someday: false,
+                        })
+                        if (!res.ok) {
+                          onError(res.error)
+                          return
+                        }
+                        await onMutate()
+                        goRoot('plan')
+                      })()
+                    }}
+                  >
+                    {t('nav.today')}
+                  </button>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() => {
+                      void (async () => {
+                        onError(null)
+                        const res = await window.api.project.update({
+                          id: project.id,
+                          scheduled_at: null,
+                          is_someday: false,
+                        })
+                        if (!res.ok) {
+                          onError(res.error)
+                          return
+                        }
+                        await onMutate()
+                        goRoot('plan')
+                      })()
+                    }}
+                  >
+                    {t('common.clear')}
+                  </button>
+                </div>
+              </>
+            ) : view === 'due' ? (
+              <>
+                <div className="task-inline-calendar" style={{ marginTop: 8 }}>
+                  <DayPicker
+                    mode="single"
+                    selected={project.due_at ? parseLocalDate(project.due_at) ?? undefined : undefined}
+                    onSelect={(date) => {
+                      const nextDate = date ? formatLocalDate(date) : null
+                      void (async () => {
+                        onError(null)
+                        const res = await window.api.project.update({ id: project.id, due_at: nextDate })
+                        if (!res.ok) {
+                          onError(res.error)
+                          return
+                        }
+                        await onMutate()
+                        goRoot('due')
+                      })()
+                    }}
+                    weekStartsOn={1}
+                    showOutsideDays
+                    fixedWeeks
+                  />
+                </div>
+                <div className="row" style={{ justifyContent: 'flex-start' }}>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() => {
+                      void (async () => {
+                        onError(null)
+                        const res = await window.api.project.update({ id: project.id, due_at: today })
+                        if (!res.ok) {
+                          onError(res.error)
+                          return
+                        }
+                        await onMutate()
+                        goRoot('due')
+                      })()
+                    }}
+                  >
+                    {t('nav.today')}
+                  </button>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() => {
+                      void (async () => {
+                        onError(null)
+                        const res = await window.api.project.update({ id: project.id, due_at: null })
+                        if (!res.ok) {
+                          onError(res.error)
+                          return
+                        }
+                        await onMutate()
+                        goRoot('due')
+                      })()
+                    }}
+                  >
+                    {t('common.clear')}
+                  </button>
+                </div>
+              </>
+            ) : view === 'move' ? (
+              <div className="detail-field" style={{ marginTop: 10 }}>
+                <label className="label" htmlFor="project-area">
+                  {t('projectPage.areaLabel')}
+                </label>
+                <select
+                  id="project-area"
+                  className="input"
+                  value={project.area_id ?? ''}
+                  onChange={(e) => {
+                    const next = e.target.value ? e.target.value : null
+                    void (async () => {
+                      onError(null)
+                      const res = await window.api.project.update({ id: project.id, area_id: next })
+                      if (!res.ok) {
+                        onError(res.error)
+                        return
+                      }
+                      await onMutate()
+                      goRoot('move')
+                    })()
+                  }}
+                >
+                  <option value="">{t('common.noneOption')}</option>
+                  {areas.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <>
+                <input
+                  ref={tagsInputRef}
+                  className="input"
+                  placeholder={t('taskEditor.newTagPlaceholder')}
+                  value={tagCreateTitle}
+                  onChange={(e) => {
+                    setTagCreateTitle(e.target.value)
+                    if (tagCreateError) setTagCreateError(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter') return
+                    e.preventDefault()
+                    e.stopPropagation()
+
+                    const title = tagCreateTitle.trim()
+                    if (!title) return
+
+                    const normalized = normalizeTagTitle(title)
+                    const existing = allTags.find((t) => normalizeTagTitle(t.title) === normalized)
+
+                    const selectedIds = projectTags.map((t) => t.id)
+                    const persist = async (nextIds: string[]) => {
+                      onError(null)
+                      const res = await window.api.project.setTags(project.id, nextIds)
+                      if (!res.ok) {
+                        onError(res.error)
+                        return false
+                      }
+                      await onMutate()
+                      return true
+                    }
+
+                    if (existing) {
+                      if (!selectedIds.includes(existing.id)) {
+                        void persist([...selectedIds, existing.id])
+                      }
+                      setTagCreateTitle('')
+                      setTagCreateError(null)
+                      return
+                    }
+
+                    void (async () => {
+                      setTagCreateError(null)
+                      const res = await window.api.tag.create({ title })
+                      if (!res.ok) {
+                        setTagCreateError(res.error)
+                        return
+                      }
+
+                      setTagCreateTitle('')
+                      const list = await window.api.tag.list()
+                      if (list.ok) setAllTags(list.data)
+
+                      if (!selectedIds.includes(res.data.id)) {
+                        await persist([...selectedIds, res.data.id])
+                      }
+                    })()
+                  }}
+                  style={{ marginTop: 6 }}
+                />
+
+                {tagCreateError ? (
+                  <div className="error" style={{ margin: '10px 0 0' }}>
+                    <div className="error-code">{tagCreateError.code}</div>
+                    <div>{tagCreateError.message}</div>
+                  </div>
+                ) : null}
+
+                {tagsError ? (
+                  <div className="error" style={{ margin: '10px 0 0' }}>
+                    <div className="error-code">{tagsError.code}</div>
+                    <div>{tagsError.message}</div>
+                  </div>
+                ) : null}
+
+                <div className="tag-grid" style={{ marginTop: 8 }}>
+                  {allTags.map((tag) => {
+                    const selectedIds = projectTags.map((t) => t.id)
+                    const checked = selectedIds.includes(tag.id)
+                    return (
+                      <label
+                        key={tag.id}
+                        className="tag-checkbox"
+                        style={{ display: 'flex', gap: 6, alignItems: 'center' }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const current = projectTags.map((t) => t.id)
+                            const next = e.target.checked
+                              ? current.includes(tag.id)
+                                ? current
+                                : [...current, tag.id]
+                              : current.filter((id) => id !== tag.id)
+
+                            void (async () => {
+                              onError(null)
+                              const res = await window.api.project.setTags(project.id, next)
+                              if (!res.ok) {
+                                onError(res.error)
+                                return
+                              }
+                              await onMutate()
+                            })()
+                          }}
+                        />
+                        <span>{tag.title}</span>
+                        <span
+                          className="tag-swatch"
+                          style={{ marginLeft: 'auto', background: tag.color ?? 'transparent' }}
+                          aria-hidden="true"
+                        />
+                      </label>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+          </>
         )}
       </div>
     </div>

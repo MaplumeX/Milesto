@@ -183,13 +183,14 @@ export function AppShell() {
       // When switching between tasks, flush current draft first to avoid data loss.
       if (openTaskId && openTaskId !== taskId) {
         const handle = openEditorHandleRef.current
-        if (!handle || handle.taskId !== openTaskId) return
-        const ok = await handle.flushPendingChanges()
-        if (!ok) {
-          handle.focusLastErrorTarget()
-          return
+        if (handle && handle.taskId === openTaskId) {
+          const ok = await handle.flushPendingChanges()
+          if (!ok) {
+            handle.focusLastErrorTarget()
+            return
+          }
+          bumpRevision()
         }
-        bumpRevision()
       }
 
       lastFocusTargetRef.current = {

@@ -7,12 +7,13 @@ TBD - created by archiving change redesign-project-page. Update Purpose after ar
 The Project page SHALL present a single, consistent hierarchy:
 
 - A header containing a project completion checkbox, the project title, and an overflow menu button.
-- A project notes section directly below the header.
+- A project meta row directly below the header, containing project metadata chips (plan/due/tags) when present.
+- A project notes section below the meta row.
 - A project tasks section below notes.
 
 #### Scenario: User opens a project
 - **WHEN** the user navigates to `/projects/:projectId`
-- **THEN** the page SHALL render the Project header, notes section, and tasks section in that order
+- **THEN** the page SHALL render the Project header, meta row (if applicable), notes section, and tasks section in that order
 
 #### Scenario: User stays on the project page after completion
 - **WHEN** the user completes the project from the Project page
@@ -82,7 +83,17 @@ The Project page SHALL provide a single control to show/hide completed tasks.
 - **THEN** the Completed control label SHALL NOT include a numeric count
 
 ### Requirement: Project actions are available via an overflow menu
-Project-level actions that exist today (e.g. rename project, move to area, reopen project) SHALL remain available from the Project page.
+Project-level actions SHALL remain available from the Project page via an overflow menu.
+
+The overflow menu action set for this change SHALL include:
+- complete/reopen project
+- edit plan (schedule)
+- edit due
+- move project to an area (including clearing the area)
+- edit project tags
+- delete project
+
+The overflow menu root view MUST NOT display the current plan/due/tags values.
 
 Section creation SHALL be available from the Project page without leaving the page, but SHALL NOT be available from the Project overflow menu.
 
@@ -363,4 +374,3 @@ If a task editor is currently open, the bottom bar SHALL instead show the edit-m
 - **AND** the content bottom bar MUST NOT display `+ Section`
 - **AND** the content bottom bar MUST NOT display `Schedule`
 - **AND** the content bottom bar MUST NOT display `Search`
-

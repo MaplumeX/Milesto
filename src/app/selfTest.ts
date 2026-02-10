@@ -3397,6 +3397,256 @@ async function runSidebarSelfTest(): Promise<SelfTestResult> {
   return { ok: failures.length === 0, failures }
 }
 
+async function runProjectSelfTest(): Promise<SelfTestResult> {
+  const failures: string[] = []
+  const token = `milestoselftestproject${Date.now()}`
+
+  try {
+    if (!('api' in window)) {
+      throw new Error('window.api is missing (preload not available).')
+    }
+
+    const today = formatLocalDate(new Date())
+
+    const tagARes = await window.api.tag.create({ title: `${token} Tag A` })
+    const tagBRes = await window.api.tag.create({ title: `${token} Tag B` })
+    if (!tagARes.ok) throw new Error(`tag.create A failed: ${tagARes.error.code}: ${tagARes.error.message}`)
+    if (!tagBRes.ok) throw new Error(`tag.create B failed: ${tagBRes.error.code}: ${tagBRes.error.message}`)
+
+    const projectRes = await window.api.project.create({ title: `${token} Project` })
+    if (!projectRes.ok) {
+      throw new Error(`project.create failed: ${projectRes.error.code}: ${projectRes.error.message}`)
+    }
+
+    const projectId = projectRes.data.id
+
+    const taskRes = await window.api.task.create({
+      title: `${token} Task 1`,
+      project_id: projectId,
+    })
+    if (!taskRes.ok) {
+      throw new Error(`task.create (project) failed: ${taskRes.error.code}: ${taskRes.error.message}`)
+    }
+
+    window.location.hash = `/projects/${projectId}`
+    await waitFor('Project listbox (project self-test)', () =>
+      document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Project tasks"]')
+    )
+
+    const prevConfirm = window.confirm
+    window.confirm = () => true
+    try {
+      // Complete + reopen via overflow menu.
+      const menuButton = await waitFor('Project overflow menu button (project self-test)', () =>
+        findButtonByText(document, '...')
+      )
+      menuButton.click()
+
+      const menu = await waitFor('Project menu popover (project self-test)', () =>
+        document.querySelector<HTMLElement>('.task-inline-popover')
+      )
+      const markDoneBtn = await waitFor('Project menu Mark Done (project self-test)', () =>
+        findButtonByText(menu, 'Mark Done')
+      )
+      markDoneBtn.click()
+
+      await waitFor('Project checkbox checked + disabled after complete (project self-test)', () => {
+        const cb = document.querySelector<HTMLInputElement>('.page-header input[type="checkbox"]')
+        return cb && cb.checked && cb.disabled ? cb : null
+      })
+
+      // Reopen should not reopen tasks.
+      menuButton.click()
+
+      const menu2 = await waitFor('Project menu popover (reopen, project self-test)', () =>
+        document.querySelector<HTMLElement>('.task-inline-popover')
+      )
+      const reopenBtn = await waitFor('Project menu Reopen (project self-test)', () =>
+        findButtonByText(menu2, 'Reopen')
+      )
+      reopenBtn.click()
+      await waitFor('Project checkbox unchecked + enabled after reopen (project self-test)', () => {
+        const cb = document.querySelector<HTMLInputElement>('.page-header input[type="checkbox"]')
+        return cb && !cb.checked && !cb.disabled ? cb : null
+      })
+
+      const openAfterReopen = await window.api.task.listProject(projectId)
+      if (!openAfterReopen.ok) {
+        throw new Error(
+          `project self-test: listProject after reopen failed: ${openAfterReopen.error.code}: ${openAfterReopen.error.message}`
+        )
+      }
+      if (openAfterReopen.data.length !== 0) {
+        throw new Error('project self-test: reopening restored tasks unexpectedly')
+      }
+
+      // Plan: Today -> Someday -> Clear
+      menuButton.click()
+
+      const menu3 = await waitFor('Project menu popover (plan, project self-test)', () =>
+        document.querySelector<HTMLElement>('.task-inline-popover')
+      )
+      const scheduleBtn = await waitFor('Project menu Schedule root (project self-test)', () =>
+        findButtonByText(menu3, 'Schedule')
+      )
+      scheduleBtn.click()
+
+      const menuPlan = await waitFor('Project menu popover (plan view, project self-test)', () =>
+        document.querySelector<HTMLElement>('.task-inline-popover')
+      )
+      const planToday = await waitFor('Project plan Today (project self-test)', () =>
+        findButtonByText(menuPlan, 'Today')
+      )
+      planToday.click()
+      await waitFor('Project planned today persisted (project self-test)', async () => {
+        const res = await window.api.project.getDetail(projectId)
+        if (!res.ok) return null
+        return res.data.project.scheduled_at === today && res.data.project.is_someday === false ? true : null
+      })
+
+      scheduleBtn.click()
+
+      const menuPlan2 = await waitFor('Project menu popover (plan view 2, project self-test)', () =>
+        document.querySelector<HTMLElement>('.task-inline-popover')
+      )
+      const somedayBtn = await waitFor('Project plan Someday (project self-test)', () =>
+        findButtonByText(menuPlan2, 'Someday')
+      )
+      somedayBtn.click()
+      await waitFor('Project planned someday persisted (project self-test)', async () => {
+        const res = await window.api.project.getDetail(projectId)
+        if (!res.ok) return null
+        return res.data.project.scheduled_at === null && res.data.project.is_someday === true ? true : null
+      })
+
+      scheduleBtn.click()
+
+      const menuPlan3 = await waitFor('Project menu popover (plan view 3, project self-test)', () =>
+        document.querySelector<HTMLElement>('.task-inline-popover')
+      )
+      const clearBtn = await waitFor('Project plan Clear (project self-test)', () =>
+        findButtonByText(menuPlan3, 'Clear')
+      )
+      clearBtn.click()
+      await waitFor('Project plan cleared persisted (project self-test)', async () => {
+        const res = await window.api.project.getDetail(projectId)
+        if (!res.ok) return null
+        return res.data.project.scheduled_at === null && res.data.project.is_someday === false ? true : null
+      })
+
+      dispatchKey(document.body, 'Escape')
+      await sleep(120)
+
+      // Due: Today -> Clear
+      menuButton.click()
+
+      const menu4 = await waitFor('Project menu popover (due, project self-test)', () =>
+        document.querySelector<HTMLElement>('.task-inline-popover')
+      )
+      const dueRoot = await waitFor('Project menu Due root (project self-test)', () =>
+        findButtonByText(menu4, 'Due')
+      )
+      dueRoot.click()
+
+      const menuDue = await waitFor('Project menu popover (due view, project self-test)', () =>
+        document.querySelector<HTMLElement>('.task-inline-popover')
+      )
+      const dueToday = await waitFor('Project due Today (project self-test)', () =>
+        findButtonByText(menuDue, 'Today')
+      )
+      dueToday.click()
+      await waitFor('Project due today persisted (project self-test)', async () => {
+        const res = await window.api.project.getDetail(projectId)
+        if (!res.ok) return null
+        return res.data.project.due_at === today ? true : null
+      })
+
+      dueRoot.click()
+
+      const menuDue2 = await waitFor('Project menu popover (due view 2, project self-test)', () =>
+        document.querySelector<HTMLElement>('.task-inline-popover')
+      )
+      const dueClear = await waitFor('Project due Clear (project self-test)', () =>
+        findButtonByText(menuDue2, 'Clear')
+      )
+      dueClear.click()
+      await waitFor('Project due cleared persisted (project self-test)', async () => {
+        const res = await window.api.project.getDetail(projectId)
+        if (!res.ok) return null
+        return res.data.project.due_at === null ? true : null
+      })
+
+      dispatchKey(document.body, 'Escape')
+      await sleep(120)
+
+      // Tags: check/uncheck via Tags subview.
+      menuButton.click()
+
+      const menu5 = await waitFor('Project menu popover (tags, project self-test)', () =>
+        document.querySelector<HTMLElement>('.task-inline-popover')
+      )
+      const tagsRoot = await waitFor('Project menu Tags root (project self-test)', () =>
+        findButtonByText(menu5, 'Tags')
+      )
+      tagsRoot.click()
+      const tagACheck = await waitFor('Project tag A checkbox (project self-test)', () => {
+        const label = Array.from(document.querySelectorAll('label.tag-checkbox')).find((l) =>
+          (l.textContent ?? '').includes(`${token} Tag A`)
+        )
+        return label?.querySelector<HTMLInputElement>('input[type="checkbox"]') ?? null
+      })
+      tagACheck.click()
+
+      const tagBCheck = await waitFor('Project tag B checkbox (project self-test)', () => {
+        const label = Array.from(document.querySelectorAll('label.tag-checkbox')).find((l) =>
+          (l.textContent ?? '').includes(`${token} Tag B`)
+        )
+        return label?.querySelector<HTMLInputElement>('input[type="checkbox"]') ?? null
+      })
+      tagBCheck.click()
+
+      await waitFor('Project tags persisted (project self-test)', async () => {
+        const res = await window.api.project.getDetail(projectId)
+        if (!res.ok) return null
+        const titles = res.data.tags.map((t) => t.title)
+        return titles.includes(`${token} Tag A`) && titles.includes(`${token} Tag B`) ? true : null
+      })
+
+      dispatchKey(document.body, 'Escape')
+      await sleep(120)
+
+      // Delete via menu should navigate away and make getDetail fail.
+      menuButton.click()
+
+      const menu6 = await waitFor('Project menu popover (delete, project self-test)', () =>
+        document.querySelector<HTMLElement>('.task-inline-popover')
+      )
+      const deleteBtn = await waitFor('Project menu Delete (project self-test)', () =>
+        findButtonByText(menu6, 'Delete')
+      )
+      deleteBtn.click()
+      await waitFor('Project navigated away after delete (project self-test)', () =>
+        window.location.hash.includes('/today') ? true : null
+      )
+      const afterDelete = await window.api.project.getDetail(projectId)
+      if (afterDelete.ok) {
+        throw new Error('project self-test: expected project.getDetail to fail after delete')
+      }
+      if (afterDelete.error.code !== 'NOT_FOUND') {
+        throw new Error(
+          `project self-test: expected NOT_FOUND after delete, got ${afterDelete.error.code}: ${afterDelete.error.message}`
+        )
+      }
+    } finally {
+      window.confirm = prevConfirm
+    }
+  } catch (e) {
+    failures.push(e instanceof Error ? e.message : String(e))
+  }
+
+  return { ok: failures.length === 0, failures }
+}
+
 export function registerSelfTest() {
   ;(window as unknown as { __milestoRunSelfTest?: () => Promise<SelfTestResult> }).__milestoRunSelfTest =
     runSelfTest
@@ -3406,4 +3656,7 @@ export function registerSelfTest() {
 
   ;(window as unknown as { __milestoRunSidebarSelfTest?: () => Promise<SelfTestResult> }).__milestoRunSidebarSelfTest =
     runSidebarSelfTest
+
+  ;(window as unknown as { __milestoRunProjectSelfTest?: () => Promise<SelfTestResult> }).__milestoRunProjectSelfTest =
+    runProjectSelfTest
 }

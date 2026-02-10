@@ -8,6 +8,7 @@ import {
   ProjectCompleteInputSchema,
   ProjectCompleteResultSchema,
   ProjectCreateInputSchema,
+  ProjectDeleteInputSchema,
   ProjectIdInputSchema,
   ProjectSchema,
   ProjectSectionCreateInputSchema,
@@ -43,7 +44,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
 
       const row = db
         .prepare(
-          `SELECT id, title, notes, area_id, status, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+          `SELECT id, title, notes, area_id, status, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at
            FROM projects
            WHERE id = ? AND deleted_at IS NULL
            LIMIT 1`
@@ -78,7 +79,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
 
       const row = db
         .prepare(
-          `SELECT id, title, notes, area_id, status, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+          `SELECT id, title, notes, area_id, status, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at
            FROM projects
            WHERE id = ? AND deleted_at IS NULL
            LIMIT 1`
@@ -132,13 +133,16 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
       const createdAt = nowIso()
       const id = uuidv7()
 
+      const isSomeday = input.is_someday ?? false
+      const scheduledAt = isSomeday ? null : (input.scheduled_at ?? null)
+
       const tx = db.transaction(() => {
         db.prepare(
           `INSERT INTO projects (
-             id, title, notes, area_id, status, scheduled_at, due_at,
+             id, title, notes, area_id, status, scheduled_at, is_someday, due_at,
              created_at, updated_at, completed_at, deleted_at
            ) VALUES (
-             @id, @title, @notes, @area_id, 'open', @scheduled_at, @due_at,
+             @id, @title, @notes, @area_id, 'open', @scheduled_at, @is_someday, @due_at,
              @created_at, @updated_at, NULL, NULL
            )`
         ).run({
@@ -146,7 +150,8 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
           title: input.title,
           notes: input.notes ?? '',
           area_id: input.area_id ?? null,
-          scheduled_at: input.scheduled_at ?? null,
+          scheduled_at: scheduledAt,
+          is_someday: isSomeday ? 1 : 0,
           due_at: input.due_at ?? null,
           created_at: createdAt,
           updated_at: createdAt,
@@ -160,7 +165,8 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
         notes: input.notes ?? '',
         area_id: input.area_id ?? null,
         status: 'open',
-        scheduled_at: input.scheduled_at ?? null,
+        scheduled_at: scheduledAt,
+        is_someday: isSomeday,
         due_at: input.due_at ?? null,
         created_at: createdAt,
         updated_at: createdAt,
@@ -276,6 +282,20 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
         if (input.scheduled_at !== undefined) {
           fields.push('scheduled_at = @scheduled_at')
           params.scheduled_at = input.scheduled_at
+
+          // Invariant: scheduled_at non-null implies is_someday=false.
+          if (input.scheduled_at !== null && input.is_someday === undefined) {
+            fields.push('is_someday = 0')
+          }
+        }
+        if (input.is_someday !== undefined) {
+          fields.push('is_someday = @is_someday')
+          params.is_someday = input.is_someday ? 1 : 0
+
+          // Invariant: is_someday=true implies scheduled_at=null.
+          if (input.is_someday) {
+            fields.push('scheduled_at = NULL')
+          }
         }
         if (input.due_at !== undefined) {
           fields.push('due_at = @due_at')
@@ -305,11 +325,64 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
 
         const row = db
           .prepare(
-            `SELECT id, title, notes, area_id, status, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+            `SELECT id, title, notes, area_id, status, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at
              FROM projects WHERE id = ? AND deleted_at IS NULL LIMIT 1`
           )
           .get(input.id)
         return { ok: true as const, data: ProjectSchema.parse(row) }
+      })
+
+      return tx()
+    },
+
+    'project.delete': (payload) => {
+      const parsed = ProjectDeleteInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid project.delete payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const deletedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        const res = db
+          .prepare(
+            `UPDATE projects
+             SET deleted_at = @deleted_at, updated_at = @updated_at
+             WHERE id = @id AND deleted_at IS NULL`
+          )
+          .run({ id: parsed.data.id, deleted_at: deletedAt, updated_at: deletedAt })
+
+        if (res.changes === 0) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Project not found.',
+              details: { id: parsed.data.id },
+            },
+          }
+        }
+
+        db.prepare(
+          `UPDATE tasks
+           SET deleted_at = @deleted_at, updated_at = @updated_at
+           WHERE deleted_at IS NULL AND project_id = @project_id`
+        ).run({ project_id: parsed.data.id, deleted_at: deletedAt, updated_at: deletedAt })
+
+        db.prepare(
+          `UPDATE project_sections
+           SET deleted_at = @deleted_at, updated_at = @updated_at
+           WHERE deleted_at IS NULL AND project_id = @project_id`
+        ).run({ project_id: parsed.data.id, deleted_at: deletedAt, updated_at: deletedAt })
+
+        return { ok: true as const, data: { deleted: true } }
       })
 
       return tx()
@@ -375,7 +448,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
 
         const row = db
           .prepare(
-            `SELECT id, title, notes, area_id, status, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+            `SELECT id, title, notes, area_id, status, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at
              FROM projects WHERE id = ? AND deleted_at IS NULL LIMIT 1`
           )
           .get(parsed.data.id)
@@ -393,7 +466,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
     'project.listOpen': () => {
       const rows = db
         .prepare(
-          `SELECT id, title, notes, area_id, status, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+          `SELECT id, title, notes, area_id, status, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at
            FROM projects
            WHERE deleted_at IS NULL AND status = 'open'
            ORDER BY title COLLATE NOCASE ASC`
@@ -418,7 +491,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
 
       const rows = db
         .prepare(
-          `SELECT id, title, notes, area_id, status, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+          `SELECT id, title, notes, area_id, status, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at
            FROM projects
            WHERE deleted_at IS NULL AND status = 'open' AND area_id = @area_id
            ORDER BY title COLLATE NOCASE ASC`
@@ -431,7 +504,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
     'project.listDone': () => {
       const rows = db
         .prepare(
-          `SELECT id, title, notes, area_id, status, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+          `SELECT id, title, notes, area_id, status, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at
            FROM projects
            WHERE deleted_at IS NULL AND status = 'done'
            ORDER BY completed_at DESC, updated_at DESC`

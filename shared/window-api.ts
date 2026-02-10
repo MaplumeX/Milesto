@@ -104,6 +104,7 @@ export type WindowApi = {
     getDetail(id: string): Promise<Result<ProjectDetail>>
     update(input: ProjectUpdateInput): Promise<Result<Project>>
     complete(id: string): Promise<Result<ProjectCompleteResult>>
+    delete(id: string): Promise<Result<{ deleted: boolean }>>
     listOpen(): Promise<Result<Project[]>>
     listDone(): Promise<Result<Project[]>>
     listOpenByArea(areaId: string): Promise<Result<Project[]>>

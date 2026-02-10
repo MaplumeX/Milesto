@@ -22,6 +22,7 @@ export const messagesEn = {
     addTag: '+ Tag',
     untitled: '(untitled)',
     loading: 'Loading…',
+    back: 'Back',
   },
   aria: {
     sidebar: 'Sidebar',
@@ -38,6 +39,7 @@ export const messagesEn = {
     taskDone: 'Done',
     collapseArea: 'Collapse area {{title}}',
     expandArea: 'Expand area {{title}}',
+    removeTag: 'Remove tag {{title}}',
   },
   nav: {
     inbox: 'Inbox',
@@ -102,6 +104,7 @@ export const messagesEn = {
     newTitlePrompt: 'New project title',
     renamePromptTitle: 'Rename project',
     completeConfirm: 'Mark project done and complete {{count}} open tasks?',
+    deleteConfirm: 'Delete this project? Tasks and sections under it will be soft-deleted.',
   },
   tag: {
     newPromptTitle: 'New tag',
@@ -192,6 +195,7 @@ export const messagesZhCN = {
     addTag: '+ 标签',
     untitled: '（无标题）',
     loading: '加载中…',
+    back: '返回',
   },
   aria: {
     sidebar: '侧边栏',
@@ -208,6 +212,7 @@ export const messagesZhCN = {
     taskDone: '完成',
     collapseArea: '折叠领域 {{title}}',
     expandArea: '展开领域 {{title}}',
+    removeTag: '移除标签 {{title}}',
   },
   nav: {
     inbox: '收件箱',
@@ -272,6 +277,7 @@ export const messagesZhCN = {
     newTitlePrompt: '新建项目标题',
     renamePromptTitle: '重命名项目',
     completeConfirm: '标记项目完成并完成 {{count}} 个未完成任务？',
+    deleteConfirm: '删除此项目？其下的任务与分组将被软删除。',
   },
   tag: {
     newPromptTitle: '新建标签',

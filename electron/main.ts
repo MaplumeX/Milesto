@@ -19,6 +19,7 @@ import {
   ProjectCompleteInputSchema,
   ProjectCompleteResultSchema,
   ProjectCreateInputSchema,
+  ProjectDeleteInputSchema,
   ProjectDetailSchema,
   ProjectIdInputSchema,
   ProjectSetTagsInputSchema,
@@ -284,6 +285,8 @@ function createWindow(opts?: { backgroundColor?: string }) {
         const fnName =
           SELF_TEST_SUITE === 'search'
             ? '__milestoRunSearchSmokeTest'
+            : SELF_TEST_SUITE === 'project'
+              ? '__milestoRunProjectSelfTest'
             : SELF_TEST_SUITE === 'sidebar'
               ? '__milestoRunSidebarSelfTest'
               : '__milestoRunSelfTest'
@@ -791,6 +794,7 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   handleDb('db:project.getDetail', 'project.getDetail', ProjectIdInputSchema, ProjectDetailSchema)
   handleDb('db:project.update', 'project.update', ProjectUpdateInputSchema, ProjectSchema)
   handleDb('db:project.complete', 'project.complete', ProjectCompleteInputSchema, ProjectCompleteResultSchema)
+  handleDb('db:project.delete', 'project.delete', ProjectDeleteInputSchema, z.object({ deleted: z.boolean() }))
   handleDb('db:project.listOpen', 'project.listOpen', z.object({}), z.array(ProjectSchema))
   handleDb('db:project.listDone', 'project.listDone', z.object({}), z.array(ProjectSchema))
   handleDb('db:project.setTags', 'project.setTags', ProjectSetTagsInputSchema, z.object({ updated: z.boolean() }))

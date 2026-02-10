@@ -53,12 +53,12 @@ export function createDataTransferActions(db: Database.Database): Record<string,
         .array(ProjectSchema)
         .parse(
           db
-            .prepare(
-              `SELECT id, title, notes, area_id, status, scheduled_at, due_at,
-                      position, created_at, updated_at, completed_at, deleted_at
-               FROM projects
-               WHERE deleted_at IS NULL`
-            )
+               .prepare(
+               `SELECT id, title, notes, area_id, status, scheduled_at, is_someday, due_at,
+                       position, created_at, updated_at, completed_at, deleted_at
+                FROM projects
+                WHERE deleted_at IS NULL`
+             )
             .all()
         )
 
@@ -232,15 +232,23 @@ export function createDataTransferActions(db: Database.Database): Record<string,
 
         const insertProject = db.prepare(
           `INSERT INTO projects (
-             id, title, notes, area_id, status, position, scheduled_at, due_at,
+             id, title, notes, area_id, status, position, scheduled_at, is_someday, due_at,
              created_at, updated_at, completed_at, deleted_at
            ) VALUES (
-             @id, @title, @notes, @area_id, @status, @position, @scheduled_at, @due_at,
+             @id, @title, @notes, @area_id, @status, @position, @scheduled_at, @is_someday, @due_at,
              @created_at, @updated_at, @completed_at, @deleted_at
            )`
         )
         for (const project of data.projects) {
-          insertProject.run({ ...project, position: project.position ?? null })
+          const isSomeday = project.is_someday ? 1 : 0
+          const scheduledAt = isSomeday ? null : project.scheduled_at
+
+          insertProject.run({
+            ...project,
+            position: project.position ?? null,
+            scheduled_at: scheduledAt,
+            is_someday: scheduledAt !== null ? 0 : isSomeday,
+          })
         }
 
         if (projectTags.length > 0) {

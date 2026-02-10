@@ -48,11 +48,14 @@ function migrate(db: Database.Database) {
         area_id TEXT,
         status TEXT NOT NULL DEFAULT 'open',
         scheduled_at TEXT,
+        is_someday INTEGER NOT NULL DEFAULT 0,
         due_at TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         completed_at TEXT,
         deleted_at TEXT,
+        CHECK (is_someday IN (0, 1)),
+        CHECK (is_someday = 0 OR scheduled_at IS NULL),
         FOREIGN KEY (area_id) REFERENCES areas(id)
       );
 
@@ -232,5 +235,20 @@ function migrate(db: Database.Database) {
     `)
 
     db.pragma('user_version = 4')
+  }
+
+  if (userVersion < 5) {
+    // v5: Project-level Someday scheduling state.
+    const stmts: string[] = []
+    if (!hasColumn('projects', 'is_someday')) {
+      stmts.push(
+        "ALTER TABLE projects ADD COLUMN is_someday INTEGER NOT NULL DEFAULT 0;"
+      )
+      // Backfill is redundant with DEFAULT, but keeps intent explicit.
+      stmts.push('UPDATE projects SET is_someday = 0 WHERE is_someday IS NULL;')
+    }
+
+    if (stmts.length > 0) db.exec(stmts.join('\n'))
+    db.pragma('user_version = 5')
   }
 }

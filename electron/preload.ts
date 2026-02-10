@@ -73,6 +73,7 @@ const api: WindowApi = {
     getDetail: (id) => invoke('db:project.getDetail', { id }),
     update: (input) => invoke('db:project.update', input),
     complete: (id) => invoke('db:project.complete', { id }),
+    delete: (id) => invoke('db:project.delete', { id }),
     listOpen: () => invoke('db:project.listOpen', {}),
     listDone: () => invoke('db:project.listDone', {}),
     listOpenByArea: (areaId) => invoke('db:project.listOpenByArea', { area_id: areaId }),

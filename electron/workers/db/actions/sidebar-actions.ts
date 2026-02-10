@@ -146,8 +146,8 @@ export function createSidebarActions(db: Database.Database): Record<string, DbAc
         .all()
       const projectRows = db
         .prepare(
-          `SELECT id, title, notes, area_id, status, position, scheduled_at, due_at,
-                  created_at, updated_at, completed_at, deleted_at
+          `SELECT id, title, notes, area_id, status, position, scheduled_at, is_someday, due_at,
+                   created_at, updated_at, completed_at, deleted_at
            FROM projects
            WHERE deleted_at IS NULL AND status = 'open'
            ORDER BY

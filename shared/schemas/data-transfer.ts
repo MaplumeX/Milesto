@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { AreaSchema } from './area'
 import { ChecklistItemSchema } from './checklist'
+import { DbBoolSchema } from './common'
 import { ListPositionSchema } from './list-position'
 import { ProjectSchema, ProjectSectionSchema } from './project'
 import { TagSchema } from './tag'
@@ -19,12 +20,17 @@ const AreaTagRelSchema = z.object({
   position: z.number().int(),
 })
 
+// Backward-compat: older exports do not include projects.is_someday.
+const ProjectTransferSchema = ProjectSchema.safeExtend({
+  is_someday: DbBoolSchema.optional().default(false),
+})
+
 export const DataExportV2Schema = z.object({
   schema_version: z.literal(2),
   app_version: z.string(),
   exported_at: z.string().datetime(),
   tasks: z.array(TaskSchema),
-  projects: z.array(ProjectSchema),
+  projects: z.array(ProjectTransferSchema),
   project_sections: z.array(ProjectSectionSchema),
   areas: z.array(AreaSchema),
   tags: z.array(TagSchema),
@@ -40,7 +46,7 @@ export const DataExportV3Schema = z.object({
   app_version: z.string(),
   exported_at: z.string().datetime(),
   tasks: z.array(TaskSchema),
-  projects: z.array(ProjectSchema),
+  projects: z.array(ProjectTransferSchema),
   project_sections: z.array(ProjectSectionSchema),
   areas: z.array(AreaSchema),
   tags: z.array(TagSchema),
