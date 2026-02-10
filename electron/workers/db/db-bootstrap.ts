@@ -201,4 +201,36 @@ function migrate(db: Database.Database) {
 
     db.pragma('user_version = 3')
   }
+
+  if (userVersion < 4) {
+    // v4: Ordered tags for projects and areas.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS project_tags (
+        project_id TEXT NOT NULL,
+        tag_id TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (project_id, tag_id),
+        UNIQUE (project_id, position),
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (tag_id) REFERENCES tags(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS area_tags (
+        area_id TEXT NOT NULL,
+        tag_id TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (area_id, tag_id),
+        UNIQUE (area_id, position),
+        FOREIGN KEY (area_id) REFERENCES areas(id),
+        FOREIGN KEY (tag_id) REFERENCES tags(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_tags_project_position ON project_tags(project_id, position);
+      CREATE INDEX IF NOT EXISTS idx_area_tags_area_position ON area_tags(area_id, position);
+    `)
+
+    db.pragma('user_version = 4')
+  }
 }

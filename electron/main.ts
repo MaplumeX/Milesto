@@ -15,10 +15,13 @@ import { translate } from '../shared/i18n/translate'
 
 import {
   DataExportSchema,
+  AreaDetailSchema,
   ProjectCompleteInputSchema,
   ProjectCompleteResultSchema,
   ProjectCreateInputSchema,
+  ProjectDetailSchema,
   ProjectIdInputSchema,
+  ProjectSetTagsInputSchema,
   ProjectSchema,
   ProjectSectionCreateInputSchema,
   ProjectSectionDeleteInputSchema,
@@ -53,6 +56,7 @@ import {
   TaskListTodayInputSchema,
   TaskListUpcomingInputSchema,
   AreaCreateInputSchema,
+  AreaSetTagsInputSchema,
   AreaSchema,
   AreaUpdateInputSchema,
   AreaDeleteInputSchema,
@@ -784,10 +788,12 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
 
   handleDb('db:project.create', 'project.create', ProjectCreateInputSchema, ProjectSchema)
   handleDb('db:project.get', 'project.get', ProjectIdInputSchema, ProjectSchema)
+  handleDb('db:project.getDetail', 'project.getDetail', ProjectIdInputSchema, ProjectDetailSchema)
   handleDb('db:project.update', 'project.update', ProjectUpdateInputSchema, ProjectSchema)
   handleDb('db:project.complete', 'project.complete', ProjectCompleteInputSchema, ProjectCompleteResultSchema)
   handleDb('db:project.listOpen', 'project.listOpen', z.object({}), z.array(ProjectSchema))
   handleDb('db:project.listDone', 'project.listDone', z.object({}), z.array(ProjectSchema))
+  handleDb('db:project.setTags', 'project.setTags', ProjectSetTagsInputSchema, z.object({ updated: z.boolean() }))
   handleDb(
     'db:project.listOpenByArea',
     'project.listOpenByArea',
@@ -809,7 +815,9 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   handleDb('db:area.update', 'area.update', AreaUpdateInputSchema, AreaSchema)
   handleDb('db:area.list', 'area.list', z.object({}), z.array(AreaSchema))
   handleDb('db:area.get', 'area.get', AreaDeleteInputSchema, AreaSchema)
+  handleDb('db:area.getDetail', 'area.getDetail', AreaDeleteInputSchema, AreaDetailSchema)
   handleDb('db:area.delete', 'area.delete', AreaDeleteInputSchema, z.object({ deleted: z.boolean() }))
+  handleDb('db:area.setTags', 'area.setTags', AreaSetTagsInputSchema, z.object({ updated: z.boolean() }))
 
   handleDb('db:sidebar.listModel', 'sidebar.listModel', SidebarListModelInputSchema, SidebarListModelSchema)
   handleDb('db:sidebar.reorderAreas', 'sidebar.reorderAreas', SidebarReorderAreasInputSchema, SidebarReorderResultSchema)

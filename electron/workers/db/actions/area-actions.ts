@@ -6,6 +6,10 @@ import { nowIso, uuidv7 } from './utils'
 
 import { AreaCreateInputSchema, AreaDeleteInputSchema, AreaSchema, AreaUpdateInputSchema } from '../../../../shared/schemas/area'
 
+import { AreaDetailSchema } from '../../../../shared/schemas/area-detail'
+import { AreaSetTagsInputSchema } from '../../../../shared/schemas/area-set-tags'
+import { TagSchema } from '../../../../shared/schemas/tag'
+
 export function createAreaActions(db: Database.Database): Record<string, DbActionHandler> {
   return {
     'area.get': (payload) => {
@@ -42,6 +46,59 @@ export function createAreaActions(db: Database.Database): Record<string, DbActio
       }
 
       return { ok: true, data: AreaSchema.parse(row) }
+    },
+
+    'area.getDetail': (payload) => {
+      const parsed = AreaDeleteInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid area.getDetail payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const row = db
+        .prepare(
+          `SELECT id, title, notes, created_at, updated_at, deleted_at
+           FROM areas
+           WHERE id = ? AND deleted_at IS NULL
+           LIMIT 1`
+        )
+        .get(parsed.data.id)
+
+      if (!row) {
+        return {
+          ok: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Area not found.',
+            details: { id: parsed.data.id },
+          },
+        }
+      }
+
+      const area = AreaSchema.parse(row)
+
+      const tagRows = db
+        .prepare(
+          `SELECT t.id, t.title, t.color, t.created_at, t.updated_at, t.deleted_at
+           FROM area_tags at
+           JOIN tags t ON t.id = at.tag_id AND t.deleted_at IS NULL
+           WHERE at.area_id = ?
+           ORDER BY at.position ASC`
+        )
+        .all(parsed.data.id)
+
+      const tags = z.array(TagSchema).parse(tagRows)
+
+      return {
+        ok: true,
+        data: AreaDetailSchema.parse({ area, tags }),
+      }
     },
 
     'area.create': (payload) => {
@@ -84,6 +141,60 @@ export function createAreaActions(db: Database.Database): Record<string, DbActio
       })
 
       return { ok: true, data: area }
+    },
+
+    'area.setTags': (payload) => {
+      const parsed = AreaSetTagsInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid area.setTags payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const updatedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        const exists = db.prepare('SELECT id FROM areas WHERE id = ? AND deleted_at IS NULL').get(parsed.data.area_id)
+        if (!exists) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Area not found.',
+              details: { id: parsed.data.area_id },
+            },
+          }
+        }
+
+        db.prepare('DELETE FROM area_tags WHERE area_id = ?').run(parsed.data.area_id)
+
+        const insert = db.prepare(
+          `INSERT INTO area_tags (area_id, tag_id, position, created_at)
+           VALUES (@area_id, @tag_id, @position, @created_at)`
+        )
+        for (let i = 0; i < parsed.data.tag_ids.length; i++) {
+          insert.run({
+            area_id: parsed.data.area_id,
+            tag_id: parsed.data.tag_ids[i],
+            position: (i + 1) * 1000,
+            created_at: updatedAt,
+          })
+        }
+
+        db.prepare('UPDATE areas SET updated_at = @updated_at WHERE id = @id').run({
+          id: parsed.data.area_id,
+          updated_at: updatedAt,
+        })
+
+        return { ok: true as const, data: { updated: true } }
+      })
+
+      return tx()
     },
 
     'area.update': (payload) => {

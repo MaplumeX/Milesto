@@ -108,6 +108,34 @@ export function createDataTransferActions(db: Database.Database): Record<string,
                JOIN tasks t ON t.id = tt.task_id AND t.deleted_at IS NULL
                JOIN tags g ON g.id = tt.tag_id AND g.deleted_at IS NULL`
             )
+             .all()
+         )
+
+      const projectTags = z
+        .array(z.object({ project_id: z.string(), tag_id: z.string(), position: z.number().int() }))
+        .parse(
+          db
+            .prepare(
+              `SELECT pt.project_id, pt.tag_id, pt.position
+               FROM project_tags pt
+               JOIN projects p ON p.id = pt.project_id AND p.deleted_at IS NULL
+               JOIN tags g ON g.id = pt.tag_id AND g.deleted_at IS NULL
+               ORDER BY pt.project_id ASC, pt.position ASC`
+            )
+            .all()
+        )
+
+      const areaTags = z
+        .array(z.object({ area_id: z.string(), tag_id: z.string(), position: z.number().int() }))
+        .parse(
+          db
+            .prepare(
+              `SELECT at.area_id, at.tag_id, at.position
+               FROM area_tags at
+               JOIN areas a ON a.id = at.area_id AND a.deleted_at IS NULL
+               JOIN tags g ON g.id = at.tag_id AND g.deleted_at IS NULL
+               ORDER BY at.area_id ASC, at.position ASC`
+            )
             .all()
         )
 
@@ -136,7 +164,7 @@ export function createDataTransferActions(db: Database.Database): Record<string,
         )
 
       const exportData = DataExportSchema.parse({
-        schema_version: 2,
+        schema_version: 3,
         app_version: parsed.data.app_version,
         exported_at: exportedAt,
         tasks,
@@ -145,6 +173,8 @@ export function createDataTransferActions(db: Database.Database): Record<string,
         areas,
         tags,
         task_tags: taskTags,
+        project_tags: projectTags,
+        area_tags: areaTags,
         checklist_items: checklistItems,
         list_positions: listPositions,
       })
@@ -166,11 +196,15 @@ export function createDataTransferActions(db: Database.Database): Record<string,
       }
 
       const data = parsed.data.data
+      const projectTags = data.schema_version === 3 ? data.project_tags : []
+      const areaTags = data.schema_version === 3 ? data.area_tags : []
 
       const tx = db.transaction(() => {
         db.exec(`
           -- Keep app_settings (e.g. locale preference) when importing.
           DELETE FROM task_tags;
+          DELETE FROM project_tags;
+          DELETE FROM area_tags;
           DELETE FROM task_checklist_items;
           DELETE FROM list_positions;
           DELETE FROM tasks;
@@ -207,6 +241,28 @@ export function createDataTransferActions(db: Database.Database): Record<string,
         )
         for (const project of data.projects) {
           insertProject.run({ ...project, position: project.position ?? null })
+        }
+
+        if (projectTags.length > 0) {
+          const insertProjectTag = db.prepare(
+            `INSERT INTO project_tags (project_id, tag_id, position, created_at)
+             VALUES (@project_id, @tag_id, @position, @created_at)`
+          )
+          const relCreatedAt = nowIso()
+          for (const rel of projectTags) {
+            insertProjectTag.run({ ...rel, created_at: relCreatedAt })
+          }
+        }
+
+        if (areaTags.length > 0) {
+          const insertAreaTag = db.prepare(
+            `INSERT INTO area_tags (area_id, tag_id, position, created_at)
+             VALUES (@area_id, @tag_id, @position, @created_at)`
+          )
+          const relCreatedAt = nowIso()
+          for (const rel of areaTags) {
+            insertAreaTag.run({ ...rel, created_at: relCreatedAt })
+          }
         }
 
         const insertSection = db.prepare(

@@ -70,11 +70,18 @@ const api: WindowApi = {
   project: {
     create: (input) => invoke('db:project.create', input),
     get: (id) => invoke('db:project.get', { id }),
+    getDetail: (id) => invoke('db:project.getDetail', { id }),
     update: (input) => invoke('db:project.update', input),
     complete: (id) => invoke('db:project.complete', { id }),
     listOpen: () => invoke('db:project.listOpen', {}),
     listDone: () => invoke('db:project.listDone', {}),
     listOpenByArea: (areaId) => invoke('db:project.listOpenByArea', { area_id: areaId }),
+
+    setTags: (projectId, tagIds) =>
+      invoke('db:project.setTags', {
+        project_id: projectId,
+        tag_ids: tagIds,
+      }),
 
     listSections: (projectId) => invoke('db:project.section.list', { project_id: projectId }),
     createSection: (projectId, title) => invoke('db:project.section.create', { project_id: projectId, title }),
@@ -90,9 +97,16 @@ const api: WindowApi = {
   area: {
     create: (input) => invoke('db:area.create', input),
     get: (id) => invoke('db:area.get', { id }),
+    getDetail: (id) => invoke('db:area.getDetail', { id }),
     update: (input) => invoke('db:area.update', input),
     list: () => invoke('db:area.list', {}),
     delete: (id) => invoke('db:area.delete', { id }),
+
+    setTags: (areaId, tagIds) =>
+      invoke('db:area.setTags', {
+        area_id: areaId,
+        tag_ids: tagIds,
+      }),
   },
 
   sidebar: {

@@ -72,11 +72,14 @@ export function createWindowApiMock(): WindowApi {
     project: {
       create: vi.fn<WindowApi['project']['create']>(async () => err(unimplementedError)),
       get: vi.fn<WindowApi['project']['get']>(async () => err(unimplementedError)),
+      getDetail: vi.fn<WindowApi['project']['getDetail']>(async () => err(unimplementedError)),
       update: vi.fn<WindowApi['project']['update']>(async () => err(unimplementedError)),
       complete: vi.fn<WindowApi['project']['complete']>(async () => err(unimplementedError)),
       listOpen: vi.fn<WindowApi['project']['listOpen']>(async () => ok([])),
       listDone: vi.fn<WindowApi['project']['listDone']>(async () => ok([])),
       listOpenByArea: vi.fn<WindowApi['project']['listOpenByArea']>(async () => ok([])),
+
+      setTags: vi.fn<WindowApi['project']['setTags']>(async () => ok({ updated: true })),
 
       listSections: vi.fn<WindowApi['project']['listSections']>(async () => ok([])),
       createSection: vi.fn<WindowApi['project']['createSection']>(async () => err(unimplementedError)),
@@ -88,9 +91,12 @@ export function createWindowApiMock(): WindowApi {
     area: {
       create: vi.fn<WindowApi['area']['create']>(async () => err(unimplementedError)),
       get: vi.fn<WindowApi['area']['get']>(async () => err(unimplementedError)),
+      getDetail: vi.fn<WindowApi['area']['getDetail']>(async () => err(unimplementedError)),
       update: vi.fn<WindowApi['area']['update']>(async () => err(unimplementedError)),
       list: vi.fn<WindowApi['area']['list']>(async () => ok([])),
       delete: vi.fn<WindowApi['area']['delete']>(async () => err(unimplementedError)),
+
+      setTags: vi.fn<WindowApi['area']['setTags']>(async () => ok({ updated: true })),
     },
 
     sidebar: {

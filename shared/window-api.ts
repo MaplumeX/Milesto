@@ -16,12 +16,14 @@ import type {
   ProjectSectionReorderBatchResult,
   ProjectUpdateInput,
 } from './schemas/project'
+import type { ProjectDetail } from './schemas/project-detail'
 import type { Tag, TagCreateInput, TagUpdateInput } from './schemas/tag'
 import type { Task, TaskCreateInput, TaskUpdateInput } from './schemas/task'
 import type { TaskCountResult, TaskListItem } from './schemas/task-list'
 import type { TaskSearchResultItem } from './schemas/search'
 import type { TaskDetail } from './schemas/task-detail'
 import type { ThemePreference, ThemeState } from './schemas/theme'
+import type { AreaDetail } from './schemas/area-detail'
 import type {
   SidebarListModel,
   SidebarMoveProjectInput,
@@ -99,11 +101,14 @@ export type WindowApi = {
   project: {
     create(input: ProjectCreateInput): Promise<Result<Project>>
     get(id: string): Promise<Result<Project>>
+    getDetail(id: string): Promise<Result<ProjectDetail>>
     update(input: ProjectUpdateInput): Promise<Result<Project>>
     complete(id: string): Promise<Result<ProjectCompleteResult>>
     listOpen(): Promise<Result<Project[]>>
     listDone(): Promise<Result<Project[]>>
     listOpenByArea(areaId: string): Promise<Result<Project[]>>
+
+    setTags(projectId: string, tagIds: string[]): Promise<Result<{ updated: boolean }>>
 
     listSections(projectId: string): Promise<Result<ProjectSection[]>>
     createSection(projectId: string, title: string): Promise<Result<ProjectSection>>
@@ -115,9 +120,12 @@ export type WindowApi = {
   area: {
     create(input: AreaCreateInput): Promise<Result<Area>>
     get(id: string): Promise<Result<Area>>
+    getDetail(id: string): Promise<Result<AreaDetail>>
     update(input: AreaUpdateInput): Promise<Result<Area>>
     list(): Promise<Result<Area[]>>
     delete(id: string): Promise<Result<{ deleted: boolean }>>
+
+    setTags(areaId: string, tagIds: string[]): Promise<Result<{ updated: boolean }>>
   }
 
   sidebar: {

@@ -19,6 +19,10 @@ import {
   ProjectUpdateInputSchema,
 } from '../../../../shared/schemas/project'
 
+import { ProjectDetailSchema } from '../../../../shared/schemas/project-detail'
+import { ProjectSetTagsInputSchema } from '../../../../shared/schemas/project-set-tags'
+import { TagSchema } from '../../../../shared/schemas/tag'
+
 export function createProjectActions(db: Database.Database): Record<string, DbActionHandler> {
   const ProjectIdSchema = z.object({ project_id: z.string().min(1) })
   const AreaIdSchema = z.object({ area_id: z.string().min(1) })
@@ -57,6 +61,59 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
       }
 
       return { ok: true, data: ProjectSchema.parse(row) }
+    },
+
+    'project.getDetail': (payload) => {
+      const parsed = ProjectIdInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid project.getDetail payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const row = db
+        .prepare(
+          `SELECT id, title, notes, area_id, status, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+           FROM projects
+           WHERE id = ? AND deleted_at IS NULL
+           LIMIT 1`
+        )
+        .get(parsed.data.id)
+
+      if (!row) {
+        return {
+          ok: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Project not found.',
+            details: { id: parsed.data.id },
+          },
+        }
+      }
+
+      const project = ProjectSchema.parse(row)
+
+      const tagRows = db
+        .prepare(
+          `SELECT t.id, t.title, t.color, t.created_at, t.updated_at, t.deleted_at
+           FROM project_tags pt
+           JOIN tags t ON t.id = pt.tag_id AND t.deleted_at IS NULL
+           WHERE pt.project_id = ?
+           ORDER BY pt.position ASC`
+        )
+        .all(parsed.data.id)
+
+      const tags = z.array(TagSchema).parse(tagRows)
+
+      return {
+        ok: true,
+        data: ProjectDetailSchema.parse({ project, tags }),
+      }
     },
     'project.create': (payload) => {
       const parsed = ProjectCreateInputSchema.safeParse(payload)
@@ -112,6 +169,62 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
       })
 
       return { ok: true, data: project }
+    },
+
+    'project.setTags': (payload) => {
+      const parsed = ProjectSetTagsInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid project.setTags payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const updatedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        const exists = db
+          .prepare('SELECT id FROM projects WHERE id = ? AND deleted_at IS NULL')
+          .get(parsed.data.project_id)
+        if (!exists) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Project not found.',
+              details: { id: parsed.data.project_id },
+            },
+          }
+        }
+
+        db.prepare('DELETE FROM project_tags WHERE project_id = ?').run(parsed.data.project_id)
+
+        const insert = db.prepare(
+          `INSERT INTO project_tags (project_id, tag_id, position, created_at)
+           VALUES (@project_id, @tag_id, @position, @created_at)`
+        )
+        for (let i = 0; i < parsed.data.tag_ids.length; i++) {
+          insert.run({
+            project_id: parsed.data.project_id,
+            tag_id: parsed.data.tag_ids[i],
+            position: (i + 1) * 1000,
+            created_at: updatedAt,
+          })
+        }
+
+        db.prepare('UPDATE projects SET updated_at = @updated_at WHERE id = @id').run({
+          id: parsed.data.project_id,
+          updated_at: updatedAt,
+        })
+
+        return { ok: true as const, data: { updated: true } }
+      })
+
+      return tx()
     },
 
     'project.update': (payload) => {

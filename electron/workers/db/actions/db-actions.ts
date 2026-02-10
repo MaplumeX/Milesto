@@ -17,6 +17,8 @@ export function createDbActions(db: Database.Database): Record<string, DbActionH
         db.exec(`
           -- Keep app_settings (e.g. locale preference).
           DELETE FROM task_tags;
+          DELETE FROM project_tags;
+          DELETE FROM area_tags;
           DELETE FROM task_checklist_items;
           DELETE FROM list_positions;
           DELETE FROM tasks;
