@@ -29,6 +29,12 @@ export function ProjectPage() {
 
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
 
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
+  const titleInputRef = useRef<HTMLInputElement | null>(null)
+  const titleButtonRef = useRef<HTMLButtonElement | null>(null)
+  const ignoreNextTitleBlurRef = useRef(false)
+
   const [notesDraft, setNotesDraft] = useState('')
   const notesRef = useRef<HTMLTextAreaElement | null>(null)
   const notesSaveDebounceRef = useRef<number | null>(null)
@@ -90,7 +96,20 @@ export function ProjectPage() {
     setIsCompletedExpanded(false)
     setDoneTasks(null)
     setEditingSectionId(null)
+    setIsEditingTitle(false)
   }, [pid])
+
+  useLayoutEffect(() => {
+    if (!isEditingTitle) return
+    const raf = window.requestAnimationFrame(() => {
+      const input = titleInputRef.current
+      if (!input) return
+      input.focus()
+      const caretPos = input.value.length
+      input.setSelectionRange(caretPos, caretPos)
+    })
+    return () => window.cancelAnimationFrame(raf)
+  }, [isEditingTitle])
 
   useEffect(() => {
     function handleCreateSection(e: Event) {
@@ -208,14 +227,56 @@ export function ProjectPage() {
   }
 
   const title = project?.title ?? t('shell.project')
+  const hasProjectTitle = Boolean(project?.title?.trim())
+  const displayProjectTitle = project
+    ? hasProjectTitle
+      ? project.title
+      : t('common.untitled')
+    : title
+
+  function enterTitleEdit() {
+    if (!project) return
+    ignoreNextTitleBlurRef.current = false
+    setTitleDraft(project.title ?? '')
+    setIsEditingTitle(true)
+  }
+
+  function cancelTitleEdit() {
+    ignoreNextTitleBlurRef.current = true
+    setIsEditingTitle(false)
+    titleButtonRef.current?.focus()
+  }
+
+  async function commitTitleEdit(nextRaw: string) {
+    const p = project
+    if (!p) return
+    const next = nextRaw.trim()
+    const prev = p.title ?? ''
+    if (next === prev.trim()) {
+      cancelTitleEdit()
+      return
+    }
+
+    const res = await window.api.project.update({ id: p.id, title: next })
+    if (!res.ok) {
+      setError(res.error)
+      return
+    }
+
+    bumpRevision()
+    ignoreNextTitleBlurRef.current = true
+    setIsEditingTitle(false)
+    await refresh()
+    titleButtonRef.current?.focus()
+  }
 
   return (
     <>
       {error ? <ErrorBanner error={error} /> : null}
 
-      <div className="page">
-        <header className="page-header">
-          <div className="project-header-left">
+        <div className="page">
+          <header className="page-header">
+            <div className="project-header-left">
             {project ? (
               <label className="task-checkbox" aria-label={t('aria.markProjectDone')}>
                 <input
@@ -239,8 +300,56 @@ export function ProjectPage() {
                   }}
                 />
               </label>
-            ) : null}
-            <h1 className="page-title">{title}</h1>
+              ) : null}
+            <h1 className="page-title">
+              {project ? (
+                isEditingTitle ? (
+                  <input
+                    ref={titleInputRef}
+                    className="page-title-input"
+                    value={titleDraft}
+                    placeholder={t('shell.projectTitlePlaceholder')}
+                    aria-label={t('aria.projectTitle')}
+                    onChange={(e) => setTitleDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      e.stopPropagation()
+
+                      if (e.key === 'Enter') {
+                        // Don't treat IME composition confirmation as a commit.
+                        if (e.nativeEvent.isComposing) return
+                        e.preventDefault()
+                        void commitTitleEdit(titleDraft)
+                        return
+                      }
+
+                      if (e.key === 'Escape') {
+                        e.preventDefault()
+                        cancelTitleEdit()
+                      }
+                    }}
+                    onBlur={() => {
+                      if (ignoreNextTitleBlurRef.current) {
+                        ignoreNextTitleBlurRef.current = false
+                        return
+                      }
+                      void commitTitleEdit(titleDraft)
+                    }}
+                  />
+                ) : (
+                  <button
+                    ref={titleButtonRef}
+                    type="button"
+                    className={`page-title-button${hasProjectTitle ? '' : ' is-placeholder'}`}
+                    onClick={enterTitleEdit}
+                    onDoubleClick={enterTitleEdit}
+                  >
+                    {displayProjectTitle}
+                  </button>
+                )
+              ) : (
+                title
+              )}
+            </h1>
           </div>
 
           <div className="row" style={{ marginTop: 0 }}>

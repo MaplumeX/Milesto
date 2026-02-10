@@ -885,6 +885,46 @@ body {
   font-size: 21px;
   letter-spacing: -0.03em;
   margin: 0;
+  min-width: 0;
+}
+
+/* Inline-edit affordance for page titles (e.g. project title). */
+.page-title-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: text;
+}
+
+.page-title-button.is-placeholder {
+  color: var(--muted);
+}
+
+.page-title-input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.page-title-input:focus {
+  outline: none;
+}
+
+.page-title-input:focus-visible {
+  outline: none;
+}
+
+.page-title-input::placeholder {
+  color: var(--muted);
 }
 
 .task-create {
