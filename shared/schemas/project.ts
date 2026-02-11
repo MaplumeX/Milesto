@@ -10,7 +10,7 @@ import {
 
 export const ProjectSchema = z.object({
   id: IdSchema,
-  title: z.string().min(1),
+  title: z.string(),
   notes: z.string(),
   area_id: IdSchema.nullable(),
   status: ProjectStatusSchema,
@@ -67,7 +67,7 @@ export const ProjectCompleteResultSchema = z.object({
 export type ProjectCompleteResult = z.infer<typeof ProjectCompleteResultSchema>
 
 export const ProjectCreateInputSchema = z.object({
-  title: z.string().min(1),
+  title: z.string(),
   notes: z.string().optional(),
   area_id: IdSchema.nullable().optional(),
   scheduled_at: LocalDateSchema.nullable().optional(),
@@ -89,7 +89,7 @@ export type ProjectCreateInput = z.infer<typeof ProjectCreateInputSchema>
 
 export const ProjectUpdateInputSchema = z.object({
   id: IdSchema,
-  title: z.string().min(1).optional(),
+  title: z.string().optional(),
   notes: z.string().optional(),
   area_id: IdSchema.nullable().optional(),
   scheduled_at: LocalDateSchema.nullable().optional(),

@@ -139,6 +139,10 @@ type SidebarModel = {
   openProjects: Project[]
 }
 
+type CreatePopover = {
+  anchorEl: HTMLButtonElement
+} | null
+
 export function AppShell() {
   const { t } = useTranslation()
   const { revision, bumpRevision } = useAppEvents()
@@ -150,8 +154,12 @@ export function AppShell() {
   const collapsedAreaIdsRef = useRef<string[]>(collapsedAreaIds)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [openTaskId, setOpenTaskId] = useState<string | null>(null)
-  const [createMode, setCreateMode] = useState<'project' | 'area' | null>(null)
-  const [createTitle, setCreateTitle] = useState('')
+  const [createPopover, setCreatePopover] = useState<CreatePopover>(null)
+  const createPopoverRef = useRef<CreatePopover>(createPopover)
+  useEffect(() => {
+    createPopoverRef.current = createPopover
+  }, [createPopover])
+  const createPopoverNodeRef = useRef<HTMLDivElement | null>(null)
   const [isCreating, setIsCreating] = useState(false)
 
   useEffect(() => {
@@ -208,6 +216,50 @@ export function AppShell() {
     setOpenTaskId(null)
     bumpRevision()
   }, [bumpRevision, openTaskId])
+
+  const closeCreatePopover = useCallback((opts?: { restoreFocus?: boolean }) => {
+    const cur = createPopoverRef.current
+    if (!cur) return
+    setCreatePopover(null)
+    if (!opts?.restoreFocus) return
+    window.setTimeout(() => {
+      if (cur.anchorEl.isConnected) cur.anchorEl.focus()
+    }, 0)
+  }, [])
+
+  useEffect(() => {
+    if (!createPopover) return
+
+    function handlePointerDown(e: PointerEvent) {
+      if (!(e.target instanceof Node)) return
+      const pop = createPopoverNodeRef.current
+      const anchorEl = createPopoverRef.current?.anchorEl ?? null
+      if (pop?.contains(e.target) || anchorEl?.contains(e.target)) return
+      closeCreatePopover({ restoreFocus: false })
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      e.stopPropagation()
+      closeCreatePopover({ restoreFocus: true })
+    }
+
+    function handleClose() {
+      closeCreatePopover({ restoreFocus: false })
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown, true)
+    document.addEventListener('keydown', handleKeyDown, true)
+    window.addEventListener('resize', handleClose)
+    window.addEventListener('scroll', handleClose, true)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true)
+      document.removeEventListener('keydown', handleKeyDown, true)
+      window.removeEventListener('resize', handleClose)
+      window.removeEventListener('scroll', handleClose, true)
+    }
+  }, [closeCreatePopover, createPopover])
 
   const requestCloseTask = useCallback(async (): Promise<boolean> => {
     if (!openTaskId) return true
@@ -993,34 +1045,96 @@ export function AppShell() {
     openItemsSnapshotRef.current = null
   }
 
-  async function handleCreate() {
-    const title = createTitle.trim()
-    if (!title || !createMode) return
+  async function handleCreate(kind: 'project' | 'area') {
+    if (isCreating) return
 
     setIsCreating(true)
     try {
-      if (createMode === 'project') {
-        const res = await window.api.project.create({ title })
+      setSidebarError(null)
+
+      if (kind === 'project') {
+        const res = await window.api.project.create({ title: '' })
         if (!res.ok) {
           setSidebarError(`${res.error.code}: ${res.error.message}`)
           return
         }
+
+        closeCreatePopover({ restoreFocus: false })
+        bumpRevision()
+        navigate(`/projects/${res.data.id}?editTitle=1`)
+        return
       }
 
-      if (createMode === 'area') {
-        const res = await window.api.area.create({ title })
-        if (!res.ok) {
-          setSidebarError(`${res.error.code}: ${res.error.message}`)
-          return
-        }
+      const res = await window.api.area.create({ title: '' })
+      if (!res.ok) {
+        setSidebarError(`${res.error.code}: ${res.error.message}`)
+        return
       }
 
-      setCreateMode(null)
-      setCreateTitle('')
+      closeCreatePopover({ restoreFocus: false })
       bumpRevision()
+      navigate(`/areas/${res.data.id}?editTitle=1`)
     } finally {
       setIsCreating(false)
     }
+  }
+
+  const renderCreatePopover = () => {
+    if (!createPopover) return null
+
+    const rect = createPopover.anchorEl.getBoundingClientRect()
+    const viewportPadding = 12
+    const gap = 8
+    const width = 240
+
+    const left = Math.min(
+      Math.max(viewportPadding, rect.left),
+      window.innerWidth - width - viewportPadding
+    )
+
+    const estimatedHeight = 64
+    const preferredTop = rect.bottom + gap
+    const spaceBelow = window.innerHeight - viewportPadding - preferredTop
+    const spaceAbove = rect.top - gap - viewportPadding
+    const openAbove = spaceBelow < estimatedHeight && spaceAbove > spaceBelow
+
+    const top = openAbove ? rect.top - gap : preferredTop
+
+    return createPortal(
+      <div
+        ref={createPopoverNodeRef}
+        className="sidebar-create"
+        role="dialog"
+        style={{
+          position: 'fixed',
+          top,
+          left,
+          width,
+          transform: openAbove ? 'translateY(-100%)' : undefined,
+          zIndex: 60,
+        }}
+      >
+        <div className="create-toggle">
+          <button
+            type="button"
+            className="create-toggle-item"
+            onClick={() => void handleCreate('project')}
+            disabled={isCreating}
+          >
+            {t('shell.project')}
+          </button>
+          <button
+            type="button"
+            className="create-toggle-item"
+            onClick={() => void handleCreate('area')}
+            disabled={isCreating}
+          >
+            {t('shell.area')}
+          </button>
+        </div>
+      </div>,
+      document.body
+    )
   }
 
   return (
@@ -1120,73 +1234,17 @@ export function AppShell() {
           </DndContext>
         </nav>
 
-        {createMode ? (
-          <div className="sidebar-create">
-            <div className="create-toggle">
-              <button
-                type="button"
-                className={`create-toggle-item${createMode === 'project' ? ' is-active' : ''}`}
-                onClick={() => setCreateMode('project')}
-              >
-                {t('shell.project')}
-              </button>
-              <button
-                type="button"
-                className={`create-toggle-item${createMode === 'area' ? ' is-active' : ''}`}
-                onClick={() => setCreateMode('area')}
-              >
-                {t('shell.area')}
-              </button>
-            </div>
-
-            <input
-              className="input"
-              value={createTitle}
-              onChange={(e) => setCreateTitle(e.target.value)}
-              placeholder={createMode === 'project' ? t('shell.projectTitlePlaceholder') : t('shell.areaTitlePlaceholder')}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  setCreateMode(null)
-                  setCreateTitle('')
-                }
-                if (e.key === 'Enter') {
-                  void handleCreate()
-                }
-              }}
-              disabled={isCreating}
-            />
-
-            <div className="row" style={{ justifyContent: 'flex-start' }}>
-              <button
-                type="button"
-                className="button"
-                onClick={() => void handleCreate()}
-                disabled={isCreating}
-              >
-                {t('shell.create')}
-              </button>
-              <button
-                type="button"
-                className="button button-ghost"
-                onClick={() => {
-                  setCreateMode(null)
-                  setCreateTitle('')
-                }}
-                disabled={isCreating}
-              >
-                {t('shell.cancel')}
-              </button>
-            </div>
-          </div>
-        ) : null}
+        {createPopover ? renderCreatePopover() : null}
 
         <div className="sidebar-bottom">
           <button
             type="button"
             className="button button-ghost"
-            onClick={() => {
-              setCreateMode((m) => (m ? null : 'project'))
-              setCreateTitle('')
+            aria-haspopup="dialog"
+            aria-expanded={createPopover ? true : false}
+            onClick={(e) => {
+              const anchorEl = e.currentTarget
+              setCreatePopover((cur) => (cur ? null : { anchorEl }))
             }}
           >
             {t('shell.new')}
@@ -1333,6 +1391,7 @@ function SortableSidebarProjectNavItem({
   activeProjectDragId: string | null
   suppressClickRef: React.MutableRefObject<boolean>
 }) {
+  const { t } = useTranslation()
   const dragId = projectDragId(project.id)
   const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition } = useSortable({
     id: dragId,
@@ -1371,7 +1430,7 @@ function SortableSidebarProjectNavItem({
           }
         }}
       >
-        {project.title}
+        {project.title.trim() ? project.title : t('common.untitled')}
       </NavLink>
     </div>
   )
@@ -1462,6 +1521,7 @@ function SortableSidebarAreaGroup({
   )
 
   const isHiddenForOverlay = activeAreaDragId === dragId
+  const displayAreaTitle = area.title.trim() ? area.title : t('common.untitled')
 
   return (
     <div
@@ -1494,7 +1554,7 @@ function SortableSidebarAreaGroup({
           }}
         >
           <SidebarFolderIcon className="nav-area-icon" />
-          <span className="nav-area-label">{area.title}</span>
+          <span className="nav-area-label">{displayAreaTitle}</span>
         </NavLink>
 
         <button
@@ -1503,8 +1563,8 @@ function SortableSidebarAreaGroup({
           aria-expanded={!isCollapsed}
           aria-label={
             isCollapsed
-              ? t('aria.expandArea', { title: area.title })
-              : t('aria.collapseArea', { title: area.title })
+              ? t('aria.expandArea', { title: displayAreaTitle })
+              : t('aria.collapseArea', { title: displayAreaTitle })
           }
           data-sidebar-area-collapse="true"
           onPointerDown={(e) => {
@@ -1566,13 +1626,14 @@ function SidebarDragOverlay({
   areaById: Map<string, Area>
   projectById: Map<string, Project>
 }) {
+  const { t } = useTranslation()
   if (activeAreaDragId) {
     const areaId = areaIdFromAreaDragId(activeAreaDragId)
     const area = areaId ? areaById.get(areaId) : null
     if (!area) return null
     return (
       <div className="sidebar-dnd-overlay" aria-hidden="true">
-        {area.title}
+        {area.title.trim() ? area.title : t('common.untitled')}
       </div>
     )
   }
@@ -1583,7 +1644,7 @@ function SidebarDragOverlay({
     if (!project) return null
     return (
       <div className="sidebar-dnd-overlay" aria-hidden="true">
-        {project.title}
+        {project.title.trim() ? project.title : t('common.untitled')}
       </div>
     )
   }

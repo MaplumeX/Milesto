@@ -26,11 +26,17 @@ The Project header SHALL include:
 - A visible project title.
 - An overflow menu button for project-level actions.
 
+If the persisted Project title is an empty string (or whitespace-only), the displayed title label SHALL render a localized placeholder using `common.untitled`.
+
 #### Scenario: Header reflects open vs done
 - **WHEN** the project status is `open`
 - **THEN** the header checkbox SHALL be unchecked
 - **WHEN** the project status is `done`
 - **THEN** the header checkbox SHALL be checked
+
+#### Scenario: Empty persisted title is displayed as a placeholder
+- **WHEN** the Project title is an empty string (or whitespace-only)
+- **THEN** the Project page title label SHALL display `common.untitled`
 
 ### Requirement: Project notes are visible and editable
 The Project page SHALL display the project notes and SHALL allow the user to edit them.
@@ -374,3 +380,4 @@ If a task editor is currently open, the bottom bar SHALL instead show the edit-m
 - **AND** the content bottom bar MUST NOT display `+ Section`
 - **AND** the content bottom bar MUST NOT display `Schedule`
 - **AND** the content bottom bar MUST NOT display `Search`
+

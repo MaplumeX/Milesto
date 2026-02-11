@@ -62,7 +62,7 @@ export function LogbookPage() {
           {projects.map((p) => (
             <li key={p.id} className="task-row">
               <NavLink className="nav-item" to={`/projects/${p.id}`}>
-                {p.title}
+                {p.title.trim() ? p.title : t('common.untitled')}
               </NavLink>
             </li>
           ))}

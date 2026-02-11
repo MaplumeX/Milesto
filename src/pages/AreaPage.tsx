@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { NavLink, useParams } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
@@ -15,6 +15,8 @@ export function AreaPage() {
   const { t } = useTranslation()
   const { revision, bumpRevision } = useAppEvents()
   const { areaId } = useParams<{ areaId: string }>()
+  const navigate = useNavigate()
+  const location = useLocation()
   const aid = areaId ?? ''
 
   const [area, setArea] = useState<Area | null>(null)
@@ -28,6 +30,9 @@ export function AreaPage() {
   const titleButtonRef = useRef<HTMLButtonElement | null>(null)
   const ignoreNextTitleBlurRef = useRef(false)
   const isCommittingTitleRef = useRef(false)
+
+  const hasUserInteractedRef = useRef(false)
+  const consumedEditTitleForIdRef = useRef<string | null>(null)
 
   const refresh = useCallback(async () => {
     if (!aid) return
@@ -67,7 +72,43 @@ export function AreaPage() {
     void aid
     setIsEditingTitle(false)
     ignoreNextTitleBlurRef.current = false
+    hasUserInteractedRef.current = false
+    consumedEditTitleForIdRef.current = null
   }, [aid])
+
+  useEffect(() => {
+    function markInteracted() {
+      hasUserInteractedRef.current = true
+    }
+
+    window.addEventListener('pointerdown', markInteracted, true)
+    window.addEventListener('keydown', markInteracted, true)
+    return () => {
+      window.removeEventListener('pointerdown', markInteracted, true)
+      window.removeEventListener('keydown', markInteracted, true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!area) return
+
+    const params = new URLSearchParams(location.search)
+    if (params.get('editTitle') !== '1') return
+    if (consumedEditTitleForIdRef.current === area.id) return
+    if (hasUserInteractedRef.current) return
+
+    const active = document.activeElement
+    if (active instanceof HTMLElement && active !== document.body && active !== document.documentElement) return
+
+    consumedEditTitleForIdRef.current = area.id
+    ignoreNextTitleBlurRef.current = false
+    setTitleDraft(area.title ?? '')
+    setIsEditingTitle(true)
+
+    params.delete('editTitle')
+    const nextSearch = params.toString()
+    navigate({ pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : '' }, { replace: true })
+  }, [area, location.pathname, location.search, navigate])
 
   useLayoutEffect(() => {
     if (!isEditingTitle) return
@@ -81,11 +122,20 @@ export function AreaPage() {
     return () => window.cancelAnimationFrame(raf)
   }, [isEditingTitle])
 
-  const title = area?.title ?? t('shell.area')
-  const sortedProjects = useMemo(
-    () => [...projects].sort((a, b) => a.title.localeCompare(b.title)),
-    [projects]
-  )
+  const hasAreaTitle = Boolean(area?.title?.trim())
+  const displayAreaTitle = area
+    ? hasAreaTitle
+      ? area.title
+      : t('common.untitled')
+    : t('shell.area')
+
+  const untitled = t('common.untitled')
+  const sortedProjects = useMemo(() => {
+    const displayTitle = (p: Project) => (p.title.trim() ? p.title : untitled)
+    return [...projects].sort((a, b) =>
+      displayTitle(a).toLocaleLowerCase().localeCompare(displayTitle(b).toLocaleLowerCase())
+    )
+  }, [projects, untitled])
 
   function enterTitleEdit() {
     if (!area) return
@@ -107,12 +157,6 @@ export function AreaPage() {
     if (!a) return
     const next = nextRaw.trim()
     const prev = a.title ?? ''
-
-    // Areas require a non-empty title.
-    if (!next) {
-      cancelTitleEdit()
-      return
-    }
 
     if (next === prev.trim()) {
       cancelTitleEdit()
@@ -189,15 +233,15 @@ export function AreaPage() {
               <button
                 ref={titleButtonRef}
                 type="button"
-                className="page-title-button"
+                className={`page-title-button${hasAreaTitle ? '' : ' is-placeholder'}`}
                 onClick={enterTitleEdit}
                 onDoubleClick={enterTitleEdit}
               >
-                {title}
+                {displayAreaTitle}
               </button>
             )
           ) : (
-            title
+            displayAreaTitle
           )
         }
         listId={taskListIdArea(aid)}
@@ -267,7 +311,7 @@ export function AreaPage() {
           {sortedProjects.map((p) => (
             <li key={p.id} className="task-row">
               <NavLink className="nav-item" to={`/projects/${p.id}`}>
-                {p.title}
+                {p.title.trim() ? p.title : t('common.untitled')}
               </NavLink>
             </li>
           ))}

@@ -270,7 +270,7 @@ export function ContentBottomBarActions({
                         })
                       }
                     >
-                      {a.title}
+                      {a.title.trim() ? a.title : t('common.untitled')}
                     </button>
                   ))}
                 </div>
@@ -296,7 +296,7 @@ export function ContentBottomBarActions({
                         })
                       }
                     >
-                      {p.title}
+                      {p.title.trim() ? p.title : t('common.untitled')}
                     </button>
                   ))}
                 </div>

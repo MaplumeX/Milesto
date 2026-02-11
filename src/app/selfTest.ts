@@ -3194,18 +3194,62 @@ async function runSidebarSelfTest(): Promise<SelfTestResult> {
     const projectA1Id = projectA1Res.data.id
     const projectA2Id = projectA2Res.data.id
 
-    // Force a sidebar refresh by going through a small UI flow that bumps AppShell revision.
-    // (Direct `window.api.*` mutations don't automatically trigger `refreshSidebar()`.)
     const newBtn = await waitFor('Sidebar suite: + New button', () => findButtonByText(document, '+ New'))
+
     newBtn.click()
-    const createPanel = await waitFor('Sidebar suite: create panel', () => document.querySelector<HTMLElement>('.sidebar-create'))
-    const areaToggle = await waitFor('Sidebar suite: create toggle Area', () => findButtonByText(createPanel, 'Area'))
-    areaToggle.click()
-    const createInput = await waitFor('Sidebar suite: create input', () =>
-      createPanel.querySelector<HTMLInputElement>('input.input')
+    const createPanel = await waitFor('Sidebar suite: create panel (project)', () =>
+      document.querySelector<HTMLElement>('.sidebar-create')
     )
-    setNativeInputValue(createInput, `${token} Bump Area`)
-    dispatchKey(createInput, 'Enter')
+    const projectCreateBtn = await waitFor('Sidebar suite: create Project button', () =>
+      findButtonByText(createPanel, 'Project')
+    )
+    projectCreateBtn.click()
+
+    const createdProjectId = await waitFor('Sidebar suite: navigated to created Project', () => {
+      const m = window.location.hash.match(/^#\/projects\/([^?]+)\?editTitle=1$/)
+      return m?.[1] ?? null
+    })
+
+    await waitFor('Sidebar suite: project title input focused', () => {
+      const el = document.activeElement
+      if (!(el instanceof HTMLInputElement)) return null
+      if (!el.classList.contains('page-title-input')) return null
+      return el
+    })
+
+    const createdProjectHandle = await waitFor('Sidebar suite: created Project row visible', () =>
+      findSidebarProjectHandle(createdProjectId)
+    )
+    const createdProjectText = (createdProjectHandle.textContent ?? '').trim()
+    if (!createdProjectText.includes('(untitled)')) {
+      throw new Error(`Sidebar suite: expected created Project row to show placeholder '(untitled)' (got '${createdProjectText}')`)
+    }
+
+    newBtn.click()
+    const createPanel2 = await waitFor('Sidebar suite: create panel (area)', () =>
+      document.querySelector<HTMLElement>('.sidebar-create')
+    )
+    const areaCreateBtn = await waitFor('Sidebar suite: create Area button', () => findButtonByText(createPanel2, 'Area'))
+    areaCreateBtn.click()
+
+    const createdAreaId = await waitFor('Sidebar suite: navigated to created Area', () => {
+      const m = window.location.hash.match(/^#\/areas\/([^?]+)\?editTitle=1$/)
+      return m?.[1] ?? null
+    })
+
+    await waitFor('Sidebar suite: area title input focused', () => {
+      const el = document.activeElement
+      if (!(el instanceof HTMLInputElement)) return null
+      if (!el.classList.contains('page-title-input')) return null
+      return el
+    })
+
+    const createdAreaHandle = await waitFor('Sidebar suite: created Area row visible', () => findSidebarAreaHandle(createdAreaId))
+    const createdAreaText = (createdAreaHandle.textContent ?? '').trim()
+    if (!createdAreaText.includes('(untitled)')) {
+      throw new Error(`Sidebar suite: expected created Area row to show placeholder '(untitled)' (got '${createdAreaText}')`)
+    }
+
     await waitFor('Sidebar suite: create panel closed', () =>
       document.querySelector<HTMLElement>('.sidebar-create') ? null : true
     )

@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState }
 import type { ForwardedRef, RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { DayPicker } from 'react-day-picker'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
@@ -21,6 +21,7 @@ export function ProjectPage() {
   const { revision, bumpRevision } = useAppEvents()
   const { projectId } = useParams<{ projectId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const pid = projectId ?? ''
 
   const [project, setProject] = useState<Project | null>(null)
@@ -39,6 +40,9 @@ export function ProjectPage() {
   const titleInputRef = useRef<HTMLInputElement | null>(null)
   const titleButtonRef = useRef<HTMLButtonElement | null>(null)
   const ignoreNextTitleBlurRef = useRef(false)
+
+  const hasUserInteractedRef = useRef(false)
+  const consumedEditTitleForIdRef = useRef<string | null>(null)
 
   const [notesDraft, setNotesDraft] = useState('')
   const notesRef = useRef<HTMLTextAreaElement | null>(null)
@@ -108,7 +112,43 @@ export function ProjectPage() {
     setDoneTasks(null)
     setEditingSectionId(null)
     setIsEditingTitle(false)
+    hasUserInteractedRef.current = false
+    consumedEditTitleForIdRef.current = null
   }, [pid])
+
+  useEffect(() => {
+    function markInteracted() {
+      hasUserInteractedRef.current = true
+    }
+
+    window.addEventListener('pointerdown', markInteracted, true)
+    window.addEventListener('keydown', markInteracted, true)
+    return () => {
+      window.removeEventListener('pointerdown', markInteracted, true)
+      window.removeEventListener('keydown', markInteracted, true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!project) return
+
+    const params = new URLSearchParams(location.search)
+    if (params.get('editTitle') !== '1') return
+    if (consumedEditTitleForIdRef.current === project.id) return
+    if (hasUserInteractedRef.current) return
+
+    const active = document.activeElement
+    if (active instanceof HTMLElement && active !== document.body && active !== document.documentElement) return
+
+    consumedEditTitleForIdRef.current = project.id
+    ignoreNextTitleBlurRef.current = false
+    setTitleDraft(project.title ?? '')
+    setIsEditingTitle(true)
+
+    params.delete('editTitle')
+    const nextSearch = params.toString()
+    navigate({ pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : '' }, { replace: true })
+  }, [location.pathname, location.search, navigate, project])
 
   useLayoutEffect(() => {
     if (!isEditingTitle) return

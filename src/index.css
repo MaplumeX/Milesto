@@ -298,11 +298,15 @@ body {
 }
 
 .sidebar-create {
-  margin: 10px 0 14px;
-  padding: 0 18px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
 }
 
 .create-toggle {
