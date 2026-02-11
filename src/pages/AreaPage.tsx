@@ -315,7 +315,6 @@ export function AreaPage() {
               </NavLink>
             </li>
           ))}
-          {sortedProjects.length === 0 ? <li className="nav-muted">{t('shell.empty')}</li> : null}
         </ul>
       </div>
     </>

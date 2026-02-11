@@ -1361,7 +1361,7 @@ function SidebarFolderIcon({ className }: { className?: string }) {
   )
 }
 
-function SidebarChevronIcon({ className, direction }: { className?: string; direction: 'right' | 'down' }) {
+function SidebarChevronIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}
@@ -1375,7 +1375,7 @@ function SidebarChevronIcon({ className, direction }: { className?: string; dire
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      {direction === 'right' ? <path d="M8 5l5 5-5 5" /> : <path d="M5 8l5 5 5-5" />}
+      <path d="M5 8l5 5 5-5" />
     </svg>
   )
 }
@@ -1578,7 +1578,7 @@ function SortableSidebarAreaGroup({
             onToggleCollapsed()
           }}
         >
-          <SidebarChevronIcon className="nav-area-collapse-icon" direction={isCollapsed ? 'right' : 'down'} />
+          <SidebarChevronIcon className="nav-area-collapse-icon" />
         </button>
       </div>
 
@@ -1602,11 +1602,6 @@ function SortableSidebarAreaGroup({
             })}
           </SortableContext>
 
-          {projectDragIds.length === 0 ? (
-            <div className="nav-muted" aria-hidden="true">
-              {t('shell.empty')}
-            </div>
-          ) : null}
         </>
       ) : null}
 
