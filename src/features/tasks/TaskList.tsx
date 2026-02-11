@@ -89,7 +89,7 @@ export function TaskList({
   onAfterReorder,
   headerActions,
 }: {
-  title: string
+  title: React.ReactNode
   tasks: TaskListItem[]
   // If provided, enables drag-and-drop + keyboard reordering persisted via list_positions.
   listId?: string

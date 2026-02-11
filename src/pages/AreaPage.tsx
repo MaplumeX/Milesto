@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
@@ -21,6 +21,13 @@ export function AreaPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [tasks, setTasks] = useState<TaskListItem[]>([])
   const [error, setError] = useState<AppError | null>(null)
+
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
+  const titleInputRef = useRef<HTMLInputElement | null>(null)
+  const titleButtonRef = useRef<HTMLButtonElement | null>(null)
+  const ignoreNextTitleBlurRef = useRef(false)
+  const isCommittingTitleRef = useRef(false)
 
   const refresh = useCallback(async () => {
     if (!aid) return
@@ -55,11 +62,80 @@ export function AreaPage() {
     void refresh()
   }, [refresh, revision])
 
+  // Title edit state should reset on navigation.
+  useEffect(() => {
+    void aid
+    setIsEditingTitle(false)
+    ignoreNextTitleBlurRef.current = false
+  }, [aid])
+
+  useLayoutEffect(() => {
+    if (!isEditingTitle) return
+    const raf = window.requestAnimationFrame(() => {
+      const input = titleInputRef.current
+      if (!input) return
+      input.focus()
+      const caretPos = input.value.length
+      input.setSelectionRange(caretPos, caretPos)
+    })
+    return () => window.cancelAnimationFrame(raf)
+  }, [isEditingTitle])
+
   const title = area?.title ?? t('shell.area')
   const sortedProjects = useMemo(
     () => [...projects].sort((a, b) => a.title.localeCompare(b.title)),
     [projects]
   )
+
+  function enterTitleEdit() {
+    if (!area) return
+    ignoreNextTitleBlurRef.current = false
+    setTitleDraft(area.title ?? '')
+    setIsEditingTitle(true)
+  }
+
+  function cancelTitleEdit() {
+    ignoreNextTitleBlurRef.current = true
+    setIsEditingTitle(false)
+    titleButtonRef.current?.focus()
+  }
+
+  async function commitTitleEdit(nextRaw: string) {
+    if (isCommittingTitleRef.current) return
+
+    const a = area
+    if (!a) return
+    const next = nextRaw.trim()
+    const prev = a.title ?? ''
+
+    // Areas require a non-empty title.
+    if (!next) {
+      cancelTitleEdit()
+      return
+    }
+
+    if (next === prev.trim()) {
+      cancelTitleEdit()
+      return
+    }
+
+    isCommittingTitleRef.current = true
+    try {
+      const res = await window.api.area.update({ id: a.id, title: next })
+      if (!res.ok) {
+        setError(res.error)
+        return
+      }
+
+      bumpRevision()
+      ignoreNextTitleBlurRef.current = true
+      setIsEditingTitle(false)
+      await refresh()
+      titleButtonRef.current?.focus()
+    } finally {
+      isCommittingTitleRef.current = false
+    }
+  }
 
   if (!aid) {
     return (
@@ -75,7 +151,55 @@ export function AreaPage() {
       {error ? <ErrorBanner error={error} /> : null}
 
       <TaskList
-        title={title}
+        title={
+          area ? (
+            isEditingTitle ? (
+              <input
+                ref={titleInputRef}
+                className="page-title-input"
+                value={titleDraft}
+                placeholder={t('shell.areaTitlePlaceholder')}
+                aria-label={t('shell.areaTitlePlaceholder')}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  e.stopPropagation()
+
+                  if (e.key === 'Enter') {
+                    // Don't treat IME composition confirmation as a commit.
+                    if (e.nativeEvent.isComposing) return
+                    e.preventDefault()
+                    void commitTitleEdit(titleDraft)
+                    return
+                  }
+
+                  if (e.key === 'Escape') {
+                    e.preventDefault()
+                    cancelTitleEdit()
+                  }
+                }}
+                onBlur={() => {
+                  if (ignoreNextTitleBlurRef.current) {
+                    ignoreNextTitleBlurRef.current = false
+                    return
+                  }
+                  void commitTitleEdit(titleDraft)
+                }}
+              />
+            ) : (
+              <button
+                ref={titleButtonRef}
+                type="button"
+                className="page-title-button"
+                onClick={enterTitleEdit}
+                onDoubleClick={enterTitleEdit}
+              >
+                {title}
+              </button>
+            )
+          ) : (
+            title
+          )
+        }
         listId={taskListIdArea(aid)}
         tasks={tasks}
         onAfterReorder={refresh}
@@ -85,17 +209,7 @@ export function AreaPage() {
               type="button"
               className="button button-ghost"
               onClick={() => {
-                if (!area) return
-                const next = prompt(t('area.renamePromptTitle'), area.title)
-                if (!next) return
-                void (async () => {
-                  const res = await window.api.area.update({ id: area.id, title: next })
-                  if (!res.ok) {
-                    setError(res.error)
-                    return
-                  }
-                  bumpRevision()
-                })()
+                enterTitleEdit()
               }}
             >
               {t('common.rename')}
