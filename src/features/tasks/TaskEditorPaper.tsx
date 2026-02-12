@@ -1409,7 +1409,7 @@ export const TaskEditorPaper = forwardRef<
               <option value="">{t('common.noneOption')}</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.title.trim() ? p.title : t('common.untitled')}
+                  {p.title.trim() ? p.title : t('project.untitled')}
                 </option>
               ))}
             </select>
@@ -1456,7 +1456,7 @@ export const TaskEditorPaper = forwardRef<
               <option value="">{t('common.noneOption')}</option>
               {sections.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.title.trim() ? s.title : t('common.untitled')}
+                  {s.title.trim() ? s.title : t('section.untitled')}
                 </option>
               ))}
             </select>
@@ -1479,7 +1479,7 @@ export const TaskEditorPaper = forwardRef<
               <option value="">{t('common.noneOption')}</option>
               {areas.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.title.trim() ? a.title : t('common.untitled')}
+                  {a.title.trim() ? a.title : t('area.untitled')}
                 </option>
               ))}
             </select>

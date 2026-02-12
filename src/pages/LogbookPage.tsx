@@ -61,8 +61,8 @@ export function LogbookPage() {
         <ul className="task-list">
           {projects.map((p) => (
             <li key={p.id} className="task-row">
-              <NavLink className="nav-item" to={`/projects/${p.id}`}>
-                {p.title.trim() ? p.title : t('common.untitled')}
+              <NavLink className={`nav-item${p.title.trim() ? '' : ' is-placeholder'}`} to={`/projects/${p.id}`}>
+                {p.title.trim() ? p.title : t('project.untitled')}
               </NavLink>
             </li>
           ))}

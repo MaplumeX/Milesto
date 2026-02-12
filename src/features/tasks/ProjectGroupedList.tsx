@@ -270,7 +270,7 @@ function ProjectGroupHeaderRow({
               ref={editTitleInputRef}
               className="project-group-title project-group-title-input"
               value={editTitleDraft}
-              placeholder={t('common.untitled')}
+              placeholder={t('section.untitled')}
               aria-label={t('aria.sectionTitle')}
               onChange={(e) => setEditTitleDraft(e.target.value)}
               onKeyDown={(e) => {
@@ -321,7 +321,7 @@ function ProjectGroupHeaderRow({
             }}
           >
             <div className={`project-group-title${title.trim() ? '' : ' is-placeholder'}`}>
-              {title.trim() ? title : t('common.untitled')}
+              {title.trim() ? title : t('section.untitled')}
             </div>
           </button>
         )}
@@ -389,7 +389,7 @@ function ProjectSectionDragOverlay({
       <div className="project-section-dnd-overlay-edge project-section-dnd-overlay-edge-2" />
       <div className="project-section-dnd-overlay-card">
         <div className={`project-group-title${hasTitle ? '' : ' is-placeholder'}`}>
-          {hasTitle ? title : t('common.untitled')}
+          {hasTitle ? title : t('section.untitled')}
         </div>
       </div>
     </div>

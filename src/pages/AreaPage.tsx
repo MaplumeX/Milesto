@@ -188,16 +188,16 @@ export function AreaPage() {
   const displayAreaTitle = area
     ? hasAreaTitle
       ? area.title
-      : t('common.untitled')
+      : t('area.untitled')
     : t('shell.area')
 
-  const untitled = t('common.untitled')
+  const projectUntitled = t('project.untitled')
   const sortedProjects = useMemo(() => {
-    const displayTitle = (p: Project) => (p.title.trim() ? p.title : untitled)
+    const displayTitle = (p: Project) => (p.title.trim() ? p.title : projectUntitled)
     return [...projects].sort((a, b) =>
       displayTitle(a).toLocaleLowerCase().localeCompare(displayTitle(b).toLocaleLowerCase())
     )
-  }, [projects, untitled])
+  }, [projects, projectUntitled])
 
   function enterTitleEdit() {
     if (!area) return
@@ -355,8 +355,8 @@ export function AreaPage() {
         <ul className="task-list">
           {sortedProjects.map((p) => (
             <li key={p.id} className="task-row">
-              <NavLink className="nav-item" to={`/projects/${p.id}`}>
-                {p.title.trim() ? p.title : t('common.untitled')}
+              <NavLink className={`nav-item${p.title.trim() ? '' : ' is-placeholder'}`} to={`/projects/${p.id}`}>
+                {p.title.trim() ? p.title : t('project.untitled')}
               </NavLink>
             </li>
           ))}

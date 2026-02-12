@@ -3221,8 +3221,10 @@ async function runSidebarSelfTest(): Promise<SelfTestResult> {
       findSidebarProjectHandle(createdProjectId)
     )
     const createdProjectText = (createdProjectHandle.textContent ?? '').trim()
-    if (!createdProjectText.includes('(untitled)')) {
-      throw new Error(`Sidebar suite: expected created Project row to show placeholder '(untitled)' (got '${createdProjectText}')`)
+    if (!createdProjectText.includes('New project')) {
+      throw new Error(
+        `Sidebar suite: expected created Project row to show placeholder 'New project' (got '${createdProjectText}')`
+      )
     }
 
     newBtn.click()
@@ -3246,8 +3248,8 @@ async function runSidebarSelfTest(): Promise<SelfTestResult> {
 
     const createdAreaHandle = await waitFor('Sidebar suite: created Area row visible', () => findSidebarAreaHandle(createdAreaId))
     const createdAreaText = (createdAreaHandle.textContent ?? '').trim()
-    if (!createdAreaText.includes('(untitled)')) {
-      throw new Error(`Sidebar suite: expected created Area row to show placeholder '(untitled)' (got '${createdAreaText}')`)
+    if (!createdAreaText.includes('New area')) {
+      throw new Error(`Sidebar suite: expected created Area row to show placeholder 'New area' (got '${createdAreaText}')`)
     }
 
     await waitFor('Sidebar suite: create panel closed', () =>

@@ -189,6 +189,10 @@ body {
   margin: 2px 0;
 }
 
+.nav-item.is-placeholder {
+  color: var(--muted);
+}
+
 .nav-item:hover {
   background: var(--wash);
 }
@@ -420,6 +424,10 @@ body {
   width: 100%;
   text-align: left;
   border-color: transparent;
+}
+
+.content-bottom-popover-item.is-placeholder {
+  color: var(--muted);
 }
 
 .content-bottom-hint {

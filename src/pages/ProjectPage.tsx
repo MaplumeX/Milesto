@@ -282,7 +282,7 @@ export function ProjectPage() {
   const displayProjectTitle = project
     ? hasProjectTitle
       ? project.title
-      : t('common.untitled')
+      : t('project.untitled')
     : title
 
   function enterTitleEdit() {

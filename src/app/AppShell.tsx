@@ -1428,6 +1428,8 @@ function SortableSidebarProjectNavItem({
   suppressClickRef: React.MutableRefObject<boolean>
 }) {
   const { t } = useTranslation()
+  const hasProjectTitle = project.title.trim().length > 0
+  const displayProjectTitle = hasProjectTitle ? project.title : t('project.untitled')
   const dragId = projectDragId(project.id)
   const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition } = useSortable({
     id: dragId,
@@ -1448,7 +1450,9 @@ function SortableSidebarProjectNavItem({
       <NavLink
         ref={setActivatorNodeRef}
         className={({ isActive }) =>
-          `nav-item${isActive ? ' is-active' : ''}${indent ? ' is-indent' : ''}`
+          `nav-item${isActive ? ' is-active' : ''}${indent ? ' is-indent' : ''}${
+            hasProjectTitle ? '' : ' is-placeholder'
+          }`
         }
         to={`/projects/${project.id}`}
         data-sidebar-dnd-kind="project"
@@ -1466,7 +1470,7 @@ function SortableSidebarProjectNavItem({
           }
         }}
       >
-        {project.title.trim() ? project.title : t('common.untitled')}
+        {displayProjectTitle}
       </NavLink>
     </div>
   )
@@ -1557,7 +1561,8 @@ function SortableSidebarAreaGroup({
   )
 
   const isHiddenForOverlay = activeAreaDragId === dragId
-  const displayAreaTitle = area.title.trim() ? area.title : t('common.untitled')
+  const hasAreaTitle = area.title.trim().length > 0
+  const displayAreaTitle = hasAreaTitle ? area.title : t('area.untitled')
 
   return (
     <div
@@ -1574,7 +1579,9 @@ function SortableSidebarAreaGroup({
       <div className="nav-area-header">
         <NavLink
           ref={setActivatorNodeRef}
-          className={({ isActive }) => `nav-item nav-area-row${isActive ? ' is-active' : ''}`}
+          className={({ isActive }) =>
+            `nav-item nav-area-row${isActive ? ' is-active' : ''}${hasAreaTitle ? '' : ' is-placeholder'}`
+          }
           to={`/areas/${area.id}`}
           data-sidebar-row-activator="true"
           {...attributes}
@@ -1664,7 +1671,7 @@ function SidebarDragOverlay({
     if (!area) return null
     return (
       <div className="sidebar-dnd-overlay" aria-hidden="true">
-        {area.title.trim() ? area.title : t('common.untitled')}
+        {area.title.trim() ? area.title : t('area.untitled')}
       </div>
     )
   }
@@ -1675,7 +1682,7 @@ function SidebarDragOverlay({
     if (!project) return null
     return (
       <div className="sidebar-dnd-overlay" aria-hidden="true">
-        {project.title.trim() ? project.title : t('common.untitled')}
+        {project.title.trim() ? project.title : t('project.untitled')}
       </div>
     )
   }

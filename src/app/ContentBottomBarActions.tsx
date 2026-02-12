@@ -260,7 +260,9 @@ export function ContentBottomBarActions({
                     <button
                       key={a.id}
                       type="button"
-                      className="button button-ghost content-bottom-popover-item"
+                      className={`button button-ghost content-bottom-popover-item${
+                        a.title.trim() ? '' : ' is-placeholder'
+                      }`}
                       onClick={() =>
                         void updateSelectedTask({
                           area_id: a.id,
@@ -270,7 +272,7 @@ export function ContentBottomBarActions({
                         })
                       }
                     >
-                      {a.title.trim() ? a.title : t('common.untitled')}
+                      {a.title.trim() ? a.title : t('area.untitled')}
                     </button>
                   ))}
                 </div>
@@ -286,7 +288,9 @@ export function ContentBottomBarActions({
                     <button
                       key={p.id}
                       type="button"
-                      className="button button-ghost content-bottom-popover-item"
+                      className={`button button-ghost content-bottom-popover-item${
+                        p.title.trim() ? '' : ' is-placeholder'
+                      }`}
                       onClick={() =>
                         void updateSelectedTask({
                           project_id: p.id,
@@ -296,7 +300,7 @@ export function ContentBottomBarActions({
                         })
                       }
                     >
-                      {p.title.trim() ? p.title : t('common.untitled')}
+                      {p.title.trim() ? p.title : t('project.untitled')}
                     </button>
                   ))}
                 </div>

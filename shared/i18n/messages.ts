@@ -57,8 +57,8 @@ export const messagesEn = {
     project: 'Project',
     area: 'Area',
     areas: 'Areas',
-    projectTitlePlaceholder: 'Project title…',
-    areaTitlePlaceholder: 'Area title…',
+    projectTitlePlaceholder: 'New project',
+    areaTitlePlaceholder: 'New area',
     create: 'Create',
     cancel: 'Cancel',
     new: '+ New',
@@ -99,11 +99,13 @@ export const messagesEn = {
   },
   area: {
     renamePromptTitle: 'Rename area',
+    untitled: 'New area',
     deleteConfirm: 'Delete this area? Projects and tasks under it will be soft-deleted.',
   },
   project: {
     newTitlePrompt: 'New project title',
     renamePromptTitle: 'Rename project',
+    untitled: 'New project',
     completeConfirm: 'Mark project done and complete {{count}} open tasks?',
     deleteConfirm: 'Delete this project? Tasks and sections under it will be soft-deleted.',
   },
@@ -111,6 +113,9 @@ export const messagesEn = {
     newPromptTitle: 'New tag',
     renamePromptTitle: 'Rename tag',
     deleteConfirm: 'Delete tag?',
+  },
+  section: {
+    untitled: 'New section',
   },
   task: {
     untitled: 'New task',
@@ -234,8 +239,8 @@ export const messagesZhCN = {
     project: '项目',
     area: '领域',
     areas: '领域',
-    projectTitlePlaceholder: '项目标题…',
-    areaTitlePlaceholder: '领域标题…',
+    projectTitlePlaceholder: '新建项目',
+    areaTitlePlaceholder: '新建领域',
     create: '创建',
     cancel: '取消',
     new: '+ 新建',
@@ -276,11 +281,13 @@ export const messagesZhCN = {
   },
   area: {
     renamePromptTitle: '重命名领域',
+    untitled: '新建领域',
     deleteConfirm: '删除此领域？其下的项目和任务将被软删除。',
   },
   project: {
     newTitlePrompt: '新建项目标题',
     renamePromptTitle: '重命名项目',
+    untitled: '新建项目',
     completeConfirm: '标记项目完成并完成 {{count}} 个未完成任务？',
     deleteConfirm: '删除此项目？其下的任务与分组将被软删除。',
   },
@@ -288,6 +295,9 @@ export const messagesZhCN = {
     newPromptTitle: '新建标签',
     renamePromptTitle: '重命名标签',
     deleteConfirm: '删除标签？',
+  },
+  section: {
+    untitled: '新建分组',
   },
   task: {
     untitled: '新建任务',
