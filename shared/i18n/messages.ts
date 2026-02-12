@@ -35,6 +35,7 @@ export const messagesEn = {
     sectionTitle: 'Section title',
     projectTitle: 'Project title',
     projectActions: 'Project actions',
+    areaActions: 'Area actions',
     markProjectDone: 'Mark project done',
     taskDone: 'Done',
     collapseArea: 'Collapse area {{title}}',
@@ -133,6 +134,9 @@ export const messagesEn = {
     reopen: 'Reopen',
     markDone: 'Mark Done',
   },
+  areaPage: {
+    menuTitle: 'Area',
+  },
   taskEditor: {
     taskTitle: 'Task',
     statusDone: 'Done',
@@ -208,6 +212,7 @@ export const messagesZhCN = {
     sectionTitle: '分组标题',
     projectTitle: '项目标题',
     projectActions: '项目操作',
+    areaActions: '领域操作',
     markProjectDone: '标记项目完成',
     taskDone: '完成',
     collapseArea: '折叠领域 {{title}}',
@@ -305,6 +310,9 @@ export const messagesZhCN = {
     areaLabel: '领域',
     reopen: '重新打开',
     markDone: '标记完成',
+  },
+  areaPage: {
+    menuTitle: '领域',
   },
   taskEditor: {
     taskTitle: '任务',

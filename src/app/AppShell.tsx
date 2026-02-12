@@ -177,6 +177,11 @@ export function AppShell() {
     return match?.[1] ?? null
   }, [location.pathname])
 
+  const areaIdFromRoute = useMemo(() => {
+    const match = location.pathname.match(/^\/areas\/([^/]+)$/)
+    return match?.[1] ?? null
+  }, [location.pathname])
+
   const contentScrollRef = useRef<HTMLDivElement | null>(null)
 
   const lastFocusTargetRef = useRef<{ element: HTMLElement | null; taskId: string } | null>(null)
@@ -1079,6 +1084,27 @@ export function AppShell() {
     }
   }
 
+  const handleAddProjectForArea = useCallback(async () => {
+    const areaId = areaIdFromRoute
+    if (!areaId) return
+    if (isCreating) return
+
+    setIsCreating(true)
+    try {
+      setSidebarError(null)
+      const res = await window.api.project.create({ title: '', area_id: areaId })
+      if (!res.ok) {
+        setSidebarError(`${res.error.code}: ${res.error.message}`)
+        return
+      }
+
+      bumpRevision()
+      navigate(`/projects/${res.data.id}?editTitle=1`)
+    } finally {
+      setIsCreating(false)
+    }
+  }, [areaIdFromRoute, bumpRevision, isCreating, navigate])
+
   const renderCreatePopover = () => {
     if (!createPopover) return null
 
@@ -1271,6 +1297,16 @@ export function AppShell() {
                       <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
                         {t('shell.task')}
                       </button>
+                      {areaIdFromRoute ? (
+                        <button
+                          type="button"
+                          className="button button-ghost"
+                          onClick={() => void handleAddProjectForArea()}
+                          disabled={isCreating}
+                        >
+                          {t('common.addProject')}
+                        </button>
+                      ) : null}
                       {projectIdFromRoute ? (
                         <button type="button" className="button button-ghost" onClick={handleAddSection}>
                           {t('shell.section')}
