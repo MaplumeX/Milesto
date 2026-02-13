@@ -612,6 +612,31 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+.upcoming-spacer {
+  height: 14px;
+}
+
+.upcoming-task-title-button {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.upcoming-date-prefix {
+  flex: 0 0 auto;
+  min-width: 42px;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.upcoming-task-title {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Project page grouping headers (sections + no-section group). */
 .project-group-header {
   display: flex;

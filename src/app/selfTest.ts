@@ -705,9 +705,10 @@ async function waitForUpcomingHeaderNearTop(params: {
   let lastDebug = ''
 
   while (Date.now() - start < 10_000) {
-    const header = Array.from(document.querySelectorAll<HTMLElement>('.upcoming-header')).find(
-      (h) => (h.textContent ?? '').trim() === date
-    )
+    const header = Array.from(document.querySelectorAll<HTMLElement>('.upcoming-header')).find((h) => {
+      const key = h.getAttribute('data-upcoming-header-key')
+      return key === date
+    })
 
     if (!header) {
       lastDebug = `header not found (date=${date}) headers=${document.querySelectorAll('.upcoming-header').length} scrollTop=${contentScroller.scrollTop}`
@@ -963,21 +964,6 @@ async function runSelfTest(): Promise<SelfTestResult> {
     const today = formatLocalDate(new Date())
     const tomorrow = formatLocalDate(addDays(new Date(), 1))
 
-    const nextWeekStart = (() => {
-      const d = new Date()
-      const day = d.getDay() // 0=Sun
-      let delta = (8 - day) % 7
-      if (delta === 0) delta = 7
-      d.setDate(d.getDate() + delta)
-      d.setHours(0, 0, 0, 0)
-      return formatLocalDate(d)
-    })()
-
-    const nextMonthStart = (() => {
-      const now = new Date()
-      return formatLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 1))
-    })()
-
     // Seed tasks for Inbox/Today/Upcoming flows.
     const inboxARes = await window.api.task.create({ title: `${token} Inbox A`, is_inbox: true })
     const inboxBRes = await window.api.task.create({ title: `${token} Inbox B`, is_inbox: true })
@@ -1042,7 +1028,6 @@ async function runSelfTest(): Promise<SelfTestResult> {
       scheduled_at: tomorrow,
     })
 
-    // Ensure Upcoming view is scrollable so jump-button alignment is meaningful.
     for (let i = 0; i < 28; i++) {
       const res = await window.api.task.create({
         title: `${token} Upcoming filler ${i}`,
@@ -1052,32 +1037,8 @@ async function runSelfTest(): Promise<SelfTestResult> {
         throw new Error(`task.create upcoming filler ${i} failed: ${res.error.code}: ${res.error.message}`)
       }
     }
-
-    // Add tasks to enable Upcoming jump buttons (Next Week / Next Month).
-    const upcomingWeekRes = await window.api.task.create({
-      title: `${token} Upcoming Next Week`,
-      scheduled_at: nextWeekStart,
-    })
-    const upcomingMonthRes = await window.api.task.create({
-      title: `${token} Upcoming Next Month`,
-      scheduled_at: nextMonthStart,
-    })
     if (!upcomingARes.ok) throw new Error(`task.create upcomingA failed: ${upcomingARes.error.code}: ${upcomingARes.error.message}`)
     if (!upcomingBRes.ok) throw new Error(`task.create upcomingB failed: ${upcomingBRes.error.code}: ${upcomingBRes.error.message}`)
-    if (!upcomingWeekRes.ok) throw new Error(`task.create upcomingWeek failed: ${upcomingWeekRes.error.code}: ${upcomingWeekRes.error.message}`)
-    if (!upcomingMonthRes.ok) throw new Error(`task.create upcomingMonth failed: ${upcomingMonthRes.error.code}: ${upcomingMonthRes.error.message}`)
-
-    // Ensure there's enough content AFTER Next Week/Next Month headers so scrollToIndex
-    // can align those headers near the top even in a tall window.
-    for (let i = 0; i < 28; i++) {
-      const res = await window.api.task.create({
-        title: `${token} Upcoming next month filler ${i}`,
-        scheduled_at: nextMonthStart,
-      })
-      if (!res.ok) {
-        throw new Error(`task.create upcoming next month filler ${i} failed: ${res.error.code}: ${res.error.message}`)
-      }
-    }
 
     const inboxAId = inboxARes.data.id
     const inboxBId = inboxBRes.data.id
@@ -1967,35 +1928,14 @@ async function runSelfTest(): Promise<SelfTestResult> {
     await waitFor('Upcoming A row button', () => findTaskButton(upcomingAId))
     await waitFor('Upcoming B row button', () => findTaskButton(upcomingBId))
 
-    // Regression: jump buttons should align headers correctly with content above the list.
-    const nextWeekBtn = findButtonByText(document, 'Next Week')
-    const nextMonthBtn = findButtonByText(document, 'Next Month')
-    if (!nextWeekBtn) throw new Error('Upcoming: missing Next Week button')
-    if (!nextMonthBtn) throw new Error('Upcoming: missing Next Month button')
-
-    nextWeekBtn.click()
-    await sleep(250)
     await waitForUpcomingHeaderNearTop({
-      date: nextWeekStart,
-      label: 'Upcoming scrolled to next week header',
+      date: tomorrow,
+      label: 'Upcoming: first day header visible',
       contentScroller,
       listbox: upcomingListbox,
     })
 
-    nextMonthBtn.click()
-    await sleep(250)
-    await waitForUpcomingHeaderNearTop({
-      date: nextMonthStart,
-      label: 'Upcoming scrolled to next month header',
-      contentScroller,
-      listbox: upcomingListbox,
-    })
-
-    // Jumping may scroll far enough to unmount the early rows. Return to the top so we can
-    // interact with Upcoming A/B reliably.
-    contentScroller.scrollTop = 0
-    await sleep(150)
-    const upcomingAButtonNow = await waitFor('Upcoming A row button (post jump)', () => findTaskButton(upcomingAId))
+    const upcomingAButtonNow = await waitFor('Upcoming A row button (post header)', () => findTaskButton(upcomingAId))
 
     // Arrow navigation should skip non-task rows.
     upcomingAButtonNow.click()

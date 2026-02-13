@@ -5,6 +5,27 @@ export function formatLocalDate(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
+export function addDays(date: Date, days: number): Date {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  d.setDate(d.getDate() + days)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+export function formatLocalMonthKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
+}
+
+export function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1)
+}
+
+export function endOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0)
+}
+
 // Parse a local-date string (YYYY-MM-DD) into a Date at local midnight.
 // Do NOT use `new Date('YYYY-MM-DD')` because that is treated as UTC and can shift days by timezone.
 export function parseLocalDate(localDate: string): Date | null {
