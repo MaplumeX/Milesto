@@ -10,15 +10,11 @@ function intlLocale(locale: SupportedLocale): string {
   return locale === 'zh-CN' ? 'zh-CN' : 'en-US'
 }
 
-export function formatUpcomingDayHeader(date: Date, localeInput: string): string {
+export function formatUpcomingDayHeader(date: Date, localeInput: string): { day: string; weekday: string } {
   const locale = normalizeLocale(localeInput)
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-
+  const day = String(date.getDate())
   const weekday = new Intl.DateTimeFormat(intlLocale(locale), { weekday: 'short' }).format(date)
-
-  if (locale === 'zh-CN') return `${month}.${day} ${weekday}`
-  return `${month}/${day} ${weekday}`
+  return { day, weekday }
 }
 
 export function formatUpcomingMonthHeader(params: {

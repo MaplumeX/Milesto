@@ -16,8 +16,11 @@ import {
 
 export type UpcomingHeaderKind = 'day' | 'month'
 
+export type UpcomingDayLabel = { day: string; weekday: string }
+
 export type UpcomingRow =
-  | { type: 'header'; kind: UpcomingHeaderKind; key: string; label: string }
+  | { type: 'header'; kind: 'day'; key: string; label: UpcomingDayLabel }
+  | { type: 'header'; kind: 'month'; key: string; label: string }
   | { type: 'task'; task: TaskListItem; datePrefix: string | null }
   | { type: 'spacer'; kind: UpcomingHeaderKind; key: string }
 

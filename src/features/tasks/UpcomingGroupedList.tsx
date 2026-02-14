@@ -82,8 +82,8 @@ export function UpcomingGroupedList({
     estimateSize: (index) => {
       const row = rows[index]
       if (!row) return 44
-      if (row.type === 'header') return 34
-      if (row.type === 'spacer') return 14
+      if (row.type === 'header') return row.kind === 'day' ? 42 : 48
+      if (row.type === 'spacer') return row.kind === 'day' ? 24 : 36
       // Expanded rows are measured, but the estimate should be close to reduce initial jump.
       if (openTaskId && row.type === 'task' && row.task.id === openTaskId) return 400
       return 44
@@ -174,7 +174,14 @@ export function UpcomingGroupedList({
                     transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
                   }}
                 >
-                  {row.label}
+                  {row.kind === 'day' ? (
+                    <>
+                      <span className="upcoming-day-number">{row.label.day}</span>
+                      <span className="upcoming-day-weekday">{row.label.weekday}</span>
+                    </>
+                  ) : (
+                    row.label
+                  )}
                 </li>
               )
             }
@@ -186,6 +193,7 @@ export function UpcomingGroupedList({
                   className="upcoming-spacer"
                   aria-hidden="true"
                   role="presentation"
+                  data-upcoming-header-kind={row.kind}
                   ref={(el) => {
                     if (!el) return
                     rowVirtualizer.measureElement(el)

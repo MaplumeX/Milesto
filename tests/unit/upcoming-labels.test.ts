@@ -9,12 +9,12 @@ import {
 describe('upcoming-labels', () => {
   it('formats day headers (en)', () => {
     const d = new Date(2026, 1, 13)
-    expect(formatUpcomingDayHeader(d, 'en')).toBe('2/13 Fri')
+    expect(formatUpcomingDayHeader(d, 'en')).toEqual({ day: '13', weekday: 'Fri' })
   })
 
   it('formats day headers (zh-CN)', () => {
     const d = new Date(2026, 1, 13)
-    expect(formatUpcomingDayHeader(d, 'zh-CN')).toBe('2.13 周五')
+    expect(formatUpcomingDayHeader(d, 'zh-CN')).toEqual({ day: '13', weekday: '周五' })
   })
 
   it('formats month headers (no range)', () => {
