@@ -374,8 +374,8 @@ export function TaskList({
   return (
     <div className="page">
       <header className="page-header">
-        <h1 className="page-title">{title}</h1>
-        <div className="row" style={{ marginTop: 0 }}>
+        <div className="page-header-left">
+          <h1 className="page-title">{title}</h1>
           {headerActions}
         </div>
       </header>

@@ -940,6 +940,13 @@ body {
   margin-bottom: 18px;
 }
 
+.page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .project-header-left {
   display: flex;
   align-items: center;
@@ -970,7 +977,7 @@ body {
 }
 
 .page-title-input {
-  width: 100%;
+  max-width: 100%;
   border: 0;
   background: transparent;
   padding: 0;
@@ -979,6 +986,16 @@ body {
   box-shadow: none;
   -webkit-appearance: none;
   appearance: none;
+}
+
+.page-title-measure {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  visibility: hidden;
+  white-space: pre;
+  font: inherit;
+  letter-spacing: inherit;
 }
 
 .page-title-input:focus {

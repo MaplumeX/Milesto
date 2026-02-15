@@ -38,8 +38,13 @@ export function ProjectPage() {
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
   const titleInputRef = useRef<HTMLInputElement | null>(null)
+  const titleMeasureRef = useRef<HTMLSpanElement | null>(null)
   const titleButtonRef = useRef<HTMLButtonElement | null>(null)
   const ignoreNextTitleBlurRef = useRef(false)
+  const [titleInputWidthPx, setTitleInputWidthPx] = useState<number | null>(null)
+
+  const titlePlaceholder = t('shell.projectTitlePlaceholder')
+  const titleMeasureText = titleDraft.length > 0 ? titleDraft : titlePlaceholder
 
   const hasUserInteractedRef = useRef(false)
   const consumedEditTitleForIdRef = useRef<string | null>(null)
@@ -161,6 +166,15 @@ export function ProjectPage() {
     })
     return () => window.cancelAnimationFrame(raf)
   }, [isEditingTitle])
+
+  useLayoutEffect(() => {
+    if (!isEditingTitle) return
+    const el = titleMeasureRef.current
+    if (!el) return
+    if (el.textContent !== titleMeasureText) el.textContent = titleMeasureText
+    const px = Math.ceil(el.getBoundingClientRect().width) + 2
+    setTitleInputWidthPx((prev) => (prev === px ? prev : px))
+  }, [isEditingTitle, titleMeasureText])
 
   useEffect(() => {
     function handleCreateSection(e: Event) {
@@ -355,37 +369,43 @@ export function ProjectPage() {
             <h1 className="page-title">
               {project ? (
                 isEditingTitle ? (
-                  <input
-                    ref={titleInputRef}
-                    className="page-title-input"
-                    value={titleDraft}
-                    placeholder={t('shell.projectTitlePlaceholder')}
-                    aria-label={t('aria.projectTitle')}
-                    onChange={(e) => setTitleDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      e.stopPropagation()
+                  <>
+                    <span ref={titleMeasureRef} className="page-title-measure" aria-hidden="true">
+                      {titleMeasureText}
+                    </span>
+                    <input
+                      ref={titleInputRef}
+                      className="page-title-input"
+                      style={titleInputWidthPx !== null ? { width: titleInputWidthPx } : undefined}
+                      value={titleDraft}
+                      placeholder={t('shell.projectTitlePlaceholder')}
+                      aria-label={t('aria.projectTitle')}
+                      onChange={(e) => setTitleDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        e.stopPropagation()
 
-                      if (e.key === 'Enter') {
-                        // Don't treat IME composition confirmation as a commit.
-                        if (e.nativeEvent.isComposing) return
-                        e.preventDefault()
+                        if (e.key === 'Enter') {
+                          // Don't treat IME composition confirmation as a commit.
+                          if (e.nativeEvent.isComposing) return
+                          e.preventDefault()
+                          void commitTitleEdit(titleDraft)
+                          return
+                        }
+
+                        if (e.key === 'Escape') {
+                          e.preventDefault()
+                          cancelTitleEdit()
+                        }
+                      }}
+                      onBlur={() => {
+                        if (ignoreNextTitleBlurRef.current) {
+                          ignoreNextTitleBlurRef.current = false
+                          return
+                        }
                         void commitTitleEdit(titleDraft)
-                        return
-                      }
-
-                      if (e.key === 'Escape') {
-                        e.preventDefault()
-                        cancelTitleEdit()
-                      }
-                    }}
-                    onBlur={() => {
-                      if (ignoreNextTitleBlurRef.current) {
-                        ignoreNextTitleBlurRef.current = false
-                        return
-                      }
-                      void commitTitleEdit(titleDraft)
-                    }}
-                  />
+                      }}
+                    />
+                  </>
                 ) : (
                   <button
                     ref={titleButtonRef}
