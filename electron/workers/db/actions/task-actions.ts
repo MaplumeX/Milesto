@@ -14,6 +14,10 @@ import {
   TaskUpdateInputSchema,
 } from '../../../../shared/schemas/task'
 import {
+  TaskRolloverScheduledToTodayInputSchema,
+  TaskRolloverScheduledToTodayResultSchema,
+} from '../../../../shared/schemas/task-rollover'
+import {
   TaskListAnytimeInputSchema,
   TaskCountProjectDoneInputSchema,
   TaskCountResultSchema,
@@ -82,6 +86,8 @@ function normalizeBucketFlags(input: {
 }
 
 export function createTaskActions(db: Database.Database): Record<string, DbActionHandler> {
+  const ROLLOVER_LAST_DATE_KEY = 'tasks.rollover.lastDate'
+
   return {
     'task.create': (payload) => {
       const parsedPayload = TaskCreateInputSchema.safeParse(payload)
@@ -409,6 +415,72 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       })
 
       return tx()
+    },
+
+    'task.rolloverScheduledToToday': (payload) => {
+      const parsed = TaskRolloverScheduledToTodayInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid task.rolloverScheduledToToday payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const today = parsed.data.today
+      const updatedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        const lastRow = db
+          .prepare('SELECT value FROM app_settings WHERE key = ? LIMIT 1')
+          .get(ROLLOVER_LAST_DATE_KEY) as { value?: unknown } | undefined
+        const lastDate = lastRow && typeof lastRow.value === 'string' ? lastRow.value : null
+
+        if (lastDate === today) {
+          const anyEligible = db
+            .prepare(
+              `SELECT 1 AS one
+               FROM tasks
+               WHERE deleted_at IS NULL
+                 AND status = 'open'
+                 AND scheduled_at IS NOT NULL
+                 AND scheduled_at < @today
+               LIMIT 1`
+            )
+            .get({ today }) as { one?: number } | undefined
+          if (!anyEligible) {
+            return { rolled_count: 0 }
+          }
+        }
+
+        const res = db
+          .prepare(
+            `UPDATE tasks
+             SET scheduled_at = @today,
+                 updated_at = @updated_at
+             WHERE deleted_at IS NULL
+               AND status = 'open'
+               AND scheduled_at IS NOT NULL
+               AND scheduled_at < @today`
+          )
+          .run({ today, updated_at: updatedAt })
+
+        db.prepare(
+          `INSERT INTO app_settings (key, value, updated_at)
+           VALUES (@key, @value, @updated_at)
+           ON CONFLICT(key) DO UPDATE SET
+             value = excluded.value,
+             updated_at = excluded.updated_at`
+        ).run({ key: ROLLOVER_LAST_DATE_KEY, value: today, updated_at: updatedAt })
+
+        return { rolled_count: res.changes }
+      })
+
+      const result = tx()
+      return { ok: true, data: TaskRolloverScheduledToTodayResultSchema.parse(result) }
     },
 
     'task.getDetail': (payload) => {

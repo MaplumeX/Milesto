@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import type { TaskSearchResultItem } from '../../shared/schemas/search'
 
-import { formatLocalDate } from '../lib/dates'
+import { getLocalToday, useLocalToday } from '../lib/use-local-today'
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 
 const UI_OPEN_SEARCH_PANEL_EVENT = 'milesto:ui.openSearchPanel'
@@ -21,7 +21,7 @@ export function SearchPanel() {
   const [results, setResults] = useState<TaskSearchResultItem[]>([])
   const [highlight, setHighlight] = useState(0)
 
-  const today = useMemo(() => formatLocalDate(new Date()), [])
+  const today = useLocalToday()
 
   function getTaskHint(item: TaskSearchResultItem): string {
     if (item.is_someday) return t('nav.someday')
@@ -39,10 +39,11 @@ export function SearchPanel() {
   }
 
   function jumpToTask(item: TaskSearchResultItem) {
+    const todayNow = getLocalToday()
     const to = (() => {
       if (item.status === 'done') return '/logbook'
-      if (item.scheduled_at === today) return '/today'
-      if (item.scheduled_at && item.scheduled_at > today) return '/upcoming'
+      if (item.scheduled_at === todayNow) return '/today'
+      if (item.scheduled_at && item.scheduled_at > todayNow) return '/upcoming'
       if (item.project_id) return `/projects/${item.project_id}`
       if (item.is_inbox) return '/inbox'
       if (item.is_someday) return '/someday'

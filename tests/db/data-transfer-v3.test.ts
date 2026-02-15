@@ -8,7 +8,7 @@ import type { DbWorkerRequest } from '../../shared/db-worker-protocol'
 import type { DataExportV2, DataExportV3 } from '../../shared/schemas/data-transfer'
 
 type Ok<T> = { ok: true; data: T }
-type Err = { ok: false; error: { code: string } }
+type Err = { ok: false; error: { code: string; message: string; details?: unknown } }
 type Res<T> = Ok<T> | Err
 
 describe('Data transfer v3 (project/area tags)', () => {
@@ -100,8 +100,11 @@ describe('Data transfer v3 (project/area tags)', () => {
       area_tags: Array<{ area_id: string; tag_id: string; position: number }>
     }>
 
-    expect(exported.ok).toBe(true)
-    if (!exported.ok) return
+    if (!exported.ok) {
+      throw new Error(
+        `data.export failed: ${exported.error.code}: ${exported.error.message} details=${JSON.stringify(exported.error.details)}`
+      )
+    }
 
     expect(exported.data.schema_version).toBe(3)
     expect(Array.isArray(exported.data.project_tags)).toBe(true)
@@ -135,6 +138,7 @@ describe('Data transfer v3 (project/area tags)', () => {
           area_id: null,
           status: 'open',
           scheduled_at: null,
+          is_someday: false,
           due_at: null,
           created_at: '2026-01-01T00:00:00.000Z',
           updated_at: '2026-01-01T00:00:00.000Z',
@@ -193,6 +197,7 @@ describe('Data transfer v3 (project/area tags)', () => {
           area_id: null,
           status: 'open',
           scheduled_at: null,
+          is_someday: false,
           due_at: null,
           created_at: '2026-01-01T00:00:00.000Z',
           updated_at: '2026-01-01T00:00:00.000Z',
@@ -306,6 +311,7 @@ describe('Data transfer v3 (project/area tags)', () => {
           area_id: null,
           status: 'open',
           scheduled_at: null,
+          is_someday: false,
           due_at: null,
           created_at: '2026-01-01T00:00:00.000Z',
           updated_at: '2026-01-01T00:00:00.000Z',

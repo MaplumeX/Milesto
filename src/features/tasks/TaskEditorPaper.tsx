@@ -12,6 +12,7 @@ import type { TaskDetail } from '../../../shared/schemas/task-detail'
 import type { TaskUpdateInput } from '../../../shared/schemas/task'
 
 import { formatLocalDate, parseLocalDate } from '../../lib/dates'
+import { getLocalToday, useLocalToday } from '../../lib/use-local-today'
 
 type Draft = {
   title: string
@@ -256,7 +257,7 @@ export const TaskEditorPaper = forwardRef<
     const [areas, setAreas] = useState<Area[]>([])
     const [tags, setTags] = useState<Tag[]>([])
 
-    const today = useMemo(() => formatLocalDate(new Date()), [])
+    const today = useLocalToday()
 
     const saveDebounceRef = useRef<number | null>(null)
     const pendingSnapshotRef = useRef<Draft | null>(null)
@@ -992,7 +993,7 @@ export const TaskEditorPaper = forwardRef<
                     type="button"
                     className="button button-ghost"
                     onClick={() => {
-                      const next = { ...draft, scheduled_at: today, is_someday: false, is_inbox: false }
+                      const next = { ...draft, scheduled_at: getLocalToday(), is_someday: false, is_inbox: false }
                       setDraft(next)
                       scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
                       closeActivePicker({ restoreFocus: true })
@@ -1505,7 +1506,7 @@ export const TaskEditorPaper = forwardRef<
                 type="button"
                 className="button button-ghost"
                 onClick={() => {
-                  const next = { ...draft, scheduled_at: today }
+                  const next = { ...draft, scheduled_at: getLocalToday() }
                   setDraft(next)
                   scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
                 }}

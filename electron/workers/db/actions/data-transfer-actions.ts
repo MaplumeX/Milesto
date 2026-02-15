@@ -151,17 +151,17 @@ export function createDataTransferActions(db: Database.Database): Record<string,
             .all() as unknown[]
         )
 
-      const listPositions = z
-        .array(ListPositionSchema)
-        .parse(
-          db
-            .prepare(
-              `SELECT list_id, task_id, rank, updated_at
-               FROM list_positions lp
-               JOIN tasks t ON t.id = lp.task_id AND t.deleted_at IS NULL`
-            )
-            .all()
-        )
+       const listPositions = z
+         .array(ListPositionSchema)
+         .parse(
+           db
+             .prepare(
+               `SELECT lp.list_id, lp.task_id, lp.rank, lp.updated_at AS updated_at
+                FROM list_positions lp
+                JOIN tasks t ON t.id = lp.task_id AND t.deleted_at IS NULL`
+              )
+             .all()
+         )
 
       const exportData = DataExportSchema.parse({
         schema_version: 3,

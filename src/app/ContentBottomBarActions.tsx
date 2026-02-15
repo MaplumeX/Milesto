@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { DayPicker } from 'react-day-picker'
 import { useTranslation } from 'react-i18next'
@@ -8,6 +8,7 @@ import type { Project } from '../../shared/schemas/project'
 import type { TaskUpdateInput } from '../../shared/schemas/task'
 
 import { formatLocalDate } from '../lib/dates'
+import { getLocalToday } from '../lib/use-local-today'
 
 const UI_OPEN_SEARCH_PANEL_EVENT = 'milesto:ui.openSearchPanel'
 
@@ -49,7 +50,6 @@ export function ContentBottomBarActions({
   const [actionError, setActionError] = useState<string | null>(null)
 
   const isTaskSelected = taskId !== null
-  const today = useMemo(() => formatLocalDate(new Date()), [])
 
   const closePopover = useCallback((opts?: { restoreFocus?: boolean }) => {
     const cur = activePopoverRef.current
@@ -235,7 +235,9 @@ export function ContentBottomBarActions({
                 <button
                   type="button"
                   className="button button-ghost"
-                  onClick={() => void updateSelectedTask({ is_someday: false, scheduled_at: today, is_inbox: false })}
+                  onClick={() =>
+                    void updateSelectedTask({ is_someday: false, scheduled_at: getLocalToday(), is_inbox: false })
+                  }
                 >
                   {t('nav.today')}
                 </button>

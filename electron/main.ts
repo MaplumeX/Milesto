@@ -56,6 +56,8 @@ import {
   TaskListSomedayInputSchema,
   TaskListTodayInputSchema,
   TaskListUpcomingInputSchema,
+  TaskRolloverScheduledToTodayInputSchema,
+  TaskRolloverScheduledToTodayResultSchema,
   AreaCreateInputSchema,
   AreaSetTagsInputSchema,
   AreaSchema,
@@ -218,6 +220,13 @@ function resolveEffectiveTheme(preference: ThemePreference): EffectiveTheme {
 function getWindowBackgroundColor(effectiveTheme: EffectiveTheme): string {
   // Match the renderer's base --bg token to reduce first-paint flash.
   return effectiveTheme === 'dark' ? '#0f1114' : '#f7f6f3'
+}
+
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 async function loadThemePreference(dbWorker: DbWorkerClient): Promise<ThemePreference> {
@@ -887,6 +896,29 @@ if (!gotTheLock) {
     })
 
     const themeState = await resolveThemeState(dbWorker)
+
+    const today = TaskRolloverScheduledToTodayInputSchema.parse({ today: formatLocalDate(new Date()) }).today
+    const rolloverRes = await dbWorker.request('task.rolloverScheduledToToday', { today })
+    if (!rolloverRes.ok) {
+      const msg = `startup rollover failed: ${rolloverRes.error.code}: ${rolloverRes.error.message}`
+      if (IS_SELF_TEST) {
+        console.error('[MILESTO_SELF_TEST]', msg)
+        app.exit(1)
+        return
+      }
+      console.error('[milesto]', msg)
+    } else {
+      const parsed = TaskRolloverScheduledToTodayResultSchema.safeParse(rolloverRes.data)
+      if (!parsed.success) {
+        const msg = 'startup rollover returned invalid data'
+        if (IS_SELF_TEST) {
+          console.error('[MILESTO_SELF_TEST]', msg)
+          app.exit(1)
+          return
+        }
+        console.error('[milesto]', msg)
+      }
+    }
 
     registerIpcHandlers(dbWorker)
     installCspOnce()
