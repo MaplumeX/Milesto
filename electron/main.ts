@@ -47,6 +47,8 @@ import {
   TaskUpdateInputSchema,
   TaskListAnytimeInputSchema,
   TaskCountProjectDoneInputSchema,
+  TaskCountProjectsProgressInputSchema,
+  TaskCountProjectsProgressResultSchema,
   TaskCountResultSchema,
   TaskListInboxInputSchema,
   TaskListItemSchema,
@@ -781,6 +783,12 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     'task.countProjectDone',
     TaskCountProjectDoneInputSchema,
     TaskCountResultSchema
+  )
+  handleDb(
+    'db:task.countProjectsProgress',
+    'task.countProjectsProgress',
+    TaskCountProjectsProgressInputSchema,
+    TaskCountProjectsProgressResultSchema
   )
   handleDb(
     'db:task.listProjectDone',

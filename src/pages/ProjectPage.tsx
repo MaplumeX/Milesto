@@ -11,6 +11,7 @@ import type { Project, ProjectSection } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
 import type { TaskListItem } from '../../shared/schemas/task-list'
 import { useAppEvents } from '../app/AppEventsContext'
+import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
 import { ProjectGroupedList } from '../features/tasks/ProjectGroupedList'
 import { formatLocalDate, parseLocalDate } from '../lib/dates'
 
@@ -342,29 +343,39 @@ export function ProjectPage() {
         <div className="page">
           <header className="page-header">
             <div className="project-header-left">
-            {project ? (
-              <label className="task-checkbox" aria-label={t('aria.markProjectDone')}>
-                <input
-                  type="checkbox"
-                  checked={project.status === 'done'}
-                  disabled={project.status === 'done'}
-                  onChange={() => {
+              {project ? (
+                <ProjectProgressControl
+                  status={project.status}
+                  doneCount={doneCount}
+                  totalCount={openCount + doneCount}
+                  size="header"
+                  onActivate={async () => {
                     if (!project) return
-                    const confirmed = confirm(t('project.completeConfirm', { count: openCount }))
-                    if (!confirmed) return
 
-                    void (async () => {
-                      const res = await window.api.project.complete(project.id)
+                    if (project.status === 'done') {
+                      const res = await window.api.project.update({ id: project.id, status: 'open' })
                       if (!res.ok) {
                         setError(res.error)
                         return
                       }
                       bumpRevision()
                       await refresh()
-                    })()
+                      return
+                    }
+
+                    const confirmed = confirm(t('project.completeConfirm', { count: openCount }))
+                    if (!confirmed) return
+
+                    const res = await window.api.project.complete(project.id)
+                    if (!res.ok) {
+                      setError(res.error)
+                      return
+                    }
+
+                    bumpRevision()
+                    await refresh()
                   }}
                 />
-              </label>
               ) : null}
             <h1 className="page-title">
               {project ? (

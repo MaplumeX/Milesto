@@ -206,6 +206,34 @@ body {
   margin-left: 10px;
 }
 
+.nav-project-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.nav-project-header.is-indent {
+  margin-left: 10px;
+}
+
+.nav-project-header:hover .nav-project-row:not(.is-active),
+.nav-project-header:focus-within .nav-project-row:not(.is-active) {
+  background: var(--wash);
+}
+
+.nav-project-row {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.nav-project-progress {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+}
+
 .nav-area {
   margin-top: 8px;
 }
@@ -1445,6 +1473,67 @@ body {
 .task-checkbox input {
   width: 16px;
   height: 16px;
+}
+
+.project-progress-control {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 1px 0 var(--shadow);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.project-progress-control[data-size='header'] {
+  width: 32px;
+  height: 32px;
+}
+
+.project-progress-control[data-progress='partial'] {
+  background: conic-gradient(
+    from -90deg,
+    var(--wash-strong) 0deg,
+    var(--wash-strong) var(--ppc-angle),
+    transparent 0deg
+  );
+}
+
+.project-progress-control[data-progress='full'] {
+  background: var(--wash-strong);
+}
+
+.project-progress-control.is-done {
+  border-color: transparent;
+  background: var(--text);
+  color: var(--bg);
+}
+
+.project-progress-control:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.project-progress-control:hover:not(:disabled) {
+  border-color: var(--rdp-selected-border-color);
+}
+
+.project-progress-control:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-progress-control {
+    transition: none;
+  }
 }
 
 .task-title {

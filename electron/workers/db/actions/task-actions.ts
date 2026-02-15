@@ -20,6 +20,8 @@ import {
 import {
   TaskListAnytimeInputSchema,
   TaskCountProjectDoneInputSchema,
+  TaskCountProjectsProgressInputSchema,
+  TaskCountProjectsProgressResultSchema,
   TaskCountResultSchema,
   TaskListInboxInputSchema,
   TaskListItemSchema,
@@ -819,6 +821,60 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         .get({ project_id: parsed.data.project_id }) as { count: number }
 
       return { ok: true, data: TaskCountResultSchema.parse({ count: row.count }) }
+    },
+
+    'task.countProjectsProgress': (payload) => {
+      const parsed = TaskCountProjectsProgressInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid task.countProjectsProgress payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const uniqueProjectIds: string[] = []
+      const seen = new Set<string>()
+      for (const id of parsed.data.project_ids) {
+        if (seen.has(id)) continue
+        seen.add(id)
+        uniqueProjectIds.push(id)
+      }
+
+      if (uniqueProjectIds.length === 0) {
+        return { ok: true, data: TaskCountProjectsProgressResultSchema.parse([]) }
+      }
+
+      const placeholders = uniqueProjectIds.map(() => '?').join(', ')
+      const rows = db
+        .prepare(
+          `SELECT
+             project_id,
+             COUNT(1) AS total_count,
+             COALESCE(SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END), 0) AS done_count
+           FROM tasks
+           WHERE deleted_at IS NULL
+             AND project_id IN (${placeholders})
+             AND status IN ('open', 'done')
+           GROUP BY project_id`
+        )
+        .all(...uniqueProjectIds) as unknown[]
+
+      const parsedRows = TaskCountProjectsProgressResultSchema.parse(rows)
+      const byProjectId = new Map<string, { total_count: number; done_count: number }>()
+      for (const row of parsedRows) {
+        byProjectId.set(row.project_id, { total_count: row.total_count, done_count: row.done_count })
+      }
+
+      const result = uniqueProjectIds.map((projectId) => {
+        const counts = byProjectId.get(projectId) ?? { total_count: 0, done_count: 0 }
+        return { project_id: projectId, total_count: counts.total_count, done_count: counts.done_count }
+      })
+
+      return { ok: true, data: TaskCountProjectsProgressResultSchema.parse(result) }
     },
 
     'task.listProjectDone': (payload) => {

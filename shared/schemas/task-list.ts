@@ -52,6 +52,22 @@ export const TaskCountResultSchema = z.object({
 
 export type TaskCountResult = z.infer<typeof TaskCountResultSchema>
 
+export const TaskCountProjectsProgressInputSchema = z.object({
+  project_ids: z.array(IdSchema),
+})
+
+export const TaskProjectsProgressCountSchema = z.object({
+  project_id: IdSchema,
+  total_count: z.number().int().nonnegative(),
+  done_count: z.number().int().nonnegative(),
+})
+
+export type TaskProjectsProgressCount = z.infer<typeof TaskProjectsProgressCountSchema>
+
+export const TaskCountProjectsProgressResultSchema = z.array(TaskProjectsProgressCountSchema)
+
+export type TaskCountProjectsProgressResult = z.infer<typeof TaskCountProjectsProgressResultSchema>
+
 export const TaskListProjectDoneInputSchema = z.object({
   project_id: IdSchema,
 })

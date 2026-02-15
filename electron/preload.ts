@@ -46,6 +46,8 @@ const api: WindowApi = {
     listLogbook: () => invoke('db:task.listLogbook', {}),
     listProject: (projectId) => invoke('db:task.listProject', { project_id: projectId }),
     countProjectDone: (projectId) => invoke('db:task.countProjectDone', { project_id: projectId }),
+    countProjectsProgress: (projectIds) =>
+      invoke('db:task.countProjectsProgress', { project_ids: projectIds }),
     listProjectDone: (projectId) => invoke('db:task.listProjectDone', { project_id: projectId }),
     listArea: (areaId) => invoke('db:task.listArea', { area_id: areaId }),
 

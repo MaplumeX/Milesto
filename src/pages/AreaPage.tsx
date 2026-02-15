@@ -12,6 +12,7 @@ import type { TaskListItem } from '../../shared/schemas/task-list'
 import { taskListIdArea } from '../../shared/task-list-ids'
 
 import { useAppEvents } from '../app/AppEventsContext'
+import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
 import { TaskList } from '../features/tasks/TaskList'
 
 export function AreaPage() {
@@ -25,6 +26,7 @@ export function AreaPage() {
   const [area, setArea] = useState<Area | null>(null)
   const [areaTags, setAreaTags] = useState<Tag[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [projectProgress, setProjectProgress] = useState<Record<string, { done_count: number; total_count: number }>>({})
   const [tasks, setTasks] = useState<TaskListItem[]>([])
   const [error, setError] = useState<AppError | null>(null)
 
@@ -79,10 +81,22 @@ export function AreaPage() {
       return
     }
 
+    const projectIds = projectsRes.data.map((p) => p.id)
+    const progressRes = projectIds.length > 0 ? await window.api.task.countProjectsProgress(projectIds) : null
+    if (progressRes && !progressRes.ok) {
+      setError(progressRes.error)
+      return
+    }
+
     setError(null)
     setArea(areaRes.data.area)
     setAreaTags(areaRes.data.tags)
     setProjects(projectsRes.data)
+    const nextProgress: Record<string, { done_count: number; total_count: number }> = {}
+    for (const row of progressRes?.data ?? []) {
+      nextProgress[row.project_id] = { done_count: row.done_count, total_count: row.total_count }
+    }
+    setProjectProgress(nextProgress)
     setTasks(tasksRes.data)
   }, [aid])
 
@@ -375,6 +389,39 @@ export function AreaPage() {
         <ul className="task-list">
           {sortedProjects.map((p) => (
             <li key={p.id} className="task-row">
+              <ProjectProgressControl
+                status={p.status}
+                doneCount={projectProgress[p.id]?.done_count ?? 0}
+                totalCount={projectProgress[p.id]?.total_count ?? 0}
+                size="list"
+                disabled={!projectProgress[p.id]}
+                onActivate={async () => {
+                  if (!area) return
+                  const counts = projectProgress[p.id]
+                  if (!counts) return
+
+                  if (p.status === 'done') {
+                    const res = await window.api.project.update({ id: p.id, status: 'open' })
+                    if (!res.ok) {
+                      setError(res.error)
+                      return
+                    }
+                    await mutateAndRefresh()
+                    return
+                  }
+
+                  const openCount = Math.max(0, counts.total_count - counts.done_count)
+                  const confirmed = confirm(t('project.completeConfirm', { count: openCount }))
+                  if (!confirmed) return
+
+                  const res = await window.api.project.complete(p.id)
+                  if (!res.ok) {
+                    setError(res.error)
+                    return
+                  }
+                  await mutateAndRefresh()
+                }}
+              />
               <NavLink className={`nav-item${p.title.trim() ? '' : ' is-placeholder'}`} to={`/projects/${p.id}`}>
                 {p.title.trim() ? p.title : t('project.untitled')}
               </NavLink>

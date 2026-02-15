@@ -7,10 +7,11 @@ import type { TaskListItem } from '../../shared/schemas/task-list'
 import { TaskList } from '../features/tasks/TaskList'
 import { useAppEvents } from '../app/AppEventsContext'
 import { NavLink } from 'react-router-dom'
+import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
 
 export function LogbookPage() {
   const { t } = useTranslation()
-  const { revision } = useAppEvents()
+  const { revision, bumpRevision } = useAppEvents()
   const [tasks, setTasks] = useState<TaskListItem[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [error, setError] = useState<AppError | null>(null)
@@ -61,6 +62,21 @@ export function LogbookPage() {
         <ul className="task-list">
           {projects.map((p) => (
             <li key={p.id} className="task-row">
+              <ProjectProgressControl
+                status={p.status}
+                doneCount={0}
+                totalCount={0}
+                size="list"
+                onActivate={async () => {
+                  const res = await window.api.project.update({ id: p.id, status: 'open' })
+                  if (!res.ok) {
+                    setError(res.error)
+                    return
+                  }
+                  bumpRevision()
+                  await refresh()
+                }}
+              />
               <NavLink className={`nav-item${p.title.trim() ? '' : ' is-placeholder'}`} to={`/projects/${p.id}`}>
                 {p.title.trim() ? p.title : t('project.untitled')}
               </NavLink>

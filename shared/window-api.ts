@@ -19,7 +19,7 @@ import type {
 import type { ProjectDetail } from './schemas/project-detail'
 import type { Tag, TagCreateInput, TagUpdateInput } from './schemas/tag'
 import type { Task, TaskCreateInput, TaskUpdateInput } from './schemas/task'
-import type { TaskCountResult, TaskListItem } from './schemas/task-list'
+import type { TaskCountProjectsProgressResult, TaskCountResult, TaskListItem } from './schemas/task-list'
 import type { TaskSearchResultItem } from './schemas/search'
 import type { TaskDetail } from './schemas/task-detail'
 import type { ThemePreference, ThemeState } from './schemas/theme'
@@ -89,6 +89,7 @@ export type WindowApi = {
     listLogbook(): Promise<Result<TaskListItem[]>>
     listProject(projectId: string): Promise<Result<TaskListItem[]>>
     countProjectDone(projectId: string): Promise<Result<TaskCountResult>>
+    countProjectsProgress(projectIds: string[]): Promise<Result<TaskCountProjectsProgressResult>>
     listProjectDone(projectId: string): Promise<Result<TaskListItem[]>>
     listArea(areaId: string): Promise<Result<TaskListItem[]>>
 

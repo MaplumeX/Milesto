@@ -60,6 +60,7 @@ export function createWindowApiMock(): WindowApi {
       listLogbook: vi.fn<WindowApi['task']['listLogbook']>(async () => ok([])),
       listProject: vi.fn<WindowApi['task']['listProject']>(async () => ok([])),
       countProjectDone: vi.fn<WindowApi['task']['countProjectDone']>(async () => ok({ count: 0 })),
+      countProjectsProgress: vi.fn<WindowApi['task']['countProjectsProgress']>(async () => ok([])),
       listProjectDone: vi.fn<WindowApi['task']['listProjectDone']>(async () => ok([])),
       listArea: vi.fn<WindowApi['task']['listArea']>(async () => ok([])),
 
@@ -75,6 +76,7 @@ export function createWindowApiMock(): WindowApi {
       getDetail: vi.fn<WindowApi['project']['getDetail']>(async () => err(unimplementedError)),
       update: vi.fn<WindowApi['project']['update']>(async () => err(unimplementedError)),
       complete: vi.fn<WindowApi['project']['complete']>(async () => err(unimplementedError)),
+      delete: vi.fn<WindowApi['project']['delete']>(async () => err(unimplementedError)),
       listOpen: vi.fn<WindowApi['project']['listOpen']>(async () => ok([])),
       listDone: vi.fn<WindowApi['project']['listDone']>(async () => ok([])),
       listOpenByArea: vi.fn<WindowApi['project']['listOpenByArea']>(async () => ok([])),

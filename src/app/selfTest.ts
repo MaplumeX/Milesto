@@ -368,7 +368,13 @@ function findSidebarAreaCollapseButton(areaId: string): HTMLButtonElement | null
 
 function findSidebarProjectHandle(projectId: string): HTMLElement | null {
   return document.querySelector<HTMLElement>(
-    `.nav a.nav-item[data-sidebar-dnd-kind="project"][data-sidebar-dnd-id="project:${projectId}"]`
+    `.nav .nav-project-header[data-sidebar-dnd-kind="project"][data-sidebar-dnd-id="project:${projectId}"] [data-sidebar-row-activator="true"]`
+  )
+}
+
+function findSidebarProjectProgressControl(projectId: string): HTMLButtonElement | null {
+  return document.querySelector<HTMLButtonElement>(
+    `.nav .nav-project-header[data-sidebar-dnd-kind="project"][data-sidebar-dnd-id="project:${projectId}"] button.project-progress-control`
   )
 }
 
@@ -2416,19 +2422,21 @@ async function runSelfTest(): Promise<SelfTestResult> {
       findTaskButton(projectDoneRes.data.id) ? null : true
     )
 
-    // Project completion requires confirmation; auto-accept during self-test.
-    const prevConfirm = window.confirm
-    ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = () => true
-    try {
-      const projectDoneCheckbox = await waitFor('Project done checkbox', () =>
-        document.querySelector<HTMLInputElement>('.page-header input[type="checkbox"]')
+      // Project completion requires confirmation; auto-accept during self-test.
+      const prevConfirm = window.confirm
+      ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = () => true
+      try {
+      const projectProgressControl = await waitFor('Project progress control (header)', () =>
+        document.querySelector<HTMLButtonElement>('.page-header button.project-progress-control')
       )
 
-      projectDoneCheckbox.click()
+      projectProgressControl.click()
 
-      await waitFor('Project checkbox checked + disabled', () => {
-        const cb = document.querySelector<HTMLInputElement>('.page-header input[type="checkbox"]')
-        return cb && cb.checked && cb.disabled ? cb : null
+      await waitFor('Project progress control done state (post complete)', () => {
+        const btn = document.querySelector<HTMLButtonElement>('.page-header button.project-progress-control')
+        if (!btn) return null
+        if (!btn.classList.contains('is-done')) return null
+        return btn.getAttribute('data-progress') === 'done' ? btn : null
       })
 
       // Open tasks should disappear (they were completed).
@@ -2477,20 +2485,70 @@ async function runSelfTest(): Promise<SelfTestResult> {
         findTaskButton(projectOpenSection2Res.data.id)
       )
 
-      // Reopen via overflow menu (project status only; tasks remain done).
-      const menuButton = await waitFor('Project overflow menu button', () =>
-        findButtonByText(document, '...')
-      )
-      menuButton.click()
+      window.location.hash = '/logbook'
+      await waitFor('Logbook title (for project reopen)', () => {
+        const h = document.querySelector<HTMLElement>('h1.page-title')
+        return h && (h.textContent ?? '').trim() === 'Logbook' ? true : null
+      })
 
-      const reopenButton = await waitFor('Project reopen button', () =>
-        findButtonByText(document, 'Reopen')
-      )
-      reopenButton.click()
+      const logbookProjectLink = await waitFor('Logbook: completed project link', () => {
+        const byExactHref = contentScroller.querySelector<HTMLAnchorElement>(
+          `a.nav-item[href="#/projects/${projectId}"]`
+        )
+        if (byExactHref) return byExactHref
 
-      await waitFor('Project checkbox unchecked + enabled after reopen', () => {
-        const cb = document.querySelector<HTMLInputElement>('.page-header input[type="checkbox"]')
-        return cb && !cb.checked && !cb.disabled ? cb : null
+        const all = Array.from(contentScroller.querySelectorAll<HTMLAnchorElement>('a.nav-item'))
+        return all.find((a) => (a.getAttribute('href') ?? '').includes(`/projects/${projectId}`)) ?? null
+      })
+
+      const logbookRow = logbookProjectLink.closest<HTMLElement>('li.task-row')
+      if (!logbookRow) throw new Error('Logbook: missing completed project row')
+
+      const logbookReopenControl = logbookRow.querySelector<HTMLButtonElement>('button.project-progress-control')
+      if (!logbookReopenControl) throw new Error('Logbook: missing completed project progress control')
+      logbookReopenControl.click()
+
+      await waitFor('Logbook: completed project removed after reopen', () => {
+        const byExactHref = contentScroller.querySelector<HTMLAnchorElement>(
+          `a.nav-item[href="#/projects/${projectId}"]`
+        )
+        if (byExactHref) return null
+        const all = Array.from(contentScroller.querySelectorAll<HTMLAnchorElement>('a.nav-item'))
+        return all.some((a) => (a.getAttribute('href') ?? '').includes(`/projects/${projectId}`)) ? null : true
+      })
+
+      window.location.hash = `/projects/${projectId}`
+      await waitFor('Project listbox (after logbook reopen)', () =>
+        document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Project tasks"]')
+      )
+
+      await waitFor('Project progress control full (post logbook reopen)', () => {
+        const btn = document.querySelector<HTMLButtonElement>('.page-header button.project-progress-control')
+        if (!btn) return null
+        if (btn.classList.contains('is-done')) return null
+        return btn.getAttribute('data-progress') === 'full' ? btn : null
+      })
+
+      const headerProgressControl = await waitFor('Project progress control (header, for reopen)', () =>
+        document.querySelector<HTMLButtonElement>('.page-header button.project-progress-control')
+      )
+      headerProgressControl.click()
+      await waitFor('Project progress control done state (second complete)', () => {
+        const btn = document.querySelector<HTMLButtonElement>('.page-header button.project-progress-control')
+        if (!btn) return null
+        if (!btn.classList.contains('is-done')) return null
+        return btn.getAttribute('data-progress') === 'done' ? btn : null
+      })
+
+      const headerProgressControlDone = await waitFor('Project progress control (header, done -> reopen)', () =>
+        document.querySelector<HTMLButtonElement>('.page-header button.project-progress-control.is-done')
+      )
+      headerProgressControlDone.click()
+      await waitFor('Project progress control full (post header reopen)', () => {
+        const btn = document.querySelector<HTMLButtonElement>('.page-header button.project-progress-control')
+        if (!btn) return null
+        if (btn.classList.contains('is-done')) return null
+        return btn.getAttribute('data-progress') === 'full' ? btn : null
       })
 
       // Reopening changes the project status only; tasks should remain done.
@@ -2960,9 +3018,15 @@ async function runSelfTest(): Promise<SelfTestResult> {
       }
 
       // Keyboard reorder projects within Area A: move A2 down by one (back to A1 then A2).
-      sidebarProjectA2Handle.focus()
-      await waitFor('Sidebar: project A2 focused (for keyboard reorder)', () => (document.activeElement === sidebarProjectA2Handle ? true : null))
-      dispatchKey(sidebarProjectA2Handle, 'ArrowDown', { metaKey: true, ctrlKey: true, shiftKey: true })
+      const sidebarProjectA2Progress = await waitFor('Sidebar: project A2 progress control', () => {
+        const btn = findSidebarProjectProgressControl(sidebarProjectA2Id)
+        return btn && !btn.disabled ? btn : null
+      })
+      sidebarProjectA2Progress.focus()
+      await waitFor('Sidebar: project A2 progress focused (for keyboard reorder)', () =>
+        document.activeElement === sidebarProjectA2Progress ? true : null
+      )
+      dispatchKey(sidebarProjectA2Progress, 'ArrowDown', { metaKey: true, ctrlKey: true, shiftKey: true })
 
       let sidebarProjectKeyOk = false
       for (let i = 0; i < 30; i++) {
@@ -3040,7 +3104,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
 
         const emptyGroup = await waitFor('Sidebar: empty area group', () => findSidebarAreaGroup(sidebarAreaEmptyId))
         const stillThere = emptyGroup.querySelector<HTMLElement>(
-          `a[data-sidebar-dnd-kind="project"][data-sidebar-dnd-id="project:${sidebarProjectUnassignedId}"]`
+          `.nav-project-header[data-sidebar-dnd-kind="project"][data-sidebar-dnd-id="project:${sidebarProjectUnassignedId}"]`
         )
         if (!stillThere) {
           throw new Error('Sidebar: expected UI to rollback moved project back to empty area group after failure')
@@ -3357,8 +3421,15 @@ async function runSidebarSelfTest(): Promise<SelfTestResult> {
       throw new Error(`Sidebar suite: expected A2 before A1 after pointer project reorder (${lastProjectDebug})`)
     }
 
-    projectA2Handle.focus()
-    dispatchKey(projectA2Handle, 'ArrowDown', { metaKey: true, ctrlKey: true, shiftKey: true })
+    const projectA2Progress = await waitFor('Sidebar suite: project A2 progress control', () => {
+      const btn = findSidebarProjectProgressControl(projectA2Id)
+      return btn && !btn.disabled ? btn : null
+    })
+    projectA2Progress.focus()
+    await waitFor('Sidebar suite: project A2 progress focused (for keyboard reorder)', () =>
+      document.activeElement === projectA2Progress ? true : null
+    )
+    dispatchKey(projectA2Progress, 'ArrowDown', { metaKey: true, ctrlKey: true, shiftKey: true })
     let keyProjectOk = false
     for (let i = 0; i < 30; i++) {
       const res = await window.api.sidebar.listModel()
@@ -3436,9 +3507,11 @@ async function runProjectSelfTest(): Promise<SelfTestResult> {
       )
       markDoneBtn.click()
 
-      await waitFor('Project checkbox checked + disabled after complete (project self-test)', () => {
-        const cb = document.querySelector<HTMLInputElement>('.page-header input[type="checkbox"]')
-        return cb && cb.checked && cb.disabled ? cb : null
+      await waitFor('Project progress control done state after complete (project self-test)', () => {
+        const btn = document.querySelector<HTMLButtonElement>('.page-header button.project-progress-control')
+        if (!btn) return null
+        if (!btn.classList.contains('is-done')) return null
+        return btn.getAttribute('data-progress') === 'done' ? btn : null
       })
 
       // Reopen should not reopen tasks.
@@ -3451,9 +3524,11 @@ async function runProjectSelfTest(): Promise<SelfTestResult> {
         findButtonByText(menu2, 'Reopen')
       )
       reopenBtn.click()
-      await waitFor('Project checkbox unchecked + enabled after reopen (project self-test)', () => {
-        const cb = document.querySelector<HTMLInputElement>('.page-header input[type="checkbox"]')
-        return cb && !cb.checked && !cb.disabled ? cb : null
+      await waitFor('Project progress control full after reopen (project self-test)', () => {
+        const btn = document.querySelector<HTMLButtonElement>('.page-header button.project-progress-control')
+        if (!btn) return null
+        if (btn.classList.contains('is-done')) return null
+        return btn.getAttribute('data-progress') === 'full' ? btn : null
       })
 
       const openAfterReopen = await window.api.task.listProject(projectId)
