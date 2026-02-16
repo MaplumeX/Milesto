@@ -3739,25 +3739,19 @@ async function runProjectSelfTest(): Promise<SelfTestResult> {
         }
 
         function findAreaProjectRowByTitle(title: string): HTMLElement | null {
-          const sectionTitle = Array.from(document.querySelectorAll<HTMLElement>('.sections-title')).find(
-            (el) => (el.textContent ?? '').trim() === 'Projects'
+          const root = document.querySelector<HTMLElement>('[data-area-projects="true"]')
+          if (!root) return null
+          const btn = Array.from(root.querySelectorAll<HTMLButtonElement>('button[data-area-project-id]')).find((b) =>
+            (b.textContent ?? '').includes(title)
           )
-          const page = sectionTitle?.closest<HTMLElement>('.page') ?? null
-          if (!page) return null
-          const link = Array.from(page.querySelectorAll<HTMLAnchorElement>('a.nav-item')).find((a) =>
-            (a.textContent ?? '').includes(title)
-          )
-          return link?.closest<HTMLElement>('li.task-row') ?? null
+          return btn?.closest<HTMLElement>('li.task-row') ?? null
         }
 
         window.location.hash = `/areas/${areaId}`
 
-        await waitFor('Area projects section (progress surfaces)', () => {
-          const sectionTitle = Array.from(document.querySelectorAll<HTMLElement>('.sections-title')).find(
-            (el) => (el.textContent ?? '').trim() === 'Projects'
-          )
-          return sectionTitle ? true : null
-        })
+        await waitFor('Area project row (progress surfaces)', () =>
+          findAreaProjectRowByTitle(progressProjectTitle) ? true : null
+        )
 
         const partialBtn = await waitFor('Area project progress partial (progress surfaces)', () => {
           const row = findAreaProjectRowByTitle(progressProjectTitle)

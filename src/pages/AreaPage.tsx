@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ForwardedRef, RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import { NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
@@ -29,6 +29,8 @@ export function AreaPage() {
   const [projectProgress, setProjectProgress] = useState<Record<string, { done_count: number; total_count: number }>>({})
   const [tasks, setTasks] = useState<TaskListItem[]>([])
   const [error, setError] = useState<AppError | null>(null)
+
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
 
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -115,6 +117,7 @@ export function AreaPage() {
     void aid
     setIsEditingTitle(false)
     setIsMenuOpen(false)
+    setSelectedProjectId(null)
     ignoreNextTitleBlurRef.current = false
     hasUserInteractedRef.current = false
     consumedEditTitleForIdRef.current = null
@@ -227,6 +230,77 @@ export function AreaPage() {
     )
   }, [projects, projectUntitled])
 
+  const projectsTopContent =
+    sortedProjects.length > 0 ? (
+      <div data-area-projects="true">
+        <ul className="task-list">
+          {sortedProjects.map((p) => (
+            <li
+              key={p.id}
+              className={`task-row${selectedProjectId === p.id ? ' is-selected' : ''}`}
+              data-area-project-row="true"
+            >
+              <ProjectProgressControl
+                status={p.status}
+                doneCount={projectProgress[p.id]?.done_count ?? 0}
+                totalCount={projectProgress[p.id]?.total_count ?? 0}
+                size="list"
+                disabled={!projectProgress[p.id]}
+                onActivate={async () => {
+                  if (!area) return
+                  const counts = projectProgress[p.id]
+                  if (!counts) return
+
+                  if (p.status === 'done') {
+                    const res = await window.api.project.update({ id: p.id, status: 'open' })
+                    if (!res.ok) {
+                      setError(res.error)
+                      return
+                    }
+                    await mutateAndRefresh()
+                    return
+                  }
+
+                  const openCount = Math.max(0, counts.total_count - counts.done_count)
+                  const confirmed = confirm(t('project.completeConfirm', { count: openCount }))
+                  if (!confirmed) return
+
+                  const res = await window.api.project.complete(p.id)
+                  if (!res.ok) {
+                    setError(res.error)
+                    return
+                  }
+                  await mutateAndRefresh()
+                }}
+              />
+
+              <button
+                type="button"
+                className="task-title task-title-button"
+                data-area-project-id={p.id}
+                onClick={() => {
+                  setSelectedProjectId(p.id)
+                }}
+                onDoubleClick={() => {
+                  navigate(`/projects/${p.id}`)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return
+                  e.preventDefault()
+                  setSelectedProjectId(p.id)
+                  navigate(`/projects/${p.id}`)
+                }}
+              >
+                <span className={p.title.trim() ? undefined : 'task-title-placeholder'}>
+                  {p.title.trim() ? p.title : t('project.untitled')}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null
+
   function enterTitleEdit() {
     if (!area) return
     ignoreNextTitleBlurRef.current = false
@@ -286,62 +360,68 @@ export function AreaPage() {
 
       <TaskList
         title={
-          area ? (
-            isEditingTitle ? (
-              <>
-                <span ref={titleMeasureRef} className="page-title-measure" aria-hidden="true">
-                  {titleMeasureText}
-                </span>
-                <input
-                  ref={titleInputRef}
-                  className="page-title-input"
-                  style={titleInputWidthPx !== null ? { width: titleInputWidthPx } : undefined}
-                  value={titleDraft}
-                  placeholder={titlePlaceholder}
-                  aria-label={titlePlaceholder}
-                  onChange={(e) => setTitleDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    e.stopPropagation()
+          <span className="area-title">
+            <AreaTitleIcon className="area-title-icon" />
+            <span className="area-title-main">
+              {area ? (
+                isEditingTitle ? (
+                  <>
+                    <span ref={titleMeasureRef} className="page-title-measure" aria-hidden="true">
+                      {titleMeasureText}
+                    </span>
+                    <input
+                      ref={titleInputRef}
+                      className="page-title-input"
+                      style={titleInputWidthPx !== null ? { width: titleInputWidthPx } : undefined}
+                      value={titleDraft}
+                      placeholder={titlePlaceholder}
+                      aria-label={titlePlaceholder}
+                      onChange={(e) => setTitleDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        e.stopPropagation()
 
-                    if (e.key === 'Enter') {
-                      // Don't treat IME composition confirmation as a commit.
-                      if (e.nativeEvent.isComposing) return
-                      e.preventDefault()
-                      void commitTitleEdit(titleDraft)
-                      return
-                    }
+                        if (e.key === 'Enter') {
+                          // Don't treat IME composition confirmation as a commit.
+                          if (e.nativeEvent.isComposing) return
+                          e.preventDefault()
+                          void commitTitleEdit(titleDraft)
+                          return
+                        }
 
-                    if (e.key === 'Escape') {
-                      e.preventDefault()
-                      cancelTitleEdit()
-                    }
-                  }}
-                  onBlur={() => {
-                    if (ignoreNextTitleBlurRef.current) {
-                      ignoreNextTitleBlurRef.current = false
-                      return
-                    }
-                    void commitTitleEdit(titleDraft)
-                  }}
-                />
-              </>
-            ) : (
-              <button
-                ref={titleButtonRef}
-                type="button"
-                className={`page-title-button${hasAreaTitle ? '' : ' is-placeholder'}`}
-                onClick={enterTitleEdit}
-                onDoubleClick={enterTitleEdit}
-              >
-                {displayAreaTitle}
-              </button>
-            )
-          ) : (
-            displayAreaTitle
-          )
+                        if (e.key === 'Escape') {
+                          e.preventDefault()
+                          cancelTitleEdit()
+                        }
+                      }}
+                      onBlur={() => {
+                        if (ignoreNextTitleBlurRef.current) {
+                          ignoreNextTitleBlurRef.current = false
+                          return
+                        }
+                        void commitTitleEdit(titleDraft)
+                      }}
+                    />
+                  </>
+                ) : (
+                  <button
+                    ref={titleButtonRef}
+                    type="button"
+                    className={`page-title-button${hasAreaTitle ? '' : ' is-placeholder'}`}
+                    onClick={enterTitleEdit}
+                    onDoubleClick={enterTitleEdit}
+                  >
+                    {displayAreaTitle}
+                  </button>
+                )
+              ) : (
+                displayAreaTitle
+              )}
+            </span>
+          </span>
         }
         listId={taskListIdArea(aid)}
         tasks={tasks}
+        topContent={projectsTopContent}
         onAfterReorder={refresh}
         headerActions={
           <>
@@ -381,55 +461,26 @@ export function AreaPage() {
           await refresh()
         }}
       />
-
-      <div className="page">
-        <div className="sections-header">
-          <div className="sections-title">{t('nav.projects')}</div>
-        </div>
-        <ul className="task-list">
-          {sortedProjects.map((p) => (
-            <li key={p.id} className="task-row">
-              <ProjectProgressControl
-                status={p.status}
-                doneCount={projectProgress[p.id]?.done_count ?? 0}
-                totalCount={projectProgress[p.id]?.total_count ?? 0}
-                size="list"
-                disabled={!projectProgress[p.id]}
-                onActivate={async () => {
-                  if (!area) return
-                  const counts = projectProgress[p.id]
-                  if (!counts) return
-
-                  if (p.status === 'done') {
-                    const res = await window.api.project.update({ id: p.id, status: 'open' })
-                    if (!res.ok) {
-                      setError(res.error)
-                      return
-                    }
-                    await mutateAndRefresh()
-                    return
-                  }
-
-                  const openCount = Math.max(0, counts.total_count - counts.done_count)
-                  const confirmed = confirm(t('project.completeConfirm', { count: openCount }))
-                  if (!confirmed) return
-
-                  const res = await window.api.project.complete(p.id)
-                  if (!res.ok) {
-                    setError(res.error)
-                    return
-                  }
-                  await mutateAndRefresh()
-                }}
-              />
-              <NavLink className={`nav-item${p.title.trim() ? '' : ' is-placeholder'}`} to={`/projects/${p.id}`}>
-                {p.title.trim() ? p.title : t('project.untitled')}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </div>
     </>
+  )
+}
+
+function AreaTitleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      width="1em"
+      height="1em"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 7.5c0-1.1.9-2 2-2h5l2 2h7c1.1 0 2 .9 2 2v9c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2v-11z" />
+    </svg>
   )
 }
 

@@ -88,6 +88,7 @@ export function TaskList({
   onRestore,
   onAfterReorder,
   headerActions,
+  topContent,
 }: {
   title: React.ReactNode
   tasks: TaskListItem[]
@@ -97,6 +98,7 @@ export function TaskList({
   onRestore?: (taskId: string) => Promise<void>
   onAfterReorder?: () => Promise<void>
   headerActions?: React.ReactNode
+  topContent?: React.ReactNode
 }) {
   const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
@@ -196,6 +198,8 @@ export function TaskList({
     return map
   }, [orderedTasks])
 
+  const preListRef = useRef<HTMLDivElement | null>(null)
+  const computeScrollMarginRef = useRef<(() => void) | null>(null)
   const listboxRef = useRef<HTMLDivElement | null>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
 
@@ -233,16 +237,31 @@ export function TaskList({
       const scrollRect = se.getBoundingClientRect()
       const listRect = le.getBoundingClientRect()
       // listRect.top changes with scroll; adding scrollTop yields a stable margin.
-      setScrollMargin(listRect.top - scrollRect.top + se.scrollTop)
+      const next = listRect.top - scrollRect.top + se.scrollTop
+      setScrollMargin((prev) => (prev === next ? prev : next))
     }
 
+    computeScrollMarginRef.current = compute
     compute()
     window.addEventListener('resize', compute)
     return () => {
       cancelled = true
+      computeScrollMarginRef.current = null
       window.removeEventListener('resize', compute)
     }
   }, [contentScrollRef])
+
+  useLayoutEffect(() => {
+    const el = preListRef.current
+    if (!el) return
+    if (typeof ResizeObserver === 'undefined') return
+
+    const ro = new ResizeObserver(() => {
+      computeScrollMarginRef.current?.()
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   const rowVirtualizer = useVirtualizer({
     count: orderedTasks.length,
     getScrollElement: () => contentScrollRef.current,
@@ -373,12 +392,16 @@ export function TaskList({
 
   return (
     <div className="page">
-      <header className="page-header">
-        <div className="page-header-left">
-          <h1 className="page-title">{title}</h1>
-          {headerActions}
-        </div>
-      </header>
+      <div ref={preListRef}>
+        <header className="page-header">
+          <div className="page-header-left">
+            <h1 className="page-title">{title}</h1>
+            {headerActions}
+          </div>
+        </header>
+
+        {topContent ? <div className="task-list-top-content">{topContent}</div> : null}
+      </div>
 
       <DndContext
         sensors={isDndEnabled ? sensors : undefined}
