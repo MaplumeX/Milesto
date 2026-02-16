@@ -226,6 +226,17 @@ body {
   flex: 1;
   min-width: 0;
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-project-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-project-progress {
@@ -1489,31 +1500,51 @@ body {
   color: var(--text);
   cursor: pointer;
   box-shadow: 0 1px 0 var(--shadow);
-  transition: border-color 120ms ease, background 120ms ease;
+  position: relative;
+  --ppc-gap: 2px;
+  transition: border-color 120ms ease;
 }
 
 .project-progress-control[data-size='header'] {
   width: 32px;
   height: 32px;
+  --ppc-gap: 3px;
 }
 
-.project-progress-control[data-progress='partial'] {
+.project-progress-control::before {
+  content: '';
+  position: absolute;
+  inset: var(--ppc-gap);
+  border-radius: 999px;
+  background: transparent;
+  pointer-events: none;
+  transition: background 120ms ease;
+}
+
+.project-progress-control > * {
+  position: relative;
+  z-index: 1;
+}
+
+.project-progress-control[data-progress='partial']::before {
   background: conic-gradient(
-    from -90deg,
     var(--wash-strong) 0deg,
     var(--wash-strong) var(--ppc-angle),
     transparent 0deg
   );
 }
 
-.project-progress-control[data-progress='full'] {
+.project-progress-control[data-progress='full']::before {
   background: var(--wash-strong);
 }
 
 .project-progress-control.is-done {
   border-color: transparent;
-  background: var(--text);
   color: var(--bg);
+}
+
+.project-progress-control.is-done::before {
+  background: var(--text);
 }
 
 .project-progress-control:focus-visible {
@@ -1521,7 +1552,7 @@ body {
   outline-offset: 2px;
 }
 
-.project-progress-control:hover:not(:disabled) {
+.project-progress-control:hover:not(:disabled):not(.is-done) {
   border-color: var(--rdp-selected-border-color);
 }
 
@@ -1532,6 +1563,10 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .project-progress-control {
+    transition: none;
+  }
+
+  .project-progress-control::before {
     transition: none;
   }
 }

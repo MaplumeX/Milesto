@@ -1,9 +1,52 @@
-import { useMemo } from 'react'
+import type { CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { Project } from '../../../shared/schemas/project'
 
 type ProjectStatus = Project['status']
+
+type ProgressKind = 'done' | 'none' | 'full' | 'partial'
+
+function getProgressModel(params: {
+  status: ProjectStatus
+  doneCount: number
+  totalCount: number
+}): {
+  safeTotal: number
+  safeDone: number
+  openCount: number
+  percent: number
+  progressKind: ProgressKind
+  style: CSSProperties | undefined
+} {
+  const safeTotal = Math.max(0, Math.floor(params.totalCount))
+  const safeDone = Math.max(0, Math.min(safeTotal, Math.floor(params.doneCount)))
+  const openCount = Math.max(0, safeTotal - safeDone)
+
+  const percent =
+    params.status === 'done'
+      ? 100
+      : safeTotal <= 0
+        ? 0
+        : Math.round((safeDone / safeTotal) * 100)
+
+  const progressKind: ProgressKind =
+    params.status === 'done'
+      ? 'done'
+      : safeTotal <= 0 || safeDone <= 0
+        ? 'none'
+        : safeDone >= safeTotal
+          ? 'full'
+          : 'partial'
+
+  const angleDeg = safeTotal > 0 ? (safeDone / safeTotal) * 360 : 0
+  const style =
+    progressKind === 'partial'
+      ? ({ ['--ppc-angle' as never]: `${angleDeg}deg` } as CSSProperties)
+      : undefined
+
+  return { safeTotal, safeDone, openCount, percent, progressKind, style }
+}
 
 export function ProjectProgressControl({
   status,
@@ -22,48 +65,27 @@ export function ProjectProgressControl({
 }) {
   const { t } = useTranslation()
 
-  const safeTotal = Math.max(0, Math.floor(totalCount))
-  const safeDone = Math.max(0, Math.min(safeTotal, Math.floor(doneCount)))
-  const openCount = Math.max(0, safeTotal - safeDone)
-
-  const percent = useMemo(() => {
-    if (status === 'done') return 100
-    if (safeTotal <= 0) return 0
-    return Math.round((safeDone / safeTotal) * 100)
-  }, [safeDone, safeTotal, status])
-
-  const progressKind = useMemo(() => {
-    if (status === 'done') return 'done'
-    if (safeTotal <= 0 || safeDone <= 0) return 'none'
-    if (safeDone >= safeTotal) return 'full'
-    return 'partial'
-  }, [safeDone, safeTotal, status])
+  const model = getProgressModel({ status, doneCount, totalCount })
 
   const ariaLabel =
     status === 'done'
       ? t('aria.projectProgressDone')
       : t('aria.projectProgressOpen', {
-          percent,
-          doneCount: safeDone,
-          totalCount: safeTotal,
-          openCount,
+          percent: model.percent,
+          doneCount: model.safeDone,
+          totalCount: model.safeTotal,
+          openCount: model.openCount,
         })
-
-  const angleDeg = safeTotal > 0 ? (safeDone / safeTotal) * 360 : 0
-  const style =
-    progressKind === 'partial'
-      ? ({ ['--ppc-angle' as never]: `${angleDeg}deg` } as React.CSSProperties)
-      : undefined
 
   return (
     <button
       type="button"
       className={`project-progress-control${status === 'done' ? ' is-done' : ''}`}
       data-size={size ?? 'list'}
-      data-progress={progressKind}
+      data-progress={model.progressKind}
       aria-label={ariaLabel}
       disabled={disabled}
-      style={style}
+      style={model.style}
       onPointerDown={(e) => {
         e.stopPropagation()
       }}
@@ -76,6 +98,32 @@ export function ProjectProgressControl({
     >
       {status === 'done' ? <CheckIcon /> : null}
     </button>
+  )
+}
+
+export function ProjectProgressIndicator({
+  status,
+  doneCount,
+  totalCount,
+  size,
+}: {
+  status: ProjectStatus
+  doneCount: number
+  totalCount: number
+  size?: 'list' | 'header'
+}) {
+  const model = getProgressModel({ status, doneCount, totalCount })
+
+  return (
+    <span
+      className={`project-progress-control${status === 'done' ? ' is-done' : ''}`}
+      data-size={size ?? 'list'}
+      data-progress={model.progressKind}
+      aria-hidden="true"
+      style={model.style}
+    >
+      {status === 'done' ? <CheckIcon /> : null}
+    </span>
   )
 }
 

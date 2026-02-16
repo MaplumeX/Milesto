@@ -372,12 +372,6 @@ function findSidebarProjectHandle(projectId: string): HTMLElement | null {
   )
 }
 
-function findSidebarProjectProgressControl(projectId: string): HTMLButtonElement | null {
-  return document.querySelector<HTMLButtonElement>(
-    `.nav .nav-project-header[data-sidebar-dnd-kind="project"][data-sidebar-dnd-id="project:${projectId}"] button.project-progress-control`
-  )
-}
-
 function findSidebarAreaGroup(areaId: string): HTMLElement | null {
   const handle = findSidebarAreaHandle(areaId)
   if (!handle) return null
@@ -3018,15 +3012,14 @@ async function runSelfTest(): Promise<SelfTestResult> {
       }
 
       // Keyboard reorder projects within Area A: move A2 down by one (back to A1 then A2).
-      const sidebarProjectA2Progress = await waitFor('Sidebar: project A2 progress control', () => {
-        const btn = findSidebarProjectProgressControl(sidebarProjectA2Id)
-        return btn && !btn.disabled ? btn : null
-      })
-      sidebarProjectA2Progress.focus()
-      await waitFor('Sidebar: project A2 progress focused (for keyboard reorder)', () =>
-        document.activeElement === sidebarProjectA2Progress ? true : null
+      const sidebarProjectA2Link = await waitFor('Sidebar: project A2 link (for keyboard reorder)', () =>
+        findSidebarProjectHandle(sidebarProjectA2Id)
       )
-      dispatchKey(sidebarProjectA2Progress, 'ArrowDown', { metaKey: true, ctrlKey: true, shiftKey: true })
+      sidebarProjectA2Link.focus()
+      await waitFor('Sidebar: project A2 link focused (for keyboard reorder)', () =>
+        document.activeElement === sidebarProjectA2Link ? true : null
+      )
+      dispatchKey(sidebarProjectA2Link, 'ArrowDown', { metaKey: true, ctrlKey: true, shiftKey: true })
 
       let sidebarProjectKeyOk = false
       for (let i = 0; i < 30; i++) {
@@ -3210,7 +3203,7 @@ async function runSidebarSelfTest(): Promise<SelfTestResult> {
     projectCreateBtn.click()
 
     const createdProjectId = await waitFor('Sidebar suite: navigated to created Project', () => {
-      const m = window.location.hash.match(/^#\/projects\/([^?]+)\?editTitle=1$/)
+      const m = window.location.hash.match(/^#\/projects\/([^?]+)/)
       return m?.[1] ?? null
     })
 
@@ -3239,7 +3232,7 @@ async function runSidebarSelfTest(): Promise<SelfTestResult> {
     areaCreateBtn.click()
 
     const createdAreaId = await waitFor('Sidebar suite: navigated to created Area', () => {
-      const m = window.location.hash.match(/^#\/areas\/([^?]+)\?editTitle=1$/)
+      const m = window.location.hash.match(/^#\/areas\/([^?]+)/)
       return m?.[1] ?? null
     })
 
@@ -3421,15 +3414,14 @@ async function runSidebarSelfTest(): Promise<SelfTestResult> {
       throw new Error(`Sidebar suite: expected A2 before A1 after pointer project reorder (${lastProjectDebug})`)
     }
 
-    const projectA2Progress = await waitFor('Sidebar suite: project A2 progress control', () => {
-      const btn = findSidebarProjectProgressControl(projectA2Id)
-      return btn && !btn.disabled ? btn : null
-    })
-    projectA2Progress.focus()
-    await waitFor('Sidebar suite: project A2 progress focused (for keyboard reorder)', () =>
-      document.activeElement === projectA2Progress ? true : null
+    const projectA2Link = await waitFor('Sidebar suite: project A2 link (for keyboard reorder)', () =>
+      findSidebarProjectHandle(projectA2Id)
     )
-    dispatchKey(projectA2Progress, 'ArrowDown', { metaKey: true, ctrlKey: true, shiftKey: true })
+    projectA2Link.focus()
+    await waitFor('Sidebar suite: project A2 link focused (for keyboard reorder)', () =>
+      document.activeElement === projectA2Link ? true : null
+    )
+    dispatchKey(projectA2Link, 'ArrowDown', { metaKey: true, ctrlKey: true, shiftKey: true })
     let keyProjectOk = false
     for (let i = 0; i < 30; i++) {
       const res = await window.api.sidebar.listModel()
@@ -3697,6 +3689,143 @@ async function runProjectSelfTest(): Promise<SelfTestResult> {
         throw new Error(
           `project self-test: expected NOT_FOUND after delete, got ${afterDelete.error.code}: ${afterDelete.error.message}`
         )
+      }
+
+      {
+        const areaRes = await window.api.area.create({ title: `${token} Progress Area` })
+        if (!areaRes.ok) {
+          throw new Error(
+            `project self-test: area.create (progress surfaces) failed: ${areaRes.error.code}: ${areaRes.error.message}`
+          )
+        }
+        const areaId = areaRes.data.id
+
+        const progressProjectRes = await window.api.project.create({
+          title: `${token} Progress Project`,
+          area_id: areaId,
+        })
+        if (!progressProjectRes.ok) {
+          throw new Error(
+            `project self-test: project.create (progress surfaces) failed: ${progressProjectRes.error.code}: ${progressProjectRes.error.message}`
+          )
+        }
+        const progressProjectId = progressProjectRes.data.id
+        const progressProjectTitle = progressProjectRes.data.title
+
+        const progressTaskARes = await window.api.task.create({
+          title: `${token} Progress Task A`,
+          project_id: progressProjectId,
+        })
+        const progressTaskBRes = await window.api.task.create({
+          title: `${token} Progress Task B`,
+          project_id: progressProjectId,
+        })
+        if (!progressTaskARes.ok) {
+          throw new Error(
+            `project self-test: task.create (progress A) failed: ${progressTaskARes.error.code}: ${progressTaskARes.error.message}`
+          )
+        }
+        if (!progressTaskBRes.ok) {
+          throw new Error(
+            `project self-test: task.create (progress B) failed: ${progressTaskBRes.error.code}: ${progressTaskBRes.error.message}`
+          )
+        }
+
+        const toggleA = await window.api.task.toggleDone(progressTaskARes.data.id, true)
+        if (!toggleA.ok) {
+          throw new Error(
+            `project self-test: task.toggleDone (progress A) failed: ${toggleA.error.code}: ${toggleA.error.message}`
+          )
+        }
+
+        function findAreaProjectRowByTitle(title: string): HTMLElement | null {
+          const sectionTitle = Array.from(document.querySelectorAll<HTMLElement>('.sections-title')).find(
+            (el) => (el.textContent ?? '').trim() === 'Projects'
+          )
+          const page = sectionTitle?.closest<HTMLElement>('.page') ?? null
+          if (!page) return null
+          const link = Array.from(page.querySelectorAll<HTMLAnchorElement>('a.nav-item')).find((a) =>
+            (a.textContent ?? '').includes(title)
+          )
+          return link?.closest<HTMLElement>('li.task-row') ?? null
+        }
+
+        window.location.hash = `/areas/${areaId}`
+
+        await waitFor('Area projects section (progress surfaces)', () => {
+          const sectionTitle = Array.from(document.querySelectorAll<HTMLElement>('.sections-title')).find(
+            (el) => (el.textContent ?? '').trim() === 'Projects'
+          )
+          return sectionTitle ? true : null
+        })
+
+        const partialBtn = await waitFor('Area project progress partial (progress surfaces)', () => {
+          const row = findAreaProjectRowByTitle(progressProjectTitle)
+          if (!row) return null
+          const btn = row.querySelector<HTMLButtonElement>('button.project-progress-control')
+          if (!btn || btn.disabled) return null
+          if (btn.classList.contains('is-done')) return null
+          return btn.getAttribute('data-progress') === 'partial' ? btn : null
+        })
+
+        partialBtn.click()
+
+        await waitFor(
+          'Area project removed from open list after complete (progress surfaces)',
+          () => (findAreaProjectRowByTitle(progressProjectTitle) ? null : true),
+          { timeoutMs: 20_000 }
+        )
+
+        window.location.hash = '/logbook'
+        await waitFor('Logbook title (progress surfaces)', () => {
+          const h = document.querySelector<HTMLElement>('h1.page-title')
+          return h && (h.textContent ?? '').trim() === 'Logbook' ? true : null
+        })
+
+        const logbookBtn = await waitFor('Logbook progress control for completed project (progress surfaces)', () => {
+          const sectionTitle = Array.from(document.querySelectorAll<HTMLElement>('.sections-title')).find(
+            (el) => (el.textContent ?? '').trim() === 'Completed Projects'
+          )
+          const page = sectionTitle?.closest<HTMLElement>('.page') ?? null
+          if (!page) return null
+          const link = Array.from(page.querySelectorAll<HTMLAnchorElement>('a.nav-item')).find((a) =>
+            (a.textContent ?? '').includes(progressProjectTitle)
+          )
+          const row = link?.closest<HTMLElement>('li.task-row') ?? null
+          if (!row) return null
+          const btn = row.querySelector<HTMLButtonElement>('button.project-progress-control')
+          if (!btn) return null
+          if (!btn.classList.contains('is-done')) return null
+          return btn.getAttribute('data-progress') === 'done' ? btn : null
+        })
+
+        logbookBtn.click()
+
+        await waitFor(
+          'Logbook completed project removed after reopen (progress surfaces)',
+          () => {
+            const sectionTitle = Array.from(document.querySelectorAll<HTMLElement>('.sections-title')).find(
+              (el) => (el.textContent ?? '').trim() === 'Completed Projects'
+            )
+            const page = sectionTitle?.closest<HTMLElement>('.page') ?? null
+            if (!page) return null
+            const stillThere = Array.from(page.querySelectorAll<HTMLElement>('li.task-row')).some((row) =>
+              (row.textContent ?? '').includes(progressProjectTitle)
+            )
+            return stillThere ? null : true
+          },
+          { timeoutMs: 20_000 }
+        )
+
+        const reopened = await window.api.project.getDetail(progressProjectId)
+        if (!reopened.ok) {
+          throw new Error(
+            `project self-test: project.getDetail after reopen failed: ${reopened.error.code}: ${reopened.error.message}`
+          )
+        }
+        if (reopened.data.project.status !== 'open') {
+          throw new Error('project self-test: expected reopened project status=open (progress surfaces)')
+        }
       }
     } finally {
       window.confirm = prevConfirm

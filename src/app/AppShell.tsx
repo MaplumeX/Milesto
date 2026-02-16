@@ -27,7 +27,7 @@ import type { Project } from '../../shared/schemas/project'
 import { useAppEvents } from './AppEventsContext'
 import { ContentScrollProvider } from './ContentScrollContext'
 import { type OpenEditorHandle, TaskSelectionProvider } from '../features/tasks/TaskSelectionContext'
-import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
+import { ProjectProgressIndicator } from '../features/projects/ProjectProgressControl'
 import { SearchPanel } from './SearchPanel'
 import { ContentBottomBarActions } from './ContentBottomBarActions'
 import { formatLocalDate } from '../lib/dates'
@@ -1235,8 +1235,6 @@ export function AppShell() {
               activeProjectDragId={activeProjectId}
               suppressClickRef={suppressClickRef}
               projectProgressById={sidebarProjectProgress}
-              onBumpRevision={bumpRevision}
-              onSetSidebarError={setSidebarError}
             />
 
             <SortableContext items={orderedAreaDragIds} strategy={verticalListSortingStrategy}>
@@ -1251,8 +1249,6 @@ export function AppShell() {
                   activeProjectDragId={activeProjectId}
                   suppressClickRef={suppressClickRef}
                   projectProgressById={sidebarProjectProgress}
-                  onBumpRevision={bumpRevision}
-                  onSetSidebarError={setSidebarError}
                   isCollapsed={collapsedAreaIds.includes(area.id)}
                   onToggleCollapsed={() => {
                     const prev = collapsedAreaIdsRef.current
@@ -1451,19 +1447,14 @@ function SortableSidebarProjectNavItem({
   activeProjectDragId,
   suppressClickRef,
   progress,
-  onBumpRevision,
-  onSetSidebarError,
 }: {
   project: Project
   indent?: boolean
   activeProjectDragId: string | null
   suppressClickRef: React.MutableRefObject<boolean>
   progress: { done_count: number; total_count: number } | null
-  onBumpRevision: () => void
-  onSetSidebarError: (msg: string | null) => void
 }) {
   const { t } = useTranslation()
-  const [isMutating, setIsMutating] = useState(false)
   const hasProjectTitle = project.title.trim().length > 0
   const displayProjectTitle = hasProjectTitle ? project.title : t('project.untitled')
   const dragId = projectDragId(project.id)
@@ -1505,56 +1496,14 @@ function SortableSidebarProjectNavItem({
           }
         }}
       >
-        {displayProjectTitle}
-      </NavLink>
-
-      <div className="nav-project-progress">
-        <ProjectProgressControl
+        <ProjectProgressIndicator
           status={project.status}
           doneCount={progress?.done_count ?? 0}
           totalCount={progress?.total_count ?? 0}
           size="list"
-          disabled={!progress || isMutating}
-          onActivate={async () => {
-            if (suppressClickRef.current) return
-            if (!progress) return
-            if (isMutating) return
-
-            const openCount = Math.max(0, progress.total_count - progress.done_count)
-
-            onSetSidebarError(null)
-            if (project.status === 'done') {
-              setIsMutating(true)
-              try {
-                const res = await window.api.project.update({ id: project.id, status: 'open' })
-                if (!res.ok) {
-                  onSetSidebarError(`${res.error.code}: ${res.error.message}`)
-                  return
-                }
-                onBumpRevision()
-              } finally {
-                setIsMutating(false)
-              }
-              return
-            }
-
-            const confirmed = confirm(t('project.completeConfirm', { count: openCount }))
-            if (!confirmed) return
-
-            setIsMutating(true)
-            try {
-              const res = await window.api.project.complete(project.id)
-              if (!res.ok) {
-                onSetSidebarError(`${res.error.code}: ${res.error.message}`)
-                return
-              }
-              onBumpRevision()
-            } finally {
-              setIsMutating(false)
-            }
-          }}
         />
-      </div>
+        <span className="nav-project-label">{displayProjectTitle}</span>
+      </NavLink>
     </div>
   )
 }
@@ -1566,8 +1515,6 @@ function SidebarUnassignedGroup({
   activeProjectDragId,
   suppressClickRef,
   projectProgressById,
-  onBumpRevision,
-  onSetSidebarError,
 }: {
   containerId: ContainerId
   projectDragIds: string[]
@@ -1575,8 +1522,6 @@ function SidebarUnassignedGroup({
   activeProjectDragId: string | null
   suppressClickRef: React.MutableRefObject<boolean>
   projectProgressById: Record<string, { done_count: number; total_count: number }>
-  onBumpRevision: () => void
-  onSetSidebarError: (msg: string | null) => void
 }) {
   const { setNodeRef } = useDroppable({
     id: containerId,
@@ -1599,8 +1544,6 @@ function SidebarUnassignedGroup({
               activeProjectDragId={activeProjectDragId}
               suppressClickRef={suppressClickRef}
               progress={progress}
-              onBumpRevision={onBumpRevision}
-              onSetSidebarError={onSetSidebarError}
             />
           )
         })}
@@ -1620,8 +1563,6 @@ function SortableSidebarAreaGroup({
   activeProjectDragId,
   suppressClickRef,
   projectProgressById,
-  onBumpRevision,
-  onSetSidebarError,
   isCollapsed,
   onToggleCollapsed,
 }: {
@@ -1633,8 +1574,6 @@ function SortableSidebarAreaGroup({
   activeProjectDragId: string | null
   suppressClickRef: React.MutableRefObject<boolean>
   projectProgressById: Record<string, { done_count: number; total_count: number }>
-  onBumpRevision: () => void
-  onSetSidebarError: (msg: string | null) => void
   isCollapsed: boolean
   onToggleCollapsed: () => void
 }) {
@@ -1741,8 +1680,6 @@ function SortableSidebarAreaGroup({
                   activeProjectDragId={activeProjectDragId}
                   suppressClickRef={suppressClickRef}
                   progress={progress}
-                  onBumpRevision={onBumpRevision}
-                  onSetSidebarError={onSetSidebarError}
                 />
               )
             })}

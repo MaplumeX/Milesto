@@ -1,37 +1,4 @@
-# project-progress-indicator Specification
-
-## Purpose
-TBD - created by archiving change project-progress-indicator. Update Purpose after archive.
-## Requirements
-### Requirement: System provides per-project task progress counts for list rendering
-The system SHALL provide an API that returns per-project task completion counts for a set of Projects so that list views can render progress without N IPC calls.
-
-Returned counts SHALL be derived from Tasks where:
-
-- `deleted_at IS NULL`
-- `project_id` matches one of the requested project ids
-
-For each requested project id, the API SHALL return:
-
-- `done_count`: number of matching tasks with `status = done`
-- `total_count`: number of matching tasks with `status IN (open, done)`
-
-If a requested project has zero matching tasks, the API SHALL still return an entry for that project with `done_count = 0` and `total_count = 0`.
-
-#### Scenario: Batch counts include a project with no tasks
-- **WHEN** the UI requests progress counts for project ids `[P1, P2]`
-- **AND WHEN** P1 has no non-deleted tasks
-- **THEN** the API returns an entry for P1 with `done_count = 0` and `total_count = 0`
-
-#### Scenario: Batch counts exclude deleted tasks
-- **WHEN** the UI requests progress counts for project id `P1`
-- **AND WHEN** P1 has tasks where `deleted_at IS NOT NULL`
-- **THEN** those deleted tasks are not included in `done_count` or `total_count`
-
-#### Scenario: Batch counts reflect open and done tasks
-- **WHEN** the UI requests progress counts for project id `P1`
-- **AND WHEN** P1 has 3 non-deleted open tasks and 2 non-deleted done tasks
-- **THEN** the API returns `done_count = 2` and `total_count = 5` for P1
+## MODIFIED Requirements
 
 ### Requirement: Project progress control maps progress and completion state consistently
 The UI SHALL render a reusable project progress control that represents both:
@@ -145,4 +112,3 @@ Surface-specific structure:
 - **WHEN** the Sidebar renders a project row
 - **THEN** the progress indicator is rendered to the left of the project title
 - **AND THEN** the indicator is not a separately-focusable control
-
