@@ -221,7 +221,7 @@ function resolveEffectiveTheme(preference: ThemePreference): EffectiveTheme {
 
 function getWindowBackgroundColor(effectiveTheme: EffectiveTheme): string {
   // Match the renderer's base --bg token to reduce first-paint flash.
-  return effectiveTheme === 'dark' ? '#0f1114' : '#f7f6f3'
+  return effectiveTheme === 'dark' ? '#0f1114' : '#ffffff'
 }
 
 function formatLocalDate(date: Date): string {

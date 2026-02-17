@@ -3,30 +3,29 @@
   --bottom-bar-height: 56px;
 
   /* Core semantic tokens */
-  --bg: #f7f6f3;
+  --bg: #ffffff;
   --panel: #ffffff;
-  --text: #1d1d1b;
-  --muted: #6c6a64;
-  --border: rgba(29, 29, 27, 0.12);
-  --shadow: rgba(29, 29, 27, 0.12);
-  --focus: rgba(29, 29, 27, 0.35);
+  --text: #0f172a;
+  --muted: #52606d;
+  --border: rgba(15, 23, 42, 0.12);
+  --shadow: rgba(15, 23, 42, 0.12);
+  --focus: rgba(37, 99, 235, 0.4);
 
   /* Derived tokens (used to migrate away from hardcoded rgba values). */
-  --bg-gradient: radial-gradient(1200px 800px at 20% 10%, #ffffff 0%, var(--bg) 55%, #efede7 100%);
-  --wash: rgba(29, 29, 27, 0.06);
-  --wash-strong: rgba(29, 29, 27, 0.1);
+  --wash: rgba(15, 23, 42, 0.06);
+  --wash-strong: rgba(15, 23, 42, 0.1);
   --glass: rgba(255, 255, 255, 0.6);
   --glass-soft: rgba(255, 255, 255, 0.8);
   --glass-strong: rgba(255, 255, 255, 0.92);
   --paper: rgba(255, 255, 255, 0.96);
-  --scrim: rgba(20, 18, 16, 0.35);
+  --scrim: rgba(15, 23, 42, 0.35);
   --shadow-float: 0 20px 60px rgba(0, 0, 0, 0.25);
-  --rdp-selected-border-color: rgba(29, 29, 27, 0.25);
+  --rdp-selected-border-color: rgba(15, 23, 42, 0.25);
 
   /* Component-specific tokens */
   --badge-open-bg: rgba(70, 120, 90, 0.12);
   --badge-done-bg: rgba(90, 90, 90, 0.12);
-  --swatch-border: rgba(29, 29, 27, 0.18);
+  --swatch-border: rgba(15, 23, 42, 0.18);
   --danger-border: rgba(160, 80, 60, 0.35);
   --danger-bg: rgba(240, 210, 190, 0.5);
   --danger-text: rgba(120, 50, 40, 0.9);
@@ -65,7 +64,7 @@ body {
 
 body {
   margin: 0;
-  background: var(--bg-gradient);
+  background: var(--bg);
   color: var(--text);
 }
 
@@ -79,12 +78,6 @@ body {
     --shadow: rgba(0, 0, 0, 0.35);
     --focus: rgba(190, 210, 255, 0.38);
 
-    --bg-gradient: radial-gradient(
-      1200px 800px at 20% 10%,
-      rgba(120, 150, 160, 0.18) 0%,
-      var(--bg) 55%,
-      rgba(10, 12, 16, 1) 100%
-    );
     --wash: rgba(255, 255, 255, 0.08);
     --wash-strong: rgba(255, 255, 255, 0.14);
     --glass: rgba(20, 22, 26, 0.7);
@@ -1547,11 +1540,7 @@ body {
 }
 
 .project-progress-control[data-progress='partial']::before {
-  background: conic-gradient(
-    var(--wash-strong) 0deg,
-    var(--wash-strong) var(--ppc-angle),
-    transparent 0deg
-  );
+  background: var(--wash);
 }
 
 .project-progress-control[data-progress='full']::before {
