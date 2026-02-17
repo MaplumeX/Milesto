@@ -2485,30 +2485,27 @@ async function runSelfTest(): Promise<SelfTestResult> {
         return h && (h.textContent ?? '').trim() === 'Logbook' ? true : null
       })
 
-      const logbookProjectLink = await waitFor('Logbook: completed project link', () => {
-        const byExactHref = contentScroller.querySelector<HTMLAnchorElement>(
-          `a.nav-item[href="#/projects/${projectId}"]`
-        )
-        if (byExactHref) return byExactHref
+      // Ensure top-of-list rows are rendered before asserting visibility in a virtualized list.
+      contentScroller.scrollTop = 0
+      await sleep(150)
 
-        const all = Array.from(contentScroller.querySelectorAll<HTMLAnchorElement>('a.nav-item'))
-        return all.find((a) => (a.getAttribute('href') ?? '').includes(`/projects/${projectId}`)) ?? null
-      })
+      const logbookProjectButton = await waitFor('Logbook: completed project button', () =>
+        contentScroller.querySelector<HTMLButtonElement>(`button[data-logbook-project-id="${projectId}"]`)
+      )
 
-      const logbookRow = logbookProjectLink.closest<HTMLElement>('li.task-row')
+      const logbookRow = logbookProjectButton.closest<HTMLElement>('li.task-row')
       if (!logbookRow) throw new Error('Logbook: missing completed project row')
 
       const logbookReopenControl = logbookRow.querySelector<HTMLButtonElement>('button.project-progress-control')
       if (!logbookReopenControl) throw new Error('Logbook: missing completed project progress control')
+      if (logbookProjectButton.contains(logbookReopenControl)) {
+        throw new Error('Logbook: project progress control should not be nested inside project title button')
+      }
       logbookReopenControl.click()
 
       await waitFor('Logbook: completed project removed after reopen', () => {
-        const byExactHref = contentScroller.querySelector<HTMLAnchorElement>(
-          `a.nav-item[href="#/projects/${projectId}"]`
-        )
-        if (byExactHref) return null
-        const all = Array.from(contentScroller.querySelectorAll<HTMLAnchorElement>('a.nav-item'))
-        return all.some((a) => (a.getAttribute('href') ?? '').includes(`/projects/${projectId}`)) ? null : true
+        const btn = contentScroller.querySelector<HTMLButtonElement>(`button[data-logbook-project-id="${projectId}"]`)
+        return btn ? null : true
       })
 
       window.location.hash = `/projects/${projectId}`
@@ -3776,37 +3773,40 @@ async function runProjectSelfTest(): Promise<SelfTestResult> {
           return h && (h.textContent ?? '').trim() === 'Logbook' ? true : null
         })
 
-        const logbookBtn = await waitFor('Logbook progress control for completed project (progress surfaces)', () => {
-          const sectionTitle = Array.from(document.querySelectorAll<HTMLElement>('.sections-title')).find(
-            (el) => (el.textContent ?? '').trim() === 'Completed Projects'
+        // Ensure top-of-list rows are rendered before asserting visibility in a virtualized list.
+        const contentScroller = getContentScroller()
+        contentScroller.scrollTop = 0
+        await sleep(150)
+
+        const logbookProjectButton = await waitFor('Logbook: completed project button (progress surfaces)', () =>
+          contentScroller.querySelector<HTMLButtonElement>(
+            `button[data-logbook-project-id="${progressProjectId}"]`
           )
-          const page = sectionTitle?.closest<HTMLElement>('.page') ?? null
-          if (!page) return null
-          const link = Array.from(page.querySelectorAll<HTMLAnchorElement>('a.nav-item')).find((a) =>
-            (a.textContent ?? '').includes(progressProjectTitle)
+        )
+
+        const logbookRow = logbookProjectButton.closest<HTMLElement>('li.task-row')
+        if (!logbookRow) throw new Error('Logbook: missing completed project row (progress surfaces)')
+
+        const logbookBtn = logbookRow.querySelector<HTMLButtonElement>('button.project-progress-control')
+        if (!logbookBtn) throw new Error('Logbook: missing completed project progress control (progress surfaces)')
+        if (logbookProjectButton.contains(logbookBtn)) {
+          throw new Error(
+            'Logbook: project progress control should not be nested inside project title button (progress surfaces)'
           )
-          const row = link?.closest<HTMLElement>('li.task-row') ?? null
-          if (!row) return null
-          const btn = row.querySelector<HTMLButtonElement>('button.project-progress-control')
-          if (!btn) return null
-          if (!btn.classList.contains('is-done')) return null
-          return btn.getAttribute('data-progress') === 'done' ? btn : null
-        })
+        }
+        if (!logbookBtn.classList.contains('is-done') || logbookBtn.getAttribute('data-progress') !== 'done') {
+          throw new Error('Logbook: expected completed project progress control to be in done state (progress surfaces)')
+        }
 
         logbookBtn.click()
 
         await waitFor(
           'Logbook completed project removed after reopen (progress surfaces)',
           () => {
-            const sectionTitle = Array.from(document.querySelectorAll<HTMLElement>('.sections-title')).find(
-              (el) => (el.textContent ?? '').trim() === 'Completed Projects'
+            const btn = contentScroller.querySelector<HTMLButtonElement>(
+              `button[data-logbook-project-id="${progressProjectId}"]`
             )
-            const page = sectionTitle?.closest<HTMLElement>('.page') ?? null
-            if (!page) return null
-            const stillThere = Array.from(page.querySelectorAll<HTMLElement>('li.task-row')).some((row) =>
-              (row.textContent ?? '').includes(progressProjectTitle)
-            )
-            return stillThere ? null : true
+            return btn ? null : true
           },
           { timeoutMs: 20_000 }
         )

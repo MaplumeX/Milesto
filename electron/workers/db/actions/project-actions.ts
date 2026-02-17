@@ -507,9 +507,9 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
           `SELECT id, title, notes, area_id, status, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at
            FROM projects
            WHERE deleted_at IS NULL AND status = 'done'
-           ORDER BY completed_at DESC, updated_at DESC`
-        )
-        .all()
+           ORDER BY COALESCE(completed_at, updated_at) DESC, updated_at DESC`
+         )
+         .all()
       const projects = z.array(ProjectSchema).parse(rows)
       return { ok: true, data: projects }
     },

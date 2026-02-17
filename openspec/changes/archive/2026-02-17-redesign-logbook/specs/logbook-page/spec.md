@@ -1,20 +1,4 @@
-# logbook-page Specification
-
-## Purpose
-TBD - created by archiving change project-progress-indicator. Update Purpose after archive.
-## Requirements
-### Requirement: Logbook completed projects list shows project progress control
-When rendering completed project entries on the Logbook page, the UI SHALL render the project progress control next to each project title.
-
-The progress control SHALL be interactive and SHALL follow the complete/reopen behaviors defined by `project-progress-indicator`.
-
-The progress control SHALL NOT be nested inside the project title navigation link.
-
-#### Scenario: Completed projects list renders progress control for each project
-- **WHEN** the user views `/logbook`
-- **AND WHEN** the Logbook renders a completed project entry
-- **THEN** the project row includes the project progress control next to its title
-- **AND THEN** the progress control is not nested inside the project title navigation link
+## ADDED Requirements
 
 ### Requirement: Logbook renders a mixed completed entries list grouped by completion month
 The Logbook page SHALL render completed tasks and completed projects in a single list.
@@ -112,3 +96,17 @@ The Logbook page SHALL NOT render entry titles with a line-through decoration.
 - **WHEN** the user views `/logbook`
 - **THEN** completed entry titles are rendered without a line-through decoration
 
+## MODIFIED Requirements
+
+### Requirement: Logbook completed projects list shows project progress control
+When rendering completed project entries on the Logbook page, the UI SHALL render the project progress control next to each project title.
+
+The progress control SHALL be interactive and SHALL follow the complete/reopen behaviors defined by `project-progress-indicator`.
+
+The progress control SHALL NOT be nested inside the project title navigation link.
+
+#### Scenario: Completed projects list renders progress control for each project
+- **WHEN** the user views `/logbook`
+- **AND WHEN** the Logbook renders a completed project entry
+- **THEN** the project row includes the project progress control next to its title
+- **AND THEN** the progress control is not nested inside the project title navigation link

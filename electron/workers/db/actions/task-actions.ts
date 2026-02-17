@@ -752,9 +752,9 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
            FROM tasks
            WHERE deleted_at IS NULL
              AND status = 'done'
-           ORDER BY completed_at DESC, updated_at DESC`
-        )
-        .all()
+            ORDER BY COALESCE(completed_at, updated_at) DESC, updated_at DESC`
+         )
+         .all()
 
       const items = z.array(TaskListItemSchema).parse(rows)
       return { ok: true, data: items }

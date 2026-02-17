@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
 import type { Project } from '../../shared/schemas/project'
 import type { TaskListItem } from '../../shared/schemas/task-list'
-import { TaskList } from '../features/tasks/TaskList'
+import { LogbookGroupedList } from '../features/logbook/LogbookGroupedList'
 import { useAppEvents } from '../app/AppEventsContext'
-import { NavLink } from 'react-router-dom'
-import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
 
 export function LogbookPage() {
-  const { t } = useTranslation()
   const { revision, bumpRevision } = useAppEvents()
   const [tasks, setTasks] = useState<TaskListItem[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -44,47 +40,28 @@ export function LogbookPage() {
   return (
     <>
       {error ? <ErrorBanner error={error} /> : null}
-      <TaskList
-        title={t('nav.logbook')}
+
+      <LogbookGroupedList
         tasks={tasks}
-        onToggleDone={undefined}
-        onRestore={async (taskId) => {
-          const restored = await window.api.task.restore(taskId)
-          if (!restored.ok) throw new Error(`${restored.error.code}: ${restored.error.message}`)
+        projects={projects}
+        onRestoreTask={async (taskId) => {
+          const updated = await window.api.task.toggleDone(taskId, false)
+          if (!updated.ok) {
+            setError(updated.error)
+            return
+          }
+          await refresh()
+        }}
+        onReopenProject={async (projectId) => {
+          const res = await window.api.project.update({ id: projectId, status: 'open' })
+          if (!res.ok) {
+            setError(res.error)
+            return
+          }
+          bumpRevision()
           await refresh()
         }}
       />
-
-      <div className="page">
-        <div className="sections-header">
-          <div className="sections-title">{t('logbook.completedProjects')}</div>
-        </div>
-        <ul className="task-list">
-          {projects.map((p) => (
-            <li key={p.id} className="task-row">
-              <ProjectProgressControl
-                status={p.status}
-                doneCount={0}
-                totalCount={0}
-                size="list"
-                onActivate={async () => {
-                  const res = await window.api.project.update({ id: p.id, status: 'open' })
-                  if (!res.ok) {
-                    setError(res.error)
-                    return
-                  }
-                  bumpRevision()
-                  await refresh()
-                }}
-              />
-              <NavLink className={`nav-item${p.title.trim() ? '' : ' is-placeholder'}`} to={`/projects/${p.id}`}>
-                {p.title.trim() ? p.title : t('project.untitled')}
-              </NavLink>
-            </li>
-          ))}
-          {projects.length === 0 ? <li className="nav-muted">{t('shell.empty')}</li> : null}
-        </ul>
-      </div>
     </>
   )
 }
