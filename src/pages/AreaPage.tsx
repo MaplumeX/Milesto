@@ -175,6 +175,7 @@ export function AreaPage() {
 
   useEffect(() => {
     if (!area) return
+    if (area.id !== aid) return
 
     const params = new URLSearchParams(location.search)
     if (params.get('editTitle') !== '1') return
@@ -192,7 +193,7 @@ export function AreaPage() {
     params.delete('editTitle')
     const nextSearch = params.toString()
     navigate({ pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : '' }, { replace: true })
-  }, [area, location.pathname, location.search, navigate])
+  }, [aid, area, location.pathname, location.search, navigate])
 
   useLayoutEffect(() => {
     if (!isEditingTitle) return

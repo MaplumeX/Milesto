@@ -137,6 +137,7 @@ export function ProjectPage() {
 
   useEffect(() => {
     if (!project) return
+    if (project.id !== pid) return
 
     const params = new URLSearchParams(location.search)
     if (params.get('editTitle') !== '1') return
@@ -154,7 +155,7 @@ export function ProjectPage() {
     params.delete('editTitle')
     const nextSearch = params.toString()
     navigate({ pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : '' }, { replace: true })
-  }, [location.pathname, location.search, navigate, project])
+  }, [location.pathname, location.search, navigate, pid, project])
 
   useLayoutEffect(() => {
     if (!isEditingTitle) return
