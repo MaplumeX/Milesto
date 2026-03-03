@@ -29,6 +29,7 @@
   --danger-border: rgba(160, 80, 60, 0.35);
   --danger-bg: rgba(240, 210, 190, 0.5);
   --danger-text: rgba(120, 50, 40, 0.9);
+  --ppc-fill-partial: rgba(15, 23, 42, 0.12);
 
   /* Multi-layer elevation shadows */
   --shadow-sheet:
@@ -94,6 +95,7 @@ body {
     --danger-border: rgba(255, 130, 120, 0.25);
     --danger-bg: rgba(70, 20, 18, 0.55);
     --danger-text: rgba(255, 190, 180, 0.92);
+    --ppc-fill-partial: rgba(255, 255, 255, 0.16);
 
     --shadow-sheet:
       0 1px 1px rgba(0, 0, 0, 0.25),
@@ -119,6 +121,13 @@ body {
     mix-blend-mode: screen;
     opacity: 0.05;
   }
+}
+
+/* Allow `--ppc-angle` to interpolate so progress changes can animate smoothly. */
+@property --ppc-angle {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 0deg;
 }
 
 * {
@@ -1515,7 +1524,8 @@ body {
   box-shadow: 0 1px 0 var(--shadow);
   position: relative;
   --ppc-gap: 2px;
-  transition: border-color 120ms ease;
+  --ppc-angle: 0deg;
+  transition: border-color 120ms ease, --ppc-angle 180ms ease-out;
 }
 
 .project-progress-control[data-size='header'] {
@@ -1539,12 +1549,19 @@ body {
   z-index: 1;
 }
 
-.project-progress-control[data-progress='partial']::before {
-  background: var(--wash);
+.project-progress-control[data-progress='full'] {
+  --ppc-angle: 360deg;
 }
 
+.project-progress-control[data-progress='partial']::before,
 .project-progress-control[data-progress='full']::before {
-  background: var(--wash-strong);
+  background: conic-gradient(
+    from 0deg,
+    var(--ppc-fill-partial) 0deg,
+    var(--ppc-fill-partial) var(--ppc-angle),
+    transparent var(--ppc-angle),
+    transparent 1turn
+  );
 }
 
 .project-progress-control.is-done {
@@ -1561,7 +1578,7 @@ body {
   outline-offset: 2px;
 }
 
-.project-progress-control:hover:not(:disabled):not(.is-done) {
+button.project-progress-control:hover:not(:disabled):not(.is-done) {
   border-color: var(--rdp-selected-border-color);
 }
 
