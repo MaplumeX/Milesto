@@ -23,6 +23,7 @@ import { CSS } from '@dnd-kit/utilities'
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useTaskSelection } from './TaskSelectionContext'
+import { AnimatedTaskSlot } from './AnimatedTaskSlot'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
 import { TaskRow } from './TaskRow'
 import { useContentScrollRef } from '../../app/ContentScrollContext'
@@ -502,41 +503,20 @@ export function TaskList({
                 const t = orderedTasks[virtualRow.index]
                 if (!t) return null
 
-                if (openTaskId && t.id === openTaskId) {
-                  return (
-                    <li
-                      key={t.id}
-                      className={`task-row is-open${t.status === 'done' ? ' is-done' : ''}${
-                        selectedTaskId === t.id ? ' is-selected' : ''
-                      }`}
-                      data-task-id={t.id}
-                      ref={(el) => {
-                        if (!el) return
-                        rowVirtualizer.measureElement(el)
-                      }}
-                      data-index={virtualRow.index}
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        visibility: activeTaskId === t.id ? 'hidden' : undefined,
-                        transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
-                      }}
-                    >
-                      <TaskInlineEditorRow taskId={t.id} />
-                    </li>
-                  )
-                }
+                const isOpen = openTaskId === t.id
+                let liEl: HTMLLIElement | null = null
 
                 return (
                   <li
                     key={t.id}
-                    className={`task-row task-row-virtual${t.status === 'done' ? ' is-done' : ''}${
-                      selectedTaskId === t.id ? ' is-selected' : ''
-                    }${activeTaskId === t.id ? ' is-dragging' : ''}`}
+                    className={`task-row${isOpen ? ' is-open' : ' task-row-virtual'}${
+                      t.status === 'done' ? ' is-done' : ''
+                    }${selectedTaskId === t.id ? ' is-selected' : ''}${
+                      !isOpen && activeTaskId === t.id ? ' is-dragging' : ''
+                    }`}
                     data-task-id={t.id}
                     ref={(el) => {
+                      liEl = el
                       if (!el) return
                       rowVirtualizer.measureElement(el)
                     }}
@@ -550,32 +530,42 @@ export function TaskList({
                       transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
                     }}
                   >
-                    {isDndEnabled ? (
-                      <SortableTaskRow
-                        task={t}
-                        onSelect={(taskId) => selectTask(taskId)}
-                        onOpen={(taskId) => openTask(taskId)}
-                        onToggleDone={(taskId, done) => {
-                          if (onToggleDone) void onToggleDone(taskId, done)
-                        }}
-                        onRestore={(taskId) => {
-                          if (onRestore) void onRestore(taskId)
-                        }}
-                        onSelectForDrag={(taskId) => selectTask(taskId)}
-                      />
-                    ) : (
-                      <TaskRow
-                        task={t}
-                        onSelect={(taskId) => selectTask(taskId)}
-                        onOpen={(taskId) => openTask(taskId)}
-                        onToggleDone={(taskId, done) => {
-                          if (onToggleDone) void onToggleDone(taskId, done)
-                        }}
-                        onRestore={(taskId) => {
-                          if (onRestore) void onRestore(taskId)
-                        }}
-                      />
-                    )}
+                    <AnimatedTaskSlot
+                      isOpen={isOpen}
+                      rowContent={
+                        isDndEnabled ? (
+                          <SortableTaskRow
+                            task={t}
+                            onSelect={(taskId) => selectTask(taskId)}
+                            onOpen={(taskId) => openTask(taskId)}
+                            onToggleDone={(taskId, done) => {
+                              if (onToggleDone) void onToggleDone(taskId, done)
+                            }}
+                            onRestore={(taskId) => {
+                              if (onRestore) void onRestore(taskId)
+                            }}
+                            onSelectForDrag={(taskId) => selectTask(taskId)}
+                          />
+                        ) : (
+                          <TaskRow
+                            task={t}
+                            onSelect={(taskId) => selectTask(taskId)}
+                            onOpen={(taskId) => openTask(taskId)}
+                            onToggleDone={(taskId, done) => {
+                              if (onToggleDone) void onToggleDone(taskId, done)
+                            }}
+                            onRestore={(taskId) => {
+                              if (onRestore) void onRestore(taskId)
+                            }}
+                          />
+                        )
+                      }
+                      editorContent={<TaskInlineEditorRow taskId={t.id} />}
+                      onHeightChange={() => {
+                        if (liEl) rowVirtualizer.measureElement(liEl)
+                      }}
+                      prefersReducedMotion={prefersReducedMotion}
+                    />
                   </li>
                 )
               })}

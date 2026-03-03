@@ -5,11 +5,14 @@ import type { AppError } from '../../shared/app-error'
 import type { TaskSearchResultItem } from '../../shared/schemas/search'
 
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
+import { AnimatedTaskSlot } from '../features/tasks/AnimatedTaskSlot'
 import { TaskInlineEditorRow } from '../features/tasks/TaskInlineEditorRow'
+import { usePrefersReducedMotion } from '../features/tasks/dnd-drop-animation'
 
 export function SearchPage() {
   const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
+  const prefersReducedMotion = usePrefersReducedMotion()
   const [query, setQuery] = useState('')
   const [includeLogbook, setIncludeLogbook] = useState(false)
   const [results, setResults] = useState<TaskSearchResultItem[]>([])
@@ -107,37 +110,37 @@ export function SearchPage() {
       >
         <ul className="task-list">
           {results.map((r) => {
-            if (openTaskId && r.id === openTaskId) {
-              return (
-                <li
-                  key={r.id}
-                  className={`task-row is-open${selectedTaskId === r.id ? ' is-selected' : ''}`}
-                  data-task-id={r.id}
-                >
-                  <TaskInlineEditorRow taskId={r.id} />
-                </li>
-              )
-            }
+            const isOpen = openTaskId === r.id
 
             return (
               <li
                 key={r.id}
-                className={`task-row${selectedTaskId === r.id ? ' is-selected' : ''}`}
+                className={`task-row${isOpen ? ' is-open' : ''}${selectedTaskId === r.id ? ' is-selected' : ''}`}
                 data-task-id={r.id}
               >
-                <button
-                  type="button"
-                  className="task-title task-title-button"
-                  data-task-focus-target="true"
-                  data-task-id={r.id}
-                  onClick={() => selectTask(r.id)}
-                  onDoubleClick={() => void openTask(r.id)}
-                >
-                  <span className={r.title.trim() ? undefined : 'task-title-placeholder'}>
-                    {r.title.trim() ? r.title : t('task.untitled')}
-                  </span>
-                </button>
-                <div className="mono">{r.snippet ?? ''}</div>
+                <AnimatedTaskSlot
+                  isOpen={isOpen}
+                  rowContent={
+                    <>
+                      <button
+                        type="button"
+                        className="task-title task-title-button"
+                        data-task-focus-target="true"
+                        data-task-id={r.id}
+                        onClick={() => selectTask(r.id)}
+                        onDoubleClick={() => void openTask(r.id)}
+                      >
+                        <span className={r.title.trim() ? undefined : 'task-title-placeholder'}>
+                          {r.title.trim() ? r.title : t('task.untitled')}
+                        </span>
+                      </button>
+                      <div className="mono">{r.snippet ?? ''}</div>
+                    </>
+                  }
+                  editorContent={<TaskInlineEditorRow taskId={r.id} />}
+                  onHeightChange={() => {}}
+                  prefersReducedMotion={prefersReducedMotion}
+                />
               </li>
             )
           })}

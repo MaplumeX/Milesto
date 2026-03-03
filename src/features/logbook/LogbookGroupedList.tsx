@@ -8,8 +8,10 @@ import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useContentScrollRef } from '../../app/ContentScrollContext'
 import { ProjectProgressControl } from '../projects/ProjectProgressControl'
+import { AnimatedTaskSlot } from '../tasks/AnimatedTaskSlot'
 import { TaskInlineEditorRow } from '../tasks/TaskInlineEditorRow'
 import { useTaskSelection } from '../tasks/TaskSelectionContext'
+import { usePrefersReducedMotion } from '../tasks/dnd-drop-animation'
 import { buildLogbookRows } from './logbook-rows'
 
 export function LogbookGroupedList({
@@ -29,6 +31,7 @@ export function LogbookGroupedList({
   const navigate = useNavigate()
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
   const contentScrollRef = useContentScrollRef()
+  const prefersReducedMotion = usePrefersReducedMotion()
   const listboxRef = useRef<HTMLDivElement | null>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -277,37 +280,18 @@ export function LogbookGroupedList({
             const task = row.entry.task
             const hasTitle = task.title.trim().length > 0
             const displayTitle = hasTitle ? task.title : t('task.untitled')
-
-            if (openTaskId && task.id === openTaskId) {
-              return (
-                <li
-                  key={`t:${task.id}`}
-                  className={`task-row is-open${selectedTaskId === task.id ? ' is-selected' : ''}`}
-                  data-task-id={task.id}
-                  ref={(el) => {
-                    if (!el) return
-                    rowVirtualizer.measureElement(el)
-                  }}
-                  data-index={virtualRow.index}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
-                  }}
-                >
-                  <TaskInlineEditorRow taskId={task.id} />
-                </li>
-              )
-            }
+            const isOpen = openTaskId === task.id
+            let liEl: HTMLLIElement | null = null
 
             return (
               <li
                 key={`t:${task.id}`}
-                className={`task-row${selectedTaskId === task.id ? ' is-selected' : ''}`}
+                className={`task-row${isOpen ? ' is-open' : ''}${
+                  selectedTaskId === task.id ? ' is-selected' : ''
+                }`}
                 data-task-id={task.id}
                 ref={(el) => {
+                  liEl = el
                   if (!el) return
                   rowVirtualizer.measureElement(el)
                 }}
@@ -320,38 +304,50 @@ export function LogbookGroupedList({
                   transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
                 }}
               >
-                <label className="task-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={task.status === 'done'}
-                    onChange={(e) => {
-                      if (e.target.checked) return
-                      void onRestoreTask(task.id)
-                    }}
-                  />
-                </label>
+                <AnimatedTaskSlot
+                  isOpen={isOpen}
+                  rowContent={
+                    <>
+                      <label className="task-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={task.status === 'done'}
+                          onChange={(e) => {
+                            if (e.target.checked) return
+                            void onRestoreTask(task.id)
+                          }}
+                        />
+                      </label>
 
-                <button
-                  type="button"
-                  className="task-title task-title-button upcoming-task-title-button"
-                  data-task-focus-target="true"
-                  data-task-id={task.id}
-                  onClick={() => {
-                    setSelectedProjectId(null)
-                    selectTask(task.id)
-                    setSelectedRowIndex(virtualRow.index)
+                      <button
+                        type="button"
+                        className="task-title task-title-button upcoming-task-title-button"
+                        data-task-focus-target="true"
+                        data-task-id={task.id}
+                        onClick={() => {
+                          setSelectedProjectId(null)
+                          selectTask(task.id)
+                          setSelectedRowIndex(virtualRow.index)
+                        }}
+                        onDoubleClick={() => {
+                          setSelectedProjectId(null)
+                          void openTask(task.id)
+                          setSelectedRowIndex(virtualRow.index)
+                        }}
+                      >
+                        <span className="upcoming-date-prefix" aria-hidden="true">
+                          {row.entry.datePrefix}
+                        </span>
+                        <span className={hasTitle ? undefined : 'task-title-placeholder'}>{displayTitle}</span>
+                      </button>
+                    </>
+                  }
+                  editorContent={<TaskInlineEditorRow taskId={task.id} />}
+                  onHeightChange={() => {
+                    if (liEl) rowVirtualizer.measureElement(liEl)
                   }}
-                  onDoubleClick={() => {
-                    setSelectedProjectId(null)
-                    void openTask(task.id)
-                    setSelectedRowIndex(virtualRow.index)
-                  }}
-                >
-                  <span className="upcoming-date-prefix" aria-hidden="true">
-                    {row.entry.datePrefix}
-                  </span>
-                  <span className={hasTitle ? undefined : 'task-title-placeholder'}>{displayTitle}</span>
-                </button>
+                  prefersReducedMotion={prefersReducedMotion}
+                />
               </li>
             )
           })}

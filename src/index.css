@@ -45,7 +45,7 @@
     0 1px 0 var(--shadow),
     0 16px 22px rgba(0, 0, 0, 0.12);
   --shadow-inline:
-    0 0 0 1px rgba(29, 29, 27, 0.12),
+    inset 0 0 0 1px rgba(29, 29, 27, 0.12),
     0 1px 0 var(--shadow),
     0 12px 18px rgba(0, 0, 0, 0.08);
 
@@ -109,7 +109,7 @@ body {
       0 1px 0 rgba(0, 0, 0, 0.45),
       0 16px 22px rgba(0, 0, 0, 0.55);
     --shadow-inline:
-      0 0 0 1px rgba(255, 255, 255, 0.08),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.08),
       0 1px 0 rgba(0, 0, 0, 0.35),
       0 12px 18px rgba(0, 0, 0, 0.5);
   }
@@ -1238,12 +1238,12 @@ body {
   will-change: transform;
 }
 
-/* Open state: the row becomes the editor container (no separate editor row). */
+/* Open state: the row becomes the editor container (no separate editor row).
+   AnimatedTaskSlot manages padding and overflow internally. */
 .task-row.is-open {
   display: block;
-  /* Extra breathing room around the focused editor card.
-     Use padding (not margin) so react-virtual measurement stays correct. */
-  padding: 16px 0;
+  padding: 0;
+  gap: 0;
   border-bottom: 0;
 }
 

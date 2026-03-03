@@ -28,6 +28,7 @@ import type { TaskListItem } from '../../../shared/schemas/task-list'
 import { taskListIdProject } from '../../../shared/task-list-ids'
 
 import { useContentScrollRef } from '../../app/ContentScrollContext'
+import { AnimatedTaskSlot } from './AnimatedTaskSlot'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
 import { TaskRow } from './TaskRow'
 import { useTaskSelection } from './TaskSelectionContext'
@@ -1321,49 +1322,26 @@ export function ProjectGroupedList({
             if (row.type !== 'task') return null
 
             const t = row.task
-            if (openTaskId && t.id === openTaskId) {
-              return (
-                <li
-                  key={t.id}
-                  className={`task-row is-open${t.status === 'done' ? ' is-done' : ''}${
-                    selectedTaskId === t.id ? ' is-selected' : ''
-                  }`}
-                  data-task-id={t.id}
-                  ref={(el) => {
-                    if (!el) return
-                    rowVirtualizer.measureElement(el)
-                  }}
-                  data-index={virtualRow.index}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    visibility: activeTaskId === t.id ? 'hidden' : undefined,
-                    transform: `translateY(${translateY}px)`,
-                  }}
-                >
-                  <TaskInlineEditorRow taskId={t.id} />
-                </li>
-              )
-            }
-
+            const isOpen = openTaskId === t.id
             const isSelected = selectedTaskId === t.id
-            const isDragging = activeTaskId === t.id
+            const isDragging = !isOpen && activeTaskId === t.id
             const containerId = containerByTaskId.get(t.id) ?? taskListIdProject(projectId, t.section_id)
             const containerItems = openItemsByContainer[containerId] ?? []
             const isOpenTask = t.status === 'open'
             const isLastOpenInContainer =
               isOpenTask && containerItems.length > 0 && containerItems[containerItems.length - 1] === t.id
 
+            let liEl: HTMLLIElement | null = null
+
             return (
               <li
                 key={t.id}
-                className={`task-row task-row-virtual${t.status === 'done' ? ' is-done' : ''}${
-                  isSelected ? ' is-selected' : ''
-                }${isDragging ? ' is-dragging' : ''}`}
+                className={`task-row${isOpen ? ' is-open' : ' task-row-virtual'}${
+                  t.status === 'done' ? ' is-done' : ''
+                }${isSelected ? ' is-selected' : ''}${isDragging ? ' is-dragging' : ''}`}
                 data-task-id={t.id}
                 ref={(el) => {
+                  liEl = el
                   if (!el) return
                   rowVirtualizer.measureElement(el)
                 }}
@@ -1377,25 +1355,35 @@ export function ProjectGroupedList({
                 transform: `translateY(${translateY}px)`,
               }}
             >
-                {isOpenTask ? (
-                  <SortableContext id={containerId} items={containerItems} strategy={verticalListSortingStrategy}>
-                    <SortableProjectTaskRow
-                      task={t}
-                      onSelect={selectTaskRow}
-                      onOpen={(taskId) => void openTask(taskId)}
-                      onToggleDone={(taskId, done) => void onToggleDone(taskId, done)}
-                      onSelectForDrag={selectTaskRow}
-                    />
-                    {isLastOpenInContainer ? <ProjectSectionTailDropZone containerId={containerId} /> : null}
-                  </SortableContext>
-                ) : (
-                  <TaskRow
-                    task={t}
-                    onSelect={selectTaskRow}
-                    onOpen={(taskId) => void openTask(taskId)}
-                    onToggleDone={(taskId, done) => void onToggleDone(taskId, done)}
-                  />
-                )}
+                <AnimatedTaskSlot
+                  isOpen={isOpen}
+                  rowContent={
+                    isOpenTask ? (
+                      <SortableContext id={containerId} items={containerItems} strategy={verticalListSortingStrategy}>
+                        <SortableProjectTaskRow
+                          task={t}
+                          onSelect={selectTaskRow}
+                          onOpen={(taskId) => void openTask(taskId)}
+                          onToggleDone={(taskId, done) => void onToggleDone(taskId, done)}
+                          onSelectForDrag={selectTaskRow}
+                        />
+                        {isLastOpenInContainer ? <ProjectSectionTailDropZone containerId={containerId} /> : null}
+                      </SortableContext>
+                    ) : (
+                      <TaskRow
+                        task={t}
+                        onSelect={selectTaskRow}
+                        onOpen={(taskId) => void openTask(taskId)}
+                        onToggleDone={(taskId, done) => void onToggleDone(taskId, done)}
+                      />
+                    )
+                  }
+                  editorContent={<TaskInlineEditorRow taskId={t.id} />}
+                  onHeightChange={() => {
+                    if (liEl) rowVirtualizer.measureElement(liEl)
+                  }}
+                  prefersReducedMotion={prefersReducedMotion}
+                />
               </li>
             )
           })}

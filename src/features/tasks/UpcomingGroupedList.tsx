@@ -5,8 +5,10 @@ import { useTranslation } from 'react-i18next'
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useTaskSelection } from './TaskSelectionContext'
+import { AnimatedTaskSlot } from './AnimatedTaskSlot'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
 import { useContentScrollRef } from '../../app/ContentScrollContext'
+import { usePrefersReducedMotion } from './dnd-drop-animation'
 import { buildUpcomingRows } from './upcoming-grouping'
 
 export function UpcomingGroupedList({
@@ -21,6 +23,7 @@ export function UpcomingGroupedList({
   const { t, i18n } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
   const contentScrollRef = useContentScrollRef()
+  const prefersReducedMotion = usePrefersReducedMotion()
   const listboxRef = useRef<HTMLDivElement | null>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
 
@@ -211,41 +214,18 @@ export function UpcomingGroupedList({
             }
 
             const t = row.task
-
-            if (openTaskId && t.id === openTaskId) {
-              return (
-                <li
-                  key={`t:${t.id}`}
-                  className={`task-row is-open${t.status === 'done' ? ' is-done' : ''}${
-                    selectedTaskId === t.id ? ' is-selected' : ''
-                  }`}
-                  data-task-id={t.id}
-                  ref={(el) => {
-                    if (!el) return
-                    rowVirtualizer.measureElement(el)
-                  }}
-                  data-index={virtualRow.index}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
-                  }}
-                >
-                  <TaskInlineEditorRow taskId={t.id} />
-                </li>
-              )
-            }
+            const isOpen = openTaskId === t.id
+            let liEl: HTMLLIElement | null = null
 
             return (
               <li
                 key={`t:${t.id}`}
-                className={`task-row${t.status === 'done' ? ' is-done' : ''}${
+                className={`task-row${isOpen ? ' is-open' : ''}${t.status === 'done' ? ' is-done' : ''}${
                   selectedTaskId === t.id ? ' is-selected' : ''
                 }`}
                 data-task-id={t.id}
                 ref={(el) => {
+                  liEl = el
                   if (!el) return
                   rowVirtualizer.measureElement(el)
                 }}
@@ -258,31 +238,43 @@ export function UpcomingGroupedList({
                   transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
                 }}
               >
-                <label className="task-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={t.status === 'done'}
-                    onChange={(e) => {
-                      void onToggleDone(t.id, e.target.checked)
-                    }}
-                  />
-                </label>
+                <AnimatedTaskSlot
+                  isOpen={isOpen}
+                  rowContent={
+                    <>
+                      <label className="task-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={t.status === 'done'}
+                          onChange={(e) => {
+                            void onToggleDone(t.id, e.target.checked)
+                          }}
+                        />
+                      </label>
 
-                <button
-                  type="button"
-                  className={`task-title task-title-button${row.datePrefix ? ' upcoming-task-title-button' : ''}`}
-                  data-task-focus-target="true"
-                  data-task-id={t.id}
-                  onClick={() => selectTask(t.id)}
-                  onDoubleClick={() => void openTask(t.id)}
-                >
-                  {row.datePrefix ? (
-                    <span className="upcoming-date-prefix" aria-hidden="true">
-                      {row.datePrefix}
-                    </span>
-                  ) : null}
-                  <span className="upcoming-task-title">{t.title}</span>
-                </button>
+                      <button
+                        type="button"
+                        className={`task-title task-title-button${row.datePrefix ? ' upcoming-task-title-button' : ''}`}
+                        data-task-focus-target="true"
+                        data-task-id={t.id}
+                        onClick={() => selectTask(t.id)}
+                        onDoubleClick={() => void openTask(t.id)}
+                      >
+                        {row.datePrefix ? (
+                          <span className="upcoming-date-prefix" aria-hidden="true">
+                            {row.datePrefix}
+                          </span>
+                        ) : null}
+                        <span className="upcoming-task-title">{t.title}</span>
+                      </button>
+                    </>
+                  }
+                  editorContent={<TaskInlineEditorRow taskId={t.id} />}
+                  onHeightChange={() => {
+                    if (liEl) rowVirtualizer.measureElement(liEl)
+                  }}
+                  prefersReducedMotion={prefersReducedMotion}
+                />
               </li>
             )
           })}
