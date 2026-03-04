@@ -29,7 +29,8 @@
   --danger-border: rgba(160, 80, 60, 0.35);
   --danger-bg: rgba(240, 210, 190, 0.5);
   --danger-text: rgba(120, 50, 40, 0.9);
-  --ppc-fill-partial: rgba(15, 23, 42, 0.32);
+  --ppc-color: #4A8DF8;
+  --ppc-fill-partial: #4A8DF8;
 
   /* Multi-layer elevation shadows */
   --shadow-sheet:
@@ -95,7 +96,8 @@ body {
     --danger-border: rgba(255, 130, 120, 0.25);
     --danger-bg: rgba(70, 20, 18, 0.55);
     --danger-text: rgba(255, 190, 180, 0.92);
-    --ppc-fill-partial: rgba(255, 255, 255, 0.30);
+    --ppc-color: #5C9BFF;
+    --ppc-fill-partial: #5C9BFF;
 
     --shadow-sheet:
       0 1px 1px rgba(0, 0, 0, 0.25),
@@ -1541,13 +1543,13 @@ body {
   width: 20px;
   height: 20px;
   border-radius: 999px;
-  border: 1px solid var(--border);
+  border: 2px solid var(--ppc-color);
   background: transparent;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--text);
+  color: var(--ppc-color);
   cursor: pointer;
   position: relative;
   --ppc-gap: 1.5px;
@@ -1596,13 +1598,13 @@ body {
 }
 
 .project-progress-control.is-done {
-  border-color: var(--text);
-  background: var(--text);
-  color: var(--bg);
+  border-color: var(--ppc-color);
+  background: var(--ppc-color);
+  color: #fff;
 }
 
 .project-progress-control.is-done::before {
-  background: var(--text);
+  background: var(--ppc-color);
 }
 
 .project-progress-control:focus-visible {
@@ -1611,12 +1613,36 @@ body {
 }
 
 button.project-progress-control:hover:not(:disabled):not(.is-done) {
-  border-color: var(--rdp-selected-border-color);
+  border-color: var(--ppc-color);
+  filter: brightness(1.1);
 }
 
 .project-progress-control:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.sidebar .project-progress-control {
+  border-color: rgba(15, 23, 42, 0.32);
+  color: var(--text);
+  --ppc-fill-partial: rgba(15, 23, 42, 0.32);
+}
+
+.sidebar .project-progress-control.is-done {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--bg);
+}
+
+.sidebar .project-progress-control.is-done::before {
+  background: var(--text);
+}
+
+@media (prefers-color-scheme: dark) {
+  .sidebar .project-progress-control {
+    border-color: rgba(255, 255, 255, 0.30);
+    --ppc-fill-partial: rgba(255, 255, 255, 0.30);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
