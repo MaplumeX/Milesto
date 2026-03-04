@@ -590,7 +590,7 @@ const AreaMenu = forwardRef(function AreaMenu(
       className={view === 'tags' ? 'task-inline-popover task-inline-popover-tags' : 'task-inline-popover'}
       role="dialog"
       aria-label={t('aria.areaActions')}
-      style={{ position: 'fixed', top, left, width: maxWidth, zIndex: 45 }}
+      style={{ position: 'fixed', top, left, maxWidth, zIndex: 45 }}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.preventDefault()
@@ -603,17 +603,14 @@ const AreaMenu = forwardRef(function AreaMenu(
         {view === 'root' ? (
           <>
             <div className="task-inline-popover-title">{t('areaPage.menuTitle')}</div>
-            <div
-              className="row"
-              style={{ justifyContent: 'flex-start', flexDirection: 'column', alignItems: 'stretch', gap: 6 }}
-            >
-              <button ref={tagsBtnRef} type="button" className="button button-ghost" onClick={goTags}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <button ref={tagsBtnRef} type="button" className="task-inline-popover-item" onClick={goTags}>
                 {t('taskEditor.tagsLabel')}
               </button>
               <button
                 ref={deleteBtnRef}
                 type="button"
-                className="button button-ghost"
+                className="task-inline-popover-item"
                 onClick={() => {
                   void (async () => {
                     onSetPageError(null)

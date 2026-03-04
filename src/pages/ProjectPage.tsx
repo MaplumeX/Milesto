@@ -850,7 +850,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
       }
       role="dialog"
       aria-label={t('aria.projectActions')}
-      style={{ position: 'fixed', top, left, width: maxWidth, zIndex: 45 }}
+      style={{ position: 'fixed', top, left, maxWidth, zIndex: 45 }}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.preventDefault()
@@ -863,11 +863,11 @@ const ProjectMenu = forwardRef(function ProjectMenu(
         {view === 'root' ? (
           <>
             <div className="task-inline-popover-title">{t('projectPage.menuTitle')}</div>
-            <div className="row" style={{ justifyContent: 'flex-start', flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <button
                 ref={completeBtnRef}
                 type="button"
-                className="button button-ghost"
+                className="task-inline-popover-item"
                 onClick={() => {
                   void (async () => {
                     onError(null)
@@ -901,7 +901,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
               <button
                 ref={planBtnRef}
                 type="button"
-                className="button button-ghost"
+                className="task-inline-popover-item"
                 onClick={() => goSubview('plan', 'plan')}
               >
                 {t('common.schedule')}
@@ -910,7 +910,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
               <button
                 ref={dueBtnRef}
                 type="button"
-                className="button button-ghost"
+                className="task-inline-popover-item"
                 onClick={() => goSubview('due', 'due')}
               >
                 {t('taskEditor.dueLabel')}
@@ -919,7 +919,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
               <button
                 ref={moveBtnRef}
                 type="button"
-                className="button button-ghost"
+                className="task-inline-popover-item"
                 onClick={() => goSubview('move', 'move')}
               >
                 {t('common.move')}
@@ -928,7 +928,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
               <button
                 ref={tagsBtnRef}
                 type="button"
-                className="button button-ghost"
+                className="task-inline-popover-item"
                 onClick={() => {
                   setTagCreateError(null)
                   setTagsError(null)
@@ -942,7 +942,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
               <button
                 ref={deleteBtnRef}
                 type="button"
-                className="button button-ghost"
+                className="task-inline-popover-item"
                 onClick={() => {
                   void (async () => {
                     onError(null)

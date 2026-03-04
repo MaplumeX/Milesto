@@ -1396,12 +1396,39 @@ body {
 }
 
 .task-inline-popover-body {
-  padding: 10px;
+  padding: 6px;
 }
 
 .task-inline-popover-title {
   font-weight: 650;
   font-size: 11px;
+  padding: 4px 8px 2px;
+  color: var(--muted);
+}
+
+/* Clean menu-item style for popover root lists (Things 3-like) */
+.task-inline-popover-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.task-inline-popover-item:hover {
+  background: var(--wash);
+}
+
+.task-inline-popover-item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
 }
 
 .task-inline-popover-tags .task-inline-popover-body {
