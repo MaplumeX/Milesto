@@ -29,7 +29,7 @@
   --danger-border: rgba(160, 80, 60, 0.35);
   --danger-bg: rgba(240, 210, 190, 0.5);
   --danger-text: rgba(120, 50, 40, 0.9);
-  --ppc-fill-partial: rgba(15, 23, 42, 0.12);
+  --ppc-fill-partial: rgba(15, 23, 42, 0.32);
 
   /* Multi-layer elevation shadows */
   --shadow-sheet:
@@ -95,7 +95,7 @@ body {
     --danger-border: rgba(255, 130, 120, 0.25);
     --danger-bg: rgba(70, 20, 18, 0.55);
     --danger-text: rgba(255, 190, 180, 0.92);
-    --ppc-fill-partial: rgba(255, 255, 255, 0.16);
+    --ppc-fill-partial: rgba(255, 255, 255, 0.30);
 
     --shadow-sheet:
       0 1px 1px rgba(0, 0, 0, 0.25),
@@ -1521,17 +1521,20 @@ body {
   justify-content: center;
   color: var(--text);
   cursor: pointer;
-  box-shadow: 0 1px 0 var(--shadow);
   position: relative;
-  --ppc-gap: 2px;
+  --ppc-gap: 1.5px;
   --ppc-angle: 0deg;
+  transition: border-color 120ms ease;
+}
+
+.project-progress-control[data-ready] {
   transition: border-color 120ms ease, --ppc-angle 180ms ease-out;
 }
 
 .project-progress-control[data-size='header'] {
   width: 24px;
   height: 24px;
-  --ppc-gap: 3px;
+  --ppc-gap: 2px;
 }
 
 .project-progress-control::before {
@@ -1565,7 +1568,8 @@ body {
 }
 
 .project-progress-control.is-done {
-  border-color: transparent;
+  border-color: var(--text);
+  background: var(--text);
   color: var(--bg);
 }
 
@@ -1588,7 +1592,8 @@ button.project-progress-control:hover:not(:disabled):not(.is-done) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .project-progress-control {
+  .project-progress-control,
+  .project-progress-control[data-ready] {
     transition: none;
   }
 

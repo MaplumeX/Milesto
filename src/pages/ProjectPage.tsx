@@ -570,6 +570,7 @@ export function ProjectPage() {
               setError(updated.error)
               return
             }
+            bumpRevision()
             await refresh()
             if (isCompletedExpanded) {
               setDoneTasks(null)

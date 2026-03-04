@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { type CSSProperties, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { Project } from '../../../shared/schemas/project'
@@ -48,6 +48,21 @@ function getProgressModel(params: {
   return { safeTotal, safeDone, openCount, percent, progressKind, style }
 }
 
+/**
+ * After mount, enable CSS transitions for --ppc-angle so the initial
+ * render is instant but subsequent updates animate smoothly.
+ */
+function useReadyAfterMount() {
+  const ref = useRef(false)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      ref.current = true
+    })
+    return () => cancelAnimationFrame(id)
+  }, [])
+  return ref
+}
+
 export function ProjectProgressControl({
   status,
   doneCount,
@@ -64,6 +79,7 @@ export function ProjectProgressControl({
   onActivate?: () => void | Promise<void>
 }) {
   const { t } = useTranslation()
+  const readyRef = useReadyAfterMount()
 
   const model = getProgressModel({ status, doneCount, totalCount })
 
@@ -83,6 +99,7 @@ export function ProjectProgressControl({
       className={`project-progress-control${status === 'done' ? ' is-done' : ''}`}
       data-size={size ?? 'list'}
       data-progress={model.progressKind}
+      data-ready={readyRef.current || undefined}
       aria-label={ariaLabel}
       disabled={disabled}
       style={model.style}
@@ -112,6 +129,7 @@ export function ProjectProgressIndicator({
   totalCount: number
   size?: 'list' | 'header'
 }) {
+  const readyRef = useReadyAfterMount()
   const model = getProgressModel({ status, doneCount, totalCount })
 
   return (
@@ -119,6 +137,7 @@ export function ProjectProgressIndicator({
       className={`project-progress-control${status === 'done' ? ' is-done' : ''}`}
       data-size={size ?? 'list'}
       data-progress={model.progressKind}
+      data-ready={readyRef.current || undefined}
       aria-hidden="true"
       style={model.style}
     >
