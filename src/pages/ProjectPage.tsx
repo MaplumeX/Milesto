@@ -13,6 +13,8 @@ import type { TaskListItem } from '../../shared/schemas/task-list'
 import { useAppEvents } from '../app/AppEventsContext'
 import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
 import { ProjectGroupedList } from '../features/tasks/ProjectGroupedList'
+import { TaskRow } from '../features/tasks/TaskRow'
+import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 import { formatLocalDate, parseLocalDate } from '../lib/dates'
 
 const PROJECT_CREATE_SECTION_EVENT = 'milesto:project.createSection'
@@ -551,7 +553,7 @@ export function ProjectPage() {
           projectId={pid}
           sections={sections}
           openTasks={openTasks}
-          doneTasks={isCompletedExpanded ? doneTasks : null}
+          doneTasks={null}
           editingSectionId={editingSectionId}
           onStartSectionTitleEdit={(sectionId) => setEditingSectionId(sectionId)}
           onCancelSectionTitleEdit={() => setEditingSectionId(null)}
@@ -581,28 +583,108 @@ export function ProjectPage() {
           onAfterReorder={refresh}
         />
 
-        <div className="sections-header">
-          <button
-            type="button"
-            className="button button-ghost"
-            disabled={doneCount === 0}
-            aria-expanded={isCompletedExpanded}
-            onClick={() => {
-              const next = !isCompletedExpanded
-              setIsCompletedExpanded(next)
-            }}
-          >
-            {completedLabel} {isCompletedExpanded ? '▾' : '▸'}
-          </button>
-        </div>
-
-        {openCount === 0 && (!isCompletedExpanded || doneCount === 0) ? (
-          <div className="nav-muted" style={{ marginTop: 10 }}>
-            {t('projectPage.noOpenTasks')}
+        {doneCount > 0 ? (
+          <div className="sections-header">
+            <button
+              type="button"
+              className="button button-ghost"
+              aria-expanded={isCompletedExpanded}
+              onClick={() => {
+                const next = !isCompletedExpanded
+                setIsCompletedExpanded(next)
+              }}
+            >
+              {completedLabel} {isCompletedExpanded ? '▾' : '▸'}
+            </button>
           </div>
         ) : null}
+
+        {isCompletedExpanded && doneTasks ? (
+          <ProjectDoneTaskList
+            doneTasks={doneTasks}
+            sections={sections}
+            onToggleDone={async (taskId, done) => {
+              const updated = await window.api.task.toggleDone(taskId, done)
+              if (!updated.ok) {
+                setError(updated.error)
+                return
+              }
+              bumpRevision()
+              await refresh()
+              setDoneTasks(null)
+              const res = await window.api.task.listProjectDone(pid)
+              if (res.ok) setDoneTasks(res.data)
+            }}
+          />
+        ) : null}
+
       </div>
     </>
+  )
+}
+
+function ProjectDoneTaskList({
+  doneTasks,
+  sections,
+  onToggleDone,
+}: {
+  doneTasks: TaskListItem[]
+  sections: ProjectSection[]
+  onToggleDone: (taskId: string, done: boolean) => Promise<void>
+}) {
+  const { selectTask, openTask } = useTaskSelection()
+
+  // Group done tasks by section_id
+  const doneNone: TaskListItem[] = []
+  const doneBySection = new Map<string, TaskListItem[]>()
+  for (const t of doneTasks) {
+    if (!t.section_id) {
+      doneNone.push(t)
+    } else {
+      const list = doneBySection.get(t.section_id) ?? []
+      list.push(t)
+      doneBySection.set(t.section_id, list)
+    }
+  }
+
+  return (
+    <ul className="task-list" role="list">
+      {doneNone.map((task) => (
+        <li key={task.id} className="task-row is-done">
+          <TaskRow
+            task={task}
+            onSelect={selectTask}
+            onOpen={(taskId) => void openTask(taskId)}
+            onToggleDone={(taskId, done) => void onToggleDone(taskId, done)}
+          />
+        </li>
+      ))}
+      {sections.map((section) => {
+        const sectionDone = doneBySection.get(section.id)
+        if (!sectionDone || sectionDone.length === 0) return null
+        return (
+          <li key={`done-section:${section.id}`}>
+            <div className="project-group-header">
+              <div className="project-group-title">
+                {section.title.trim() || '\u00A0'}
+              </div>
+            </div>
+            <ul className="task-list" role="list">
+              {sectionDone.map((task) => (
+                <li key={task.id} className="task-row is-done">
+                  <TaskRow
+                    task={task}
+                    onSelect={selectTask}
+                    onOpen={(taskId) => void openTask(taskId)}
+                    onToggleDone={(taskId, done) => void onToggleDone(taskId, done)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 
