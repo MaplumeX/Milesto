@@ -862,7 +862,6 @@ const ProjectMenu = forwardRef(function ProjectMenu(
       <div className="task-inline-popover-body">
         {view === 'root' ? (
           <>
-            <div className="task-inline-popover-title">{t('projectPage.menuTitle')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <button
                 ref={completeBtnRef}

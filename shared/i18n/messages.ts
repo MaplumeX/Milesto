@@ -136,13 +136,9 @@ export const messagesEn = {
     notesPlaceholder: 'Add notes…',
     noOpenTasks: 'No open tasks',
     completed: 'Completed',
-    menuTitle: 'Project',
     areaLabel: 'Area',
     reopen: 'Reopen',
     markDone: 'Mark Done',
-  },
-  areaPage: {
-    menuTitle: 'Area',
   },
   taskEditor: {
     taskTitle: 'Task',
@@ -320,13 +316,9 @@ export const messagesZhCN = {
     notesPlaceholder: '添加备注…',
     noOpenTasks: '没有未完成任务',
     completed: '已完成',
-    menuTitle: '项目',
     areaLabel: '领域',
     reopen: '重新打开',
     markDone: '标记完成',
-  },
-  areaPage: {
-    menuTitle: '领域',
   },
   taskEditor: {
     taskTitle: '任务',

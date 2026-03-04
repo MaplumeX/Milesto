@@ -602,7 +602,6 @@ const AreaMenu = forwardRef(function AreaMenu(
       <div className="task-inline-popover-body">
         {view === 'root' ? (
           <>
-            <div className="task-inline-popover-title">{t('areaPage.menuTitle')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <button ref={tagsBtnRef} type="button" className="task-inline-popover-item" onClick={goTags}>
                 {t('taskEditor.tagsLabel')}
