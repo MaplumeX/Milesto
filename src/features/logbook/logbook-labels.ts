@@ -1,3 +1,5 @@
+import { formatMonthDay } from '../../lib/dates'
+
 type SupportedLocale = 'en' | 'zh-CN'
 
 function normalizeLocale(locale: string): SupportedLocale {
@@ -32,7 +34,5 @@ export function formatLogbookMonthHeader(params: {
 }
 
 export function formatLogbookDatePrefix(date: Date): string {
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  return `${month}/${day}`
+  return formatMonthDay(date)
 }

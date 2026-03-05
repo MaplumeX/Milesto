@@ -1528,7 +1528,7 @@ body {
   align-items: center;
 }
 
-.task-row.is-done .task-title {
+.task-row.is-done .task-title-text {
   text-decoration: line-through;
   color: var(--muted);
 }

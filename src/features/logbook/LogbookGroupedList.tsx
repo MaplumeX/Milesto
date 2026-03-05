@@ -10,6 +10,7 @@ import { useContentScrollRef } from '../../app/ContentScrollContext'
 import { ProjectProgressControl } from '../projects/ProjectProgressControl'
 import { AnimatedTaskSlot } from '../tasks/AnimatedTaskSlot'
 import { TaskInlineEditorRow } from '../tasks/TaskInlineEditorRow'
+import { TaskRow } from '../tasks/TaskRow'
 import { useTaskSelection } from '../tasks/TaskSelectionContext'
 import { usePrefersReducedMotion } from '../tasks/dnd-drop-animation'
 import { useOptimisticTaskTitles } from '../tasks/use-optimistic-task-titles'
@@ -280,15 +281,13 @@ export function LogbookGroupedList({
             }
 
             const task = row.entry.task
-            const hasTitle = task.title.trim().length > 0
-            const displayTitle = hasTitle ? task.title : t('task.untitled')
             const isOpen = openTaskId === task.id
             let liEl: HTMLLIElement | null = null
 
             return (
               <li
                 key={`t:${task.id}`}
-                className={`task-row${isOpen ? ' is-open' : ''}${
+                className={`task-row${isOpen ? ' is-open' : ' task-row-virtual'}${
                   selectedTaskId === task.id ? ' is-selected' : ''
                 }`}
                 data-task-id={task.id}
@@ -309,40 +308,24 @@ export function LogbookGroupedList({
                 <AnimatedTaskSlot
                   isOpen={isOpen}
                   rowContent={
-                    <>
-                      <label className="task-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={task.status === 'done'}
-                          onChange={(e) => {
-                            if (e.target.checked) return
-                            void onRestoreTask(task.id)
-                          }}
-                        />
-                      </label>
-
-                      <button
-                        type="button"
-                        className="task-title task-title-button upcoming-task-title-button"
-                        data-task-focus-target="true"
-                        data-task-id={task.id}
-                        onClick={() => {
-                          setSelectedProjectId(null)
-                          selectTask(task.id)
-                          setSelectedRowIndex(virtualRow.index)
-                        }}
-                        onDoubleClick={() => {
-                          setSelectedProjectId(null)
-                          void openTask(task.id)
-                          setSelectedRowIndex(virtualRow.index)
-                        }}
-                      >
-                        <span className="upcoming-date-prefix" aria-hidden="true">
-                          {row.entry.datePrefix}
-                        </span>
-                        <span className={hasTitle ? undefined : 'task-title-placeholder'}>{displayTitle}</span>
-                      </button>
-                    </>
+                    <TaskRow
+                      task={task}
+                      titlePrefix={row.entry.datePrefix}
+                      onSelect={(taskId) => {
+                        setSelectedProjectId(null)
+                        selectTask(taskId)
+                        setSelectedRowIndex(virtualRow.index)
+                      }}
+                      onOpen={(taskId) => {
+                        setSelectedProjectId(null)
+                        void openTask(taskId)
+                        setSelectedRowIndex(virtualRow.index)
+                      }}
+                      onToggleDone={(taskId, done) => {
+                        if (done) return
+                        void onRestoreTask(taskId)
+                      }}
+                    />
                   }
                   editorContent={<TaskInlineEditorRow taskId={task.id} />}
                   onHeightChange={() => {

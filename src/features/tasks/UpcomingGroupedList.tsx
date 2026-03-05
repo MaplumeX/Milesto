@@ -267,7 +267,7 @@ export function UpcomingGroupedList({
                             {row.datePrefix}
                           </span>
                         ) : null}
-                        <span className="upcoming-task-title">{t.title}</span>
+                        <span className="upcoming-task-title task-title-text">{t.title}</span>
                       </button>
                     </>
                   }

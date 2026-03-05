@@ -5,6 +5,12 @@ export function formatLocalDate(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
+export function formatMonthDay(date: Date): string {
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  return `${month}/${day}`
+}
+
 export function addDays(date: Date, days: number): Date {
   const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
   d.setDate(d.getDate() + days)

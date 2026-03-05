@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 export function TaskRow({
   task,
   dragHandle,
+  titlePrefix,
   titleActivatorRef,
   titleActivatorProps,
   innerRef,
@@ -16,6 +17,7 @@ export function TaskRow({
 }: {
   task: TaskListItem
   dragHandle?: React.ReactNode
+  titlePrefix?: React.ReactNode
   titleActivatorRef?: React.Ref<HTMLButtonElement>
   titleActivatorProps?: React.ButtonHTMLAttributes<HTMLButtonElement>
   innerRef?: React.Ref<HTMLDivElement>
@@ -28,6 +30,7 @@ export function TaskRow({
 }) {
   const { t } = useTranslation()
   const isTitleActivator = !!titleActivatorProps
+  const hasTitlePrefix = Boolean(titlePrefix)
   const {
     className: titleActivatorClassName,
     disabled: titleActivatorDisabled,
@@ -60,7 +63,9 @@ export function TaskRow({
         {...titleActivatorRest}
         ref={titleActivatorRef}
         type="button"
-        className={`task-title task-title-button${isTitleActivator ? ' is-dnd-activator' : ''}${
+        className={`task-title task-title-button${hasTitlePrefix ? ' upcoming-task-title-button' : ''}${
+          isTitleActivator ? ' is-dnd-activator' : ''
+        }${
           titleActivatorClassName ? ` ${titleActivatorClassName}` : ''
         }`}
         data-task-focus-target="true"
@@ -77,7 +82,17 @@ export function TaskRow({
           if (onOpen) void onOpen(task.id)
         }}
       >
-        <span className={task.title.trim() ? undefined : 'task-title-placeholder'}>
+        {hasTitlePrefix ? (
+          <span className="upcoming-date-prefix" aria-hidden="true">
+            {titlePrefix}
+          </span>
+        ) : null}
+
+        <span
+          className={`${hasTitlePrefix ? 'upcoming-task-title ' : ''}task-title-text ${
+            task.title.trim() ? '' : 'task-title-placeholder'
+          }`.trim() || undefined}
+        >
           {task.title.trim() ? task.title : t('task.untitled')}
         </span>
       </button>

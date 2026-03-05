@@ -2411,6 +2411,19 @@ async function runSelfTest(): Promise<SelfTestResult> {
     )
     assertNoOverlap(projectListbox, 'Project: after expand')
 
+    const projectDoneButton = await waitFor('Project done task button (dblclick)', () =>
+      findTaskButton(projectDoneRes.data.id)
+    )
+
+    const openedProjectDone = await openEditorByDoubleClick({
+      taskId: projectDoneRes.data.id,
+      button: projectDoneButton,
+      label: 'Project done task (dblclick)',
+    })
+
+    dispatchKey(openedProjectDone.titleInput, 'Escape')
+    await waitFor('Project done task editor closed', () => (getInlinePaper() ? null : true))
+
     completedToggle.click()
     await waitFor('Project done task hidden after collapse', () =>
       findTaskButton(projectDoneRes.data.id) ? null : true
