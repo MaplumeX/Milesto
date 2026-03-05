@@ -351,29 +351,50 @@ body {
 }
 
 .sidebar-create {
-  padding: 12px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
   border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--glass-strong);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: var(--shadow-popover);
+  overflow: hidden;
 }
 
 .create-toggle {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
 }
 
 .create-toggle-item {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 6px 10px;
-  background: var(--glass);
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  text-align: left;
+  white-space: nowrap;
   cursor: pointer;
+}
+
+.create-toggle-item:hover {
+  background: var(--wash);
+}
+
+.create-toggle-item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.create-toggle-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .create-toggle-item.is-active {
