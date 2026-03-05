@@ -10,6 +10,7 @@ import { TaskInlineEditorRow } from './TaskInlineEditorRow'
 import { useContentScrollRef } from '../../app/ContentScrollContext'
 import { usePrefersReducedMotion } from './dnd-drop-animation'
 import { buildUpcomingRows } from './upcoming-grouping'
+import { useOptimisticTaskTitles } from './use-optimistic-task-titles'
 
 export function UpcomingGroupedList({
   tasks,
@@ -24,6 +25,7 @@ export function UpcomingGroupedList({
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
   const contentScrollRef = useContentScrollRef()
   const prefersReducedMotion = usePrefersReducedMotion()
+  const tasksWithOptimisticTitles = useOptimisticTaskTitles(tasks)
   const listboxRef = useRef<HTMLDivElement | null>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
 
@@ -56,8 +58,8 @@ export function UpcomingGroupedList({
   }, [contentScrollRef])
 
   const { rows, visibleTasks } = useMemo(() => {
-    return buildUpcomingRows({ tasks, today, locale: i18n.language })
-  }, [i18n.language, tasks, today])
+    return buildUpcomingRows({ tasks: tasksWithOptimisticTitles, today, locale: i18n.language })
+  }, [i18n.language, tasksWithOptimisticTitles, today])
 
   const lastSelectedIndexRef = useRef(0)
   useEffect(() => {

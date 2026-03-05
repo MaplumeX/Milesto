@@ -336,6 +336,7 @@ export function AreaPage() {
         return
       }
 
+      setArea(res.data)
       bumpRevision()
       ignoreNextTitleBlurRef.current = true
       setIsEditingTitle(false)

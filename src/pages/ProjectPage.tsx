@@ -15,6 +15,7 @@ import { ProjectProgressControl } from '../features/projects/ProjectProgressCont
 import { ProjectGroupedList } from '../features/tasks/ProjectGroupedList'
 import { TaskRow } from '../features/tasks/TaskRow'
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
+import { useOptimisticTaskTitles } from '../features/tasks/use-optimistic-task-titles'
 import { formatLocalDate, parseLocalDate } from '../lib/dates'
 
 const PROJECT_CREATE_SECTION_EVENT = 'milesto:project.createSection'
@@ -332,6 +333,7 @@ export function ProjectPage() {
       return
     }
 
+    setProject(res.data)
     bumpRevision()
     ignoreNextTitleBlurRef.current = true
     setIsEditingTitle(false)
@@ -563,6 +565,7 @@ export function ProjectPage() {
               setError(res.error)
               return
             }
+            setSections((prev) => prev.map((s) => (s.id === sectionId ? res.data : s)))
             setEditingSectionId(null)
             await refresh()
           }}
@@ -633,11 +636,12 @@ function ProjectDoneTaskList({
   onToggleDone: (taskId: string, done: boolean) => Promise<void>
 }) {
   const { selectTask, openTask } = useTaskSelection()
+  const doneTasksWithOptimisticTitles = useOptimisticTaskTitles(doneTasks)
 
   // Group done tasks by section_id
   const doneNone: TaskListItem[] = []
   const doneBySection = new Map<string, TaskListItem[]>()
-  for (const t of doneTasks) {
+  for (const t of doneTasksWithOptimisticTitles) {
     if (!t.section_id) {
       doneNone.push(t)
     } else {

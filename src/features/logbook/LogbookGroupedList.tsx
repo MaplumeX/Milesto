@@ -12,6 +12,7 @@ import { AnimatedTaskSlot } from '../tasks/AnimatedTaskSlot'
 import { TaskInlineEditorRow } from '../tasks/TaskInlineEditorRow'
 import { useTaskSelection } from '../tasks/TaskSelectionContext'
 import { usePrefersReducedMotion } from '../tasks/dnd-drop-animation'
+import { useOptimisticTaskTitles } from '../tasks/use-optimistic-task-titles'
 import { buildLogbookRows } from './logbook-rows'
 
 export function LogbookGroupedList({
@@ -32,6 +33,7 @@ export function LogbookGroupedList({
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
   const contentScrollRef = useContentScrollRef()
   const prefersReducedMotion = usePrefersReducedMotion()
+  const tasksWithOptimisticTitles = useOptimisticTaskTitles(tasks)
   const listboxRef = useRef<HTMLDivElement | null>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -64,8 +66,8 @@ export function LogbookGroupedList({
   }, [contentScrollRef])
 
   const { rows, visibleTasks } = useMemo(() => {
-    return buildLogbookRows({ tasks, projects, locale: i18n.language, now: now ?? new Date() })
-  }, [i18n.language, now, projects, tasks])
+    return buildLogbookRows({ tasks: tasksWithOptimisticTitles, projects, locale: i18n.language, now: now ?? new Date() })
+  }, [i18n.language, now, projects, tasksWithOptimisticTitles])
 
   const taskRowIndexById = useMemo(() => {
     const out = new Map<string, number>()

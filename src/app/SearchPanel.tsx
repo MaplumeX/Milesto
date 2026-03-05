@@ -7,6 +7,7 @@ import type { TaskSearchResultItem } from '../../shared/schemas/search'
 
 import { getLocalToday, useLocalToday } from '../lib/use-local-today'
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
+import { useOptimisticTaskTitles } from '../features/tasks/use-optimistic-task-titles'
 
 const UI_OPEN_SEARCH_PANEL_EVENT = 'milesto:ui.openSearchPanel'
 
@@ -19,6 +20,7 @@ export function SearchPanel() {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<TaskSearchResultItem[]>([])
+  const resultsWithOptimisticTitles = useOptimisticTaskTitles(results)
   const [highlight, setHighlight] = useState(0)
 
   const today = useLocalToday()
@@ -166,13 +168,13 @@ export function SearchPanel() {
 
             if (e.key === 'ArrowDown') {
               e.preventDefault()
-              if (results.length === 0) return
-              setHighlight((v) => Math.min(v + 1, results.length - 1))
+              if (resultsWithOptimisticTitles.length === 0) return
+              setHighlight((v) => Math.min(v + 1, resultsWithOptimisticTitles.length - 1))
               return
             }
             if (e.key === 'ArrowUp') {
               e.preventDefault()
-              if (results.length === 0) return
+              if (resultsWithOptimisticTitles.length === 0) return
               setHighlight((v) => Math.max(v - 1, 0))
               return
             }
@@ -180,7 +182,7 @@ export function SearchPanel() {
             if (e.key === 'Enter') {
               e.preventDefault()
 
-              const item = results[highlight]
+              const item = resultsWithOptimisticTitles[highlight]
               if (item) {
                 jumpToTask(item)
               }
@@ -189,7 +191,7 @@ export function SearchPanel() {
         />
 
         <div className="palette-list">
-          {results.map((item, idx) => (
+          {resultsWithOptimisticTitles.map((item, idx) => (
             <button
               key={item.id}
               type="button"

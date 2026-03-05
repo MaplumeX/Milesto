@@ -8,6 +8,7 @@ import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 import { AnimatedTaskSlot } from '../features/tasks/AnimatedTaskSlot'
 import { TaskInlineEditorRow } from '../features/tasks/TaskInlineEditorRow'
 import { usePrefersReducedMotion } from '../features/tasks/dnd-drop-animation'
+import { useOptimisticTaskTitles } from '../features/tasks/use-optimistic-task-titles'
 
 export function SearchPage() {
   const { t } = useTranslation()
@@ -16,6 +17,7 @@ export function SearchPage() {
   const [query, setQuery] = useState('')
   const [includeLogbook, setIncludeLogbook] = useState(false)
   const [results, setResults] = useState<TaskSearchResultItem[]>([])
+  const resultsWithOptimisticTitles = useOptimisticTaskTitles(results)
   const [error, setError] = useState<AppError | null>(null)
 
   useEffect(() => {
@@ -79,13 +81,13 @@ export function SearchPage() {
         onKeyDown={(e) => {
           if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') return
 
-          const idx = selectedTaskId ? results.findIndex((r) => r.id === selectedTaskId) : -1
+          const idx = selectedTaskId ? resultsWithOptimisticTitles.findIndex((r) => r.id === selectedTaskId) : -1
 
           if (e.key === 'ArrowDown') {
             e.preventDefault()
-            if (results.length === 0) return
-            const nextIdx = Math.min(idx + 1, results.length - 1)
-            const next = results[nextIdx]
+            if (resultsWithOptimisticTitles.length === 0) return
+            const nextIdx = Math.min(idx + 1, resultsWithOptimisticTitles.length - 1)
+            const next = resultsWithOptimisticTitles[nextIdx]
             if (!next) return
             selectTask(next.id)
             return
@@ -93,9 +95,9 @@ export function SearchPage() {
 
           if (e.key === 'ArrowUp') {
             e.preventDefault()
-            if (results.length === 0) return
+            if (resultsWithOptimisticTitles.length === 0) return
             const nextIdx = Math.max(idx <= 0 ? 0 : idx - 1, 0)
-            const next = results[nextIdx]
+            const next = resultsWithOptimisticTitles[nextIdx]
             if (!next) return
             selectTask(next.id)
             return
@@ -109,7 +111,7 @@ export function SearchPage() {
         }}
       >
         <ul className="task-list">
-          {results.map((r) => {
+          {resultsWithOptimisticTitles.map((r) => {
             const isOpen = openTaskId === r.id
 
             return (
@@ -144,7 +146,9 @@ export function SearchPage() {
               </li>
             )
           })}
-          {results.length === 0 && query.trim() ? <li className="nav-muted">{t('search.noResults')}</li> : null}
+          {resultsWithOptimisticTitles.length === 0 && query.trim() ? (
+            <li className="nav-muted">{t('search.noResults')}</li>
+          ) : null}
         </ul>
       </div>
     </div>

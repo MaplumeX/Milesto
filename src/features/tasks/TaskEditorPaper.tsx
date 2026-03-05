@@ -11,6 +11,7 @@ import type { Tag } from '../../../shared/schemas/tag'
 import type { TaskDetail } from '../../../shared/schemas/task-detail'
 import type { TaskUpdateInput } from '../../../shared/schemas/task'
 
+import { useAppEvents } from '../../app/AppEventsContext'
 import { formatLocalDate, parseLocalDate } from '../../lib/dates'
 import { getLocalToday, useLocalToday } from '../../lib/use-local-today'
 
@@ -196,6 +197,7 @@ export const TaskEditorPaper = forwardRef<
   { taskId: string; onRequestClose: () => void; variant?: TaskEditorVariant }
   >(function TaskEditorPaper({ taskId, onRequestClose, variant = 'overlay' }, ref) {
     const { t } = useTranslation()
+    const { upsertOptimisticTaskTitle } = useAppEvents()
     const titleInputRef = useRef<HTMLInputElement | null>(null)
     const notesInputRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -471,6 +473,7 @@ export const TaskEditorPaper = forwardRef<
           return
         }
 
+        upsertOptimisticTaskTitle({ id: res.data.id, title: res.data.title, updated_at: res.data.updated_at })
         setDetail((d) => (d ? { ...d, task: res.data } : d))
         lastSavedRef.current = snapshot
         setLastSaved(snapshot)

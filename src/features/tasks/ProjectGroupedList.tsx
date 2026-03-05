@@ -32,6 +32,7 @@ import { AnimatedTaskSlot } from './AnimatedTaskSlot'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
 import { TaskRow } from './TaskRow'
 import { useTaskSelection } from './TaskSelectionContext'
+import { useOptimisticTaskTitles } from './use-optimistic-task-titles'
 import {
   getTaskDropAnimationConfig,
   getTaskDropAnimationDurationMs,
@@ -423,6 +424,7 @@ export function ProjectGroupedList({
   const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId, requestCloseTask } = useTaskSelection()
   const contentScrollRef = useContentScrollRef()
+  const openTasksWithOptimisticTitles = useOptimisticTaskTitles(openTasks)
 
   const [orderedSectionIds, setOrderedSectionIds] = useState<string[]>(() => sections.map((s) => s.id))
   const orderedSectionIdsRef = useRef(orderedSectionIds)
@@ -453,7 +455,7 @@ export function ProjectGroupedList({
   }, [orderedSectionIds, sections])
 
   const [openItemsByContainer, setOpenItemsByContainer] = useState<Record<ContainerId, string[]>>(() =>
-    deriveOpenItemsByContainer({ projectId, sections, openTasks })
+    deriveOpenItemsByContainer({ projectId, sections, openTasks: openTasksWithOptimisticTitles })
   )
 
   const noSectionContainerId = useMemo(() => taskListIdProject(projectId, null), [projectId])
@@ -537,8 +539,10 @@ export function ProjectGroupedList({
 
   useEffect(() => {
     if (activeTaskId || activeSectionId) return
-    setOpenItemsByContainer(deriveOpenItemsByContainer({ projectId, sections: orderedSections, openTasks }))
-  }, [activeSectionId, activeTaskId, openTasks, orderedSections, projectId])
+    setOpenItemsByContainer(
+      deriveOpenItemsByContainer({ projectId, sections: orderedSections, openTasks: openTasksWithOptimisticTitles })
+    )
+  }, [activeSectionId, activeTaskId, openTasksWithOptimisticTitles, orderedSections, projectId])
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -868,8 +872,8 @@ export function ProjectGroupedList({
 
   const activeTask = useMemo(() => {
     if (!activeTaskId) return null
-    return openTasks.find((t) => t.id === activeTaskId) ?? null
-  }, [activeTaskId, openTasks])
+    return openTasksWithOptimisticTitles.find((t) => t.id === activeTaskId) ?? null
+  }, [activeTaskId, openTasksWithOptimisticTitles])
 
   const activeSection = useMemo(() => {
     if (!activeSectionId) return null
@@ -920,7 +924,7 @@ export function ProjectGroupedList({
     const groupRowIndexBySectionId = new Map<string, number>()
 
     const openById = new Map<string, TaskListItem>()
-    for (const t of openTasks) openById.set(t.id, t)
+    for (const t of openTasksWithOptimisticTitles) openById.set(t.id, t)
 
     const doneBySection = new Map<string, TaskListItem[]>()
     const doneNone: TaskListItem[] = []
@@ -990,7 +994,7 @@ export function ProjectGroupedList({
     }
 
     return { rows, taskRowIndexById, groupRowIndexBySectionId }
-  }, [activeSectionId, doneTasks, openItemsByContainer, openTasks, orderedSections, projectId])
+  }, [activeSectionId, doneTasks, openItemsByContainer, openTasksWithOptimisticTitles, orderedSections, projectId])
 
   const selectedRowIndex = useMemo(() => {
     if (!selectedRow) return null

@@ -26,6 +26,7 @@ import { useTaskSelection } from './TaskSelectionContext'
 import { AnimatedTaskSlot } from './AnimatedTaskSlot'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
 import { TaskRow } from './TaskRow'
+import { useOptimisticTaskTitles } from './use-optimistic-task-titles'
 import { useContentScrollRef } from '../../app/ContentScrollContext'
 import {
   getTaskDropAnimationConfig,
@@ -103,6 +104,7 @@ export function TaskList({
 }) {
   const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
+  const tasksWithOptimisticTitles = useOptimisticTaskTitles(tasks)
 
   const contentScrollRef = useContentScrollRef()
 
@@ -170,9 +172,9 @@ export function TaskList({
   }, [orderedTaskIds])
 
   const orderedTasks = useMemo(() => {
-    if (orderedTaskIds.length === 0) return tasks
+    if (orderedTaskIds.length === 0) return tasksWithOptimisticTitles
     const byId = new Map<string, TaskListItem>()
-    for (const t of tasks) byId.set(t.id, t)
+    for (const t of tasksWithOptimisticTitles) byId.set(t.id, t)
 
     const out: TaskListItem[] = []
     const seen = new Set<string>()
@@ -182,12 +184,12 @@ export function TaskList({
       out.push(t)
       seen.add(id)
     }
-    for (const t of tasks) {
+    for (const t of tasksWithOptimisticTitles) {
       if (seen.has(t.id)) continue
       out.push(t)
     }
     return out
-  }, [orderedTaskIds, tasks])
+  }, [orderedTaskIds, tasksWithOptimisticTitles])
 
   const taskIndexById = useMemo(() => {
     const map = new Map<string, number>()
