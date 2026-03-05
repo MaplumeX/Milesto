@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { AnimatePresence, motion } from 'framer-motion'
 
 import {
   DndContext,
@@ -38,6 +39,9 @@ import {
 } from '../features/tasks/dnd-drop-animation'
 
 const PROJECT_CREATE_SECTION_EVENT = 'milesto:project.createSection'
+const CONTENT_BOTTOM_BAR_SWITCH_Y_PX = 10
+const CONTENT_BOTTOM_BAR_SWITCH_ENTER = { duration: 0.16, ease: 'easeOut' as const }
+const CONTENT_BOTTOM_BAR_SWITCH_EXIT = { duration: 0.12, ease: 'easeOut' as const }
 
 type ContainerId = string
 const SIDEBAR_UNASSIGNED_CONTAINER_ID: ContainerId = 'sidebar:unassigned'
@@ -1186,6 +1190,72 @@ export function AppShell() {
     )
   }
 
+  const isTaskEditorOpen = openTaskId !== null
+
+  const contentBottomBarListActions = (
+    <>
+      <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
+        {t('shell.task')}
+      </button>
+      {areaIdFromRoute ? (
+        <button
+          type="button"
+          className="button button-ghost"
+          onClick={() => void handleAddProjectForArea()}
+          disabled={isCreating}
+        >
+          {t('common.addProject')}
+        </button>
+      ) : null}
+      {projectIdFromRoute ? (
+        <button type="button" className="button button-ghost" onClick={handleAddSection}>
+          {t('shell.section')}
+        </button>
+      ) : null}
+
+      <ContentBottomBarActions
+        variant="list"
+        taskId={selectedTaskId}
+        areas={sidebar.areas}
+        openProjects={sidebar.openProjects}
+        bumpRevision={bumpRevision}
+      />
+    </>
+  )
+
+  const contentBottomBarEditActions = openTaskId ? (
+    <>
+      <ContentBottomBarActions
+        variant="edit"
+        taskId={openTaskId}
+        areas={sidebar.areas}
+        openProjects={sidebar.openProjects}
+        bumpRevision={bumpRevision}
+        onEditModeActionComplete={() => {
+          void requestCloseTask()
+        }}
+      />
+      <button
+        type="button"
+        className="button button-ghost"
+        onClick={() => void handleDeleteOpenTask()}
+        data-content-bottom-edit-action="delete"
+      >
+        {t('common.delete')}
+      </button>
+      <button
+        type="button"
+        className="button button-ghost"
+        onClick={() => {
+          // Placeholder: reserved for future menu.
+        }}
+        data-content-bottom-edit-action="more"
+      >
+        {t('common.more')}
+      </button>
+    </>
+  ) : null
+
   return (
     <TaskSelectionProvider
       value={{
@@ -1312,73 +1382,71 @@ export function AppShell() {
                 <Outlet />
               </div>
 
-                <div
-                  className="content-bottom-bar"
-                  data-content-bottom-actions={openTaskId === null ? 'true' : undefined}
-                  data-content-bottom-actions-edit={openTaskId !== null ? 'true' : undefined}
-                >
-                  {openTaskId === null ? (
-                    <>
-                      <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
-                        {t('shell.task')}
-                      </button>
-                      {areaIdFromRoute ? (
-                        <button
-                          type="button"
-                          className="button button-ghost"
-                          onClick={() => void handleAddProjectForArea()}
-                          disabled={isCreating}
-                        >
-                          {t('common.addProject')}
-                        </button>
-                      ) : null}
-                      {projectIdFromRoute ? (
-                        <button type="button" className="button button-ghost" onClick={handleAddSection}>
-                          {t('shell.section')}
-                        </button>
-                      ) : null}
-
-                      <ContentBottomBarActions
-                        variant="list"
-                        taskId={selectedTaskId}
-                        areas={sidebar.areas}
-                        openProjects={sidebar.openProjects}
-                        bumpRevision={bumpRevision}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <ContentBottomBarActions
-                        variant="edit"
-                        taskId={openTaskId}
-                        areas={sidebar.areas}
-                        openProjects={sidebar.openProjects}
-                        bumpRevision={bumpRevision}
-                        onEditModeActionComplete={() => {
-                          void requestCloseTask()
-                        }}
-                      />
-                      <button
-                        type="button"
-                        className="button button-ghost"
-                        onClick={() => void handleDeleteOpenTask()}
-                        data-content-bottom-edit-action="delete"
-                      >
-                        {t('common.delete')}
-                      </button>
-                      <button
-                        type="button"
-                        className="button button-ghost"
-                        onClick={() => {
-                          // Placeholder: reserved for future menu.
-                        }}
-                        data-content-bottom-edit-action="more"
-                      >
-                        {t('common.more')}
-                      </button>
-                    </>
-                  )}
-                </div>
+	                <div
+	                  className="content-bottom-bar"
+	                  data-content-bottom-actions={openTaskId === null ? 'true' : undefined}
+	                  data-content-bottom-actions-edit={openTaskId !== null ? 'true' : undefined}
+	                >
+	                  {prefersReducedMotion ? (
+	                    isTaskEditorOpen ? (
+	                      contentBottomBarEditActions
+	                    ) : (
+	                      contentBottomBarListActions
+	                    )
+	                  ) : (
+	                    <AnimatePresence initial={false} mode="wait">
+	                      {isTaskEditorOpen ? (
+	                        <motion.div
+	                          key="edit"
+	                          initial={{ opacity: 0, y: CONTENT_BOTTOM_BAR_SWITCH_Y_PX }}
+	                          animate={{
+	                            opacity: 1,
+	                            y: 0,
+	                            transition: CONTENT_BOTTOM_BAR_SWITCH_ENTER,
+	                          }}
+	                          exit={{
+	                            opacity: 0,
+	                            y: CONTENT_BOTTOM_BAR_SWITCH_Y_PX,
+	                            pointerEvents: 'none' as const,
+	                            transition: CONTENT_BOTTOM_BAR_SWITCH_EXIT,
+	                          }}
+	                          style={{
+	                            display: 'flex',
+	                            alignItems: 'center',
+	                            justifyContent: 'center',
+	                            gap: 8,
+	                          }}
+	                        >
+	                          {contentBottomBarEditActions}
+	                        </motion.div>
+	                      ) : (
+	                        <motion.div
+	                          key="list"
+	                          initial={{ opacity: 0, y: CONTENT_BOTTOM_BAR_SWITCH_Y_PX }}
+	                          animate={{
+	                            opacity: 1,
+	                            y: 0,
+	                            transition: CONTENT_BOTTOM_BAR_SWITCH_ENTER,
+	                          }}
+	                          exit={{
+	                            opacity: 0,
+	                            y: CONTENT_BOTTOM_BAR_SWITCH_Y_PX,
+	                            pointerEvents: 'none' as const,
+	                            transition: CONTENT_BOTTOM_BAR_SWITCH_EXIT,
+	                          }}
+	                          style={{
+	                            display: 'flex',
+	                            alignItems: 'center',
+	                            justifyContent: 'center',
+	                            gap: 8,
+	                          }}
+	                        >
+	                          {contentBottomBarListActions}
+	                        </motion.div>
+	                      )}
+	                    </AnimatePresence>
+	                  )}
+	                </div>
             </div>
           </div>
         </main>
