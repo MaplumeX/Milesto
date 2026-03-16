@@ -12,12 +12,16 @@
   --focus: rgba(37, 99, 235, 0.4);
 
   /* Derived tokens (used to migrate away from hardcoded rgba values). */
+  --sidebar-bg: var(--glass);
+  --content-bg: var(--bg);
+  --content-edge-bg: var(--glass);
   --wash: rgba(15, 23, 42, 0.06);
   --wash-strong: rgba(15, 23, 42, 0.1);
   --glass: rgba(255, 255, 255, 0.6);
   --glass-soft: rgba(255, 255, 255, 0.8);
   --glass-strong: rgba(255, 255, 255, 0.92);
   --paper: rgba(255, 255, 255, 0.96);
+  --editor-paper: var(--paper);
   --scrim: rgba(15, 23, 42, 0.35);
   --shadow-float: 0 20px 60px rgba(0, 0, 0, 0.25);
   --rdp-selected-border-color: rgba(15, 23, 42, 0.25);
@@ -72,20 +76,24 @@ body {
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1114;
-    --panel: #14171c;
-    --text: #f2f1ee;
-    --muted: #a5a29a;
-    --border: rgba(255, 255, 255, 0.14);
+    --bg: #222528;
+    --panel: #2A2D31;
+    --text: #F0E9DC;
+    --muted: #B4AB9D;
+    --border: rgba(241, 233, 219, 0.08);
     --shadow: rgba(0, 0, 0, 0.35);
     --focus: rgba(190, 210, 255, 0.38);
 
-    --wash: rgba(255, 255, 255, 0.08);
-    --wash-strong: rgba(255, 255, 255, 0.14);
-    --glass: rgba(20, 22, 26, 0.7);
-    --glass-soft: rgba(20, 22, 26, 0.82);
-    --glass-strong: rgba(20, 22, 26, 0.92);
-    --paper: rgba(20, 22, 26, 0.96);
+    --sidebar-bg: #181A1D;
+    --content-bg: #222528;
+    --content-edge-bg: #1F2225;
+    --wash: rgba(255, 255, 255, 0.035);
+    --wash-strong: rgba(255, 255, 255, 0.08);
+    --glass: rgba(24, 26, 29, 0.92);
+    --glass-soft: rgba(31, 34, 37, 0.94);
+    --glass-strong: rgba(42, 45, 49, 0.96);
+    --paper: rgba(42, 45, 49, 0.98);
+    --editor-paper: #31353A;
     --scrim: rgba(0, 0, 0, 0.55);
     --shadow-float: 0 20px 60px rgba(0, 0, 0, 0.55);
     --rdp-selected-border-color: rgba(255, 255, 255, 0.25);
@@ -144,7 +152,7 @@ body {
 .sidebar {
   width: 280px;
   border-right: 1px solid var(--border);
-  background: var(--glass);
+  background: var(--sidebar-bg);
   backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
@@ -437,6 +445,7 @@ body {
 .content {
   flex: 1;
   overflow: hidden;
+  background: var(--content-bg);
 }
 
 .content-grid {
@@ -474,7 +483,7 @@ body {
   font-size: 10px;
   color: var(--muted);
   padding: 0 28px;
-  background: var(--glass);
+  background: var(--content-edge-bg);
   backdrop-filter: blur(10px);
 }
 
@@ -882,7 +891,7 @@ body {
   width: min(820px, 100%);
   border: 1px solid var(--border);
   border-radius: 18px;
-  background: var(--paper);
+  background: var(--editor-paper);
   box-shadow: var(--shadow-sheet);
   padding: 18px;
   position: relative;
@@ -1287,7 +1296,7 @@ body {
 
 .task-inline-paper {
   border-radius: 12px;
-  background: var(--glass-soft);
+  background: var(--editor-paper);
   /* Border via box-shadow avoids shifting content (no border width). */
   box-shadow: var(--shadow-inline);
   /* Keep title/notes aligned with collapsed rows (8px left padding). */

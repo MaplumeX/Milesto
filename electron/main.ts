@@ -89,6 +89,7 @@ import { ElectronSyncCredentialsStore } from './sync/electron-sync-credentials-s
 import { createMainSyncBridge } from './sync/main-sync-bridge'
 import { S3SyncRepository } from './sync/s3-sync-repository'
 import { SyncService } from './sync/sync-service'
+import { getWindowBackgroundColor } from './theme/window-background'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -229,9 +230,18 @@ function resolveEffectiveTheme(preference: ThemePreference): EffectiveTheme {
   return getEffectiveThemeFromNative()
 }
 
-function getWindowBackgroundColor(effectiveTheme: EffectiveTheme): string {
-  // Match the renderer's base --bg token to reduce first-paint flash.
-  return effectiveTheme === 'dark' ? '#0f1114' : '#ffffff'
+function resolveEffectiveThemeForApp(preference: ThemePreference): EffectiveTheme {
+  if (!IS_SELF_TEST) return resolveEffectiveTheme(preference)
+  return preference === 'dark' ? 'dark' : 'light'
+}
+
+function applyThemeSource(preference: ThemePreference) {
+  if (IS_SELF_TEST) {
+    nativeTheme.themeSource = preference === 'dark' ? 'dark' : 'light'
+    return
+  }
+
+  nativeTheme.themeSource = preference
 }
 
 function formatLocalDate(date: Date): string {
@@ -256,14 +266,9 @@ async function loadThemePreference(dbWorker: DbWorkerClient): Promise<ThemePrefe
 async function resolveThemeState(dbWorker: DbWorkerClient): Promise<{ preference: ThemePreference; effectiveTheme: EffectiveTheme }> {
   const preference = await loadThemePreference(dbWorker)
 
-  // Self-test mode: keep the renderer deterministic regardless of machine appearance.
-  if (IS_SELF_TEST) {
-    nativeTheme.themeSource = 'light'
-    return { preference, effectiveTheme: 'light' }
-  }
-
-  nativeTheme.themeSource = preference
-  return { preference, effectiveTheme: resolveEffectiveTheme(preference) }
+  // Self-test mode stays deterministic for `system`, but explicit dark should still render dark.
+  applyThemeSource(preference)
+  return { preference, effectiveTheme: resolveEffectiveThemeForApp(preference) }
 }
 
 function createWindow(opts?: { backgroundColor?: string }) {
@@ -782,14 +787,10 @@ function registerIpcHandlers(
     // Apply effective theme immediately (no restart).
     const state = {
       preference: persistedPreference,
-      effectiveTheme: IS_SELF_TEST ? 'light' : resolveEffectiveTheme(persistedPreference),
+      effectiveTheme: resolveEffectiveThemeForApp(persistedPreference),
     } satisfies { preference: ThemePreference; effectiveTheme: EffectiveTheme }
 
-    if (IS_SELF_TEST) {
-      nativeTheme.themeSource = 'light'
-    } else {
-      nativeTheme.themeSource = persistedPreference
-    }
+    applyThemeSource(persistedPreference)
 
     if (win) {
       win.setBackgroundColor(getWindowBackgroundColor(state.effectiveTheme))

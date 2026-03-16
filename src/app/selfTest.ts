@@ -952,6 +952,55 @@ async function runSelfTest(): Promise<SelfTestResult> {
 
       await waitForThemeState('Theme suite: preference persisted (dark)', (s) => s.preference === 'dark')
 
+      const sidebar = await waitFor('Theme suite: sidebar shell', () =>
+        document.querySelector<HTMLElement>('.sidebar')
+      )
+      const content = await waitFor('Theme suite: content shell', () =>
+        document.querySelector<HTMLElement>('.content')
+      )
+      const bottomBar = await waitFor('Theme suite: bottom bar', () =>
+        document.querySelector<HTMLElement>('.content-bottom-bar')
+      )
+      const themeCard = await waitFor('Theme suite: settings theme card', () =>
+        document.querySelector<HTMLElement>('[data-settings-theme-card="true"]')
+      )
+
+      let lastDarkPaletteSnapshot = ''
+      try {
+        await waitFor('Theme suite: dark palette applied', () => {
+          const root = getComputedStyle(document.documentElement)
+          const snapshot = {
+            sidebarBgToken: root.getPropertyValue('--sidebar-bg').trim(),
+            contentBgToken: root.getPropertyValue('--content-bg').trim(),
+            contentEdgeBgToken: root.getPropertyValue('--content-edge-bg').trim(),
+            panelToken: root.getPropertyValue('--panel').trim(),
+            textToken: root.getPropertyValue('--text').trim(),
+            mutedToken: root.getPropertyValue('--muted').trim(),
+            sidebarBg: getComputedStyle(sidebar).backgroundColor,
+            contentBg: getComputedStyle(content).backgroundColor,
+            bottomBarBg: getComputedStyle(bottomBar).backgroundColor,
+            themeCardBg: getComputedStyle(themeCard).backgroundColor,
+          }
+          lastDarkPaletteSnapshot = JSON.stringify(snapshot)
+
+          if (snapshot.sidebarBgToken !== '#181A1D') return null
+          if (snapshot.contentBgToken !== '#222528') return null
+          if (snapshot.contentEdgeBgToken !== '#1F2225') return null
+          if (snapshot.panelToken !== '#2A2D31') return null
+          if (snapshot.textToken !== '#F0E9DC') return null
+          if (snapshot.mutedToken !== '#B4AB9D') return null
+
+          if (snapshot.sidebarBg !== 'rgb(24, 26, 29)') return null
+          if (snapshot.contentBg !== 'rgb(34, 37, 40)') return null
+          if (snapshot.bottomBarBg !== 'rgb(31, 34, 37)') return null
+          if (snapshot.themeCardBg !== 'rgba(42, 45, 49, 0.96)') return null
+
+          return true
+        })
+      } catch {
+        throw new Error(`Theme suite: dark palette applied mismatch: ${lastDarkPaletteSnapshot}`)
+      }
+
       themeSelect.value = 'system'
       themeSelect.dispatchEvent(new Event('change', { bubbles: true }))
       await waitForThemeState('Theme suite: preference persisted (system)', (s) => s.preference === 'system')
