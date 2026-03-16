@@ -122,7 +122,7 @@
 - 表单与输入：`Button`、`Input`、`Textarea`、`Select`、`Checkbox`、`Switch`、`Popover`（日期选择可基于 Popover）
 - 结构与导航：`Tabs`、`Separator`、`ScrollArea`（谨慎使用，避免嵌套滚动）
 - 浮层：`Dialog`、`Sheet`、`DropdownMenu`、`Tooltip`
-- （可选/后续）命令入口：`Command`（配合 `cmdk` 生态）
+- （可选）命令入口：`Command`（配合 `cmdk` 生态）
 - 反馈：`Toast/Sonner`（计划引入）、`Skeleton`、`Badge`
 
 ### 5.3 列表与虚拟滚动（强制）

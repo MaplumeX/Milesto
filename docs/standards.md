@@ -67,15 +67,7 @@
 - 必须：迁移文件在生产环境可读取（`process.resourcesPath`）且可重复执行。
 - 必须：导入/导出包含 `schema_version`、`app_version`、`exported_at` 等元信息。
 
-## 7. Sync-ready 数据约束
-
-来源：`docs/tech-framework.md`「同步就绪（Sync-ready）原则」。
-
-- 必须：核心对象 ID 使用 UUID（建议 UUIDv7）。
-- 必须：预留软删除字段 `deleted_at`；未来同步/导入合并以软删除为基础。
-- 必须：`updated_at` 在任何变更时可靠更新，作为冲突检测基础。
-
-## 8. 性能规范（对齐 PRD 指标）
+## 7. 性能规范（对齐 PRD 指标）
 
 来源：`docs/prd/00-overview.md` 与 `docs/tech-framework.md`。
 
@@ -84,22 +76,19 @@
 - 必须：任务列表默认使用虚拟滚动（10k 规模必需）。
 - 建议：搜索优先采用 SQLite FTS5，避免 `LIKE` 方案后期迁移成本。
 
-## 9. 隐私与数据治理
+## 8. 隐私与数据治理
 
-来源：`docs/prd/00-overview.md` 与 `docs/tech-framework.md`。
+来源：`docs/prd/00-overview.md`。
 
 - 必须：默认不收集行为数据；如未来需要遥测/分析，必须采用显式 opt-in，并提供关闭入口。
-- 必须：同步传输最低要求为 HTTPS/WebDAV TLS；敏感日志仅本地可见。
-- 必须：同步冲突必须可见、可手动处理；禁止 silent merge。
 
-## 10. 范围管理（按版本执行）
+## 9. 范围管理（按版本执行）
 
 来源：`docs/prd/*`。
 
 - 必须：实现内容不得越过当前版本 PRD 的 Out of Scope。
-- 必须：任何跨版本需求（例如在 v0.1 做同步）必须先更新 PRD 并说明取舍、风险与影响。
 
-## 11. 工程化与质量门禁
+## 10. 工程化与质量门禁
 
 来源：`docs/tech-framework.md`。
 
@@ -108,13 +97,13 @@
 - 建议：引入 Git hooks（例如 husky + lint-staged）在本地提前拦截常见问题。
 - 建议：CI 采用三平台矩阵（macOS/Windows/Linux），并按 `install -> lint -> typecheck -> test -> build -> dist` 链路执行。
 
-## 12. 依赖与许可证
+## 11. 依赖与许可证
 
 - 必须：新增依赖前说明用途、替代方案、体积影响与安全风险（供应链）。
 - 必须：确保依赖许可证与项目目标兼容；不引入来源不明或许可证不清晰的资源。
 - 建议：避免并存同类库（例如 Drizzle 与 Kysely 二选一）。
 
-## 12.1 UI 与交互实现规范（建议）
+## 11.1 UI 与交互实现规范（建议）
 
 来源：`docs/tech-framework.md`「路由与窗口策略」「UI 与交互」。
 
@@ -123,7 +112,7 @@
 - 建议：表单采用 `react-hook-form` + `zod` 做输入校验与错误提示，校验规则尽量与 IPC schema 复用/对齐。
 - 建议：交互遵循“键盘优先 + 低摩擦”原则：常用动作尽量在 1-2 次键盘交互内完成（与 PRD 指标一致）。
 
-## 12.2 状态管理与数据流（建议）
+## 11.2 状态管理与数据流（建议）
 
 来源：`docs/tech-framework.md`「状态与数据」。
 
@@ -131,7 +120,7 @@
 - 建议：涉及缓存/并发/重试的异步数据，优先采用 `@tanstack/react-query`（如引入）。
 - 必须：跨进程/跨模块的数据边界以 `window.api` 为准；Renderer 内不要越界访问“主进程细节”。
 
-## 12.3 错误处理与日志（必须）
+## 11.3 错误处理与日志（必须）
 
 来源：`docs/tech-framework.md`「统一错误结构」与 `docs/redlines.md`。
 
@@ -139,11 +128,11 @@
 - 必须：用户可见的错误信息只使用 `code/message`；`details` 仅用于本地日志与排障。
 - 必须：日志中不得包含密钥/凭据/个人数据；如需要定位问题，使用脱敏策略。
 
-## 13. 代码评审与 PR 规范
+## 12. 代码评审与 PR 规范
 
 - 必须：PR 说明“为什么改（动机/问题）”而不只写“改了什么”。
 - 必须：PR 包含验证方式（本地运行、测试点、回归点）。
-- 必须：涉及数据模型/IPC/导入导出/同步等关键路径时，PR 必须同时更新对应文档。
+- 必须：涉及数据模型/IPC/导入导出等关键路径时，PR 必须同时更新对应文档。
 
 PR 检查清单（建议直接复制到 PR 描述）：
 
@@ -156,13 +145,13 @@ PR 检查清单（建议直接复制到 PR 描述）：
 - [ ] 隐私：无默认 telemetry；无敏感信息进日志/仓库
 ```
 
-## 14. 决策记录（ADR，建议）
+## 13. 决策记录（ADR，建议）
 
-当出现“会影响未来 2-3 个版本”的决策（例如存储层、同步模式、搜索实现），建议用 ADR 记录：
+当出现“会影响核心架构或多个关键模块”的决策（例如存储层、搜索实现），建议用 ADR 记录：
 
 - 建议：新增 `docs/adr/NNNN-title.md`，包含：背景、决策、备选方案、取舍、后续工作。
 
-## 15. 测试策略（建议）
+## 14. 测试策略（建议）
 
 来源：`docs/tech-framework.md`「测试」。
 
@@ -170,7 +159,7 @@ PR 检查清单（建议直接复制到 PR 描述）：
 - 建议：涉及数据一致性（事务/迁移/导入回滚）与 IPC schema 的变更，必须配套测试用例。
 - 建议：关键流程的 e2e 可用 Playwright（Electron）补齐（例如导入/导出、搜索、排序持久化）。
 
-## 16. 代码风格规范（必须）
+## 15. 代码风格规范（必须）
 
 目标：让代码在多人协作下保持一致、可读、可自动化修正。
 
@@ -185,11 +174,11 @@ PR 检查清单（建议直接复制到 PR 描述）：
   - 本地模块在后
   - 类型导入（`import type`）单独分组
 
-## 17. 命名规范（必须）
+## 16. 命名规范（必须）
 
 命名原则：语义优先、避免缩写、可搜索、可预测。
 
-### 17.1 通用命名
+### 16.1 通用命名
 
 - 必须：变量/函数使用 `camelCase`；类型/枚举/类使用 `PascalCase`。
 - 必须：布尔值使用 `is/has/can/should` 前缀（例如 `isLoading`、`hasError`）。
@@ -197,14 +186,14 @@ PR 检查清单（建议直接复制到 PR 描述）：
 - 必须：异步函数用动词开头并表达副作用（例如 `fetchTasks`、`loadProject`、`saveSettings`）。
 - 建议：常量（跨文件/跨模块公开的常量）使用 `UPPER_SNAKE_CASE`。
 
-### 17.2 文件与目录命名
+### 16.2 文件与目录命名
 
 - 必须：目录使用 `kebab-case`（例如 `db-worker`、`task-detail`）。
 - 必须：React 组件文件使用 `PascalCase.tsx`（例如 `TaskList.tsx`）。
 - 必须：非组件模块（工具、领域逻辑、schema）使用 `kebab-case.ts`（例如 `task-schema.ts`、`ipc-channels.ts`）。
 - 建议：测试文件与源文件同名，后缀明确（例如 `task-schema.test.ts`）。
 
-### 17.3 IPC 与跨进程接口命名
+### 16.3 IPC 与跨进程接口命名
 
 来源：`docs/tech-framework.md`「IPC 设计规范」。
 
@@ -216,7 +205,7 @@ PR 检查清单（建议直接复制到 PR 描述）：
   - `app:openExternal`
 - 必须：Preload 暴露的 API 使用 `window.api.<domain>.<verb>` 的业务级方法形态（例如 `window.api.task.create()`），不得暴露原始 `ipcRenderer` 原语。
 
-### 17.4 DB Worker action 命名
+### 16.4 DB Worker action 命名
 
 来源：`docs/tech-framework.md`「DB Worker 通信协议」。
 
@@ -226,7 +215,7 @@ PR 检查清单（建议直接复制到 PR 描述）：
   - `project.list`
 - 必须：action 名是稳定 API；新增/变更必须同步更新文档与测试。
 
-### 17.5 错误码命名
+### 16.5 错误码命名
 
 来源：`docs/tech-framework.md`「统一错误结构」。
 
