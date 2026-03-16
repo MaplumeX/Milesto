@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3'
 import { z } from 'zod'
 
 import type { DbActionHandler } from './db-actions'
+import { createLocalSyncRecorder } from './sync-support'
 import { nowIso } from './utils'
 
 import { AreaSchema } from '../../../../shared/schemas/area'
@@ -230,6 +231,10 @@ export function createSidebarActions(db: Database.Database): Record<string, DbAc
           update.run({ id: ordered[i]!, position: (i + 1) * 1000, updated_at: updatedAt })
         }
 
+        const sync = createLocalSyncRecorder(db, updatedAt)
+        sync.recordList('sidebar-areas', ordered, updatedAt)
+        sync.finalize()
+
         return { ok: true as const, data: { reordered: true } }
       })
 
@@ -300,6 +305,10 @@ export function createSidebarActions(db: Database.Database): Record<string, DbAc
         for (let i = 0; i < ordered.length; i++) {
           update.run({ id: ordered[i]!, position: (i + 1) * 1000, updated_at: updatedAt, area_id: areaId })
         }
+
+        const sync = createLocalSyncRecorder(db, updatedAt)
+        sync.recordList(`sidebar-projects:${areaId ?? 'none'}`, ordered, updatedAt)
+        sync.finalize()
 
         return { ok: true as const, data: { reordered: true } }
       })
@@ -498,6 +507,21 @@ export function createSidebarActions(db: Database.Database): Record<string, DbAc
             area_id: input.to_area_id,
           })
         }
+
+        const movedProjectRow = db
+          .prepare(
+            `SELECT id, title, notes, area_id, status, position, scheduled_at, is_someday, due_at,
+                    created_at, updated_at, completed_at, deleted_at
+             FROM projects
+             WHERE id = @id
+             LIMIT 1`
+          )
+          .get({ id: input.project_id })
+        const sync = createLocalSyncRecorder(db, updatedAt)
+        sync.recordEntity('project', ProjectSchema.parse(movedProjectRow), ['area_id', 'updated_at'])
+        sync.recordList(`sidebar-projects:${input.from_area_id ?? 'none'}`, input.from_ordered_project_ids, updatedAt)
+        sync.recordList(`sidebar-projects:${input.to_area_id ?? 'none'}`, input.to_ordered_project_ids, updatedAt)
+        sync.finalize()
 
         return { ok: true as const, data: { moved: true } }
       })

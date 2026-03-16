@@ -10,6 +10,7 @@ import { createListPositionActions } from './actions/list-position-actions'
 import { createDataTransferActions } from './actions/data-transfer-actions'
 import { createSidebarActions } from './actions/sidebar-actions'
 import { createSettingsActions } from './actions/settings-actions'
+import { createSyncActions } from './actions/sync-actions'
 import type { DbActionHandler } from './actions/db-actions'
 
 export function buildDbHandlers(db: Database.Database): Record<string, DbActionHandler> {
@@ -24,5 +25,6 @@ export function buildDbHandlers(db: Database.Database): Record<string, DbActionH
     ...createListPositionActions(db),
     ...createDataTransferActions(db),
     ...createSidebarActions(db),
+    ...createSyncActions(db),
   }
 }

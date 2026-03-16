@@ -19,6 +19,7 @@ vi.mock('react-i18next', () => {
 // Provide a default typed window.api for component tests.
 // Individual tests can override specific methods via vi.fn().
 beforeEach(() => {
+  if (typeof window === 'undefined') return
   const api: WindowApi = createWindowApiMock()
   Object.defineProperty(window, 'api', {
     value: api,

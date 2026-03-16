@@ -7,6 +7,7 @@ import { LocaleSchema, type Locale } from '../../shared/i18n/locale'
 import { ThemePreferenceSchema, type EffectiveTheme, type ThemePreference } from '../../shared/schemas'
 
 import i18n from '../i18n/i18n'
+import { SyncSettingsCard } from '../features/settings/SyncSettingsCard'
 
 export function SettingsPage() {
   const { t } = useTranslation()
@@ -136,6 +137,8 @@ export function SettingsPage() {
             </div>
           </div>
         </section>
+
+        <SyncSettingsCard />
 
         <section className="card">
           <h2 className="card-title">{t('settings.data')}</h2>

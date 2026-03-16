@@ -14,8 +14,10 @@ type Pending = {
 export class DbWorkerClient {
   private worker: Worker
   private pending = new Map<string, Pending>()
+  private workerScriptPath: string
 
   constructor(workerScriptPath: string, dbPath: string) {
+    this.workerScriptPath = workerScriptPath
     const workerUrl = pathToFileURL(workerScriptPath)
     this.worker = new Worker(workerUrl, {
       workerData: { dbPath },
@@ -35,6 +37,14 @@ export class DbWorkerClient {
     })
 
     this.worker.on('exit', (code) => {
+      if (code !== 0) {
+        console.error('[milesto] DB worker exited', {
+          code,
+          workerScriptPath: this.workerScriptPath,
+          pendingCount: this.pending.size,
+        })
+      }
+
       const error: AppError = {
         code: 'DB_WORKER_EXITED',
         message: 'DB worker exited unexpectedly.',
@@ -48,6 +58,11 @@ export class DbWorkerClient {
     })
 
     this.worker.on('error', (e) => {
+      console.error('[milesto] DB worker error', {
+        workerScriptPath: this.workerScriptPath,
+        error: e instanceof Error ? { message: e.message, stack: e.stack } : String(e),
+      })
+
       const error: AppError = {
         code: 'DB_WORKER_ERROR',
         message: 'DB worker error.',

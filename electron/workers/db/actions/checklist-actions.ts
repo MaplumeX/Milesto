@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3'
 import { z } from 'zod'
 
 import type { DbActionHandler } from './db-actions'
+import { createLocalSyncRecorder } from './sync-support'
 import { nowIso, uuidv7 } from './utils'
 
 import {
@@ -10,6 +11,7 @@ import {
   ChecklistItemSchema,
   ChecklistItemUpdateInputSchema,
 } from '../../../../shared/schemas/checklist'
+import { TaskSchema } from '../../../../shared/schemas/task'
 
 const TaskIdSchema = z.object({ task_id: z.string().min(1) })
 
@@ -62,6 +64,7 @@ export function createChecklistActions(db: Database.Database): Record<string, Db
       const id = uuidv7()
 
       const tx = db.transaction(() => {
+        const sync = createLocalSyncRecorder(db, createdAt)
         const exists = db.prepare('SELECT id FROM tasks WHERE id = ? AND deleted_at IS NULL').get(parsed.data.task_id)
         if (!exists) {
           return {
@@ -110,6 +113,24 @@ export function createChecklistActions(db: Database.Database): Record<string, Db
           )
           .get(id) as unknown
         const item = ChecklistDbRowSchema.parse(row)
+        const taskRow = db
+          .prepare(
+            `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id,
+                    scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+             FROM tasks
+             WHERE id = ? AND deleted_at IS NULL
+             LIMIT 1`
+          )
+          .get(parsed.data.task_id)
+
+        sync.recordEntity(
+          'checklist_item',
+          item,
+          ['task_id', 'title', 'done', 'position', 'created_at', 'updated_at', 'deleted_at']
+        )
+        sync.recordEntity('task', TaskSchema.parse(taskRow), ['updated_at'])
+        sync.finalize()
+
         return { ok: true as const, data: item }
       })
 
@@ -132,6 +153,7 @@ export function createChecklistActions(db: Database.Database): Record<string, Db
       const updatedAt = nowIso()
 
       const tx = db.transaction(() => {
+        const sync = createLocalSyncRecorder(db, updatedAt)
         const item = db
           .prepare('SELECT id, task_id FROM task_checklist_items WHERE id = ? AND deleted_at IS NULL')
           .get(parsed.data.id) as { id: string; task_id: string } | undefined
@@ -147,14 +169,17 @@ export function createChecklistActions(db: Database.Database): Record<string, Db
         }
 
         const fields: string[] = []
+        const changedFields: string[] = []
         const params: Record<string, unknown> = { id: parsed.data.id, updated_at: updatedAt }
 
         if (parsed.data.title !== undefined) {
           fields.push('title = @title')
+          changedFields.push('title')
           params.title = parsed.data.title
         }
         if (parsed.data.done !== undefined) {
           fields.push('done = @done')
+          changedFields.push('done')
           params.done = parsed.data.done ? 1 : 0
         }
 
@@ -178,6 +203,20 @@ export function createChecklistActions(db: Database.Database): Record<string, Db
           )
           .get(parsed.data.id) as unknown
         const updated = ChecklistDbRowSchema.parse(row)
+        const taskRow = db
+          .prepare(
+            `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id,
+                    scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+             FROM tasks
+             WHERE id = ? AND deleted_at IS NULL
+             LIMIT 1`
+          )
+          .get(item.task_id)
+
+        sync.recordEntity('checklist_item', updated, [...changedFields, 'updated_at'])
+        sync.recordEntity('task', TaskSchema.parse(taskRow), ['updated_at'])
+        sync.finalize()
+
         return { ok: true as const, data: updated }
       })
 
@@ -200,6 +239,7 @@ export function createChecklistActions(db: Database.Database): Record<string, Db
       const deletedAt = nowIso()
 
       const tx = db.transaction(() => {
+        const sync = createLocalSyncRecorder(db, deletedAt)
         const item = db
           .prepare('SELECT id, task_id FROM task_checklist_items WHERE id = ? AND deleted_at IS NULL')
           .get(parsed.data.id) as { id: string; task_id: string } | undefined
@@ -224,6 +264,27 @@ export function createChecklistActions(db: Database.Database): Record<string, Db
           id: item.task_id,
           updated_at: deletedAt,
         })
+
+        const row = db
+          .prepare(
+            `SELECT id, task_id, title, done, position, created_at, updated_at, deleted_at
+             FROM task_checklist_items WHERE id = ? LIMIT 1`
+          )
+          .get(parsed.data.id) as unknown
+        const deleted = ChecklistDbRowSchema.parse(row)
+        const taskRow = db
+          .prepare(
+            `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id,
+                    scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+             FROM tasks
+             WHERE id = ? AND deleted_at IS NULL
+             LIMIT 1`
+          )
+          .get(item.task_id)
+
+        sync.recordEntity('checklist_item', deleted, ['deleted_at', 'updated_at'])
+        sync.recordEntity('task', TaskSchema.parse(taskRow), ['updated_at'])
+        sync.finalize()
 
         return { ok: true as const, data: { deleted: true } }
       })

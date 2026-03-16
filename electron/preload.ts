@@ -29,6 +29,14 @@ const api: WindowApi = {
     getThemeState: () => invoke('settings:getThemeState'),
     setThemePreference: (preference) => invoke('settings:setThemePreference', { preference }),
   },
+  sync: {
+    getState: () => invoke('sync:getState'),
+    testConnection: (input) => invoke('sync:testConnection', input),
+    saveConfiguration: (input) => invoke('sync:saveConfiguration', input),
+    enable: () => invoke('sync:enable'),
+    disable: () => invoke('sync:disable'),
+    syncNow: () => invoke('sync:syncNow'),
+  },
   task: {
     create: (input) => invoke('db:task.create', input),
     update: (input) => invoke('db:task.update', input),

@@ -5,7 +5,7 @@ import fs from 'node:fs/promises'
 
 import { z } from 'zod'
 
-import type { AppError } from '../shared/app-error'
+import { toAppError, type AppError } from '../shared/app-error'
 import { err, ok, resultSchema } from '../shared/result'
 
 import { DbWorkerClient } from './workers/db/db-worker-client'
@@ -76,11 +76,19 @@ import {
   SidebarReorderAreasInputSchema,
   SidebarReorderProjectsInputSchema,
   SidebarReorderResultSchema,
+  SyncConnectionInputSchema,
+  SyncSaveConfigurationInputSchema,
+  SyncStateSchema,
+  SyncTestConnectionResultSchema,
   ThemePreferenceSchema,
   ThemeStateSchema,
   type EffectiveTheme,
   type ThemePreference,
 } from '../shared/schemas'
+import { ElectronSyncCredentialsStore } from './sync/electron-sync-credentials-store'
+import { createMainSyncBridge } from './sync/main-sync-bridge'
+import { S3SyncRepository } from './sync/s3-sync-repository'
+import { SyncService } from './sync/sync-service'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -200,6 +208,8 @@ const SetSidebarStatePayloadSchema = z.object({ state: z.unknown() })
 
 const ThemeStateResultSchema = resultSchema(ThemeStateSchema)
 const SetThemePreferencePayloadSchema = z.object({ preference: z.unknown() })
+const SyncStateResultSchema = resultSchema(SyncStateSchema)
+const SyncTestConnectionResultResponseSchema = resultSchema(SyncTestConnectionResultSchema)
 
 const DbLocaleRowSchema = z.object({ locale: z.string().nullable() })
 const DbSetLocaleResultSchema = z.object({ locale: z.string() })
@@ -332,9 +342,45 @@ function createWindow(opts?: { backgroundColor?: string }) {
   }
 }
 
-function registerIpcHandlers(dbWorker: DbWorkerClient) {
+function registerIpcHandlers(
+  dbWorker: DbWorkerClient,
+  syncBridge: ReturnType<typeof createMainSyncBridge>,
+  syncService: SyncService,
+  credentialsStore: ElectronSyncCredentialsStore
+) {
   const supportedLocales = getSupportedLocales()
   let cachedEffectiveLocale: Locale | null = null
+  const syncMutationActions = new Set([
+    'task.create',
+    'task.update',
+    'task.toggleDone',
+    'task.restore',
+    'task.delete',
+    'task.reorderBatch',
+    'task.setTags',
+    'project.create',
+    'project.update',
+    'project.complete',
+    'project.delete',
+    'project.setTags',
+    'project.section.create',
+    'project.section.rename',
+    'project.section.reorderBatch',
+    'project.section.delete',
+    'area.create',
+    'area.update',
+    'area.delete',
+    'area.setTags',
+    'sidebar.reorderAreas',
+    'sidebar.reorderProjects',
+    'sidebar.moveProject',
+    'tag.create',
+    'tag.update',
+    'tag.delete',
+    'checklist.create',
+    'checklist.update',
+    'checklist.delete',
+  ])
 
   async function resolveEffectiveLocale(): Promise<Locale> {
     if (IS_SELF_TEST) return 'en'
@@ -394,6 +440,10 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
             details: { issues: parsedData.error.issues, action },
           })
         )
+      }
+
+      if (syncMutationActions.has(action)) {
+        await syncService.notifyLocalChange()
       }
 
       return responseSchema.parse(ok(parsedData.data))
@@ -748,6 +798,181 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     return ThemeStateResultSchema.parse(ok(state))
   })
 
+  async function readSyncState(): Promise<z.infer<typeof SyncStateSchema>> {
+    return await syncService.getState()
+  }
+
+  ipcMain.handle('sync:getState', async (event) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return SyncStateResultSchema.parse(err(senderErr))
+
+    try {
+      return SyncStateResultSchema.parse(ok(await readSyncState()))
+    } catch (error) {
+      return SyncStateResultSchema.parse(
+        err(
+          toAppError(error, {
+            code: 'SYNC_STATE_FAILED',
+            message: 'Failed to load sync state.',
+          })
+        )
+      )
+    }
+  })
+
+  ipcMain.handle('sync:testConnection', async (event, payload) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return SyncTestConnectionResultResponseSchema.parse(err(senderErr))
+
+    const parsed = SyncConnectionInputSchema.safeParse(payload)
+    if (!parsed.success) {
+      return SyncTestConnectionResultResponseSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid payload.',
+          details: { issues: parsed.error.issues },
+        })
+      )
+    }
+
+    try {
+      const repository = new S3SyncRepository()
+      await repository.ensureReady(parsed.data.config, parsed.data.credentials)
+      return SyncTestConnectionResultResponseSchema.parse(ok({ reachable: true }))
+    } catch (error) {
+      return SyncTestConnectionResultResponseSchema.parse(
+        err(
+          toAppError(error, {
+            code: 'SYNC_CONNECTION_FAILED',
+            message: 'Failed to connect to the sync repository.',
+          })
+        )
+      )
+    }
+  })
+
+  ipcMain.handle('sync:saveConfiguration', async (event, payload) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return SyncStateResultSchema.parse(err(senderErr))
+
+    const parsed = SyncSaveConfigurationInputSchema.safeParse(payload)
+    if (!parsed.success) {
+      return SyncStateResultSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid payload.',
+          details: { issues: parsed.error.issues },
+        })
+      )
+    }
+
+    try {
+      if (parsed.data.credentials?.access_key_id && parsed.data.credentials.secret_access_key) {
+        await credentialsStore.save({
+          access_key_id: parsed.data.credentials.access_key_id,
+          secret_access_key: parsed.data.credentials.secret_access_key,
+          session_token: parsed.data.credentials.session_token ?? undefined,
+        })
+      }
+
+      await syncBridge.saveConfiguration({
+        config: parsed.data.config,
+        device_name: parsed.data.device_name,
+      })
+      await syncService.start()
+
+      return SyncStateResultSchema.parse(ok(await readSyncState()))
+    } catch (error) {
+      return SyncStateResultSchema.parse(
+        err(
+          toAppError(error, {
+            code: 'SYNC_SAVE_FAILED',
+            message: 'Failed to save sync configuration.',
+          })
+        )
+      )
+    }
+  })
+
+  ipcMain.handle('sync:enable', async (event) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return SyncStateResultSchema.parse(err(senderErr))
+
+    try {
+      const currentState = await syncBridge.getState()
+      if (!currentState.config) {
+        return SyncStateResultSchema.parse(
+          err({
+            code: 'SYNC_CONFIG_MISSING',
+            message: 'Sync repository configuration is missing.',
+          })
+        )
+      }
+
+      if (!credentialsStore.isAvailable()) {
+        return SyncStateResultSchema.parse(
+          err({
+            code: 'SYNC_SECURE_STORAGE_UNAVAILABLE',
+            message: 'Secure storage is unavailable on this device.',
+          })
+        )
+      }
+
+      const credentials = await credentialsStore.load()
+      const repository = new S3SyncRepository()
+      await repository.ensureReady(currentState.config, credentials)
+
+      await syncBridge.setEnabled(true)
+      return SyncStateResultSchema.parse(ok(await syncService.syncNow()))
+    } catch (error) {
+      return SyncStateResultSchema.parse(
+        err(
+          toAppError(error, {
+            code: 'SYNC_ENABLE_FAILED',
+            message: 'Failed to enable sync.',
+          })
+        )
+      )
+    }
+  })
+
+  ipcMain.handle('sync:disable', async (event) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return SyncStateResultSchema.parse(err(senderErr))
+
+    try {
+      await syncBridge.setEnabled(false)
+      return SyncStateResultSchema.parse(ok(await syncService.syncNow()))
+    } catch (error) {
+      return SyncStateResultSchema.parse(
+        err(
+          toAppError(error, {
+            code: 'SYNC_DISABLE_FAILED',
+            message: 'Failed to disable sync.',
+          })
+        )
+      )
+    }
+  })
+
+  ipcMain.handle('sync:syncNow', async (event) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return SyncStateResultSchema.parse(err(senderErr))
+
+    try {
+      return SyncStateResultSchema.parse(ok(await syncService.syncNow()))
+    } catch (error) {
+      return SyncStateResultSchema.parse(
+        err(
+          toAppError(error, {
+            code: 'SYNC_CYCLE_FAILED',
+            message: 'Failed to run sync.',
+          })
+        )
+      )
+    }
+  })
+
   // DB IPC (Renderer -> Main -> DB Worker)
   handleDb('db:task.create', 'task.create', TaskCreateInputSchema, TaskSchema)
   handleDb('db:task.update', 'task.update', TaskUpdateInputSchema, TaskSchema)
@@ -898,8 +1123,26 @@ if (!gotTheLock) {
     const dbPath = path.join(app.getPath('userData'), 'milesto.db')
     const workerScriptPath = path.join(__dirname, 'workers', 'db', 'db-worker.js')
     const dbWorker = new DbWorkerClient(workerScriptPath, dbPath)
+    const syncBridge = createMainSyncBridge(dbWorker)
+    const credentialsStore = new ElectronSyncCredentialsStore({
+      persistence: {
+        loadEncrypted: async () => await syncBridge.getEncryptedCredentials(),
+        saveEncrypted: async (encryptedBlob) => {
+          await syncBridge.saveEncryptedCredentials(encryptedBlob)
+        },
+        clearEncrypted: async () => {
+          await syncBridge.clearEncryptedCredentials()
+        },
+      },
+    })
+    const syncService = new SyncService({
+      db: syncBridge,
+      credentialsStore,
+      repositoryFactory: () => new S3SyncRepository(),
+    })
 
     app.on('will-quit', () => {
+      syncService.stop()
       void dbWorker.terminate()
     })
 
@@ -928,7 +1171,16 @@ if (!gotTheLock) {
       }
     }
 
-    registerIpcHandlers(dbWorker)
+    await syncService.start()
+
+    app.on('browser-window-focus', () => {
+      syncService.setForegroundState(true)
+    })
+    app.on('browser-window-blur', () => {
+      syncService.setForegroundState(false)
+    })
+
+    registerIpcHandlers(dbWorker, syncBridge, syncService, credentialsStore)
     installCspOnce()
     createWindow({ backgroundColor: getWindowBackgroundColor(themeState.effectiveTheme) })
   })

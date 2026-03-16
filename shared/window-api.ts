@@ -32,6 +32,12 @@ import type {
   SidebarReorderProjectsInput,
   SidebarReorderResult,
 } from './schemas/sidebar'
+import type {
+  SyncConnectionInput,
+  SyncState,
+  SyncTestConnectionResult,
+  SyncSaveConfigurationInput,
+} from './schemas/sync'
 
 export type OpenDialogResult = {
   canceled: boolean
@@ -70,6 +76,15 @@ export type WindowApi = {
 
     getThemeState(): Promise<Result<ThemeState>>
     setThemePreference(preference: ThemePreference): Promise<Result<ThemeState>>
+  }
+
+  sync: {
+    getState(): Promise<Result<SyncState>>
+    testConnection(input: SyncConnectionInput): Promise<Result<SyncTestConnectionResult>>
+    saveConfiguration(input: SyncSaveConfigurationInput): Promise<Result<SyncState>>
+    enable(): Promise<Result<SyncState>>
+    disable(): Promise<Result<SyncState>>
+    syncNow(): Promise<Result<SyncState>>
   }
 
   task: {

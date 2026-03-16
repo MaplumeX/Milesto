@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3'
 import { z } from 'zod'
 
 import type { DbActionHandler } from './db-actions'
+import { createLocalSyncRecorder } from './sync-support'
 
 import { nowIso, uuidv7 } from './utils'
 
@@ -116,6 +117,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       })
 
       const insertTask = db.transaction(() => {
+        const sync = createLocalSyncRecorder(db, createdAt)
         const stmt = db.prepare(`
           INSERT INTO tasks (
             id, title, notes, status, is_inbox, is_someday,
@@ -141,9 +143,47 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
           area_id: input.area_id ?? null,
           scheduled_at: bucket.scheduledAt,
           due_at: input.due_at ?? null,
-          created_at: createdAt,
-          updated_at: createdAt,
-        })
+            created_at: createdAt,
+            updated_at: createdAt,
+          })
+
+        sync.recordEntity(
+          'task',
+          TaskSchema.parse({
+            id,
+            title: input.title,
+            notes: input.notes ?? '',
+            status: 'open',
+            is_inbox: bucket.isInbox,
+            is_someday: bucket.isSomeday,
+            project_id: bucket.projectId,
+            section_id: input.section_id ?? null,
+            area_id: input.area_id ?? null,
+            scheduled_at: bucket.scheduledAt,
+            due_at: input.due_at ?? null,
+            created_at: createdAt,
+            updated_at: createdAt,
+            completed_at: null,
+            deleted_at: null,
+          }),
+          [
+            'title',
+            'notes',
+            'status',
+            'is_inbox',
+            'is_someday',
+            'project_id',
+            'section_id',
+            'area_id',
+            'scheduled_at',
+            'due_at',
+            'created_at',
+            'updated_at',
+            'completed_at',
+            'deleted_at',
+          ]
+        )
+        sync.finalize()
       })
       insertTask()
 
@@ -214,44 +254,54 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         })
 
         const fields: string[] = []
+        const changedFields: string[] = []
         const params: Record<string, unknown> = { id: input.id, updated_at: updatedAt }
 
         if (input.title !== undefined) {
           fields.push('title = @title')
+          changedFields.push('title')
           params.title = input.title
         }
         if (input.notes !== undefined) {
           fields.push('notes = @notes')
+          changedFields.push('notes')
           params.notes = input.notes
         }
 
         // Bucket-related fields are merged and normalized, so we update based on diff.
         if (bucket.isInbox !== Boolean(current.is_inbox)) {
           fields.push('is_inbox = @is_inbox')
+          changedFields.push('is_inbox')
           params.is_inbox = bucket.isInbox ? 1 : 0
         }
         if (bucket.isSomeday !== Boolean(current.is_someday)) {
           fields.push('is_someday = @is_someday')
+          changedFields.push('is_someday')
           params.is_someday = bucket.isSomeday ? 1 : 0
         }
         if (bucket.projectId !== current.project_id) {
           fields.push('project_id = @project_id')
+          changedFields.push('project_id')
           params.project_id = bucket.projectId
         }
         if (input.section_id !== undefined) {
           fields.push('section_id = @section_id')
+          changedFields.push('section_id')
           params.section_id = input.section_id
         }
         if (input.area_id !== undefined) {
           fields.push('area_id = @area_id')
+          changedFields.push('area_id')
           params.area_id = input.area_id
         }
         if (bucket.scheduledAt !== current.scheduled_at) {
           fields.push('scheduled_at = @scheduled_at')
+          changedFields.push('scheduled_at')
           params.scheduled_at = bucket.scheduledAt
         }
         if (input.due_at !== undefined) {
           fields.push('due_at = @due_at')
+          changedFields.push('due_at')
           params.due_at = input.due_at
         }
 
@@ -270,7 +320,11 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
              FROM tasks WHERE id = ? AND deleted_at IS NULL LIMIT 1`
           )
           .get(input.id)
-        return { ok: true as const, data: TaskSchema.parse(row) }
+        const task = TaskSchema.parse(row)
+        const sync = createLocalSyncRecorder(db, updatedAt)
+        sync.recordEntity('task', task, [...changedFields, 'updated_at'])
+        sync.finalize()
+        return { ok: true as const, data: task }
       })
 
       return tx()
@@ -294,6 +348,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const completedAt = input.done ? updatedAt : null
 
       const tx = db.transaction(() => {
+        const sync = createLocalSyncRecorder(db, updatedAt)
         const res = db
           .prepare(
             `UPDATE tasks
@@ -326,7 +381,10 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
              FROM tasks WHERE id = ? AND deleted_at IS NULL LIMIT 1`
           )
           .get(input.id)
-        return { ok: true as const, data: TaskSchema.parse(row) }
+        const task = TaskSchema.parse(row)
+        sync.recordEntity('task', task, ['status', 'completed_at', 'updated_at'])
+        sync.finalize()
+        return { ok: true as const, data: task }
       })
 
       return tx()
@@ -347,6 +405,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
 
       const updatedAt = nowIso()
       const tx = db.transaction(() => {
+        const sync = createLocalSyncRecorder(db, updatedAt)
         const res = db
           .prepare(
             `UPDATE tasks
@@ -373,7 +432,10 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
              FROM tasks WHERE id = ? AND deleted_at IS NULL LIMIT 1`
           )
           .get(parsed.data.id)
-        return { ok: true as const, data: TaskSchema.parse(row) }
+        const task = TaskSchema.parse(row)
+        sync.recordEntity('task', task, ['status', 'completed_at', 'updated_at'])
+        sync.finalize()
+        return { ok: true as const, data: task }
       })
 
       return tx()
@@ -395,6 +457,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const deletedAt = nowIso()
 
       const tx = db.transaction(() => {
+        const sync = createLocalSyncRecorder(db, deletedAt)
         const res = db
           .prepare(
             `UPDATE tasks
@@ -411,7 +474,17 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
               details: { id: parsed.data.id },
             },
           }
-        }
+          }
+
+        const row = db
+          .prepare(
+            `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+             FROM tasks WHERE id = ? LIMIT 1`
+          )
+          .get(parsed.data.id)
+        const task = TaskSchema.parse(row)
+        sync.recordEntity('task', task, ['deleted_at', 'updated_at'])
+        sync.finalize()
 
         return { ok: true as const, data: { deleted: true } }
       })
@@ -469,6 +542,50 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
                AND scheduled_at < @today`
           )
           .run({ today, updated_at: updatedAt })
+
+        if (res.changes > 0) {
+          const sync = createLocalSyncRecorder(db, updatedAt)
+          const rolledRows = db
+            .prepare(
+              `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id,
+                      scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+               FROM tasks
+               WHERE deleted_at IS NULL
+                 AND status = 'open'
+                 AND scheduled_at = @today
+                 AND updated_at = @updated_at`
+            )
+            .all({ today, updated_at: updatedAt }) as Array<{
+            id: string
+            title: string
+            notes: string
+            status: string
+            is_inbox: number
+            is_someday: number
+            project_id: string | null
+            section_id: string | null
+            area_id: string | null
+            scheduled_at: string | null
+            due_at: string | null
+            created_at: string
+            updated_at: string
+            completed_at: string | null
+            deleted_at: string | null
+          }>
+
+          for (const row of rolledRows) {
+            sync.recordEntity(
+              'task',
+              TaskSchema.parse({
+                ...row,
+                is_inbox: Boolean(row.is_inbox),
+                is_someday: Boolean(row.is_someday),
+              }),
+              ['scheduled_at', 'updated_at']
+            )
+          }
+          sync.finalize()
+        }
 
         db.prepare(
           `INSERT INTO app_settings (key, value, updated_at)

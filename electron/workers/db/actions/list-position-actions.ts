@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3'
 
 import type { DbActionHandler } from './db-actions'
+import { createLocalSyncRecorder } from './sync-support'
 import { nowIso } from './utils'
 
 import { TaskReorderBatchInputSchema } from '../../../../shared/schemas/list-position'
@@ -25,6 +26,7 @@ export function createListPositionActions(db: Database.Database): Record<string,
       const ordered = parsed.data.ordered_task_ids
 
       const tx = db.transaction(() => {
+        const sync = createLocalSyncRecorder(db, updatedAt)
         const upsert = db.prepare(
           `INSERT INTO list_positions (list_id, task_id, rank, updated_at)
            VALUES (@list_id, @task_id, @rank, @updated_at)
@@ -41,6 +43,9 @@ export function createListPositionActions(db: Database.Database): Record<string,
             updated_at: updatedAt,
           })
         }
+
+        sync.recordList(`task-list:${listId}`, ordered, updatedAt)
+        sync.finalize()
 
         return { ok: true as const, data: { reordered: true } }
       })

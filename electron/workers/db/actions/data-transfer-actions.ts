@@ -106,10 +106,11 @@ export function createDataTransferActions(db: Database.Database): Record<string,
               `SELECT tt.task_id, tt.tag_id
                FROM task_tags tt
                JOIN tasks t ON t.id = tt.task_id AND t.deleted_at IS NULL
-               JOIN tags g ON g.id = tt.tag_id AND g.deleted_at IS NULL`
+               JOIN tags g ON g.id = tt.tag_id AND g.deleted_at IS NULL
+               WHERE tt.deleted_at IS NULL`
             )
-             .all()
-         )
+            .all()
+        )
 
       const projectTags = z
         .array(z.object({ project_id: z.string(), tag_id: z.string(), position: z.number().int() }))
@@ -120,6 +121,7 @@ export function createDataTransferActions(db: Database.Database): Record<string,
                FROM project_tags pt
                JOIN projects p ON p.id = pt.project_id AND p.deleted_at IS NULL
                JOIN tags g ON g.id = pt.tag_id AND g.deleted_at IS NULL
+               WHERE pt.deleted_at IS NULL
                ORDER BY pt.project_id ASC, pt.position ASC`
             )
             .all()
@@ -134,6 +136,7 @@ export function createDataTransferActions(db: Database.Database): Record<string,
                FROM area_tags at
                JOIN areas a ON a.id = at.area_id AND a.deleted_at IS NULL
                JOIN tags g ON g.id = at.tag_id AND g.deleted_at IS NULL
+               WHERE at.deleted_at IS NULL
                ORDER BY at.area_id ASC, at.position ASC`
             )
             .all()
@@ -253,23 +256,23 @@ export function createDataTransferActions(db: Database.Database): Record<string,
 
         if (projectTags.length > 0) {
           const insertProjectTag = db.prepare(
-            `INSERT INTO project_tags (project_id, tag_id, position, created_at)
-             VALUES (@project_id, @tag_id, @position, @created_at)`
+            `INSERT INTO project_tags (project_id, tag_id, position, created_at, updated_at, deleted_at)
+             VALUES (@project_id, @tag_id, @position, @created_at, @updated_at, NULL)`
           )
           const relCreatedAt = nowIso()
           for (const rel of projectTags) {
-            insertProjectTag.run({ ...rel, created_at: relCreatedAt })
+            insertProjectTag.run({ ...rel, created_at: relCreatedAt, updated_at: relCreatedAt })
           }
         }
 
         if (areaTags.length > 0) {
           const insertAreaTag = db.prepare(
-            `INSERT INTO area_tags (area_id, tag_id, position, created_at)
-             VALUES (@area_id, @tag_id, @position, @created_at)`
+            `INSERT INTO area_tags (area_id, tag_id, position, created_at, updated_at, deleted_at)
+             VALUES (@area_id, @tag_id, @position, @created_at, @updated_at, NULL)`
           )
           const relCreatedAt = nowIso()
           for (const rel of areaTags) {
-            insertAreaTag.run({ ...rel, created_at: relCreatedAt })
+            insertAreaTag.run({ ...rel, created_at: relCreatedAt, updated_at: relCreatedAt })
           }
         }
 
@@ -302,12 +305,12 @@ export function createDataTransferActions(db: Database.Database): Record<string,
         }
 
         const insertTaskTag = db.prepare(
-          `INSERT INTO task_tags (task_id, tag_id, created_at)
-           VALUES (@task_id, @tag_id, @created_at)`
+          `INSERT INTO task_tags (task_id, tag_id, created_at, updated_at, deleted_at)
+           VALUES (@task_id, @tag_id, @created_at, @updated_at, NULL)`
         )
         const tagCreatedAt = nowIso()
         for (const rel of data.task_tags) {
-          insertTaskTag.run({ ...rel, created_at: tagCreatedAt })
+          insertTaskTag.run({ ...rel, created_at: tagCreatedAt, updated_at: tagCreatedAt })
         }
 
         const insertChecklist = db.prepare(

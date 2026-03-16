@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 
 import { ok } from '../../shared/result'
 import type { WindowApi } from '../../shared/window-api'
+import { AppEventsProvider } from '../../src/app/AppEventsContext'
 import type { TaskSelection } from '../../src/features/tasks/TaskSelectionContext'
 import { TaskSelectionProvider } from '../../src/features/tasks/TaskSelectionContext'
 import { SearchPage } from '../../src/pages/SearchPage'
@@ -26,9 +27,11 @@ function SearchPageHarness() {
   )
 
   return (
-    <TaskSelectionProvider value={value}>
-      <SearchPage />
-    </TaskSelectionProvider>
+    <AppEventsProvider>
+      <TaskSelectionProvider value={value}>
+        <SearchPage />
+      </TaskSelectionProvider>
+    </AppEventsProvider>
   )
 }
 
