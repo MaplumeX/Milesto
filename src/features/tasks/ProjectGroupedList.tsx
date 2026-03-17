@@ -355,6 +355,7 @@ function SortableProjectTaskRow({
   return (
     <TaskRow
       task={task}
+      showProjectAffiliation={false}
       innerRef={setNodeRef}
       innerStyle={{
         transform: CSS.Transform.toString(transform),
@@ -1376,13 +1377,14 @@ export function ProjectGroupedList({
                     ) : (
                       <TaskRow
                         task={t}
+                        showProjectAffiliation={false}
                         onSelect={selectTaskRow}
                         onOpen={(taskId) => void openTask(taskId)}
                         onToggleDone={(taskId, done) => void onToggleDone(taskId, done)}
                       />
                     )
                   }
-                  editorContent={<TaskInlineEditorRow taskId={t.id} />}
+                  editorContent={<TaskInlineEditorRow taskId={t.id} showProjectActions={false} />}
                   onHeightChange={() => {
                     if (liEl) rowVirtualizer.measureElement(liEl)
                   }}
@@ -1404,6 +1406,7 @@ export function ProjectGroupedList({
                   <TaskRow
                     task={activeTask}
                     isOverlay
+                    showProjectAffiliation={false}
                   />
                 </div>
               ) : null}

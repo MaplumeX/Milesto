@@ -10,6 +10,7 @@ export const TaskListItemSchema = z.object({
   is_inbox: DbBoolSchema,
   is_someday: DbBoolSchema,
   project_id: IdSchema.nullable(),
+  project_title: z.string().nullable().optional(),
   section_id: IdSchema.nullable(),
   area_id: IdSchema.nullable(),
   scheduled_at: LocalDateSchema.nullable(),

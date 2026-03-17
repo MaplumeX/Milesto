@@ -74,6 +74,8 @@ function makeDoneTask(params: {
   id: string
   title: string
   completed_at: string
+  project_id?: string | null
+  project_title?: string | null
 }): TaskListItem {
   const now = params.completed_at
   return {
@@ -82,7 +84,8 @@ function makeDoneTask(params: {
     status: 'done',
     is_inbox: false,
     is_someday: false,
-    project_id: null,
+    project_id: params.project_id ?? null,
+    project_title: params.project_title ?? null,
     section_id: null,
     area_id: null,
     scheduled_at: null,
@@ -159,7 +162,13 @@ describe('LogbookPage (renderer smoke via mocks)', () => {
     const api = (window as unknown as { api: WindowApi }).api
 
     let tasks: TaskListItem[] = [
-      makeDoneTask({ id: 't1', title: 'Done Task', completed_at: '2026-02-17T12:00:00.000Z' }),
+      makeDoneTask({
+        id: 't1',
+        title: 'Done Task',
+        completed_at: '2026-02-17T12:00:00.000Z',
+        project_id: 'p-task',
+        project_title: 'Project Archive',
+      }),
     ]
     let projects: Project[] = [
       makeDoneProject({ id: 'p1', title: 'Done Project', completed_at: '2026-02-16T12:00:00.000Z' }),
@@ -183,6 +192,7 @@ describe('LogbookPage (renderer smoke via mocks)', () => {
     render(<LogbookPageHarness />)
 
     await screen.findByText('Done Task')
+    expect(screen.getByText('Project Archive')).toBeInTheDocument()
     const projectButton = await screen.findByRole('button', { name: 'Done Project' })
 
     const revisionEl = screen.getByTestId('revision')

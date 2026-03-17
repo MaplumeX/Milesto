@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { createPortal } from 'react-dom'
 import { DayPicker } from 'react-day-picker'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 
 import type { AppError } from '../../../shared/app-error'
 import type { Area } from '../../../shared/schemas/area'
@@ -9,11 +10,12 @@ import type { ChecklistItem } from '../../../shared/schemas/checklist'
 import type { Project, ProjectSection } from '../../../shared/schemas/project'
 import type { Tag } from '../../../shared/schemas/tag'
 import type { TaskDetail } from '../../../shared/schemas/task-detail'
-import type { TaskUpdateInput } from '../../../shared/schemas/task'
+import type { Task, TaskUpdateInput } from '../../../shared/schemas/task'
 
 import { useAppEvents } from '../../app/AppEventsContext'
 import { formatLocalDate, parseLocalDate } from '../../lib/dates'
 import { getLocalToday, useLocalToday } from '../../lib/use-local-today'
+import { TaskEditorProjectActions } from './TaskEditorProjectActions'
 
 type Draft = {
   title: string
@@ -43,7 +45,7 @@ type ChecklistRowView = {
   persistedTitle: string | null
 }
 
-type PickerKind = 'schedule' | 'due' | 'tags'
+type PickerKind = 'schedule' | 'due' | 'tags' | 'project-menu' | 'project-move'
 type ActivePicker = {
   kind: PickerKind
   anchorEl: HTMLElement
@@ -183,6 +185,10 @@ function normalizeTagTitle(title: string): string {
   return title.trim().toLowerCase()
 }
 
+function getDisplayTitle(title: string | null | undefined, untitledLabel: string): string {
+  return title?.trim() ? title : untitledLabel
+}
+
 function getDevTaskUpdateDelayMs(): number {
   const selfTestEnabled = new URL(window.location.href).searchParams.get('selfTest') === '1'
   if (!import.meta.env.DEV && !selfTestEnabled) return 0
@@ -194,9 +200,10 @@ function getDevTaskUpdateDelayMs(): number {
 
 export const TaskEditorPaper = forwardRef<
   TaskEditorPaperHandle,
-  { taskId: string; onRequestClose: () => void; variant?: TaskEditorVariant }
-  >(function TaskEditorPaper({ taskId, onRequestClose, variant = 'overlay' }, ref) {
+  { taskId: string; onRequestClose: () => void; variant?: TaskEditorVariant; showProjectActions?: boolean }
+  >(function TaskEditorPaper({ taskId, onRequestClose, variant = 'overlay', showProjectActions = true }, ref) {
     const { t } = useTranslation()
+    const navigate = useNavigate()
     const { upsertOptimisticTaskTitle } = useAppEvents()
     const titleInputRef = useRef<HTMLInputElement | null>(null)
     const notesInputRef = useRef<HTMLTextAreaElement | null>(null)
@@ -258,6 +265,12 @@ export const TaskEditorPaper = forwardRef<
     const [sections, setSections] = useState<ProjectSection[]>([])
     const [areas, setAreas] = useState<Area[]>([])
     const [tags, setTags] = useState<Tag[]>([])
+    const [fallbackProject, setFallbackProject] = useState<Project | null>(null)
+    const [projectProgress, setProjectProgress] = useState<{
+      projectId: string
+      doneCount: number
+      totalCount: number
+    } | null>(null)
 
     const today = useLocalToday()
 
@@ -622,8 +635,73 @@ export const TaskEditorPaper = forwardRef<
       })()
     }, [draft?.project_id])
 
+    useEffect(() => {
+      const projectId = draft?.project_id
+      if (!projectId) {
+        setFallbackProject(null)
+        return
+      }
+
+      if (projects.some((project) => project.id === projectId)) {
+        setFallbackProject(null)
+        return
+      }
+
+      let cancelled = false
+      setFallbackProject(null)
+
+      void (async () => {
+        const res = await window.api.project.get(projectId)
+        if (cancelled || !res.ok) return
+        setFallbackProject(res.data)
+      })()
+
+      return () => {
+        cancelled = true
+      }
+    }, [draft?.project_id, projects])
+
+    useEffect(() => {
+      const projectId = draft?.project_id
+      if (!showProjectActions || !projectId) {
+        setProjectProgress(null)
+        return
+      }
+
+      let cancelled = false
+      setProjectProgress(null)
+
+      void (async () => {
+        const res = await window.api.task.countProjectsProgress([projectId])
+        if (cancelled || !res.ok) return
+        const row = res.data.find((item) => item.project_id === projectId)
+        setProjectProgress({
+          projectId,
+          doneCount: row?.done_count ?? 0,
+          totalCount: row?.total_count ?? 0,
+        })
+      })()
+
+      return () => {
+        cancelled = true
+      }
+    }, [draft?.project_id, detail?.task.status, showProjectActions])
+
     const selectedTagIds = useMemo(() => new Set(detail?.tag_ids ?? []), [detail?.tag_ids])
     const checklist = detail?.checklist_items ?? []
+    const selectedProject = useMemo(() => {
+      if (!draft?.project_id) return null
+      return (
+        projects.find((item) => item.id === draft.project_id) ??
+        (fallbackProject?.id === draft.project_id ? fallbackProject : null)
+      )
+    }, [draft?.project_id, fallbackProject, projects])
+    const projectButtonTitle = useMemo(() => {
+      if (!selectedProject) return null
+      return getDisplayTitle(selectedProject.title, t('project.untitled'))
+    }, [selectedProject, t])
+    const projectButtonStatus = selectedProject?.status ?? null
+    const actionErrorMessage = actionError ? `${actionError.code}: ${actionError.message}` : null
 
     const paperClassName = variant === 'inline' ? 'task-inline-paper' : 'overlay-paper'
 
@@ -659,6 +737,37 @@ export const TaskEditorPaper = forwardRef<
     }
 
     const statusLabel = detail.task.status === 'done' ? t('taskEditor.statusDone') : t('taskEditor.statusOpen')
+
+    const syncProjectAffiliationState = (updatedTask: Task) => {
+      setDetail((current) => (current ? { ...current, task: updatedTask } : current))
+      setDraft((current) =>
+        current
+          ? {
+              ...current,
+              project_id: updatedTask.project_id,
+              section_id: updatedTask.section_id,
+              area_id: updatedTask.area_id,
+              is_inbox: updatedTask.is_inbox,
+              is_someday: updatedTask.is_someday,
+              scheduled_at: updatedTask.scheduled_at,
+            }
+          : current
+      )
+
+      if (!lastSavedRef.current) return
+
+      const nextLastSaved = {
+        ...lastSavedRef.current,
+        project_id: updatedTask.project_id,
+        section_id: updatedTask.section_id,
+        area_id: updatedTask.area_id,
+        is_inbox: updatedTask.is_inbox,
+        is_someday: updatedTask.is_someday,
+        scheduled_at: updatedTask.scheduled_at,
+      }
+      lastSavedRef.current = nextLastSaved
+      setLastSaved(nextLastSaved)
+    }
 
     const createChecklistItem = async (title: string): Promise<ChecklistItem | null> => {
       const nextTitle = title.trim()
@@ -794,6 +903,47 @@ export const TaskEditorPaper = forwardRef<
         setActivePicker({ kind: 'tags', anchorEl })
       }
 
+      const openProjectMenu = (anchorEl: HTMLElement) => {
+        setActionError(null)
+        setActivePicker({ kind: 'project-menu', anchorEl })
+      }
+
+      const openProjectMovePicker = () => {
+        const current = activePickerRef.current
+        if (!current) return
+        setActionError(null)
+        setActivePicker({ kind: 'project-move', anchorEl: current.anchorEl })
+      }
+
+      const openProjectPage = async () => {
+        const projectId = draft.project_id
+        if (!projectId) return
+
+        closeActivePicker({ restoreFocus: false })
+        const ok = await flushPendingChanges()
+        if (!ok) {
+          focusLastErrorTarget()
+          return
+        }
+
+        navigate(`/projects/${projectId}`)
+      }
+
+      const moveTaskToProject = async (patch: Partial<Omit<TaskUpdateInput, 'id'>>) => {
+        setActionError(null)
+        const res = await window.api.task.update({ id: detail.task.id, ...patch })
+        if (!res.ok) {
+          setActionError(res.error)
+          return
+        }
+
+        syncProjectAffiliationState(res.data)
+        closeActivePicker({ restoreFocus: false })
+        window.setTimeout(() => {
+          onRequestClose()
+        }, 0)
+      }
+
       const persistTags = (nextTagIds: string[]) => {
         // Optimistic UI update; persistence is tracked so close/switch can await it.
         setDetail((d) => (d ? { ...d, tag_ids: nextTagIds } : d))
@@ -821,31 +971,36 @@ export const TaskEditorPaper = forwardRef<
         const rect = activePicker.anchorEl.getBoundingClientRect()
         const viewportPadding = 12
         const isCalendar = activePicker.kind === 'schedule' || activePicker.kind === 'due'
-
         const isTags = activePicker.kind === 'tags'
+        const isProjectMenu = activePicker.kind === 'project-menu'
+        const isProjectMove = activePicker.kind === 'project-move'
 
-        // Keep inline pickers compact.
-        const maxWidth = isTags ? 220 : 236
+        const maxWidth = isProjectMove ? 320 : isTags ? 220 : isProjectMenu ? 188 : 236
         const left = Math.min(Math.max(viewportPadding, rect.left), window.innerWidth - maxWidth - viewportPadding)
 
         const preferredTop = rect.bottom + 8
         const spaceBelow = window.innerHeight - viewportPadding - preferredTop
         const spaceAbove = rect.top - 8 - viewportPadding
         const estimatedCalendarHeight = 250
-        const openCalendarAbove =
-          isCalendar && spaceBelow < estimatedCalendarHeight && spaceAbove > spaceBelow
+        const estimatedHeight = isProjectMove ? 360 : isProjectMenu ? 120 : estimatedCalendarHeight
+        const openAbove =
+          (isCalendar || isProjectMove || isProjectMenu) &&
+          spaceBelow < estimatedHeight &&
+          spaceAbove > spaceBelow
 
         const top = (() => {
-          if (!isCalendar) return Math.min(preferredTop, window.innerHeight - viewportPadding)
+          if (!isCalendar && !isProjectMove && !isProjectMenu) {
+            return Math.min(preferredTop, window.innerHeight - viewportPadding)
+          }
 
           // When flipping above, anchor the popover edge to the trigger edge.
-          return openCalendarAbove ? rect.top - 8 : preferredTop
+          return openAbove ? rect.top - 8 : preferredTop
         })()
 
         const maxHeight = (() => {
-          if (!isCalendar) return undefined
+          if (!isCalendar && !isProjectMove) return undefined
 
-          const sideSpace = openCalendarAbove ? spaceAbove : spaceBelow
+          const sideSpace = openAbove ? spaceAbove : spaceBelow
           // Keep it usable when viewport is tight.
           return Math.max(180, sideSpace)
         })()
@@ -866,12 +1021,27 @@ export const TaskEditorPaper = forwardRef<
               top,
               left,
               width: maxWidth,
-              maxHeight: isCalendar ? maxHeight : undefined,
-              transform: openCalendarAbove ? 'translateY(-100%)' : undefined,
+              maxHeight,
+              overflow: isProjectMove ? 'auto' : undefined,
+              transform: openAbove ? 'translateY(-100%)' : undefined,
               zIndex: 45,
             }}
           >
-            {activePicker.kind === 'tags' ? (
+            {!showProjectActions && (isProjectMenu || isProjectMove) ? null : isProjectMenu ? (
+              <TaskEditorProjectActions
+                mode="menu"
+                onOpenProject={() => void openProjectPage()}
+                onOpenMove={openProjectMovePicker}
+              />
+            ) : isProjectMove ? (
+              <TaskEditorProjectActions
+                mode="move"
+                areas={areas}
+                openProjects={projects}
+                actionError={actionErrorMessage}
+                onMoveProject={moveTaskToProject}
+              />
+            ) : activePicker.kind === 'tags' ? (
               <div className="task-inline-popover-body">
                 <div className="task-inline-popover-title">{t('taskEditor.tagsLabel')}</div>
                 <input
@@ -1058,9 +1228,25 @@ export const TaskEditorPaper = forwardRef<
         )
       }
 
+      const projectTrigger =
+        showProjectActions &&
+        projectButtonTitle &&
+        projectButtonStatus &&
+        projectProgress &&
+        projectProgress.projectId === draft.project_id ? (
+          <TaskEditorProjectActions
+            mode="trigger"
+            projectTitle={projectButtonTitle}
+            projectStatus={projectButtonStatus}
+            doneCount={projectProgress.doneCount}
+            totalCount={projectProgress.totalCount}
+            onToggleMenu={openProjectMenu}
+          />
+        ) : null
+
       return (
         <div
-          className={paperClassName}
+          className="task-inline-shell"
           ref={inlineRootRef}
           onKeyDownCapture={(e) => {
             if (e.key !== 'Escape') return
@@ -1070,227 +1256,231 @@ export const TaskEditorPaper = forwardRef<
             closeActivePicker({ restoreFocus: true })
           }}
         >
-          <div className="task-inline-header">
-            <label className="task-checkbox" aria-label={t('aria.taskDone')}>
-              <input
-                type="checkbox"
-                checked={detail.task.status === 'done'}
-                onChange={(e) => {
-                  const nextDone = e.target.checked
-                  void (async () => {
-                    const res = await window.api.task.toggleDone(detail.task.id, nextDone)
-                    if (!res.ok) {
-                      setActionError(res.error)
-                      return
-                    }
-                    setActionError(null)
-                    setDetail((d) => (d ? { ...d, task: res.data } : d))
-                  })()
-                }}
-              />
-            </label>
-
-            <input
-              id="task-title"
-              ref={titleInputRef}
-              className="task-inline-title"
-              value={draft.title}
-              onChange={(e) => {
-                const next = { ...draft, title: e.target.value }
-                setDraft(next)
-                scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
-              }}
-              onKeyDown={(e) => {
-                if (e.key !== 'Enter') return
-                if (e.metaKey || e.ctrlKey) return
-                e.preventDefault()
-                e.stopPropagation()
-                onRequestClose()
-              }}
-              placeholder={t('task.titlePlaceholder')}
-            />
-
-            {savePhase === 'error' ? (
-              <div className="task-inline-header-right">
-                <button
-                  type="button"
-                  className="button button-ghost"
-                  onClick={() => {
-                    requestSave(draft)
+          <div className={paperClassName}>
+            <div className="task-inline-header">
+              <label className="task-checkbox" aria-label={t('aria.taskDone')}>
+                <input
+                  type="checkbox"
+                  checked={detail.task.status === 'done'}
+                  onChange={(e) => {
+                    const nextDone = e.target.checked
+                    void (async () => {
+                      const res = await window.api.task.toggleDone(detail.task.id, nextDone)
+                      if (!res.ok) {
+                        setActionError(res.error)
+                        return
+                      }
+                      setActionError(null)
+                      setDetail((d) => (d ? { ...d, task: res.data } : d))
+                    })()
                   }}
-                >
-                  {t('common.retry')}
-                </button>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="task-inline-content">
-            {saveError ? (
-              <div className="error">
-                <div className="error-code">{saveError.code}</div>
-                <div>{saveError.message}</div>
-              </div>
-            ) : null}
-
-            {actionError ? (
-              <div className="error">
-                <div className="error-code">{actionError.code}</div>
-                <div>{actionError.message}</div>
-              </div>
-            ) : null}
-
-            {tagsError ? (
-              <div className="error">
-                <div className="error-code">{tagsError.code}</div>
-                <div>{tagsError.message}</div>
-              </div>
-            ) : null}
-
-            {checklistError ? (
-              <div className="error">
-                <div className="error-code">{checklistError.code}</div>
-                <div>{checklistError.message}</div>
-              </div>
-            ) : null}
-
-            <textarea
-              id="task-notes"
-              ref={notesInputRef}
-              className="task-inline-notes"
-              value={draft.notes}
-              onChange={(e) => {
-                const next = { ...draft, notes: e.target.value }
-                setDraft(next)
-                scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
-              }}
-              placeholder={t('task.notesPlaceholder')}
-            />
-
-            {isChecklistExpanded ? (
-              <div className="task-inline-section">
-                <Checklist
-                  items={checklist}
-                  variant="inline"
-                  createRequestToken={checklistCreateRequestToken}
-                  fallbackFocusRef={checklistActionButtonRef}
-                  onCreate={createChecklistItem}
-                  onToggle={toggleChecklistItem}
-                  onRename={renameChecklistItem}
-                  onDelete={deleteChecklistItem}
-                  onCollapseWhenEmpty={collapseInlineChecklist}
                 />
+              </label>
+
+              <input
+                id="task-title"
+                ref={titleInputRef}
+                className="task-inline-title"
+                value={draft.title}
+                onChange={(e) => {
+                  const next = { ...draft, title: e.target.value }
+                  setDraft(next)
+                  scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return
+                  if (e.metaKey || e.ctrlKey) return
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onRequestClose()
+                }}
+                placeholder={t('task.titlePlaceholder')}
+              />
+
+              {savePhase === 'error' ? (
+                <div className="task-inline-header-right">
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() => {
+                      requestSave(draft)
+                    }}
+                  >
+                    {t('common.retry')}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="task-inline-content">
+              {saveError ? (
+                <div className="error">
+                  <div className="error-code">{saveError.code}</div>
+                  <div>{saveError.message}</div>
+                </div>
+              ) : null}
+
+              {actionError ? (
+                <div className="error">
+                  <div className="error-code">{actionError.code}</div>
+                  <div>{actionError.message}</div>
+                </div>
+              ) : null}
+
+              {tagsError ? (
+                <div className="error">
+                  <div className="error-code">{tagsError.code}</div>
+                  <div>{tagsError.message}</div>
+                </div>
+              ) : null}
+
+              {checklistError ? (
+                <div className="error">
+                  <div className="error-code">{checklistError.code}</div>
+                  <div>{checklistError.message}</div>
+                </div>
+              ) : null}
+
+              <textarea
+                id="task-notes"
+                ref={notesInputRef}
+                className="task-inline-notes"
+                value={draft.notes}
+                onChange={(e) => {
+                  const next = { ...draft, notes: e.target.value }
+                  setDraft(next)
+                  scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
+                }}
+                placeholder={t('task.notesPlaceholder')}
+              />
+
+              {isChecklistExpanded ? (
+                <div className="task-inline-section">
+                  <Checklist
+                    items={checklist}
+                    variant="inline"
+                    createRequestToken={checklistCreateRequestToken}
+                    fallbackFocusRef={checklistActionButtonRef}
+                    onCreate={createChecklistItem}
+                    onToggle={toggleChecklistItem}
+                    onRename={renameChecklistItem}
+                    onDelete={deleteChecklistItem}
+                    onCollapseWhenEmpty={collapseInlineChecklist}
+                  />
+                </div>
+              ) : null}
+
+              <div className="task-inline-action-bar">
+                <div className="task-inline-action-bar-left">
+                  {draft.scheduled_at || draft.is_someday ? (
+                    <div className="task-inline-chip">
+                      <button
+                        type="button"
+                        className="task-inline-chip-main"
+                        onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
+                      >
+                        {t('taskEditor.scheduledPrefix')}{' '}
+                        {draft.is_someday ? t('nav.someday') : draft.scheduled_at === today ? t('nav.today') : draft.scheduled_at}
+                      </button>
+                      <button
+                        type="button"
+                        className="task-inline-chip-close"
+                        aria-label={t('taskEditor.clearScheduledAria')}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          const next = draft.is_someday ? { ...draft, is_someday: false } : { ...draft, scheduled_at: null }
+                          setDraft(next)
+                          scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {draft.due_at ? (
+                    <div className="task-inline-chip">
+                      <button type="button" className="task-inline-chip-main" onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}>
+                        {t('taskEditor.duePrefix')} {draft.due_at}
+                      </button>
+                      <button
+                        type="button"
+                        className="task-inline-chip-close"
+                        aria-label={t('taskEditor.clearDueAria')}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          const next = { ...draft, due_at: null }
+                          setDraft(next)
+                          scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {selectedTagIds.size > 0 ? (
+                    <div className="task-inline-chip">
+                      <button type="button" className="task-inline-chip-main" onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}>
+                        {t('taskEditor.tagsPrefix')} {selectedTagIds.size}
+                      </button>
+                      <button
+                        type="button"
+                        className="task-inline-chip-close"
+                        aria-label={t('taskEditor.clearTagsAria')}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          persistTags([])
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="task-inline-action-bar-right">
+                  {!draft.scheduled_at && !draft.is_someday ? (
+                    <button
+                      type="button"
+                      className="button button-ghost"
+                      onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
+                    >
+                      {t('common.schedule')}
+                    </button>
+                  ) : null}
+
+                  <button
+                    ref={tagsButtonRef}
+                    type="button"
+                    className="button button-ghost"
+                    onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
+                  >
+                    {t('taskEditor.tagsLabel')}
+                  </button>
+
+                  {!draft.due_at ? (
+                    <button type="button" className="button button-ghost" onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}>
+                      {t('taskEditor.dueLabel')}
+                    </button>
+                  ) : null}
+
+                  {checklist.length === 0 && !isChecklistExpanded ? (
+                    <button
+                      ref={checklistActionButtonRef}
+                      type="button"
+                      className="button"
+                      onClick={() => openChecklistAndFocus()}
+                    >
+                      {t('taskEditor.checklistLabel')}
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
-
-            <div className="task-inline-action-bar">
-            <div className="task-inline-action-bar-left">
-              {draft.scheduled_at || draft.is_someday ? (
-                <div className="task-inline-chip">
-                  <button
-                    type="button"
-                    className="task-inline-chip-main"
-                    onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
-                  >
-                    {t('taskEditor.scheduledPrefix')} {draft.is_someday ? t('nav.someday') : draft.scheduled_at === today ? t('nav.today') : draft.scheduled_at}
-                  </button>
-                  <button
-                    type="button"
-                    className="task-inline-chip-close"
-                    aria-label={t('taskEditor.clearScheduledAria')}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      const next = draft.is_someday ? { ...draft, is_someday: false } : { ...draft, scheduled_at: null }
-                      setDraft(next)
-                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : null}
-
-              {draft.due_at ? (
-                <div className="task-inline-chip">
-                  <button type="button" className="task-inline-chip-main" onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}>
-                    {t('taskEditor.duePrefix')} {draft.due_at}
-                  </button>
-                  <button
-                    type="button"
-                    className="task-inline-chip-close"
-                    aria-label={t('taskEditor.clearDueAria')}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      const next = { ...draft, due_at: null }
-                      setDraft(next)
-                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : null}
-
-              {selectedTagIds.size > 0 ? (
-                <div className="task-inline-chip">
-                  <button type="button" className="task-inline-chip-main" onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}>
-                    {t('taskEditor.tagsPrefix')} {selectedTagIds.size}
-                  </button>
-                  <button
-                    type="button"
-                    className="task-inline-chip-close"
-                    aria-label={t('taskEditor.clearTagsAria')}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      persistTags([])
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="task-inline-action-bar-right">
-              {!draft.scheduled_at && !draft.is_someday ? (
-                <button
-                  type="button"
-                  className="button button-ghost"
-                  onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
-                >
-                  {t('common.schedule')}
-                </button>
-              ) : null}
-
-              <button
-                ref={tagsButtonRef}
-                type="button"
-                className="button button-ghost"
-                onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
-              >
-                {t('taskEditor.tagsLabel')}
-              </button>
-
-              {!draft.due_at ? (
-                <button type="button" className="button button-ghost" onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}>
-                  {t('taskEditor.dueLabel')}
-                </button>
-              ) : null}
-
-              {checklist.length === 0 && !isChecklistExpanded ? (
-                <button
-                  ref={checklistActionButtonRef}
-                  type="button"
-                  className="button"
-                  onClick={() => openChecklistAndFocus()}
-                >
-                  {t('taskEditor.checklistLabel')}
-                </button>
-              ) : null}
             </div>
           </div>
 
-          </div>
+          {projectTrigger ? <div className="task-inline-footer">{projectTrigger}</div> : null}
 
           {renderPopover()}
         </div>

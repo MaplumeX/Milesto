@@ -682,6 +682,7 @@ function ProjectDoneTaskList({
                 <TaskRow
                   task={task}
                   titlePrefix={titlePrefix}
+                  showProjectAffiliation={false}
                   onSelect={selectTask}
                   onOpen={(taskId) => void openTask(taskId)}
                   onToggleDone={(taskId, done) => {
@@ -690,7 +691,7 @@ function ProjectDoneTaskList({
                   }}
                 />
               }
-              editorContent={<TaskInlineEditorRow taskId={task.id} />}
+              editorContent={<TaskInlineEditorRow taskId={task.id} showProjectActions={false} />}
               onHeightChange={() => {}}
               prefersReducedMotion={prefersReducedMotion}
             />
@@ -726,6 +727,7 @@ function ProjectDoneTaskList({
                         <TaskRow
                           task={task}
                           titlePrefix={titlePrefix}
+                          showProjectAffiliation={false}
                           onSelect={selectTask}
                           onOpen={(taskId) => void openTask(taskId)}
                           onToggleDone={(taskId, done) => {
@@ -734,7 +736,7 @@ function ProjectDoneTaskList({
                           }}
                         />
                       }
-                      editorContent={<TaskInlineEditorRow taskId={task.id} />}
+                      editorContent={<TaskInlineEditorRow taskId={task.id} showProjectActions={false} />}
                       onHeightChange={() => {}}
                       prefersReducedMotion={prefersReducedMotion}
                     />

@@ -7,6 +7,7 @@ import type { Area } from '../../shared/schemas/area'
 import type { Project } from '../../shared/schemas/project'
 import type { TaskUpdateInput } from '../../shared/schemas/task'
 
+import { TaskMovePopoverContent } from '../features/tasks/TaskMovePopoverContent'
 import { formatLocalDate } from '../lib/dates'
 import { getLocalToday } from '../lib/use-local-today'
 
@@ -200,15 +201,14 @@ export function ContentBottomBarActions({
             {activePopover.kind === 'schedule' ? t('common.schedule') : t('common.move')}
           </div>
 
-          {actionError ? (
-            <div className="error" style={{ margin: '10px 0 0' }}>
-              <div className="error-code">{t('taskEditor.actionFailedTitle')}</div>
-              <div>{actionError}</div>
-            </div>
-          ) : null}
-
           {activePopover.kind === 'schedule' ? (
             <>
+              {actionError ? (
+                <div className="error" style={{ margin: '10px 0 0' }}>
+                  <div className="error-code">{t('taskEditor.actionFailedTitle')}</div>
+                  <div>{actionError}</div>
+                </div>
+              ) : null}
               <div className="task-inline-calendar" style={{ marginTop: 8 }}>
                 <DayPicker
                   mode="single"
@@ -251,63 +251,12 @@ export function ContentBottomBarActions({
               </div>
             </>
           ) : (
-            <div style={{ marginTop: 10 }}>
-              <div className="content-bottom-popover-section">
-                <div className="label" style={{ marginBottom: 8 }}>
-                  {t('shell.areas')}
-                </div>
-                <div className="content-bottom-popover-list">
-                  {areas.length === 0 ? <div className="nav-muted">{t('shell.empty')}</div> : null}
-                  {areas.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      className={`button button-ghost content-bottom-popover-item${
-                        a.title.trim() ? '' : ' is-placeholder'
-                      }`}
-                      onClick={() =>
-                        void updateSelectedTask({
-                          area_id: a.id,
-                          project_id: null,
-                          section_id: null,
-                          is_inbox: false,
-                        })
-                      }
-                    >
-                      {a.title.trim() ? a.title : t('area.untitled')}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="content-bottom-popover-section" style={{ marginTop: 10 }}>
-                <div className="label" style={{ marginBottom: 8 }}>
-                  {t('nav.projects')}
-                </div>
-                <div className="content-bottom-popover-list">
-                  {openProjects.length === 0 ? <div className="nav-muted">{t('shell.empty')}</div> : null}
-                  {openProjects.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className={`button button-ghost content-bottom-popover-item${
-                        p.title.trim() ? '' : ' is-placeholder'
-                      }`}
-                      onClick={() =>
-                        void updateSelectedTask({
-                          project_id: p.id,
-                          area_id: null,
-                          section_id: null,
-                          is_inbox: false,
-                        })
-                      }
-                    >
-                      {p.title.trim() ? p.title : t('project.untitled')}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <TaskMovePopoverContent
+              areas={areas}
+              openProjects={openProjects}
+              actionError={actionError}
+              onMove={updateSelectedTask}
+            />
           )}
         </div>
       </div>,

@@ -6,6 +6,7 @@ import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useTaskSelection } from './TaskSelectionContext'
 import { AnimatedTaskSlot } from './AnimatedTaskSlot'
+import { TaskProjectAffiliation } from './TaskProjectAffiliation'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
 import { useContentScrollRef } from '../../app/ContentScrollContext'
 import { usePrefersReducedMotion } from './dnd-drop-animation'
@@ -267,7 +268,13 @@ export function UpcomingGroupedList({
                             {row.datePrefix}
                           </span>
                         ) : null}
-                        <span className="upcoming-task-title task-title-text">{t.title}</span>
+                        <span className="task-title-stack">
+                          <span className="upcoming-task-title task-title-text">{t.title}</span>
+                          <TaskProjectAffiliation
+                            projectId={t.project_id}
+                            projectTitle={t.project_title}
+                          />
+                        </span>
                       </button>
                     </>
                   }

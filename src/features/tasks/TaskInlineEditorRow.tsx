@@ -4,7 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { TaskEditorPaper, type TaskEditorPaperHandle } from './TaskEditorPaper'
 import { useTaskSelection } from './TaskSelectionContext'
 
-export function TaskInlineEditorRow({ taskId }: { taskId: string }) {
+export function TaskInlineEditorRow({
+  taskId,
+  showProjectActions = true,
+}: {
+  taskId: string
+  showProjectActions?: boolean
+}) {
   const { t } = useTranslation()
   const { closeTask, registerOpenEditor } = useTaskSelection()
   const editorRef = useRef<TaskEditorPaperHandle | null>(null)
@@ -65,6 +71,7 @@ export function TaskInlineEditorRow({ taskId }: { taskId: string }) {
         ref={editorRef}
         taskId={taskId}
         variant="inline"
+        showProjectActions={showProjectActions}
         onRequestClose={() => void attemptClose()}
       />
     </section>

@@ -6,6 +6,7 @@ import type { TaskSearchResultItem } from '../../shared/schemas/search'
 
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 import { AnimatedTaskSlot } from '../features/tasks/AnimatedTaskSlot'
+import { TaskProjectAffiliation } from '../features/tasks/TaskProjectAffiliation'
 import { TaskInlineEditorRow } from '../features/tasks/TaskInlineEditorRow'
 import { usePrefersReducedMotion } from '../features/tasks/dnd-drop-animation'
 import { useOptimisticTaskTitles } from '../features/tasks/use-optimistic-task-titles'
@@ -132,8 +133,14 @@ export function SearchPage() {
                         onClick={() => selectTask(r.id)}
                         onDoubleClick={() => void openTask(r.id)}
                       >
-                        <span className={r.title.trim() ? undefined : 'task-title-placeholder'}>
-                          {r.title.trim() ? r.title : t('task.untitled')}
+                        <span className="task-title-stack">
+                          <span className={r.title.trim() ? undefined : 'task-title-placeholder'}>
+                            {r.title.trim() ? r.title : t('task.untitled')}
+                          </span>
+                          <TaskProjectAffiliation
+                            projectId={r.project_id}
+                            projectTitle={r.project_title}
+                          />
                         </span>
                       </button>
                       <div className="mono">{r.snippet ?? ''}</div>

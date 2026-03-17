@@ -49,7 +49,8 @@ describe('SearchPage (harness)', () => {
             status: 'open',
             is_inbox: true,
             is_someday: false,
-            project_id: null,
+            project_id: 'p1',
+            project_title: 'Project Alpha',
             section_id: null,
             area_id: null,
             scheduled_at: null,
@@ -74,8 +75,9 @@ describe('SearchPage (harness)', () => {
 
     expect(searchMock).toHaveBeenCalledWith('milk', { includeLogbook: false })
     await screen.findByText('Milk')
+    expect(screen.getByText('Project Alpha')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Milk' }))
+    await user.click(screen.getByRole('button', { name: 'Milk Project Alpha' }))
     const row = document.querySelector('[data-task-id="t1"]')
     expect(row?.classList.contains('is-selected')).toBe(true)
   })

@@ -686,10 +686,12 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
+             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, p.title AS project_title, t.section_id, t.area_id,
              t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
              lp.rank AS rank
            FROM tasks t
+           LEFT JOIN projects p
+             ON p.id = t.project_id AND p.deleted_at IS NULL
            LEFT JOIN list_positions lp
              ON lp.list_id = @list_id AND lp.task_id = t.id
            WHERE t.deleted_at IS NULL
@@ -723,10 +725,12 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
+             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, p.title AS project_title, t.section_id, t.area_id,
              t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
              lp.rank AS rank
            FROM tasks t
+           LEFT JOIN projects p
+             ON p.id = t.project_id AND p.deleted_at IS NULL
            LEFT JOIN list_positions lp
              ON lp.list_id = @list_id AND lp.task_id = t.id
            WHERE t.deleted_at IS NULL
@@ -762,10 +766,12 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
+             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, p.title AS project_title, t.section_id, t.area_id,
              t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
              lp.rank AS rank
            FROM tasks t
+           LEFT JOIN projects p
+             ON p.id = t.project_id AND p.deleted_at IS NULL
            LEFT JOIN list_positions lp
              ON lp.list_id = @list_id AND lp.task_id = t.id
            WHERE t.deleted_at IS NULL
@@ -799,10 +805,12 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
+             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, p.title AS project_title, t.section_id, t.area_id,
              t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
              lp.rank AS rank
            FROM tasks t
+           LEFT JOIN projects p
+             ON p.id = t.project_id AND p.deleted_at IS NULL
            LEFT JOIN list_positions lp
              ON lp.list_id = @list_id AND lp.task_id = t.id
            WHERE t.deleted_at IS NULL
@@ -834,14 +842,16 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
 
       const rows = db
         .prepare(
-          `SELECT id, title, status, is_inbox, is_someday, project_id, section_id, area_id,
-                  scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+          `SELECT tasks.id, tasks.title, tasks.status, tasks.is_inbox, tasks.is_someday, tasks.project_id, tasks.section_id, tasks.area_id,
+                  p.title AS project_title, tasks.scheduled_at, tasks.due_at, tasks.created_at, tasks.updated_at, tasks.completed_at, tasks.deleted_at
            FROM tasks
-           WHERE deleted_at IS NULL
-             AND status = 'open'
-             AND scheduled_at IS NOT NULL
-             AND scheduled_at > @from_date
-           ORDER BY scheduled_at ASC, created_at ASC`
+           LEFT JOIN projects p
+             ON p.id = tasks.project_id AND p.deleted_at IS NULL
+           WHERE tasks.deleted_at IS NULL
+             AND tasks.status = 'open'
+             AND tasks.scheduled_at IS NOT NULL
+             AND tasks.scheduled_at > @from_date
+           ORDER BY tasks.scheduled_at ASC, tasks.created_at ASC`
         )
         .all({ from_date: parsed.data.from_date })
 
@@ -864,12 +874,14 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
 
       const rows = db
         .prepare(
-          `SELECT id, title, status, is_inbox, is_someday, project_id, section_id, area_id,
-                  scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+          `SELECT tasks.id, tasks.title, tasks.status, tasks.is_inbox, tasks.is_someday, tasks.project_id, tasks.section_id, tasks.area_id,
+                  p.title AS project_title, tasks.scheduled_at, tasks.due_at, tasks.created_at, tasks.updated_at, tasks.completed_at, tasks.deleted_at
            FROM tasks
-           WHERE deleted_at IS NULL
-             AND status = 'done'
-            ORDER BY COALESCE(completed_at, updated_at) DESC, updated_at DESC`
+           LEFT JOIN projects p
+             ON p.id = tasks.project_id AND p.deleted_at IS NULL
+           WHERE tasks.deleted_at IS NULL
+             AND tasks.status = 'done'
+            ORDER BY COALESCE(tasks.completed_at, tasks.updated_at) DESC, tasks.updated_at DESC`
          )
          .all()
 
@@ -1048,10 +1060,12 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
+             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, p.title AS project_title, t.section_id, t.area_id,
              t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
              lp.rank AS rank
            FROM tasks t
+           LEFT JOIN projects p
+             ON p.id = t.project_id AND p.deleted_at IS NULL
            LEFT JOIN list_positions lp
              ON lp.list_id = @list_id AND lp.task_id = t.id
            WHERE t.deleted_at IS NULL
@@ -1097,11 +1111,12 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         const rows = db
           .prepare(
             `SELECT
-               t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
+               t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, p.title AS project_title, t.section_id, t.area_id,
                t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
                snippet(tasks_fts, -1, '[', ']', '…', 10) AS snippet
              FROM tasks_fts
              JOIN tasks t ON tasks_fts.rowid = t.rowid
+             LEFT JOIN projects p ON p.id = t.project_id AND p.deleted_at IS NULL
              WHERE t.deleted_at IS NULL
                AND (${includeLogbook ? '1=1' : "t.status = 'open'"})
                AND tasks_fts MATCH @query

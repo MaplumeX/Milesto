@@ -1,6 +1,8 @@
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 import { useTranslation } from 'react-i18next'
 
+import { TaskProjectAffiliation } from './TaskProjectAffiliation'
+
 export function TaskRow({
   task,
   dragHandle,
@@ -14,6 +16,7 @@ export function TaskRow({
   onToggleDone,
   onRestore,
   isOverlay,
+  showProjectAffiliation = true,
 }: {
   task: TaskListItem
   dragHandle?: React.ReactNode
@@ -27,6 +30,7 @@ export function TaskRow({
   onToggleDone?: (taskId: string, done: boolean) => void
   onRestore?: (taskId: string) => void
   isOverlay?: boolean
+  showProjectAffiliation?: boolean
 }) {
   const { t } = useTranslation()
   const isTitleActivator = !!titleActivatorProps
@@ -88,12 +92,20 @@ export function TaskRow({
           </span>
         ) : null}
 
-        <span
-          className={`${hasTitlePrefix ? 'upcoming-task-title ' : ''}task-title-text ${
-            task.title.trim() ? '' : 'task-title-placeholder'
-          }`.trim() || undefined}
-        >
-          {task.title.trim() ? task.title : t('task.untitled')}
+        <span className="task-title-stack">
+          <span
+            className={`${hasTitlePrefix ? 'upcoming-task-title ' : ''}task-title-text ${
+              task.title.trim() ? '' : 'task-title-placeholder'
+            }`.trim() || undefined}
+          >
+            {task.title.trim() ? task.title : t('task.untitled')}
+          </span>
+          {showProjectAffiliation ? (
+            <TaskProjectAffiliation
+              projectId={task.project_id}
+              projectTitle={task.project_title}
+            />
+          ) : null}
         </span>
       </button>
 
