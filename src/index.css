@@ -35,6 +35,8 @@
   --danger-text: rgba(120, 50, 40, 0.9);
   --ppc-color: #4A8DF8;
   --ppc-fill-partial: #4A8DF8;
+  --completed-date-color: var(--ppc-color);
+  --project-group-title-color: var(--ppc-color);
 
   /* Multi-layer elevation shadows */
   --shadow-sheet:
@@ -813,7 +815,7 @@ body {
 .project-group-title {
   font-weight: 650;
   font-size: 11px;
-  color: var(--text);
+  color: var(--project-group-title-color);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -830,7 +832,7 @@ body {
   padding: 0;
   font-family: inherit;
   line-height: inherit;
-  color: var(--text);
+  color: var(--project-group-title-color);
 }
 
 .project-group-title-input:focus {
@@ -1595,6 +1597,30 @@ body {
 .task-row.is-done .task-title-text {
   text-decoration: line-through;
   color: var(--muted);
+}
+
+.task-row.is-done .upcoming-date-prefix {
+  display: inline-flex;
+  justify-content: center;
+  color: var(--completed-date-color);
+  text-align: center;
+  font-weight: 650;
+}
+
+.task-row.is-done .upcoming-task-title-button {
+  align-items: center;
+}
+
+.task-row[data-logbook-row] .upcoming-date-prefix {
+  display: inline-flex;
+  justify-content: center;
+  color: var(--completed-date-color);
+  text-align: center;
+  font-weight: 650;
+}
+
+.task-row[data-logbook-row] .upcoming-task-title-button {
+  align-items: center;
 }
 
 .task-checkbox input {

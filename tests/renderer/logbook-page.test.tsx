@@ -222,4 +222,31 @@ describe('LogbookPage (renderer smoke via mocks)', () => {
       expect(revisionEl.textContent).toBe('1')
     })
   })
+
+  it('marks logbook task and project rows for dedicated date-prefix theming', async () => {
+    const api = (window as unknown as { api: WindowApi }).api
+
+    api.task.listLogbook = vi.fn<WindowApi['task']['listLogbook']>(async () =>
+      ok([
+        makeDoneTask({
+          id: 't1',
+          title: 'Done Task',
+          completed_at: '2026-02-17T12:00:00.000Z',
+        }),
+      ])
+    )
+    api.project.listDone = vi.fn<WindowApi['project']['listDone']>(async () =>
+      ok([makeDoneProject({ id: 'p1', title: 'Done Project', completed_at: '2026-02-16T12:00:00.000Z' })])
+    )
+
+    render(<LogbookPageHarness />)
+
+    const taskText = await screen.findByText('Done Task')
+    const taskRow = taskText.closest<HTMLElement>('li.task-row')
+    expect(taskRow).toHaveAttribute('data-logbook-row', 'task')
+
+    const projectButton = await screen.findByRole('button', { name: 'Done Project' })
+    const projectRow = projectButton.closest<HTMLElement>('li.task-row')
+    expect(projectRow).toHaveAttribute('data-logbook-row', 'project')
+  })
 })

@@ -223,6 +223,7 @@ export function LogbookGroupedList({
                 <li
                   key={`p:${p.id}`}
                   className={`task-row${selectedProjectId === p.id ? ' is-selected' : ''}`}
+                  data-logbook-row="project"
                   ref={(el) => {
                     if (!el) return
                     rowVirtualizer.measureElement(el)
@@ -290,6 +291,7 @@ export function LogbookGroupedList({
                 className={`task-row${isOpen ? ' is-open' : ' task-row-virtual'}${
                   selectedTaskId === task.id ? ' is-selected' : ''
                 }`}
+                data-logbook-row="task"
                 data-task-id={task.id}
                 ref={(el) => {
                   liEl = el
