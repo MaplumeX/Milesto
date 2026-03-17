@@ -1070,12 +1070,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
              ON lp.list_id = @list_id AND lp.task_id = t.id
            WHERE t.deleted_at IS NULL
              AND t.status = 'open'
-             AND (
-               t.area_id = @area_id
-               OR t.project_id IN (
-                 SELECT id FROM projects WHERE deleted_at IS NULL AND area_id = @area_id
-               )
-             )
+             AND t.area_id = @area_id
            ORDER BY
              CASE WHEN lp.rank IS NULL THEN 1 ELSE 0 END,
              lp.rank ASC,

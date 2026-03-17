@@ -89,4 +89,60 @@ describe('task project affiliation DB contract', () => {
     if (!search.ok) return
     expect(search.data[0]).toMatchObject({ project_id: projectId, project_title: 'Project Alpha' })
   })
+
+  it('listArea excludes tasks that are only affiliated through a project area', async () => {
+    const testDb = await createTestDb()
+    cleanup = testDb.cleanup
+
+    const { db } = testDb
+    const handlers = buildDbHandlers(db)
+
+    const createdArea = dispatchDbRequest(handlers, {
+      id: '1',
+      type: 'db',
+      action: 'area.create',
+      payload: { title: 'Area One' },
+    } satisfies DbWorkerRequest)
+    expect(createdArea.ok).toBe(true)
+    if (!createdArea.ok) return
+
+    const areaId = createdArea.data.id
+
+    const createdProject = dispatchDbRequest(handlers, {
+      id: '2',
+      type: 'db',
+      action: 'project.create',
+      payload: { title: 'Project Alpha', area_id: areaId },
+    } satisfies DbWorkerRequest)
+    expect(createdProject.ok).toBe(true)
+    if (!createdProject.ok) return
+
+    const createdProjectTask = dispatchDbRequest(handlers, {
+      id: '3',
+      type: 'db',
+      action: 'task.create',
+      payload: { title: 'Project Task', project_id: createdProject.data.id },
+    } satisfies DbWorkerRequest)
+    expect(createdProjectTask.ok).toBe(true)
+
+    const createdAreaTask = dispatchDbRequest(handlers, {
+      id: '4',
+      type: 'db',
+      action: 'task.create',
+      payload: { title: 'Area Task', area_id: areaId },
+    } satisfies DbWorkerRequest)
+    expect(createdAreaTask.ok).toBe(true)
+    if (!createdAreaTask.ok) return
+
+    const areaList = dispatchDbRequest(handlers, {
+      id: '5',
+      type: 'db',
+      action: 'task.listArea',
+      payload: { area_id: areaId },
+    } satisfies DbWorkerRequest)
+    expect(areaList.ok).toBe(true)
+    if (!areaList.ok) return
+
+    expect(areaList.data.map((task) => task.id)).toEqual([createdAreaTask.data.id])
+  })
 })
