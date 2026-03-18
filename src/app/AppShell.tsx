@@ -1284,6 +1284,7 @@ export function AppShell() {
 
           <div className="nav-sep" />
           <NavItem to="/logbook" label={t('nav.logbook')} />
+          <NavItem to="/trash" label={t('nav.trash')} />
 
           <div className="nav-sep" />
           <div className="nav-section-title">{t('nav.projects')}</div>

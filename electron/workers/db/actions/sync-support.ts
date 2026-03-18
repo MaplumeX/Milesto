@@ -71,6 +71,7 @@ const TASK_FIELDS = [
   'updated_at',
   'completed_at',
   'deleted_at',
+  'purged_at',
 ] as const
 
 const PROJECT_FIELDS = [
@@ -87,6 +88,7 @@ const PROJECT_FIELDS = [
   'updated_at',
   'completed_at',
   'deleted_at',
+  'purged_at',
 ] as const
 
 const AREA_FIELDS = ['id', 'title', 'notes', 'position', 'created_at', 'updated_at', 'deleted_at'] as const
@@ -101,6 +103,7 @@ const PROJECT_SECTION_FIELDS = [
   'created_at',
   'updated_at',
   'deleted_at',
+  'purged_at',
 ] as const
 
 const CHECKLIST_ITEM_FIELDS = [
@@ -125,6 +128,7 @@ const ENTITY_DEFINITIONS: Record<SyncEntityType, SyncEntityDefinition<SyncEntity
         ...task,
         is_inbox: task.is_inbox ? 1 : 0,
         is_someday: task.is_someday ? 1 : 0,
+        purged_at: task.purged_at ?? null,
       }
     },
   },
@@ -138,6 +142,7 @@ const ENTITY_DEFINITIONS: Record<SyncEntityType, SyncEntityDefinition<SyncEntity
         ...project,
         position: project.position ?? null,
         is_someday: project.is_someday ? 1 : 0,
+        purged_at: project.purged_at ?? null,
       }
     },
   },
@@ -163,7 +168,13 @@ const ENTITY_DEFINITIONS: Record<SyncEntityType, SyncEntityDefinition<SyncEntity
     table: 'project_sections',
     fields: PROJECT_SECTION_FIELDS,
     parse: (row) => ProjectSectionSchema.parse(row),
-    toDb: (entity) => ProjectSectionSchema.parse(entity),
+    toDb: (entity) => {
+      const section = ProjectSectionSchema.parse(entity)
+      return {
+        ...section,
+        purged_at: section.purged_at ?? null,
+      }
+    },
   },
   checklist_item: {
     table: 'task_checklist_items',

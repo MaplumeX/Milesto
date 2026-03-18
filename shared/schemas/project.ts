@@ -23,6 +23,7 @@ export const ProjectSchema = z.object({
   updated_at: IsoDateTimeSchema,
   completed_at: IsoDateTimeSchema.nullable(),
   deleted_at: IsoDateTimeSchema.nullable(),
+  purged_at: IsoDateTimeSchema.nullable().optional(),
 })
 
 // Cross-layer invariant validation: if DB ever returns an invalid row,
@@ -119,6 +120,7 @@ export const ProjectSectionSchema = z.object({
   created_at: IsoDateTimeSchema,
   updated_at: IsoDateTimeSchema,
   deleted_at: IsoDateTimeSchema.nullable(),
+  purged_at: IsoDateTimeSchema.nullable().optional(),
 })
 
 export type ProjectSection = z.infer<typeof ProjectSectionSchema>

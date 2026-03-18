@@ -37,6 +37,14 @@ const api: WindowApi = {
     disable: () => invoke('sync:disable'),
     syncNow: () => invoke('sync:syncNow'),
   },
+  trash: {
+    list: () => invoke('db:trash.list', {}),
+    restoreTask: (id) => invoke('db:trash.restoreTask', { id }),
+    restoreProject: (id) => invoke('db:trash.restoreProject', { id }),
+    purgeTask: (id) => invoke('db:trash.purgeTask', { id }),
+    purgeProject: (id) => invoke('db:trash.purgeProject', { id }),
+    empty: () => invoke('db:trash.empty', {}),
+  },
   task: {
     create: (input) => invoke('db:task.create', input),
     update: (input) => invoke('db:task.update', input),

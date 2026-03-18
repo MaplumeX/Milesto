@@ -66,6 +66,15 @@ export function createWindowApiMock(): WindowApi {
       syncNow: vi.fn<WindowApi['sync']['syncNow']>(async () => ok(syncState)),
     },
 
+    trash: {
+      list: vi.fn<WindowApi['trash']['list']>(async () => ok([])),
+      restoreTask: vi.fn<WindowApi['trash']['restoreTask']>(async () => err(unimplementedError)),
+      restoreProject: vi.fn<WindowApi['trash']['restoreProject']>(async () => err(unimplementedError)),
+      purgeTask: vi.fn<WindowApi['trash']['purgeTask']>(async () => err(unimplementedError)),
+      purgeProject: vi.fn<WindowApi['trash']['purgeProject']>(async () => err(unimplementedError)),
+      empty: vi.fn<WindowApi['trash']['empty']>(async () => ok({ purged_count: 0 })),
+    },
+
     task: {
       create: vi.fn<WindowApi['task']['create']>(async () => err(unimplementedError)),
       update: vi.fn<WindowApi['task']['update']>(async () => err(unimplementedError)),

@@ -66,6 +66,7 @@ function migrate(db: Database.Database) {
         updated_at TEXT NOT NULL,
         completed_at TEXT,
         deleted_at TEXT,
+        purged_at TEXT,
         CHECK (is_someday IN (0, 1)),
         CHECK (is_someday = 0 OR scheduled_at IS NULL),
         FOREIGN KEY (area_id) REFERENCES areas(id)
@@ -79,6 +80,7 @@ function migrate(db: Database.Database) {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         deleted_at TEXT,
+        purged_at TEXT,
         FOREIGN KEY (project_id) REFERENCES projects(id)
       );
 
@@ -98,6 +100,7 @@ function migrate(db: Database.Database) {
         updated_at TEXT NOT NULL,
         completed_at TEXT,
         deleted_at TEXT,
+        purged_at TEXT,
         CHECK (is_inbox IN (0, 1)),
         CHECK (is_someday IN (0, 1)),
         CHECK (is_someday = 0 OR scheduled_at IS NULL),
@@ -442,5 +445,22 @@ function migrate(db: Database.Database) {
 
     db.exec(stmts.join('\n'))
     db.pragma('user_version = 6')
+  }
+
+  if (userVersion < 7) {
+    const stmts: string[] = []
+
+    if (!hasColumn('tasks', 'purged_at')) {
+      stmts.push('ALTER TABLE tasks ADD COLUMN purged_at TEXT;')
+    }
+    if (!hasColumn('projects', 'purged_at')) {
+      stmts.push('ALTER TABLE projects ADD COLUMN purged_at TEXT;')
+    }
+    if (!hasColumn('project_sections', 'purged_at')) {
+      stmts.push('ALTER TABLE project_sections ADD COLUMN purged_at TEXT;')
+    }
+
+    if (stmts.length > 0) db.exec(stmts.join('\n'))
+    db.pragma('user_version = 7')
   }
 }

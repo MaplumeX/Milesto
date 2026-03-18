@@ -80,6 +80,12 @@ import {
   SyncSaveConfigurationInputSchema,
   SyncStateSchema,
   SyncTestConnectionResultSchema,
+  TrashEmptyResultSchema,
+  TrashEntrySchema,
+  TrashListInputSchema,
+  TrashPurgeResultSchema,
+  TrashRestoreResultSchema,
+  TrashRootIdInputSchema,
   ThemePreferenceSchema,
   ThemeStateSchema,
   type EffectiveTheme,
@@ -315,6 +321,8 @@ function createWindow(opts?: { backgroundColor?: string }) {
               ? '__milestoRunProjectSelfTest'
             : SELF_TEST_SUITE === 'sidebar'
               ? '__milestoRunSidebarSelfTest'
+              : SELF_TEST_SUITE === 'trash'
+                ? '__milestoRunTrashSelfTest'
               : '__milestoRunSelfTest'
         const result = (await win.webContents.executeJavaScript(
           `
@@ -975,6 +983,13 @@ function registerIpcHandlers(
   })
 
   // DB IPC (Renderer -> Main -> DB Worker)
+  handleDb('db:trash.list', 'trash.list', TrashListInputSchema, z.array(TrashEntrySchema))
+  handleDb('db:trash.restoreTask', 'trash.restoreTask', TrashRootIdInputSchema, TrashRestoreResultSchema)
+  handleDb('db:trash.restoreProject', 'trash.restoreProject', TrashRootIdInputSchema, TrashRestoreResultSchema)
+  handleDb('db:trash.purgeTask', 'trash.purgeTask', TrashRootIdInputSchema, TrashPurgeResultSchema)
+  handleDb('db:trash.purgeProject', 'trash.purgeProject', TrashRootIdInputSchema, TrashPurgeResultSchema)
+  handleDb('db:trash.empty', 'trash.empty', TrashListInputSchema, TrashEmptyResultSchema)
+
   handleDb('db:task.create', 'task.create', TaskCreateInputSchema, TaskSchema)
   handleDb('db:task.update', 'task.update', TaskUpdateInputSchema, TaskSchema)
   handleDb('db:task.toggleDone', 'task.toggleDone', TaskToggleDoneInputSchema, TaskSchema)

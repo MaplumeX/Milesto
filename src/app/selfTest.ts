@@ -3893,6 +3893,190 @@ async function runProjectSelfTest(): Promise<SelfTestResult> {
   return { ok: failures.length === 0, failures }
 }
 
+async function runTrashSelfTest(): Promise<SelfTestResult> {
+  const failures: string[] = []
+  const token = `milestoselftesttrash${Date.now()}`
+
+  try {
+    if (!('api' in window)) {
+      throw new Error('window.api is missing (preload not available).')
+    }
+
+    const areaRes = await window.api.area.create({ title: `${token} Trash Area` })
+    if (!areaRes.ok) {
+      throw new Error(`trash self-test: area.create failed: ${areaRes.error.code}: ${areaRes.error.message}`)
+    }
+
+    const projectRes = await window.api.project.create({
+      title: `${token} Trash Project`,
+      area_id: areaRes.data.id,
+    })
+    if (!projectRes.ok) {
+      throw new Error(`trash self-test: project.create failed: ${projectRes.error.code}: ${projectRes.error.message}`)
+    }
+
+    const projectTaskRes = await window.api.task.create({
+      title: `${token} Project Task`,
+      project_id: projectRes.data.id,
+      area_id: areaRes.data.id,
+    })
+    if (!projectTaskRes.ok) {
+      throw new Error(`trash self-test: task.create project failed: ${projectTaskRes.error.code}: ${projectTaskRes.error.message}`)
+    }
+
+    const areaTaskRes = await window.api.task.create({
+      title: `${token} Area Task`,
+      area_id: areaRes.data.id,
+      scheduled_at: formatLocalDate(addDays(new Date(), 1)),
+    })
+    if (!areaTaskRes.ok) {
+      throw new Error(`trash self-test: task.create area failed: ${areaTaskRes.error.code}: ${areaTaskRes.error.message}`)
+    }
+
+    const standaloneTaskRes = await window.api.task.create({
+      title: `${token} Standalone Task`,
+      is_inbox: true,
+    })
+    if (!standaloneTaskRes.ok) {
+      throw new Error(`trash self-test: task.create standalone failed: ${standaloneTaskRes.error.code}: ${standaloneTaskRes.error.message}`)
+    }
+
+    await sleep(40)
+
+    const areaDelete = await window.api.area.delete(areaRes.data.id)
+    if (!areaDelete.ok) {
+      throw new Error(`trash self-test: area.delete failed: ${areaDelete.error.code}: ${areaDelete.error.message}`)
+    }
+
+    await sleep(40)
+
+    const standaloneDelete = await window.api.task.delete(standaloneTaskRes.data.id)
+    if (!standaloneDelete.ok) {
+      throw new Error(`trash self-test: task.delete standalone failed: ${standaloneDelete.error.code}: ${standaloneDelete.error.message}`)
+    }
+
+    const prevConfirm = window.confirm
+    window.confirm = () => true
+
+    try {
+      const nav = await waitFor('Trash sidebar nav', () =>
+        document.querySelector<HTMLElement>('nav[aria-label="Main navigation"]')
+      )
+      const navLabels = Array.from(nav.querySelectorAll<HTMLAnchorElement>('a.nav-item')).map((link) =>
+        (link.textContent ?? '').trim()
+      )
+      const logbookIndex = navLabels.indexOf('Logbook')
+      if (logbookIndex < 0) {
+        throw new Error('trash self-test: missing Logbook nav item')
+      }
+      if (navLabels[logbookIndex + 1] !== 'Trash') {
+        throw new Error('trash self-test: expected Trash nav item immediately after Logbook')
+      }
+
+      window.location.hash = '/trash'
+      await waitFor('Trash title', () => {
+        const h = document.querySelector<HTMLElement>('h1.page-title')
+        return h && (h.textContent ?? '').trim() === 'Trash' ? true : null
+      })
+
+      const trashListbox = await waitFor('Trash listbox', () =>
+        document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Trash roots"]')
+      )
+
+      const initialRows = Array.from(
+        trashListbox.querySelectorAll<HTMLElement>('li[data-trash-entry-id]')
+      )
+      const initialIds = initialRows.map((row) => row.getAttribute('data-trash-entry-id'))
+
+      if (initialIds[0] !== standaloneTaskRes.data.id) {
+        throw new Error('trash self-test: expected newest standalone task root to appear first')
+      }
+      if (!initialIds.includes(projectRes.data.id) || !initialIds.includes(areaTaskRes.data.id)) {
+        throw new Error('trash self-test: expected mixed project/task roots to be visible')
+      }
+
+      const projectRow = initialRows.find((row) => row.getAttribute('data-trash-entry-id') === projectRes.data.id)
+      if (!projectRow) {
+        throw new Error('trash self-test: missing project trash row')
+      }
+      const openCount = projectRow.querySelector<HTMLElement>('[data-trash-open-count]')
+      if (!openCount || openCount.getAttribute('data-trash-open-count') !== '1') {
+        throw new Error('trash self-test: expected project row open-task count to be 1')
+      }
+
+      const areaTaskRow = initialRows.find((row) => row.getAttribute('data-trash-entry-id') === areaTaskRes.data.id)
+      if (!areaTaskRow) {
+        throw new Error('trash self-test: missing area task trash row')
+      }
+      const restoreBtn = areaTaskRow.querySelector<HTMLButtonElement>('button[data-trash-action="restore"]')
+      if (!restoreBtn) {
+        throw new Error('trash self-test: missing restore button for area task root')
+      }
+      restoreBtn.click()
+
+      await waitFor('Trash area task removed after restore', () => {
+        const row = document.querySelector<HTMLElement>(`li[data-trash-entry-id="${areaTaskRes.data.id}"]`)
+        return row ? null : true
+      })
+
+      const restoredTask = await window.api.task.getDetail(areaTaskRes.data.id)
+      if (!restoredTask.ok) {
+        throw new Error(
+          `trash self-test: task.getDetail after restore failed: ${restoredTask.error.code}: ${restoredTask.error.message}`
+        )
+      }
+      if (
+        restoredTask.data.task.is_inbox !== true ||
+        restoredTask.data.task.area_id !== null ||
+        restoredTask.data.task.scheduled_at !== null
+      ) {
+        throw new Error('trash self-test: expected restored area task to fall back to Inbox')
+      }
+
+      const purgeBtn = projectRow.querySelector<HTMLButtonElement>('button[data-trash-action="purge"]')
+      if (!purgeBtn) {
+        throw new Error('trash self-test: missing purge button for project root')
+      }
+      purgeBtn.click()
+
+      await waitFor('Trash project removed after purge', () => {
+        const row = document.querySelector<HTMLElement>(`li[data-trash-entry-id="${projectRes.data.id}"]`)
+        return row ? null : true
+      })
+
+      const restoreProject = await window.api.trash.restoreProject(projectRes.data.id)
+      if (restoreProject.ok) {
+        throw new Error('trash self-test: expected restoreProject to fail after purge')
+      }
+
+      const emptyBtn = await waitFor('Trash empty button', () =>
+        document.querySelector<HTMLButtonElement>('[data-trash-empty-action="true"]')
+      )
+      emptyBtn.click()
+
+      await waitFor('Trash empty state', () =>
+        Array.from(document.querySelectorAll<HTMLElement>('.nav-muted')).find((el) =>
+          (el.textContent ?? '').trim() === 'Trash is empty'
+        ) ?? null
+      )
+
+      const remaining = await window.api.trash.list()
+      if (!remaining.ok) {
+        throw new Error(`trash self-test: trash.list failed: ${remaining.error.code}: ${remaining.error.message}`)
+      }
+      if (remaining.data.length !== 0) {
+        throw new Error('trash self-test: expected empty Trash after empty action')
+      }
+    } finally {
+      window.confirm = prevConfirm
+    }
+  } catch (e) {
+    failures.push(e instanceof Error ? e.message : String(e))
+  }
+
+  return { ok: failures.length === 0, failures }
+}
+
 export function registerSelfTest() {
   ;(window as unknown as { __milestoRunSelfTest?: () => Promise<SelfTestResult> }).__milestoRunSelfTest =
     runSelfTest
@@ -3905,4 +4089,7 @@ export function registerSelfTest() {
 
   ;(window as unknown as { __milestoRunProjectSelfTest?: () => Promise<SelfTestResult> }).__milestoRunProjectSelfTest =
     runProjectSelfTest
+
+  ;(window as unknown as { __milestoRunTrashSelfTest?: () => Promise<SelfTestResult> }).__milestoRunTrashSelfTest =
+    runTrashSelfTest
 }

@@ -1,29 +1,4 @@
-# project-soft-delete Specification
-
-## Purpose
-Define how projects are soft-deleted, surfaced through Trash, restored, and permanently removed.
-
-## Requirements
-
-### Requirement: User can soft-delete a project from the Project page overflow menu
-The system SHALL allow the user to delete a project via the Project page overflow menu.
-
-Deletion MUST be implemented as a soft delete by setting `deleted_at` to a non-null timestamp.
-
-The system MUST ask for confirmation before deleting.
-
-#### Scenario: Confirming Delete soft-deletes the project
-- **WHEN** the user is viewing `/projects/:projectId`
-- **AND** the user opens the project overflow menu
-- **AND** the user chooses `Delete`
-- **AND** the user confirms the deletion
-- **THEN** the project is persisted with `deleted_at` set to a non-null timestamp
-
-#### Scenario: Canceling Delete does nothing
-- **WHEN** the user initiates project deletion
-- **AND** the user cancels the confirmation
-- **THEN** the project is not deleted
-- **AND** the user remains on the Project page
+## MODIFIED Requirements
 
 ### Requirement: Project deletion cascades to project tasks and sections
 When a project is soft-deleted, the system MUST also soft-delete:
@@ -65,13 +40,7 @@ Until the project is permanently removed, it SHALL remain recoverable through Tr
 - **WHEN** a project is soft-deleted
 - **THEN** that project remains recoverable through Trash until it is permanently removed
 
-### Requirement: UI navigates away after successful deletion
-After successfully deleting a project from the Project page, the UI SHALL navigate away from `/projects/:projectId` to a safe route.
-
-#### Scenario: After deletion, user is not left on a missing project route
-- **WHEN** the user confirms project deletion
-- **AND** deletion succeeds
-- **THEN** the UI navigates away from `/projects/:projectId`
+## ADDED Requirements
 
 ### Requirement: Soft-deleted projects can be restored as complete project trees
 The system SHALL allow a soft-deleted project to be restored as a complete project tree.

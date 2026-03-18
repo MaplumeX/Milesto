@@ -25,6 +25,12 @@ import type { TaskDetail } from './schemas/task-detail'
 import type { ThemePreference, ThemeState } from './schemas/theme'
 import type { AreaDetail } from './schemas/area-detail'
 import type {
+  TrashEmptyResult,
+  TrashEntry,
+  TrashPurgeResult,
+  TrashRestoreResult,
+} from './schemas/trash'
+import type {
   SidebarListModel,
   SidebarMoveProjectInput,
   SidebarMoveProjectResult,
@@ -85,6 +91,15 @@ export type WindowApi = {
     enable(): Promise<Result<SyncState>>
     disable(): Promise<Result<SyncState>>
     syncNow(): Promise<Result<SyncState>>
+  }
+
+  trash: {
+    list(): Promise<Result<TrashEntry[]>>
+    restoreTask(id: string): Promise<Result<TrashRestoreResult>>
+    restoreProject(id: string): Promise<Result<TrashRestoreResult>>
+    purgeTask(id: string): Promise<Result<TrashPurgeResult>>
+    purgeProject(id: string): Promise<Result<TrashPurgeResult>>
+    empty(): Promise<Result<TrashEmptyResult>>
   }
 
   task: {

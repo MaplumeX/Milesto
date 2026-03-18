@@ -24,6 +24,7 @@ export const TaskSchema = z.object({
   updated_at: IsoDateTimeSchema,
   completed_at: IsoDateTimeSchema.nullable(),
   deleted_at: IsoDateTimeSchema.nullable(),
+  purged_at: IsoDateTimeSchema.nullable().optional(),
 })
 
 // Cross-layer invariant validation: if DB ever returns an invalid row,

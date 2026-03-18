@@ -51,6 +51,7 @@ export const messagesEn = {
     anytime: 'Anytime',
     someday: 'Someday',
     logbook: 'Logbook',
+    trash: 'Trash',
     settings: 'Settings',
     projects: 'Projects',
   },
@@ -76,6 +77,17 @@ export const messagesEn = {
   },
   logbook: {
     completedProjects: 'Completed Projects',
+  },
+  trash: {
+    listAria: 'Trash roots',
+    taskLabel: 'Task root',
+    purge: 'Delete Permanently',
+    purgeConfirm: 'Permanently delete this Trash item?',
+    emptyAction: 'Empty Trash',
+    emptyConfirm: 'Permanently delete every current Trash item?',
+    emptyState: 'Trash is empty',
+    rootCount: '{{count}} items',
+    projectOpenCount: '{{count}} open tasks',
   },
   settings: {
     title: 'Settings',
@@ -261,6 +273,7 @@ export const messagesZhCN = {
     anytime: '随时',
     someday: '某天',
     logbook: '日志',
+    trash: '废纸篓',
     settings: '设置',
     projects: '项目',
   },
@@ -286,6 +299,17 @@ export const messagesZhCN = {
   },
   logbook: {
     completedProjects: '已完成项目',
+  },
+  trash: {
+    listAria: '废纸篓根条目',
+    taskLabel: '任务根条目',
+    purge: '永久删除',
+    purgeConfirm: '确定永久删除这个废纸篓条目？',
+    emptyAction: '清空废纸篓',
+    emptyConfirm: '确定永久删除当前废纸篓里的所有条目？',
+    emptyState: '废纸篓为空',
+    rootCount: '{{count}} 个条目',
+    projectOpenCount: '{{count}} 个未完成任务',
   },
   settings: {
     title: '设置',
