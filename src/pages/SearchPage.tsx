@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { AppError } from '../../shared/app-error'
 import type { TaskSearchResultItem } from '../../shared/schemas/search'
 
+import { Checkbox } from '../components/Checkbox'
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 import { AnimatedTaskSlot } from '../features/tasks/AnimatedTaskSlot'
 import { TaskProjectAffiliation } from '../features/tasks/TaskProjectAffiliation'
@@ -58,14 +59,14 @@ export function SearchPage() {
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t('search.placeholder')}
         />
-        <label className="tag-pill" style={{ marginLeft: 'auto' }}>
-          <input
-            type="checkbox"
-            checked={includeLogbook}
-            onChange={(e) => setIncludeLogbook(e.target.checked)}
-          />
+        <Checkbox
+          className="tag-pill"
+          style={{ marginLeft: 'auto' }}
+          checked={includeLogbook}
+          onCheckedChange={(checked) => setIncludeLogbook(checked)}
+        >
           <span>{t('search.includeLogbook')}</span>
-        </label>
+        </Checkbox>
       </div>
 
       {error ? (

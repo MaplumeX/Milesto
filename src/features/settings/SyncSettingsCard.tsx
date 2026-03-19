@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../../shared/app-error'
 import type { SyncConnectionInput, SyncSaveConfigurationInput, SyncState } from '../../../shared/schemas/sync'
+import { Checkbox } from '../../components/Checkbox'
 
 function trimToNull(value: string): string | null {
   const trimmed = value.trim()
@@ -226,18 +227,14 @@ export function SyncSettingsCard() {
       </div>
 
       <div className="row">
-        <label>
-          <input
-            type="checkbox"
-            checked={form.forcePathStyle}
-            onChange={(event) => {
-              const value = event.target.checked
-              setForm((current) => ({ ...current, forcePathStyle: value }))
-            }}
-          />
-          {' '}
+        <Checkbox
+          checked={form.forcePathStyle}
+          onCheckedChange={(forcePathStyle) => {
+            setForm((current) => ({ ...current, forcePathStyle }))
+          }}
+        >
           {t('settings.syncForcePathStyle')}
-        </label>
+        </Checkbox>
       </div>
 
       <div className="row">

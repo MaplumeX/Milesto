@@ -12,6 +12,7 @@ import type { Project, ProjectSection } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
 import type { TaskListItem } from '../../shared/schemas/task-list'
 import { useAppEvents } from '../app/AppEventsContext'
+import { Checkbox } from '../components/Checkbox'
 import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
 import { AnimatedTaskSlot } from '../features/tasks/AnimatedTaskSlot'
 import { ProjectGroupedList } from '../features/tasks/ProjectGroupedList'
@@ -1440,40 +1441,37 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                     const selectedIds = projectTags.map((t) => t.id)
                     const checked = selectedIds.includes(tag.id)
                     return (
-                      <label
+                      <Checkbox
                         key={tag.id}
                         className="tag-checkbox"
                         style={{ display: 'flex', gap: 6, alignItems: 'center' }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => {
-                            const current = projectTags.map((t) => t.id)
-                            const next = e.target.checked
-                              ? current.includes(tag.id)
-                                ? current
-                                : [...current, tag.id]
-                              : current.filter((id) => id !== tag.id)
+                        checked={checked}
+                        onCheckedChange={(nextChecked) => {
+                          const current = projectTags.map((t) => t.id)
+                          const next = nextChecked
+                            ? current.includes(tag.id)
+                              ? current
+                              : [...current, tag.id]
+                            : current.filter((id) => id !== tag.id)
 
-                            void (async () => {
-                              onError(null)
-                              const res = await window.api.project.setTags(project.id, next, scope)
-                              if (!res.ok) {
-                                onError(res.error)
-                                return
-                              }
-                              await onMutate()
-                            })()
-                          }}
-                        />
+                          void (async () => {
+                            onError(null)
+                            const res = await window.api.project.setTags(project.id, next, scope)
+                            if (!res.ok) {
+                              onError(res.error)
+                              return
+                            }
+                            await onMutate()
+                          })()
+                        }}
+                      >
                         <span>{tag.title}</span>
                         <span
                           className="tag-swatch"
                           style={{ marginLeft: 'auto', background: tag.color ?? 'transparent' }}
                           aria-hidden="true"
                         />
-                      </label>
+                      </Checkbox>
                     )
                   })}
                 </div>

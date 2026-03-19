@@ -1,6 +1,7 @@
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 import { useTranslation } from 'react-i18next'
 
+import { Checkbox } from '../../components/Checkbox'
 import { TaskProjectAffiliation } from './TaskProjectAffiliation'
 
 export function TaskRow({
@@ -51,17 +52,16 @@ export function TaskRow({
     >
       {dragHandle}
 
-      <label className="task-checkbox">
-        <input
-          type="checkbox"
-          checked={task.status === 'done'}
-          disabled={isOverlay || !onToggleDone}
-          onChange={(e) => {
-            if (!onToggleDone) return
-            onToggleDone(task.id, e.target.checked)
-          }}
-        />
-      </label>
+      <Checkbox
+        className="task-checkbox"
+        ariaLabel={t('aria.taskDone')}
+        checked={task.status === 'done'}
+        disabled={isOverlay || !onToggleDone}
+        onCheckedChange={(checked) => {
+          if (!onToggleDone) return
+          onToggleDone(task.id, checked)
+        }}
+      />
 
       <button
         {...titleActivatorRest}

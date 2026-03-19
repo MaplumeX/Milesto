@@ -314,7 +314,7 @@ describe('TaskEditorPaper project actions', () => {
     await user.click(await screen.findByRole('button', { name: 'taskEditor.openProject' }))
 
     await waitFor(() => {
-      expect(api.task.update).toHaveBeenCalledWith({ id: 't1', title: 'Task A updated' })
+      expect(api.task.update).toHaveBeenCalledWith({ id: 't1', title: 'Task A updated', scope: 'active' })
     })
     await waitFor(() => {
       expect(navigate).toHaveBeenCalledWith('/projects/p1')

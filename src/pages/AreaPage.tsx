@@ -12,6 +12,7 @@ import type { TaskListItem } from '../../shared/schemas/task-list'
 import { taskListIdArea } from '../../shared/task-list-ids'
 
 import { useAppEvents } from '../app/AppEventsContext'
+import { Checkbox } from '../components/Checkbox'
 import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
 import { TaskList } from '../features/tasks/TaskList'
 
@@ -732,36 +733,37 @@ const AreaMenu = forwardRef(function AreaMenu(
                 const selectedIds = areaTags.map((t) => t.id)
                 const checked = selectedIds.includes(tag.id)
                 return (
-                  <label key={tag.id} className="tag-checkbox" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) => {
-                        const current = areaTags.map((t) => t.id)
-                        const next = e.target.checked
-                          ? current.includes(tag.id)
-                            ? current
-                            : [...current, tag.id]
-                          : current.filter((id) => id !== tag.id)
+                  <Checkbox
+                    key={tag.id}
+                    className="tag-checkbox"
+                    style={{ display: 'flex', gap: 6, alignItems: 'center' }}
+                    checked={checked}
+                    onCheckedChange={(nextChecked) => {
+                      const current = areaTags.map((t) => t.id)
+                      const next = nextChecked
+                        ? current.includes(tag.id)
+                          ? current
+                          : [...current, tag.id]
+                        : current.filter((id) => id !== tag.id)
 
-                        void (async () => {
-                          setTagPersistError(null)
-                          const res = await window.api.area.setTags(areaId, next)
-                          if (!res.ok) {
-                            setTagPersistError(res.error)
-                            return
-                          }
-                          await onMutate()
-                        })()
-                      }}
-                    />
+                      void (async () => {
+                        setTagPersistError(null)
+                        const res = await window.api.area.setTags(areaId, next)
+                        if (!res.ok) {
+                          setTagPersistError(res.error)
+                          return
+                        }
+                        await onMutate()
+                      })()
+                    }}
+                  >
                     <span>{tag.title}</span>
                     <span
                       className="tag-swatch"
                       style={{ marginLeft: 'auto', background: tag.color ?? 'transparent' }}
                       aria-hidden="true"
                     />
-                  </label>
+                  </Checkbox>
                 )
               })}
             </div>

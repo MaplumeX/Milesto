@@ -609,6 +609,79 @@ body {
   background: var(--glass);
 }
 
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  cursor: pointer;
+  color: inherit;
+}
+
+.checkbox.is-disabled {
+  cursor: default;
+  opacity: 0.64;
+}
+
+.checkbox-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+
+.checkbox-control {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    box-shadow 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
+}
+
+.checkbox-control-mark {
+  width: 10px;
+  height: 10px;
+  opacity: 0;
+  transform: scale(0.72);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.checkbox-input:checked + .checkbox-control {
+  border-color: var(--ppc-color);
+  background: var(--ppc-color);
+  color: var(--bg);
+}
+
+.checkbox-input:checked + .checkbox-control .checkbox-control-mark {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.checkbox-input:focus-visible + .checkbox-control {
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.checkbox-input:not(:disabled):active + .checkbox-control {
+  transform: scale(0.94);
+}
+
+.checkbox-input:disabled + .checkbox-control {
+  background: var(--wash);
+}
+
 .tag-checkbox {
   display: inline-flex;
   align-items: center;
@@ -1629,9 +1702,8 @@ body {
   align-items: center;
 }
 
-.task-checkbox input {
-  width: 14px;
-  height: 14px;
+.task-checkbox {
+  justify-content: center;
 }
 
 .project-progress-control {

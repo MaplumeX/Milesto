@@ -14,6 +14,7 @@ import type { TaskDetail } from '../../../shared/schemas/task-detail'
 import type { Task, TaskUpdateInput } from '../../../shared/schemas/task'
 
 import { useAppEvents } from '../../app/AppEventsContext'
+import { Checkbox } from '../../components/Checkbox'
 import { formatLocalDate, parseLocalDate } from '../../lib/dates'
 import { buildProjectPath } from '../../lib/entity-scope'
 import { getLocalToday, useLocalToday } from '../../lib/use-local-today'
@@ -1120,24 +1121,25 @@ export const TaskEditorPaper = forwardRef<
                   {tags.map((tag) => {
                     const checked = selectedTagIds.has(tag.id)
                     return (
-                      <label key={tag.id} className="tag-checkbox" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => {
-                            const next = new Set(selectedTagIds)
-                            if (e.target.checked) next.add(tag.id)
-                            else next.delete(tag.id)
-                            persistTags(Array.from(next))
-                          }}
-                        />
+                      <Checkbox
+                        key={tag.id}
+                        className="tag-checkbox"
+                        style={{ display: 'flex', gap: 6, alignItems: 'center' }}
+                        checked={checked}
+                        onCheckedChange={(nextChecked) => {
+                          const next = new Set(selectedTagIds)
+                          if (nextChecked) next.add(tag.id)
+                          else next.delete(tag.id)
+                          persistTags(Array.from(next))
+                        }}
+                      >
                         <span>{tag.title}</span>
                         <span
                           className="tag-swatch"
                           style={{ marginLeft: 'auto', background: tag.color ?? 'transparent' }}
                           aria-hidden="true"
                         />
-                      </label>
+                      </Checkbox>
                     )
                   })}
                 </div>
@@ -1277,24 +1279,22 @@ export const TaskEditorPaper = forwardRef<
         >
           <div className={paperClassName}>
             <div className="task-inline-header">
-              <label className="task-checkbox" aria-label={t('aria.taskDone')}>
-                <input
-                  type="checkbox"
-                  checked={detail.task.status === 'done'}
-                  onChange={(e) => {
-                    const nextDone = e.target.checked
-                    void (async () => {
-                      const res = await window.api.task.toggleDone(detail.task.id, nextDone, scope)
-                      if (!res.ok) {
-                        setActionError(res.error)
-                        return
-                      }
-                      setActionError(null)
-                      setDetail((d) => (d ? { ...d, task: res.data } : d))
-                    })()
-                  }}
-                />
-              </label>
+              <Checkbox
+                className="task-checkbox"
+                ariaLabel={t('aria.taskDone')}
+                checked={detail.task.status === 'done'}
+                onCheckedChange={(nextDone) => {
+                  void (async () => {
+                    const res = await window.api.task.toggleDone(detail.task.id, nextDone, scope)
+                    if (!res.ok) {
+                      setActionError(res.error)
+                      return
+                    }
+                    setActionError(null)
+                    setDetail((d) => (d ? { ...d, task: res.data } : d))
+                  })()
+                }}
+              />
 
               <input
                 id="task-title"
@@ -1777,28 +1777,27 @@ export const TaskEditorPaper = forwardRef<
               const checked = selectedTagIds.has(tag.id)
               return (
                 <div key={tag.id} className="tag-pill">
-                  <label className="tag-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) => {
-                        const next = new Set(selectedTagIds)
-                        if (e.target.checked) next.add(tag.id)
-                        else next.delete(tag.id)
+                  <Checkbox
+                    className="tag-checkbox"
+                    checked={checked}
+                    onCheckedChange={(nextChecked) => {
+                      const next = new Set(selectedTagIds)
+                      if (nextChecked) next.add(tag.id)
+                      else next.delete(tag.id)
 
-                        void (async () => {
-                          const res = await window.api.task.setTags(detail.task.id, Array.from(next), scope)
-                          if (!res.ok) {
-                            setActionError(res.error)
-                            return
-                          }
-                          setActionError(null)
-                          setDetail((d) => (d ? { ...d, tag_ids: Array.from(next) } : d))
-                        })()
-                      }}
-                    />
+                      void (async () => {
+                        const res = await window.api.task.setTags(detail.task.id, Array.from(next), scope)
+                        if (!res.ok) {
+                          setActionError(res.error)
+                          return
+                        }
+                        setActionError(null)
+                        setDetail((d) => (d ? { ...d, tag_ids: Array.from(next) } : d))
+                      })()
+                    }}
+                  >
                     <span>{tag.title}</span>
-                  </label>
+                  </Checkbox>
 
                   <span className="tag-swatch" style={{ background: tag.color ?? 'transparent' }} aria-hidden="true" />
 
@@ -2198,14 +2197,13 @@ function Checklist({
     <ul className="checklist">
       {rows.map((row) => (
         <li key={row.key} className={`checklist-row${row.done ? ' is-done' : ''}`}>
-          <label className="task-checkbox" aria-label={t('taskEditor.checklistItemDoneAria')}>
-            <input
-              type="checkbox"
-              checked={row.done}
-              onChange={(e) => handleToggle(row.key, e.target.checked)}
-              disabled={!row.itemId}
-            />
-          </label>
+          <Checkbox
+            className="task-checkbox"
+            ariaLabel={t('taskEditor.checklistItemDoneAria')}
+            checked={row.done}
+            disabled={!row.itemId}
+            onCheckedChange={(checked) => handleToggle(row.key, checked)}
+          />
 
           <input
             ref={(el) => {

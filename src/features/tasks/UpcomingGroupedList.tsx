@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
+import { Checkbox } from '../../components/Checkbox'
 import { useTaskSelection } from './TaskSelectionContext'
 import { AnimatedTaskSlot } from './AnimatedTaskSlot'
 import { TaskProjectAffiliation } from './TaskProjectAffiliation'
@@ -216,17 +217,17 @@ export function UpcomingGroupedList({
               )
             }
 
-            const t = row.task
-            const isOpen = openTaskId === t.id
+            const task = row.task
+            const isOpen = openTaskId === task.id
             let liEl: HTMLLIElement | null = null
 
             return (
               <li
-                key={`t:${t.id}`}
-                className={`task-row${isOpen ? ' is-open' : ''}${t.status === 'done' ? ' is-done' : ''}${
-                  selectedTaskId === t.id ? ' is-selected' : ''
+                key={`t:${task.id}`}
+                className={`task-row${isOpen ? ' is-open' : ''}${task.status === 'done' ? ' is-done' : ''}${
+                  selectedTaskId === task.id ? ' is-selected' : ''
                 }`}
-                data-task-id={t.id}
+                data-task-id={task.id}
                 ref={(el) => {
                   liEl = el
                   if (!el) return
@@ -245,23 +246,22 @@ export function UpcomingGroupedList({
                   isOpen={isOpen}
                   rowContent={
                     <>
-                      <label className="task-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={t.status === 'done'}
-                          onChange={(e) => {
-                            void onToggleDone(t.id, e.target.checked)
-                          }}
-                        />
-                      </label>
+                      <Checkbox
+                        className="task-checkbox"
+                        ariaLabel={t('aria.taskDone')}
+                        checked={task.status === 'done'}
+                        onCheckedChange={(checked) => {
+                          void onToggleDone(task.id, checked)
+                        }}
+                      />
 
                       <button
                         type="button"
                         className={`task-title task-title-button${row.datePrefix ? ' upcoming-task-title-button' : ''}`}
                         data-task-focus-target="true"
-                        data-task-id={t.id}
-                        onClick={() => selectTask(t.id)}
-                        onDoubleClick={() => void openTask(t.id)}
+                        data-task-id={task.id}
+                        onClick={() => selectTask(task.id)}
+                        onDoubleClick={() => void openTask(task.id)}
                       >
                         {row.datePrefix ? (
                           <span className="upcoming-date-prefix" aria-hidden="true">
@@ -269,16 +269,16 @@ export function UpcomingGroupedList({
                           </span>
                         ) : null}
                         <span className="task-title-stack">
-                          <span className="upcoming-task-title task-title-text">{t.title}</span>
+                          <span className="upcoming-task-title task-title-text">{task.title}</span>
                           <TaskProjectAffiliation
-                            projectId={t.project_id}
-                            projectTitle={t.project_title}
+                            projectId={task.project_id}
+                            projectTitle={task.project_title}
                           />
                         </span>
                       </button>
                     </>
                   }
-                  editorContent={<TaskInlineEditorRow taskId={t.id} />}
+                  editorContent={<TaskInlineEditorRow taskId={task.id} />}
                   onHeightChange={() => {
                     if (liEl) rowVirtualizer.measureElement(liEl)
                   }}
