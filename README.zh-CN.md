@@ -7,7 +7,9 @@
 Milesto 是一个跨平台桌面应用，用于个人任务管理，覆盖完整的 GTD 工作流：收集、整理、执行、回顾。所有数据以 SQLite 数据库形式存储在本地——无需账号，无需云服务。
 
 <p align="center">
-  <img src="docs/design/project page.png" alt="Milesto - 项目视图" width="720" />
+  <img src="docs/photos/1.png" alt="Milesto - 收件箱视图" width="32%" />
+  <img src="docs/photos/2.png" alt="Milesto - 项目视图" width="32%" />
+  <img src="docs/photos/3.png" alt="Milesto - 领域视图" width="32%" />
 </p>
 
 ## 功能特性

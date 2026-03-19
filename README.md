@@ -7,7 +7,9 @@
 Milesto is a cross-platform desktop app for personal task management, covering the full GTD workflow: collect, organize, execute, and review. All data stays on your machine in a local SQLite database — no account or cloud service required.
 
 <p align="center">
-  <img src="docs/design/project page.png" alt="Milesto - Project View" width="720" />
+  <img src="docs/photos/1.png" alt="Milesto - Inbox View" width="32%" />
+  <img src="docs/photos/2.png" alt="Milesto - Project View" width="32%" />
+  <img src="docs/photos/3.png" alt="Milesto - Area View" width="32%" />
 </p>
 
 ## Features
