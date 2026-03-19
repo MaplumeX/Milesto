@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { IdSchema } from './common'
+import { EntityScopeSchema, IdSchema } from './common'
 
 const UniqueIdListSchema = z.array(IdSchema).superRefine((ids, ctx) => {
   const seen = new Set<string>()
@@ -22,6 +22,7 @@ const UniqueIdListSchema = z.array(IdSchema).superRefine((ids, ctx) => {
 export const ProjectSetTagsInputSchema = z.object({
   project_id: IdSchema,
   tag_ids: UniqueIdListSchema,
+  scope: EntityScopeSchema.optional(),
 })
 
 export type ProjectSetTagsInput = z.infer<typeof ProjectSetTagsInputSchema>

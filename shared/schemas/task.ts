@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import {
   DbBoolSchema,
+  EntityScopeSchema,
   IdSchema,
   IsoDateTimeSchema,
   LocalDateSchema,
@@ -60,6 +61,7 @@ export const TaskCreateInputSchema = z.object({
   area_id: IdSchema.nullable().optional(),
   scheduled_at: LocalDateSchema.nullable().optional(),
   due_at: LocalDateSchema.nullable().optional(),
+  scope: EntityScopeSchema.optional(),
 })
 
 export type TaskCreateInput = z.infer<typeof TaskCreateInputSchema>
@@ -75,6 +77,7 @@ export const TaskUpdateInputSchema = z.object({
   area_id: IdSchema.nullable().optional(),
   scheduled_at: LocalDateSchema.nullable().optional(),
   due_at: LocalDateSchema.nullable().optional(),
+  scope: EntityScopeSchema.optional(),
 })
 
 export type TaskUpdateInput = z.infer<typeof TaskUpdateInputSchema>
@@ -82,6 +85,7 @@ export type TaskUpdateInput = z.infer<typeof TaskUpdateInputSchema>
 export const TaskToggleDoneInputSchema = z.object({
   id: IdSchema,
   done: z.boolean(),
+  scope: EntityScopeSchema.optional(),
 })
 
 export type TaskToggleDoneInput = z.infer<typeof TaskToggleDoneInputSchema>

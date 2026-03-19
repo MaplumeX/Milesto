@@ -1,6 +1,7 @@
 import type { Result } from './result'
 
 import type { Locale } from './i18n/locale'
+import type { EntityScope } from './schemas/common'
 
 import type { Area, AreaCreateInput, AreaUpdateInput } from './schemas/area'
 import type {
@@ -105,11 +106,11 @@ export type WindowApi = {
   task: {
     create(input: TaskCreateInput): Promise<Result<Task>>
     update(input: TaskUpdateInput): Promise<Result<Task>>
-    toggleDone(id: string, done: boolean): Promise<Result<Task>>
+    toggleDone(id: string, done: boolean, scope?: EntityScope): Promise<Result<Task>>
     restore(id: string): Promise<Result<Task>>
     delete(id: string): Promise<Result<{ deleted: boolean }>>
 
-    getDetail(id: string): Promise<Result<TaskDetail>>
+    getDetail(id: string, scope?: EntityScope): Promise<Result<TaskDetail>>
 
     listInbox(): Promise<Result<TaskListItem[]>>
     listAnytime(): Promise<Result<TaskListItem[]>>
@@ -117,36 +118,40 @@ export type WindowApi = {
     listToday(date: string): Promise<Result<TaskListItem[]>>
     listUpcoming(fromDate: string): Promise<Result<TaskListItem[]>>
     listLogbook(): Promise<Result<TaskListItem[]>>
-    listProject(projectId: string): Promise<Result<TaskListItem[]>>
-    countProjectDone(projectId: string): Promise<Result<TaskCountResult>>
+    listProject(projectId: string, scope?: EntityScope): Promise<Result<TaskListItem[]>>
+    countProjectDone(projectId: string, scope?: EntityScope): Promise<Result<TaskCountResult>>
     countProjectsProgress(projectIds: string[]): Promise<Result<TaskCountProjectsProgressResult>>
-    listProjectDone(projectId: string): Promise<Result<TaskListItem[]>>
+    listProjectDone(projectId: string, scope?: EntityScope): Promise<Result<TaskListItem[]>>
     listArea(areaId: string): Promise<Result<TaskListItem[]>>
 
     search(query: string, options?: { includeLogbook?: boolean }): Promise<Result<TaskSearchResultItem[]>>
 
     reorderBatch(listId: string, orderedTaskIds: string[]): Promise<Result<{ reordered: boolean }>>
-    setTags(taskId: string, tagIds: string[]): Promise<Result<{ updated: boolean }>>
+    setTags(taskId: string, tagIds: string[], scope?: EntityScope): Promise<Result<{ updated: boolean }>>
   }
 
   project: {
     create(input: ProjectCreateInput): Promise<Result<Project>>
-    get(id: string): Promise<Result<Project>>
-    getDetail(id: string): Promise<Result<ProjectDetail>>
+    get(id: string, scope?: EntityScope): Promise<Result<Project>>
+    getDetail(id: string, scope?: EntityScope): Promise<Result<ProjectDetail>>
     update(input: ProjectUpdateInput): Promise<Result<Project>>
-    complete(id: string): Promise<Result<ProjectCompleteResult>>
+    complete(id: string, scope?: EntityScope): Promise<Result<ProjectCompleteResult>>
     delete(id: string): Promise<Result<{ deleted: boolean }>>
     listOpen(): Promise<Result<Project[]>>
     listDone(): Promise<Result<Project[]>>
     listOpenByArea(areaId: string): Promise<Result<Project[]>>
 
-    setTags(projectId: string, tagIds: string[]): Promise<Result<{ updated: boolean }>>
+    setTags(projectId: string, tagIds: string[], scope?: EntityScope): Promise<Result<{ updated: boolean }>>
 
-    listSections(projectId: string): Promise<Result<ProjectSection[]>>
-    createSection(projectId: string, title: string): Promise<Result<ProjectSection>>
-    renameSection(id: string, title: string): Promise<Result<ProjectSection>>
+    listSections(projectId: string, scope?: EntityScope): Promise<Result<ProjectSection[]>>
+    createSection(projectId: string, title: string, scope?: EntityScope): Promise<Result<ProjectSection>>
+    renameSection(id: string, title: string, scope?: EntityScope): Promise<Result<ProjectSection>>
     deleteSection(id: string): Promise<Result<{ deleted: boolean; moved_to_section_id: string | null }>>
-    reorderSections(projectId: string, orderedSectionIds: string[]): Promise<Result<ProjectSectionReorderBatchResult>>
+    reorderSections(
+      projectId: string,
+      orderedSectionIds: string[],
+      scope?: EntityScope
+    ): Promise<Result<ProjectSectionReorderBatchResult>>
   }
 
   area: {
@@ -179,6 +184,6 @@ export type WindowApi = {
     listByTask(taskId: string): Promise<Result<ChecklistItem[]>>
     create(input: ChecklistItemCreateInput): Promise<Result<ChecklistItem>>
     update(input: ChecklistItemUpdateInput): Promise<Result<ChecklistItem>>
-    delete(id: string): Promise<Result<{ deleted: boolean }>>
+    delete(id: string, scope?: EntityScope): Promise<Result<{ deleted: boolean }>>
   }
 }

@@ -4,6 +4,7 @@ import { DayPicker } from 'react-day-picker'
 import { useTranslation } from 'react-i18next'
 
 import type { Area } from '../../shared/schemas/area'
+import type { EntityScope } from '../../shared/schemas/common'
 import type { Project } from '../../shared/schemas/project'
 import type { TaskUpdateInput } from '../../shared/schemas/task'
 
@@ -21,6 +22,7 @@ type ActivePopover = {
 
 export function ContentBottomBarActions({
   taskId,
+  taskScope = 'active',
   variant = 'list',
   onEditModeActionComplete,
   areas,
@@ -28,6 +30,7 @@ export function ContentBottomBarActions({
   bumpRevision,
 }: {
   taskId: string | null
+  taskScope?: EntityScope
   variant?: 'list' | 'edit'
   onEditModeActionComplete?: () => void
   areas: Area[]
@@ -36,6 +39,7 @@ export function ContentBottomBarActions({
 }) {
   const { t } = useTranslation()
   const isEditMode = variant === 'edit'
+  const showMoveAction = taskScope === 'active'
   const [activePopover, setActivePopover] = useState<ActivePopover>(null)
   const activePopoverRef = useRef<ActivePopover>(null)
   useEffect(() => {
@@ -114,12 +118,18 @@ export function ContentBottomBarActions({
     closePopover({ restoreFocus: true })
   }, [activePopover, closePopover, taskId])
 
+  useEffect(() => {
+    if (!activePopover || activePopover.kind !== 'move') return
+    if (showMoveAction) return
+    closePopover({ restoreFocus: false })
+  }, [activePopover, closePopover, showMoveAction])
+
   async function updateSelectedTask(patch: Partial<Omit<TaskUpdateInput, 'id'>>) {
     const activeTaskId = taskIdRef.current
     if (!activeTaskId) return
 
     setActionError(null)
-    const res = await window.api.task.update({ id: activeTaskId, ...patch })
+    const res = await window.api.task.update({ id: activeTaskId, ...patch, scope: taskScope })
     if (!res.ok) {
       setActionError(`${res.error.code}: ${res.error.message}`)
       return
@@ -141,7 +151,7 @@ export function ContentBottomBarActions({
   }
 
   const openMove = (anchorEl: HTMLElement) => {
-    if (!isTaskSelected) return
+    if (!isTaskSelected || !showMoveAction) return
     setActionError(null)
     setActivePopover({ kind: 'move', anchorEl })
   }
@@ -276,15 +286,17 @@ export function ContentBottomBarActions({
           {t('common.schedule')}
         </button>
       ) : null}
-      <button
-        type="button"
-        className="button button-ghost"
-        disabled={!isTaskSelected}
-        onClick={(e) => openMove(e.currentTarget as HTMLElement)}
-        data-content-bottom-edit-action={isEditMode ? 'move' : undefined}
-      >
-        {t('common.move')}
-      </button>
+      {showMoveAction ? (
+        <button
+          type="button"
+          className="button button-ghost"
+          disabled={!isTaskSelected}
+          onClick={(e) => openMove(e.currentTarget as HTMLElement)}
+          data-content-bottom-edit-action={isEditMode ? 'move' : undefined}
+        >
+          {t('common.move')}
+        </button>
+      ) : null}
       {!isEditMode ? (
         <button type="button" className="button button-ghost" onClick={openSearch}>
           {t('common.search')}

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { IdSchema, IsoDateTimeSchema } from './common'
+import { EntityScopeSchema, IdSchema, IsoDateTimeSchema } from './common'
 
 export const TagSchema = z.object({
   id: IdSchema,
@@ -37,6 +37,7 @@ export type TagDeleteInput = z.infer<typeof TagDeleteInputSchema>
 export const TaskSetTagsInputSchema = z.object({
   task_id: IdSchema,
   tag_ids: z.array(IdSchema),
+  scope: EntityScopeSchema.optional(),
 })
 
 export type TaskSetTagsInput = z.infer<typeof TaskSetTagsInputSchema>

@@ -9,6 +9,8 @@ export const LocalDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
 export const TaskStatusSchema = z.enum(['open', 'done'])
 export const ProjectStatusSchema = z.enum(['open', 'done'])
+export const EntityScopeSchema = z.enum(['active', 'trash'])
+export type EntityScope = z.infer<typeof EntityScopeSchema>
 
 // SQLite stores booleans as INTEGER (0/1). Keep JSON export/import as booleans.
 export const DbBoolSchema = z.preprocess((v) => {

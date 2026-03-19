@@ -1,28 +1,66 @@
-import { useRef } from 'react'
-import { MemoryRouter } from 'react-router-dom'
+import { useMemo, useRef, useState } from 'react'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { err, ok } from '../../shared/result'
-import type { TrashEntry } from '../../shared/schemas/trash'
 import type { WindowApi } from '../../shared/window-api'
+import type { TrashEntry } from '../../shared/schemas/trash'
 
 import { AppEventsProvider } from '../../src/app/AppEventsContext'
 import { ContentScrollProvider } from '../../src/app/ContentScrollContext'
+import type { TaskSelection } from '../../src/features/tasks/TaskSelectionContext'
+import { TaskSelectionProvider } from '../../src/features/tasks/TaskSelectionContext'
 import { TrashPage } from '../../src/pages/TrashPage'
+
+function LocationProbe() {
+  const location = useLocation()
+  return <div data-testid="location">{`${location.pathname}${location.search}`}</div>
+}
 
 function TrashPageHarness() {
   const contentScrollRef = useRef<HTMLDivElement | null>(null)
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null)
+
+  const selection: TaskSelection = useMemo(
+    () => ({
+      selectedTaskId,
+      selectTask: (id) => setSelectedTaskId(id),
+      openTaskId,
+      openTask: async (id) => {
+        setSelectedTaskId(id)
+        setOpenTaskId(id)
+      },
+      closeTask: () => setOpenTaskId(null),
+      requestCloseTask: async () => true,
+      registerOpenEditor: () => {},
+    }),
+    [openTaskId, selectedTaskId]
+  )
 
   return (
-    <MemoryRouter>
+    <MemoryRouter initialEntries={['/trash']}>
       <AppEventsProvider>
-        <ContentScrollProvider scrollRef={contentScrollRef}>
-          <div ref={contentScrollRef} className="content-scroll">
-            <TrashPage />
-          </div>
-        </ContentScrollProvider>
+        <TaskSelectionProvider value={selection}>
+          <ContentScrollProvider scrollRef={contentScrollRef}>
+            <div ref={contentScrollRef} className="content-scroll">
+              <Routes>
+                <Route
+                  path="/trash"
+                  element={
+                    <>
+                      <LocationProbe />
+                      <TrashPage />
+                    </>
+                  }
+                />
+                <Route path="/projects/:projectId" element={<LocationProbe />} />
+              </Routes>
+            </div>
+          </ContentScrollProvider>
+        </TaskSelectionProvider>
       </AppEventsProvider>
     </MemoryRouter>
   )
@@ -33,28 +71,16 @@ afterEach(() => {
 })
 
 describe('TrashPage', () => {
-  it('renders mixed roots and refreshes after restore, purge, and empty actions', async () => {
+  it('renders an open-first list, opens deleted tasks inline, and navigates deleted projects with trash scope', async () => {
     const user = userEvent.setup()
-    const confirmSpy = vi.fn(() => true)
-    Object.defineProperty(window, 'confirm', {
-      value: confirmSpy,
-      configurable: true,
-      writable: true,
-    })
     const api = (window as unknown as { api: WindowApi }).api
 
-    let entries: TrashEntry[] = [
+    const entries: TrashEntry[] = [
       {
         kind: 'task',
         id: 'task-1',
         title: 'Standalone trash task',
         deleted_at: '2026-03-16T12:00:00.000Z',
-      },
-      {
-        kind: 'task',
-        id: 'task-2',
-        title: 'Trash before empty',
-        deleted_at: '2026-03-16T11:30:00.000Z',
       },
       {
         kind: 'project',
@@ -66,51 +92,62 @@ describe('TrashPage', () => {
     ]
 
     api.trash.list = vi.fn<WindowApi['trash']['list']>(async () => ok(entries))
-    api.trash.restoreTask = vi.fn<WindowApi['trash']['restoreTask']>(async (id) => {
-      entries = entries.filter((entry) => entry.id !== id)
-      return ok({ restored: true })
-    })
-    api.trash.purgeProject = vi.fn<WindowApi['trash']['purgeProject']>(async (id) => {
-      entries = entries.filter((entry) => entry.id !== id)
-      return ok({ purged: true })
-    })
-    api.trash.empty = vi.fn<WindowApi['trash']['empty']>(async () => {
-      const purgedCount = entries.length
-      entries = []
-      return ok({ purged_count: purgedCount })
-    })
+    api.task.getDetail = vi.fn<WindowApi['task']['getDetail']>(async () =>
+      ok({
+        task: {
+          id: 'task-1',
+          title: 'Standalone trash task',
+          notes: '',
+          status: 'open',
+          is_inbox: true,
+          is_someday: false,
+          project_id: null,
+          section_id: null,
+          area_id: null,
+          scheduled_at: null,
+          due_at: null,
+          created_at: '2026-03-16T10:00:00.000Z',
+          updated_at: '2026-03-16T12:00:00.000Z',
+          completed_at: null,
+          deleted_at: '2026-03-16T12:00:00.000Z',
+        },
+        tag_ids: [],
+        checklist_items: [],
+      })
+    )
+    api.project.listOpen = vi.fn<WindowApi['project']['listOpen']>(async () => ok([]))
+    api.tag.list = vi.fn<WindowApi['tag']['list']>(async () => ok([]))
+    api.area.list = vi.fn<WindowApi['area']['list']>(async () => ok([]))
+    api.task.countProjectsProgress = vi.fn<WindowApi['task']['countProjectsProgress']>(async () => ok([]))
 
     render(<TrashPageHarness />)
 
     const listbox = await screen.findByRole('listbox', { name: 'trash.listAria' })
     expect(within(listbox).getByText('Standalone trash task')).toBeInTheDocument()
     expect(within(listbox).getByText('Deleted project root')).toBeInTheDocument()
-    expect(screen.getByText('trash.projectOpenCount')).toBeInTheDocument()
+    expect(screen.queryByText('trash.projectOpenCount')).toBeNull()
+    expect(screen.queryByText('trash.taskLabel')).toBeNull()
+    expect(screen.queryByText('trash.rootCount')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'task.restore' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'trash.purge' })).toBeNull()
 
     const taskRow = screen.getByText('Standalone trash task').closest('li')
     if (!taskRow) throw new Error('Missing task trash row')
-    await user.click(within(taskRow).getByRole('button', { name: 'task.restore' }))
-    expect(api.trash.restoreTask).toHaveBeenCalledWith('task-1')
 
-    await waitFor(() => {
-      expect(screen.queryByText('Standalone trash task')).toBeNull()
-    })
+    await user.click(within(taskRow).getByRole('button', { name: 'Standalone trash task' }))
+    expect(taskRow.classList.contains('is-selected')).toBe(true)
+    expect(screen.queryByLabelText('aria.taskEditor')).toBeNull()
+
+    await user.keyboard('[Enter]')
+    expect(api.task.getDetail).toHaveBeenCalledWith('task-1', 'trash')
+    await screen.findByLabelText('aria.taskEditor')
 
     const projectRow = screen.getByText('Deleted project root').closest('li')
     if (!projectRow) throw new Error('Missing project trash row')
-    await user.click(within(projectRow).getByRole('button', { name: 'trash.purge' }))
-    expect(api.trash.purgeProject).toHaveBeenCalledWith('project-1')
-    expect(confirmSpy).toHaveBeenCalled()
+    await user.dblClick(within(projectRow).getByRole('button', { name: 'Deleted project root' }))
 
     await waitFor(() => {
-      expect(screen.queryByText('Deleted project root')).toBeNull()
-    })
-
-    await user.click(screen.getByRole('button', { name: 'trash.emptyAction' }))
-    expect(api.trash.empty).toHaveBeenCalledTimes(1)
-
-    await waitFor(() => {
-      expect(screen.getByText('trash.emptyState')).toBeInTheDocument()
+      expect(screen.getByTestId('location')).toHaveTextContent('/projects/project-1?scope=trash')
     })
   })
 

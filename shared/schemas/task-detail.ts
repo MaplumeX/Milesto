@@ -1,11 +1,12 @@
 import { z } from 'zod'
 
 import { ChecklistItemSchema } from './checklist'
-import { IdSchema } from './common'
+import { EntityScopeSchema, IdSchema } from './common'
 import { TaskSchema } from './task'
 
 export const TaskIdInputSchema = z.object({
   id: IdSchema,
+  scope: EntityScopeSchema.optional(),
 })
 
 export const TaskDetailSchema = z.object({

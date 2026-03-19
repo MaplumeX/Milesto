@@ -1,6 +1,13 @@
 import { z } from 'zod'
 
-import { DbBoolSchema, IdSchema, IsoDateTimeSchema, LocalDateSchema, TaskStatusSchema } from './common'
+import {
+  DbBoolSchema,
+  EntityScopeSchema,
+  IdSchema,
+  IsoDateTimeSchema,
+  LocalDateSchema,
+  TaskStatusSchema,
+} from './common'
 
 // List views must avoid loading large fields (notes, checklist, etc.).
 export const TaskListItemSchema = z.object({
@@ -40,11 +47,13 @@ export const TaskListLogbookInputSchema = z.object({})
 
 export const TaskListProjectInputSchema = z.object({
   project_id: IdSchema,
+  scope: EntityScopeSchema.optional(),
 })
 
 // Project-level completed tasks support (used for the "Completed (N)" toggle).
 export const TaskCountProjectDoneInputSchema = z.object({
   project_id: IdSchema,
+  scope: EntityScopeSchema.optional(),
 })
 
 export const TaskCountResultSchema = z.object({
@@ -71,4 +80,5 @@ export type TaskCountProjectsProgressResult = z.infer<typeof TaskCountProjectsPr
 
 export const TaskListProjectDoneInputSchema = z.object({
   project_id: IdSchema,
+  scope: EntityScopeSchema.optional(),
 })

@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import {
   DbBoolSchema,
+  EntityScopeSchema,
   IdSchema,
   IsoDateTimeSchema,
   LocalDateSchema,
@@ -42,6 +43,7 @@ export type Project = z.infer<typeof ProjectSchema>
 
 export const ProjectIdInputSchema = z.object({
   id: IdSchema,
+  scope: EntityScopeSchema.optional(),
 })
 
 export type ProjectIdInput = z.infer<typeof ProjectIdInputSchema>
@@ -49,6 +51,7 @@ export type ProjectIdInput = z.infer<typeof ProjectIdInputSchema>
 // Atomic completion: mark project done and complete all tasks in the project.
 export const ProjectCompleteInputSchema = z.object({
   id: IdSchema,
+  scope: EntityScopeSchema.optional(),
 })
 
 export type ProjectCompleteInput = z.infer<typeof ProjectCompleteInputSchema>
@@ -97,6 +100,7 @@ export const ProjectUpdateInputSchema = z.object({
   is_someday: z.boolean().optional(),
   due_at: LocalDateSchema.nullable().optional(),
   status: ProjectStatusSchema.optional(),
+  scope: EntityScopeSchema.optional(),
 })
 
 .superRefine((input, ctx) => {
@@ -129,12 +133,19 @@ export const ProjectSectionCreateInputSchema = z.object({
   project_id: IdSchema,
   // Allow empty string titles (see ProjectSectionSchema).
   title: z.string(),
+  scope: EntityScopeSchema.optional(),
+})
+
+export const ProjectSectionListInputSchema = z.object({
+  project_id: IdSchema,
+  scope: EntityScopeSchema.optional(),
 })
 
 export const ProjectSectionRenameInputSchema = z.object({
   id: IdSchema,
   // Allow clearing section titles back to empty.
   title: z.string(),
+  scope: EntityScopeSchema.optional(),
 })
 
 export const ProjectSectionDeleteInputSchema = z.object({
@@ -144,6 +155,7 @@ export const ProjectSectionDeleteInputSchema = z.object({
 export const ProjectSectionReorderBatchInputSchema = z.object({
   project_id: IdSchema,
   ordered_section_ids: z.array(IdSchema),
+  scope: EntityScopeSchema.optional(),
 })
 
 export type ProjectSectionReorderBatchInput = z.infer<typeof ProjectSectionReorderBatchInputSchema>

@@ -36,6 +36,7 @@ import {
 import { TaskSearchInputSchema, TaskSearchResultItemSchema } from '../../../../shared/schemas/search'
 import { TaskDetailSchema, TaskIdInputSchema } from '../../../../shared/schemas/task-detail'
 import { ChecklistItemSchema } from '../../../../shared/schemas/checklist'
+import type { EntityScope } from '../../../../shared/schemas/common'
 import {
   TASK_LIST_ID_ANYTIME,
   TASK_LIST_ID_INBOX,
@@ -88,6 +89,17 @@ function normalizeBucketFlags(input: {
   return { isInbox, isSomeday, scheduledAt, projectId }
 }
 
+function normalizeEntityScope(scope?: EntityScope): EntityScope {
+  return scope === 'trash' ? 'trash' : 'active'
+}
+
+function taskScopeWhere(scope: EntityScope, alias?: string): string {
+  const prefix = alias ? `${alias}.` : ''
+  return scope === 'trash'
+    ? `${prefix}deleted_at IS NOT NULL AND ${prefix}purged_at IS NULL`
+    : `${prefix}deleted_at IS NULL`
+}
+
 export function createTaskActions(db: Database.Database): Record<string, DbActionHandler> {
   const ROLLOVER_LAST_DATE_KEY = 'tasks.rollover.lastDate'
 
@@ -106,6 +118,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       }
 
       const input = parsedPayload.data
+      const scope = normalizeEntityScope(input.scope)
       const createdAt = nowIso()
       const id = uuidv7()
 
@@ -115,8 +128,61 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         scheduledAt: input.scheduled_at ?? null,
         projectId: input.project_id ?? null,
       })
+      let createdTask: z.infer<typeof TaskSchema> | null = null
 
       const insertTask = db.transaction(() => {
+        if (scope === 'trash') {
+          if (!bucket.projectId) {
+            return {
+              ok: false as const,
+              error: {
+                code: 'VALIDATION_FAILED',
+                message: 'trash-scope task.create requires project_id.',
+                details: { scope },
+              },
+            }
+          }
+
+          const deletedProject = db
+            .prepare(
+              `SELECT id
+               FROM projects
+               WHERE id = ?
+                 AND deleted_at IS NOT NULL
+                 AND purged_at IS NULL
+               LIMIT 1`
+            )
+            .get(bucket.projectId)
+          if (!deletedProject) {
+            return {
+              ok: false as const,
+              error: {
+                code: 'NOT_FOUND',
+                message: 'Deleted project not found.',
+                details: { id: bucket.projectId },
+              },
+            }
+          }
+        }
+
+        const nextSectionId =
+          scope !== 'trash' || !input.section_id || !bucket.projectId
+            ? (input.section_id ?? null)
+            : (
+                db
+                  .prepare(
+                    `SELECT id
+                     FROM project_sections
+                     WHERE id = @id
+                       AND project_id = @project_id
+                       AND deleted_at IS NOT NULL
+                       AND purged_at IS NULL
+                     LIMIT 1`
+                  )
+                  .get({ id: input.section_id, project_id: bucket.projectId }) as { id: string } | undefined
+              )?.id ?? null
+
+        const deletedAt = scope === 'trash' ? createdAt : null
         const sync = createLocalSyncRecorder(db, createdAt)
         const stmt = db.prepare(`
           INSERT INTO tasks (
@@ -128,7 +194,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
             @id, @title, @notes, 'open', @is_inbox, @is_someday,
             @project_id, @section_id, @area_id,
             @scheduled_at, @due_at,
-            @created_at, @updated_at, NULL, NULL
+            @created_at, @updated_at, NULL, @deleted_at
           )
         `)
 
@@ -139,73 +205,67 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
           is_inbox: bucket.isInbox ? 1 : 0,
           is_someday: bucket.isSomeday ? 1 : 0,
           project_id: bucket.projectId,
-          section_id: input.section_id ?? null,
+          section_id: nextSectionId,
           area_id: input.area_id ?? null,
           scheduled_at: bucket.scheduledAt,
           due_at: input.due_at ?? null,
-            created_at: createdAt,
-            updated_at: createdAt,
-          })
+          created_at: createdAt,
+          updated_at: createdAt,
+          deleted_at: deletedAt,
+        })
 
-        sync.recordEntity(
-          'task',
-          TaskSchema.parse({
-            id,
-            title: input.title,
-            notes: input.notes ?? '',
-            status: 'open',
-            is_inbox: bucket.isInbox,
-            is_someday: bucket.isSomeday,
-            project_id: bucket.projectId,
-            section_id: input.section_id ?? null,
-            area_id: input.area_id ?? null,
-            scheduled_at: bucket.scheduledAt,
-            due_at: input.due_at ?? null,
-            created_at: createdAt,
-            updated_at: createdAt,
-            completed_at: null,
-            deleted_at: null,
-          }),
-          [
-            'title',
-            'notes',
-            'status',
-            'is_inbox',
-            'is_someday',
-            'project_id',
-            'section_id',
-            'area_id',
-            'scheduled_at',
-            'due_at',
-            'created_at',
-            'updated_at',
-            'completed_at',
-            'deleted_at',
-          ]
-        )
+        createdTask = TaskSchema.parse({
+          id,
+          title: input.title,
+          notes: input.notes ?? '',
+          status: 'open',
+          is_inbox: bucket.isInbox,
+          is_someday: bucket.isSomeday,
+          project_id: bucket.projectId,
+          section_id: nextSectionId,
+          area_id: input.area_id ?? null,
+          scheduled_at: bucket.scheduledAt,
+          due_at: input.due_at ?? null,
+          created_at: createdAt,
+          updated_at: createdAt,
+          completed_at: null,
+          deleted_at: deletedAt,
+        })
+
+        sync.recordEntity('task', createdTask, [
+          'title',
+          'notes',
+          'status',
+          'is_inbox',
+          'is_someday',
+          'project_id',
+          'section_id',
+          'area_id',
+          'scheduled_at',
+          'due_at',
+          'created_at',
+          'updated_at',
+          'completed_at',
+          'deleted_at',
+        ])
         sync.finalize()
       })
-      insertTask()
+      const createResult = insertTask()
+      if (createResult) {
+        return createResult
+      }
 
-      const task = TaskSchema.parse({
-        id,
-        title: input.title,
-        notes: input.notes ?? '',
-        status: 'open',
-        is_inbox: bucket.isInbox,
-        is_someday: bucket.isSomeday,
-        project_id: bucket.projectId,
-        section_id: input.section_id ?? null,
-        area_id: input.area_id ?? null,
-        scheduled_at: bucket.scheduledAt,
-        due_at: input.due_at ?? null,
-        created_at: createdAt,
-        updated_at: createdAt,
-        completed_at: null,
-        deleted_at: null,
-      })
+      if (!createdTask) {
+        return {
+          ok: false,
+          error: {
+            code: 'TASK_CREATE_FAILED',
+            message: 'Failed to create task.',
+          },
+        }
+      }
 
-      return { ok: true, data: task }
+      return { ok: true, data: createdTask }
     },
 
     'task.update': (payload) => {
@@ -222,6 +282,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       }
 
       const input = parsed.data
+      const scope = normalizeEntityScope(input.scope)
       const updatedAt = nowIso()
 
       const tx = db.transaction(() => {
@@ -229,7 +290,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
           .prepare(
             `SELECT is_inbox, is_someday, project_id, scheduled_at
              FROM tasks
-             WHERE id = ? AND deleted_at IS NULL
+             WHERE id = ? AND ${taskScopeWhere(scope)}
              LIMIT 1`
           )
           .get(input.id) as
@@ -317,7 +378,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         const row = db
           .prepare(
             `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
-             FROM tasks WHERE id = ? AND deleted_at IS NULL LIMIT 1`
+             FROM tasks WHERE id = ? AND ${taskScopeWhere(scope)} LIMIT 1`
           )
           .get(input.id)
         const task = TaskSchema.parse(row)
@@ -344,6 +405,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       }
 
       const input = parsed.data
+      const scope = normalizeEntityScope(input.scope)
       const updatedAt = nowIso()
       const completedAt = input.done ? updatedAt : null
 
@@ -355,7 +417,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
              SET status = @status,
                  completed_at = @completed_at,
                  updated_at = @updated_at
-             WHERE id = @id AND deleted_at IS NULL`
+             WHERE id = @id AND ${taskScopeWhere(scope)}`
           )
           .run({
             id: input.id,
@@ -378,7 +440,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         const row = db
           .prepare(
             `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
-             FROM tasks WHERE id = ? AND deleted_at IS NULL LIMIT 1`
+             FROM tasks WHERE id = ? AND ${taskScopeWhere(scope)} LIMIT 1`
           )
           .get(input.id)
         const task = TaskSchema.parse(row)
@@ -615,12 +677,13 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         }
       }
 
+      const scope = normalizeEntityScope(parsed.data.scope)
       const row = db
         .prepare(
           `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at,
                   created_at, updated_at, completed_at, deleted_at
            FROM tasks
-           WHERE id = ? AND deleted_at IS NULL
+           WHERE id = ? AND ${taskScopeWhere(scope)}
            LIMIT 1`
         )
         .get(parsed.data.id)
@@ -902,6 +965,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         }
       }
 
+      const scope = normalizeEntityScope(parsed.data.scope)
       const rows = db
         .prepare(
           `SELECT
@@ -912,7 +976,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
            LEFT JOIN list_positions lp
              ON lp.task_id = t.id
             AND lp.list_id = ('project:' || @project_id || ':' || COALESCE(t.section_id, 'none'))
-           WHERE t.deleted_at IS NULL
+           WHERE ${taskScopeWhere(scope, 't')}
              AND t.status = 'open'
              AND t.project_id = @project_id
            ORDER BY
@@ -939,11 +1003,12 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         }
       }
 
+      const scope = normalizeEntityScope(parsed.data.scope)
       const row = db
         .prepare(
           `SELECT COUNT(1) AS count
            FROM tasks
-           WHERE deleted_at IS NULL
+           WHERE ${taskScopeWhere(scope)}
              AND project_id = @project_id
              AND status = 'done'`
         )
@@ -1019,6 +1084,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         }
       }
 
+      const scope = normalizeEntityScope(parsed.data.scope)
       const rows = db
         .prepare(
           `SELECT
@@ -1029,7 +1095,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
            LEFT JOIN list_positions lp
              ON lp.task_id = t.id
             AND lp.list_id = ('project:' || @project_id || ':' || COALESCE(t.section_id, 'none'))
-           WHERE t.deleted_at IS NULL
+           WHERE ${taskScopeWhere(scope, 't')}
              AND t.status = 'done'
              AND t.project_id = @project_id
            ORDER BY

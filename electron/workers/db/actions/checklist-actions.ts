@@ -12,12 +12,21 @@ import {
   ChecklistItemUpdateInputSchema,
 } from '../../../../shared/schemas/checklist'
 import { TaskSchema } from '../../../../shared/schemas/task'
+import type { EntityScope } from '../../../../shared/schemas/common'
 
 const TaskIdSchema = z.object({ task_id: z.string().min(1) })
 
 const ChecklistDbRowSchema = ChecklistItemSchema.extend({
   done: z.preprocess((v) => Boolean(v), z.boolean()),
 })
+
+function normalizeEntityScope(scope?: EntityScope): EntityScope {
+  return scope === 'trash' ? 'trash' : 'active'
+}
+
+function taskScopeWhere(scope: EntityScope): string {
+  return scope === 'trash' ? 'deleted_at IS NOT NULL AND purged_at IS NULL' : 'deleted_at IS NULL'
+}
 
 export function createChecklistActions(db: Database.Database): Record<string, DbActionHandler> {
   return {
@@ -60,12 +69,15 @@ export function createChecklistActions(db: Database.Database): Record<string, Db
         }
       }
 
+      const scope = normalizeEntityScope(parsed.data.scope)
       const createdAt = nowIso()
       const id = uuidv7()
 
       const tx = db.transaction(() => {
         const sync = createLocalSyncRecorder(db, createdAt)
-        const exists = db.prepare('SELECT id FROM tasks WHERE id = ? AND deleted_at IS NULL').get(parsed.data.task_id)
+        const exists = db
+          .prepare(`SELECT id FROM tasks WHERE id = ? AND ${taskScopeWhere(scope)}`)
+          .get(parsed.data.task_id)
         if (!exists) {
           return {
             ok: false as const,
@@ -118,7 +130,7 @@ export function createChecklistActions(db: Database.Database): Record<string, Db
             `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id,
                     scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
              FROM tasks
-             WHERE id = ? AND deleted_at IS NULL
+             WHERE id = ? AND ${taskScopeWhere(scope)}
              LIMIT 1`
           )
           .get(parsed.data.task_id)
@@ -150,6 +162,7 @@ export function createChecklistActions(db: Database.Database): Record<string, Db
         }
       }
 
+      const scope = normalizeEntityScope(parsed.data.scope)
       const updatedAt = nowIso()
 
       const tx = db.transaction(() => {
@@ -208,7 +221,7 @@ export function createChecklistActions(db: Database.Database): Record<string, Db
             `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id,
                     scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
              FROM tasks
-             WHERE id = ? AND deleted_at IS NULL
+             WHERE id = ? AND ${taskScopeWhere(scope)}
              LIMIT 1`
           )
           .get(item.task_id)
@@ -236,6 +249,7 @@ export function createChecklistActions(db: Database.Database): Record<string, Db
         }
       }
 
+      const scope = normalizeEntityScope(parsed.data.scope)
       const deletedAt = nowIso()
 
       const tx = db.transaction(() => {
@@ -277,7 +291,7 @@ export function createChecklistActions(db: Database.Database): Record<string, Db
             `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id,
                     scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
              FROM tasks
-             WHERE id = ? AND deleted_at IS NULL
+             WHERE id = ? AND ${taskScopeWhere(scope)}
              LIMIT 1`
           )
           .get(item.task_id)

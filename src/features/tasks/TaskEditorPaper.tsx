@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import type { AppError } from '../../../shared/app-error'
 import type { Area } from '../../../shared/schemas/area'
 import type { ChecklistItem } from '../../../shared/schemas/checklist'
+import type { EntityScope } from '../../../shared/schemas/common'
 import type { Project, ProjectSection } from '../../../shared/schemas/project'
 import type { Tag } from '../../../shared/schemas/tag'
 import type { TaskDetail } from '../../../shared/schemas/task-detail'
@@ -14,6 +15,7 @@ import type { Task, TaskUpdateInput } from '../../../shared/schemas/task'
 
 import { useAppEvents } from '../../app/AppEventsContext'
 import { formatLocalDate, parseLocalDate } from '../../lib/dates'
+import { buildProjectPath } from '../../lib/entity-scope'
 import { getLocalToday, useLocalToday } from '../../lib/use-local-today'
 import { TaskEditorProjectActions } from './TaskEditorProjectActions'
 
@@ -200,8 +202,25 @@ function getDevTaskUpdateDelayMs(): number {
 
 export const TaskEditorPaper = forwardRef<
   TaskEditorPaperHandle,
-  { taskId: string; onRequestClose: () => void; variant?: TaskEditorVariant; showProjectActions?: boolean }
-  >(function TaskEditorPaper({ taskId, onRequestClose, variant = 'overlay', showProjectActions = true }, ref) {
+  {
+    taskId: string
+    onRequestClose: () => void
+    variant?: TaskEditorVariant
+    showProjectActions?: boolean
+    scope?: EntityScope
+    projectScope?: EntityScope
+  }
+  >(function TaskEditorPaper(
+    {
+      taskId,
+      onRequestClose,
+      variant = 'overlay',
+      showProjectActions = true,
+      scope = 'active',
+      projectScope = 'active',
+    },
+    ref
+  ) {
     const { t } = useTranslation()
     const navigate = useNavigate()
     const { upsertOptimisticTaskTitle } = useAppEvents()
@@ -475,7 +494,7 @@ export const TaskEditorPaper = forwardRef<
           if (taskIdRef.current !== workerTaskId) return
         }
 
-        const res = await window.api.task.update({ id: workerTaskId, ...patch })
+        const res = await window.api.task.update({ id: workerTaskId, ...patch, scope })
         if (taskIdRef.current !== workerTaskId) return
         if (!res.ok) {
           lastFlushFailureTargetRef.current = 'title'
@@ -561,7 +580,7 @@ export const TaskEditorPaper = forwardRef<
       }
 
       void (async () => {
-        const res = await window.api.task.getDetail(taskId)
+        const res = await window.api.task.getDetail(taskId, scope)
         if (cancelled) return
         if (!res.ok) {
           setLoadError(res.error)
@@ -599,7 +618,7 @@ export const TaskEditorPaper = forwardRef<
       return () => {
         cancelled = true
       }
-    }, [taskId])
+    }, [scope, taskId])
 
     useEffect(() => {
       if (variant !== 'inline') return
@@ -626,14 +645,14 @@ export const TaskEditorPaper = forwardRef<
       }
 
       void (async () => {
-        const res = await window.api.project.listSections(projectId)
+        const res = await window.api.project.listSections(projectId, projectScope)
         if (!res.ok) {
           setSections([])
           return
         }
         setSections(res.data)
       })()
-    }, [draft?.project_id])
+    }, [draft?.project_id, projectScope])
 
     useEffect(() => {
       const projectId = draft?.project_id
@@ -651,7 +670,7 @@ export const TaskEditorPaper = forwardRef<
       setFallbackProject(null)
 
       void (async () => {
-        const res = await window.api.project.get(projectId)
+        const res = await window.api.project.get(projectId, projectScope)
         if (cancelled || !res.ok) return
         setFallbackProject(res.data)
       })()
@@ -659,7 +678,7 @@ export const TaskEditorPaper = forwardRef<
       return () => {
         cancelled = true
       }
-    }, [draft?.project_id, projects])
+    }, [draft?.project_id, projectScope, projects])
 
     useEffect(() => {
       const projectId = draft?.project_id
@@ -776,7 +795,7 @@ export const TaskEditorPaper = forwardRef<
       setChecklistError(null)
 
       const mutation = (async () => {
-        const res = await window.api.checklist.create({ task_id: detail.task.id, title: nextTitle })
+        const res = await window.api.checklist.create({ task_id: detail.task.id, title: nextTitle, scope })
         if (!res.ok) {
           lastFlushFailureTargetRef.current = 'checklist'
           setChecklistError(res.error)
@@ -800,7 +819,7 @@ export const TaskEditorPaper = forwardRef<
       setChecklistError(null)
 
       const mutation = (async () => {
-        const res = await window.api.checklist.update({ id: itemId, done })
+        const res = await window.api.checklist.update({ id: itemId, done, scope })
         if (!res.ok) {
           lastFlushFailureTargetRef.current = 'checklist'
           setChecklistError(res.error)
@@ -829,7 +848,7 @@ export const TaskEditorPaper = forwardRef<
       setChecklistError(null)
 
       const mutation = (async () => {
-        const res = await window.api.checklist.update({ id: itemId, title: nextTitle })
+        const res = await window.api.checklist.update({ id: itemId, title: nextTitle, scope })
         if (!res.ok) {
           lastFlushFailureTargetRef.current = 'checklist'
           setChecklistError(res.error)
@@ -855,7 +874,7 @@ export const TaskEditorPaper = forwardRef<
       setChecklistError(null)
 
       const mutation = (async () => {
-        const res = await window.api.checklist.delete(itemId)
+        const res = await window.api.checklist.delete(itemId, scope)
         if (!res.ok) {
           lastFlushFailureTargetRef.current = 'checklist'
           setChecklistError(res.error)
@@ -926,12 +945,12 @@ export const TaskEditorPaper = forwardRef<
           return
         }
 
-        navigate(`/projects/${projectId}`)
+        navigate(buildProjectPath(projectId, projectScope))
       }
 
       const moveTaskToProject = async (patch: Partial<Omit<TaskUpdateInput, 'id'>>) => {
         setActionError(null)
-        const res = await window.api.task.update({ id: detail.task.id, ...patch })
+        const res = await window.api.task.update({ id: detail.task.id, ...patch, scope })
         if (!res.ok) {
           setActionError(res.error)
           return
@@ -952,7 +971,7 @@ export const TaskEditorPaper = forwardRef<
         tagsSaveSeqRef.current += 1
         const seq = tagsSaveSeqRef.current
         const promise = (async () => {
-          const res = await window.api.task.setTags(detail.task.id, nextTagIds)
+          const res = await window.api.task.setTags(detail.task.id, nextTagIds, scope)
           if (tagsSaveSeqRef.current !== seq) return
           if (!res.ok) {
             lastFlushFailureTargetRef.current = 'tags'
@@ -1265,7 +1284,7 @@ export const TaskEditorPaper = forwardRef<
                   onChange={(e) => {
                     const nextDone = e.target.checked
                     void (async () => {
-                      const res = await window.api.task.toggleDone(detail.task.id, nextDone)
+                      const res = await window.api.task.toggleDone(detail.task.id, nextDone, scope)
                       if (!res.ok) {
                         setActionError(res.error)
                         return
@@ -1768,7 +1787,7 @@ export const TaskEditorPaper = forwardRef<
                         else next.delete(tag.id)
 
                         void (async () => {
-                          const res = await window.api.task.setTags(detail.task.id, Array.from(next))
+                          const res = await window.api.task.setTags(detail.task.id, Array.from(next), scope)
                           if (!res.ok) {
                             setActionError(res.error)
                             return
@@ -1894,7 +1913,7 @@ export const TaskEditorPaper = forwardRef<
               className="button button-ghost"
               onClick={() => {
                 void (async () => {
-                  const res = await window.api.task.restore(detail.task.id)
+                  const res = await window.api.task.toggleDone(detail.task.id, false, scope)
                   if (!res.ok) {
                     setActionError(res.error)
                     return
@@ -1912,7 +1931,7 @@ export const TaskEditorPaper = forwardRef<
               className="button button-ghost"
               onClick={() => {
                 void (async () => {
-                  const res = await window.api.task.toggleDone(detail.task.id, true)
+                  const res = await window.api.task.toggleDone(detail.task.id, true, scope)
                   if (!res.ok) {
                     setActionError(res.error)
                     return

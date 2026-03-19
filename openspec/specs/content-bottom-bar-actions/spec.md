@@ -22,7 +22,11 @@ When no task editor is open, the global content bottom bar SHALL provide three b
 ### Requirement: Schedule and Move are enabled only when a task is selected
 When no task editor is currently open, the `Schedule` and `Move` buttons MUST be disabled when there is no selected task.
 
-When a task editor is currently open, the edit-mode `Move` button MUST be enabled because it targets the open task.
+When no task editor is currently open and a task is selected, the `Schedule` and `Move` buttons MUST be enabled.
+
+When a task editor is currently open in active scope, the edit-mode `Move` button MUST be enabled because it targets the open task.
+
+When a task editor is currently open in `trash` scope, the content bottom bar MUST NOT display the `Move` button.
 
 #### Scenario: No selected task disables Schedule and Move in list mode
 - **WHEN** no task editor is currently open
@@ -36,9 +40,13 @@ When a task editor is currently open, the edit-mode `Move` button MUST be enable
 - **THEN** the `Schedule` button is enabled
 - **AND** the `Move` button is enabled
 
-#### Scenario: Edit-mode Move is enabled when a task editor is open
-- **WHEN** a task editor is currently open
+#### Scenario: Active-scope edit-mode Move is enabled when a task editor is open
+- **WHEN** a task editor is currently open in active scope
 - **THEN** the `Move` button is enabled
+
+#### Scenario: Trash-scope edit-mode does not show Move
+- **WHEN** a task editor is currently open in `trash` scope
+- **THEN** the content bottom bar does not display the `Move` button
 
 ### Requirement: Schedule button opens an anchored schedule popover
 Clicking `Schedule` SHALL open an anchored popover at the `Schedule` button.
@@ -162,21 +170,38 @@ Clicking `Search` SHALL open the centered floating search overlay (SearchPanel) 
 - **AND** the search input receives focus
 
 ### Requirement: Edit-mode content bottom bar provides Move / Delete / More actions
-When a task editor is currently open, the content bottom bar SHALL display exactly three actions:
+When a task editor is currently open in active scope, the content bottom bar SHALL display exactly three actions:
 
 - `Move`
 - `Delete`
 - `More`
 
-While a task editor is open, the content bottom bar MUST NOT display other bottom bar actions (e.g. `+ Task`, `+ Section`, `Schedule`, `Search`).
+While an active-scope task editor is open, the content bottom bar MUST NOT display other bottom bar actions (e.g. `+ Task`, `+ Section`, `Schedule`, `Search`).
 
-#### Scenario: Edit-mode action set replaces the bottom bar actions
-- **WHEN** a task editor is currently open
+When a task editor is currently open in `trash` scope, the content bottom bar SHALL display only `More`.
+
+While a `trash`-scope task editor is open, the content bottom bar MUST NOT display:
+
+- `Move`
+- `Delete`
+- `+ Task`
+- `+ Section`
+- `Schedule`
+- `Search`
+
+#### Scenario: Active-scope edit-mode action set replaces the bottom bar actions
+- **WHEN** a task editor is currently open in active scope
 - **THEN** the content bottom bar displays `Move`, `Delete`, and `More`
 - **AND** the content bottom bar MUST NOT display `+ Task`
 - **AND** the content bottom bar MUST NOT display `+ Section`
 - **AND** the content bottom bar MUST NOT display `Schedule`
 - **AND** the content bottom bar MUST NOT display `Search`
+
+#### Scenario: Trash-scope edit-mode only shows More
+- **WHEN** a task editor is currently open in `trash` scope
+- **THEN** the content bottom bar displays `More`
+- **AND** the content bottom bar does not display `Move`
+- **AND** the content bottom bar does not display `Delete`
 
 ### Requirement: More is a placeholder action
 The `More` action SHALL be reserved for future work.
@@ -197,4 +222,3 @@ The system MUST NOT compute the `today` date once at application or component mo
 - **AND** the user opens the content bottom bar schedule popover
 - **AND** the user selects `Today`
 - **THEN** the selected task is persisted with `scheduled_at=<current local date>`
-

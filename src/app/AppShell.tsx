@@ -23,6 +23,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS as DndCss } from '@dnd-kit/utilities'
 
 import type { Area } from '../../shared/schemas/area'
+import type { EntityScope } from '../../shared/schemas/common'
 import type { Project } from '../../shared/schemas/project'
 
 import { useAppEvents } from './AppEventsContext'
@@ -32,6 +33,7 @@ import { ProjectProgressIndicator } from '../features/projects/ProjectProgressCo
 import { SearchPanel } from './SearchPanel'
 import { ContentBottomBarActions } from './ContentBottomBarActions'
 import { formatLocalDate } from '../lib/dates'
+import { getEntityScopeFromSearch } from '../lib/entity-scope'
 import {
   getTaskDropAnimationConfig,
   getTaskDropAnimationDurationMs,
@@ -189,6 +191,12 @@ export function AppShell() {
     const match = location.pathname.match(/^\/areas\/([^/]+)$/)
     return match?.[1] ?? null
   }, [location.pathname])
+
+  const taskScopeFromRoute = useMemo<EntityScope>(() => {
+    if (location.pathname === '/trash') return 'trash'
+    if (/^\/projects\/[^/]+$/.test(location.pathname)) return getEntityScopeFromSearch(location.search)
+    return 'active'
+  }, [location.pathname, location.search])
 
   const contentScrollRef = useRef<HTMLDivElement | null>(null)
 
@@ -380,6 +388,7 @@ export function AppShell() {
       scheduled_at?: string | null
       project_id?: string | null
       area_id?: string | null
+      scope?: EntityScope
     } = { title: emptyTitle, is_inbox: true }
 
     let shouldNavigateTo: string | null = null
@@ -396,7 +405,11 @@ export function AppShell() {
     } else if (path === '/today') {
       input = { title: emptyTitle, scheduled_at: today }
     } else if (projectMatch) {
-      input = { title: emptyTitle, project_id: projectMatch[1] ?? null }
+      input = {
+        title: emptyTitle,
+        project_id: projectMatch[1] ?? null,
+        scope: taskScopeFromRoute === 'trash' ? 'trash' : undefined,
+      }
     } else if (areaMatch) {
       input = { title: emptyTitle, area_id: areaMatch[1] ?? null }
     } else {
@@ -1194,9 +1207,11 @@ export function AppShell() {
 
   const contentBottomBarListActions = (
     <>
-      <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
-        {t('shell.task')}
-      </button>
+      {location.pathname !== '/trash' ? (
+        <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
+          {t('shell.task')}
+        </button>
+      ) : null}
       {areaIdFromRoute ? (
         <button
           type="button"
@@ -1216,6 +1231,7 @@ export function AppShell() {
       <ContentBottomBarActions
         variant="list"
         taskId={selectedTaskId}
+        taskScope={taskScopeFromRoute}
         areas={sidebar.areas}
         openProjects={sidebar.openProjects}
         bumpRevision={bumpRevision}
@@ -1228,6 +1244,7 @@ export function AppShell() {
       <ContentBottomBarActions
         variant="edit"
         taskId={openTaskId}
+        taskScope={taskScopeFromRoute}
         areas={sidebar.areas}
         openProjects={sidebar.openProjects}
         bumpRevision={bumpRevision}
@@ -1235,14 +1252,16 @@ export function AppShell() {
           void requestCloseTask()
         }}
       />
-      <button
-        type="button"
-        className="button button-ghost"
-        onClick={() => void handleDeleteOpenTask()}
-        data-content-bottom-edit-action="delete"
-      >
-        {t('common.delete')}
-      </button>
+      {taskScopeFromRoute === 'active' ? (
+        <button
+          type="button"
+          className="button button-ghost"
+          onClick={() => void handleDeleteOpenTask()}
+          data-content-bottom-edit-action="delete"
+        >
+          {t('common.delete')}
+        </button>
+      ) : null}
       <button
         type="button"
         className="button button-ghost"

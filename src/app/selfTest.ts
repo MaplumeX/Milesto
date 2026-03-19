@@ -1,4 +1,5 @@
 import type { TaskDetail } from '../../shared/schemas/task-detail'
+import type { EntityScope } from '../../shared/schemas/common'
 
 type SelfTestResult = {
   ok: boolean
@@ -195,14 +196,17 @@ async function waitForTaskDetail(
   label: string,
   taskId: string,
   predicate: (detail: TaskDetail) => boolean,
+  scopeOrOpts?: EntityScope | { timeoutMs?: number; intervalMs?: number },
   opts?: { timeoutMs?: number; intervalMs?: number }
 ): Promise<TaskDetail> {
-  const timeoutMs = opts?.timeoutMs ?? 10_000
-  const intervalMs = opts?.intervalMs ?? 80
+  const scope = typeof scopeOrOpts === 'string' ? scopeOrOpts : undefined
+  const resolvedOpts = typeof scopeOrOpts === 'string' ? opts : scopeOrOpts
+  const timeoutMs = resolvedOpts?.timeoutMs ?? 10_000
+  const intervalMs = resolvedOpts?.intervalMs ?? 80
   const start = Date.now()
 
   while (Date.now() - start < timeoutMs) {
-    const res = await window.api.task.getDetail(taskId)
+    const res = await window.api.task.getDetail(taskId, scope)
     if (!res.ok) {
       throw new Error(`${label}: getDetail failed: ${res.error.code}: ${res.error.message}`)
     }
@@ -3982,6 +3986,15 @@ async function runTrashSelfTest(): Promise<SelfTestResult> {
       const trashListbox = await waitFor('Trash listbox', () =>
         document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Trash roots"]')
       )
+      const trashHeader = await waitFor('Trash header', () =>
+        document.querySelector<HTMLElement>('header.trash-page-header')
+      )
+      if (trashHeader.querySelector('.nav-muted')) {
+        throw new Error('trash self-test: expected Trash header to omit root count')
+      }
+      if (trashListbox.querySelector('[data-trash-action]')) {
+        throw new Error('trash self-test: expected no inline restore/purge actions')
+      }
 
       const initialRows = Array.from(
         trashListbox.querySelectorAll<HTMLElement>('li[data-trash-entry-id]')
@@ -3999,55 +4012,182 @@ async function runTrashSelfTest(): Promise<SelfTestResult> {
       if (!projectRow) {
         throw new Error('trash self-test: missing project trash row')
       }
-      const openCount = projectRow.querySelector<HTMLElement>('[data-trash-open-count]')
-      if (!openCount || openCount.getAttribute('data-trash-open-count') !== '1') {
-        throw new Error('trash self-test: expected project row open-task count to be 1')
-      }
 
       const areaTaskRow = initialRows.find((row) => row.getAttribute('data-trash-entry-id') === areaTaskRes.data.id)
       if (!areaTaskRow) {
         throw new Error('trash self-test: missing area task trash row')
       }
-      const restoreBtn = areaTaskRow.querySelector<HTMLButtonElement>('button[data-trash-action="restore"]')
-      if (!restoreBtn) {
-        throw new Error('trash self-test: missing restore button for area task root')
+      const areaTaskButton = areaTaskRow.querySelector<HTMLButtonElement>('button[data-trash-entry-button="true"]')
+      if (!areaTaskButton) {
+        throw new Error('trash self-test: missing area task open button')
       }
-      restoreBtn.click()
+      areaTaskButton.click()
+      await waitFor('Trash area task selected', () => (
+        areaTaskRow.classList.contains('is-selected') ? true : null
+      ))
+      if (document.querySelector<HTMLElement>('.task-inline-editor')) {
+        throw new Error('trash self-test: single-click opened editor unexpectedly')
+      }
 
-      await waitFor('Trash area task removed after restore', () => {
-        const row = document.querySelector<HTMLElement>(`li[data-trash-entry-id="${areaTaskRes.data.id}"]`)
-        return row ? null : true
+      trashListbox.focus()
+      dispatchKey(trashListbox, 'Enter')
+
+      const trashTaskEditor = await waitFor('Trash area task editor', () =>
+        document.querySelector<HTMLElement>('.task-inline-editor')
+      )
+      const trashEditBar = await waitFor('Trash edit bottom bar', () =>
+        document.querySelector<HTMLElement>('[data-content-bottom-actions-edit="true"]')
+      )
+      if (!findButtonByText(trashEditBar, 'More')) {
+        throw new Error('trash self-test: expected More action in trash edit mode')
+      }
+      if (findButtonByText(trashEditBar, 'Move') || findButtonByText(trashEditBar, 'Delete')) {
+        throw new Error('trash self-test: expected trash edit mode to hide Move/Delete')
+      }
+
+      const editedAreaTaskTitle = `${token} Area Task Edited`
+      const areaTaskTitleInput = await waitFor('Trash area task title input', () =>
+        trashTaskEditor.querySelector<HTMLInputElement>('input#task-title')
+      )
+      setNativeInputValue(areaTaskTitleInput, editedAreaTaskTitle)
+
+      const editedAreaTask = await waitForTaskDetail(
+        'Trash edited area task persisted',
+        areaTaskRes.data.id,
+        (detail) => detail.task.title === editedAreaTaskTitle,
+        'trash'
+      )
+      if (editedAreaTask.task.deleted_at === null) {
+        throw new Error('trash self-test: expected edited trash task to remain deleted')
+      }
+
+      const projectButton = projectRow.querySelector<HTMLButtonElement>('button[data-trash-entry-button="true"]')
+      if (!projectButton) {
+        throw new Error('trash self-test: missing project open button')
+      }
+      dispatchDblClick(projectButton)
+
+      await waitFor('Trash project navigated to trash scope', () =>
+        window.location.hash.includes(`/projects/${projectRes.data.id}?scope=trash`) ? true : null
+      )
+      await waitFor('Trash project page title', () => {
+        const titleButton = document.querySelector<HTMLElement>('.page-title-button')
+        return titleButton && (titleButton.textContent ?? '').includes(projectRes.data.title) ? true : null
       })
 
-      const restoredTask = await window.api.task.getDetail(areaTaskRes.data.id)
-      if (!restoredTask.ok) {
+      const projectMenuButton = await waitFor('Trash project menu button', () => findButtonByText(document, '...'))
+      projectMenuButton.click()
+      const projectMenu = await waitFor('Trash project menu', () =>
+        document.querySelector<HTMLElement>('[aria-label="Project actions"]')
+      )
+      if (findButtonByText(projectMenu, 'Move') || findButtonByText(projectMenu, 'Delete')) {
+        throw new Error('trash self-test: expected trash project menu to hide Move/Delete')
+      }
+      dispatchKey(projectMenu, 'Escape')
+      await waitFor('Trash project menu closed', () =>
+        document.querySelector<HTMLElement>('[aria-label="Project actions"]') ? null : true
+      )
+
+      const sectionsBefore = await window.api.project.listSections(projectRes.data.id, 'trash')
+      if (!sectionsBefore.ok) {
         throw new Error(
-          `trash self-test: task.getDetail after restore failed: ${restoredTask.error.code}: ${restoredTask.error.message}`
+          `trash self-test: project.listSections before create failed: ${sectionsBefore.error.code}: ${sectionsBefore.error.message}`
         )
       }
-      if (
-        restoredTask.data.task.is_inbox !== true ||
-        restoredTask.data.task.area_id !== null ||
-        restoredTask.data.task.scheduled_at !== null
-      ) {
-        throw new Error('trash self-test: expected restored area task to fall back to Inbox')
+      const projectTasksBefore = await window.api.task.listProject(projectRes.data.id, 'trash')
+      if (!projectTasksBefore.ok) {
+        throw new Error(
+          `trash self-test: task.listProject before create failed: ${projectTasksBefore.error.code}: ${projectTasksBefore.error.message}`
+        )
       }
 
-      const purgeBtn = projectRow.querySelector<HTMLButtonElement>('button[data-trash-action="purge"]')
-      if (!purgeBtn) {
-        throw new Error('trash self-test: missing purge button for project root')
-      }
-      purgeBtn.click()
+      const projectBottomBar = await waitFor('Trash project bottom bar', () =>
+        document.querySelector<HTMLElement>('[data-content-bottom-actions="true"]')
+      )
+      const addSectionBtn = await waitFor('Trash project add section button', () =>
+        findButtonByText(projectBottomBar, 'Section')
+      )
+      addSectionBtn.click()
 
-      await waitFor('Trash project removed after purge', () => {
-        const row = document.querySelector<HTMLElement>(`li[data-trash-entry-id="${projectRes.data.id}"]`)
-        return row ? null : true
-      })
+      await waitFor('Trash project section title editing', () =>
+        document.querySelector<HTMLInputElement>('input[aria-label="Section title"]')
+      )
 
-      const restoreProject = await window.api.trash.restoreProject(projectRes.data.id)
-      if (restoreProject.ok) {
-        throw new Error('trash self-test: expected restoreProject to fail after purge')
+      const sectionsAfter = await window.api.project.listSections(projectRes.data.id, 'trash')
+      if (!sectionsAfter.ok) {
+        throw new Error(
+          `trash self-test: project.listSections after create failed: ${sectionsAfter.error.code}: ${sectionsAfter.error.message}`
+        )
       }
+      const createdSection = sectionsAfter.data.find((section) =>
+        !sectionsBefore.data.some((before) => before.id === section.id)
+      )
+      if (!createdSection) {
+        throw new Error('trash self-test: expected +Section to create a trash-scoped section')
+      }
+      if (createdSection.deleted_at === null) {
+        throw new Error('trash self-test: expected new trash section to remain deleted')
+      }
+
+      const addTaskBtn = await waitFor('Trash project add task button', () =>
+        findButtonByText(projectBottomBar, 'Task')
+      )
+      addTaskBtn.click()
+
+      const trashProjectTaskEditor = await waitFor('Trash project new task editor', () =>
+        document.querySelector<HTMLElement>('.task-inline-editor')
+      )
+      const projectTasksAfter = await window.api.task.listProject(projectRes.data.id, 'trash')
+      if (!projectTasksAfter.ok) {
+        throw new Error(
+          `trash self-test: task.listProject after create failed: ${projectTasksAfter.error.code}: ${projectTasksAfter.error.message}`
+        )
+      }
+      const createdProjectTask = projectTasksAfter.data.find((task) =>
+        !projectTasksBefore.data.some((before) => before.id === task.id)
+      )
+      if (!createdProjectTask) {
+        throw new Error('trash self-test: expected +Task to create a trash-scoped task')
+      }
+      if (createdProjectTask.deleted_at === null) {
+        throw new Error('trash self-test: expected new trash task to remain deleted')
+      }
+
+      const trashProjectEditBar = await waitFor('Trash project edit bottom bar', () =>
+        document.querySelector<HTMLElement>('[data-content-bottom-actions-edit="true"]')
+      )
+      if (!findButtonByText(trashProjectEditBar, 'More')) {
+        throw new Error('trash self-test: expected More action for trash project task editor')
+      }
+      if (findButtonByText(trashProjectEditBar, 'Move') || findButtonByText(trashProjectEditBar, 'Delete')) {
+        throw new Error('trash self-test: expected trash project task editor to hide Move/Delete')
+      }
+
+      const createdProjectTaskTitle = `${token} Deleted Project New Task`
+      const createdProjectTaskTitleInput = await waitFor('Trash project task title input', () =>
+        trashProjectTaskEditor.querySelector<HTMLInputElement>('input#task-title')
+      )
+      setNativeInputValue(createdProjectTaskTitleInput, createdProjectTaskTitle)
+
+      const editedProjectTask = await waitForTaskDetail(
+        'Trash project task title persisted',
+        createdProjectTask.id,
+        (detail) => detail.task.title === createdProjectTaskTitle,
+        'trash'
+      )
+      if (editedProjectTask.task.deleted_at === null) {
+        throw new Error('trash self-test: expected edited task in deleted project to remain deleted')
+      }
+
+      dispatchKey(createdProjectTaskTitleInput, 'Escape')
+      await waitFor('Trash project task editor closed', () =>
+        document.querySelector<HTMLElement>('[data-content-bottom-actions="true"]')
+      )
+
+      window.location.hash = '/trash'
+      await waitFor('Trash listbox after project route', () =>
+        document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Trash roots"]')
+      )
 
       const emptyBtn = await waitFor('Trash empty button', () =>
         document.querySelector<HTMLButtonElement>('[data-trash-empty-action="true"]')
@@ -4066,6 +4206,11 @@ async function runTrashSelfTest(): Promise<SelfTestResult> {
       }
       if (remaining.data.length !== 0) {
         throw new Error('trash self-test: expected empty Trash after empty action')
+      }
+
+      const restoreProject = await window.api.trash.restoreProject(projectRes.data.id)
+      if (restoreProject.ok) {
+        throw new Error('trash self-test: expected restoreProject to fail after empty trash')
       }
     } finally {
       window.confirm = prevConfirm

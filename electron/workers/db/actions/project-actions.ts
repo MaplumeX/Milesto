@@ -14,6 +14,7 @@ import {
   ProjectSchema,
   ProjectSectionCreateInputSchema,
   ProjectSectionDeleteInputSchema,
+  ProjectSectionListInputSchema,
   ProjectSectionReorderBatchInputSchema,
   ProjectSectionReorderBatchResultSchema,
   ProjectSectionRenameInputSchema,
@@ -25,9 +26,34 @@ import { ProjectDetailSchema } from '../../../../shared/schemas/project-detail'
 import { ProjectSetTagsInputSchema } from '../../../../shared/schemas/project-set-tags'
 import { TagSchema } from '../../../../shared/schemas/tag'
 import { TaskSchema } from '../../../../shared/schemas/task'
+import type { EntityScope } from '../../../../shared/schemas/common'
+
+function normalizeEntityScope(scope?: EntityScope): EntityScope {
+  return scope === 'trash' ? 'trash' : 'active'
+}
+
+function projectScopeWhere(scope: EntityScope, alias?: string): string {
+  const prefix = alias ? `${alias}.` : ''
+  return scope === 'trash'
+    ? `${prefix}deleted_at IS NOT NULL AND ${prefix}purged_at IS NULL`
+    : `${prefix}deleted_at IS NULL`
+}
+
+function sectionScopeWhere(scope: EntityScope, alias?: string): string {
+  const prefix = alias ? `${alias}.` : ''
+  return scope === 'trash'
+    ? `${prefix}deleted_at IS NOT NULL AND ${prefix}purged_at IS NULL`
+    : `${prefix}deleted_at IS NULL`
+}
+
+function taskScopeWhere(scope: EntityScope, alias?: string): string {
+  const prefix = alias ? `${alias}.` : ''
+  return scope === 'trash'
+    ? `${prefix}deleted_at IS NOT NULL AND ${prefix}purged_at IS NULL`
+    : `${prefix}deleted_at IS NULL`
+}
 
 export function createProjectActions(db: Database.Database): Record<string, DbActionHandler> {
-  const ProjectIdSchema = z.object({ project_id: z.string().min(1) })
   const AreaIdSchema = z.object({ area_id: z.string().min(1) })
 
   return {
@@ -44,11 +70,12 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
         }
       }
 
+      const scope = normalizeEntityScope(parsed.data.scope)
       const row = db
         .prepare(
           `SELECT id, title, notes, area_id, status, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at
            FROM projects
-           WHERE id = ? AND deleted_at IS NULL
+           WHERE id = ? AND ${projectScopeWhere(scope)}
            LIMIT 1`
         )
         .get(parsed.data.id)
@@ -79,11 +106,12 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
         }
       }
 
+      const scope = normalizeEntityScope(parsed.data.scope)
       const row = db
         .prepare(
           `SELECT id, title, notes, area_id, status, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at
            FROM projects
-           WHERE id = ? AND deleted_at IS NULL
+           WHERE id = ? AND ${projectScopeWhere(scope)}
            LIMIT 1`
         )
         .get(parsed.data.id)
@@ -212,12 +240,13 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
         }
       }
 
+      const scope = normalizeEntityScope(parsed.data.scope)
       const updatedAt = nowIso()
 
       const tx = db.transaction(() => {
         const sync = createLocalSyncRecorder(db, updatedAt)
         const exists = db
-          .prepare('SELECT id FROM projects WHERE id = ? AND deleted_at IS NULL')
+          .prepare(`SELECT id FROM projects WHERE id = ? AND ${projectScopeWhere(scope)}`)
           .get(parsed.data.project_id)
         if (!exists) {
           return {
@@ -269,6 +298,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
       }
 
       const input = parsed.data
+      const scope = normalizeEntityScope(input.scope)
       const updatedAt = nowIso()
 
       const tx = db.transaction(() => {
@@ -277,7 +307,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
             `SELECT id, title, notes, area_id, status, position, scheduled_at, is_someday, due_at,
                     created_at, updated_at, completed_at, deleted_at
              FROM projects
-             WHERE id = ? AND deleted_at IS NULL`
+             WHERE id = ? AND ${projectScopeWhere(scope)}`
           )
           .get(input.id) as z.infer<typeof ProjectSchema> | undefined
         if (!exists) {
@@ -366,7 +396,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
           .prepare(
             `SELECT id, title, notes, area_id, status, position, scheduled_at, is_someday, due_at,
                     created_at, updated_at, completed_at, deleted_at
-             FROM projects WHERE id = ? AND deleted_at IS NULL LIMIT 1`
+             FROM projects WHERE id = ? AND ${projectScopeWhere(scope)} LIMIT 1`
           )
           .get(input.id)
         const project = ProjectSchema.parse(row)
@@ -480,6 +510,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
         }
       }
 
+      const scope = normalizeEntityScope(parsed.data.scope)
       const updatedAt = nowIso()
 
       const tx = db.transaction(() => {
@@ -488,7 +519,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
           .prepare(
             `SELECT id, status
              FROM projects
-             WHERE id = ? AND deleted_at IS NULL
+             WHERE id = ? AND ${projectScopeWhere(scope)}
              LIMIT 1`
           )
           .get(parsed.data.id) as { id: string; status: string } | undefined
@@ -510,7 +541,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
              SET status = 'done',
                  completed_at = @completed_at,
                  updated_at = @updated_at
-             WHERE id = @id AND deleted_at IS NULL`
+             WHERE id = @id AND ${projectScopeWhere(scope)}`
           ).run({ id: parsed.data.id, completed_at: updatedAt, updated_at: updatedAt })
         }
 
@@ -520,7 +551,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
              SET status = 'done',
                  completed_at = @completed_at,
                  updated_at = @updated_at
-             WHERE deleted_at IS NULL
+             WHERE ${taskScopeWhere(scope)}
                AND project_id = @project_id
                AND status = 'open'`
           )
@@ -529,7 +560,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
         const row = db
           .prepare(
             `SELECT id, title, notes, area_id, status, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at
-             FROM projects WHERE id = ? AND deleted_at IS NULL LIMIT 1`
+             FROM projects WHERE id = ? AND ${projectScopeWhere(scope)} LIMIT 1`
           )
           .get(parsed.data.id)
 
@@ -548,7 +579,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
                     scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
              FROM tasks
              WHERE project_id = @project_id
-               AND deleted_at IS NULL
+               AND ${taskScopeWhere(scope)}
                AND updated_at = @updated_at`
           )
           .all({ project_id: parsed.data.id, updated_at: updatedAt })
@@ -615,7 +646,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
     },
 
     'project.section.list': (payload) => {
-      const parsed = ProjectIdSchema.safeParse(payload)
+      const parsed = ProjectSectionListInputSchema.safeParse(payload)
       if (!parsed.success) {
         return {
           ok: false,
@@ -627,11 +658,13 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
         }
       }
 
+      const scope = normalizeEntityScope(parsed.data.scope)
       const rows = db
         .prepare(
           `SELECT id, project_id, title, position, created_at, updated_at, deleted_at
            FROM project_sections
-           WHERE deleted_at IS NULL AND project_id = @project_id
+           WHERE ${sectionScopeWhere(scope)}
+             AND project_id = @project_id
            ORDER BY position ASC`
         )
         .all({ project_id: parsed.data.project_id })
@@ -654,25 +687,50 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
       }
 
       const input = parsed.data
+      const scope = normalizeEntityScope(input.scope)
       const createdAt = nowIso()
       const id = uuidv7()
 
       const tx = db.transaction(() => {
+        if (scope === 'trash') {
+          const deletedProject = db
+            .prepare(
+              `SELECT id
+               FROM projects
+               WHERE id = ?
+                 AND deleted_at IS NOT NULL
+                 AND purged_at IS NULL
+               LIMIT 1`
+            )
+            .get(input.project_id)
+          if (!deletedProject) {
+            return {
+              ok: false as const,
+              error: {
+                code: 'NOT_FOUND',
+                message: 'Deleted project not found.',
+                details: { id: input.project_id },
+              },
+            }
+          }
+        }
+
         const sync = createLocalSyncRecorder(db, createdAt)
         const maxPos = db
           .prepare(
             `SELECT COALESCE(MAX(position), 0) AS max_pos
              FROM project_sections
-             WHERE project_id = ? AND deleted_at IS NULL`
+             WHERE project_id = ? AND ${sectionScopeWhere(scope)}`
           )
           .get(input.project_id) as { max_pos: number }
         const position = (maxPos?.max_pos ?? 0) + 1000
+        const deletedAt = scope === 'trash' ? createdAt : null
 
         db.prepare(
           `INSERT INTO project_sections (
              id, project_id, title, position, created_at, updated_at, deleted_at
            ) VALUES (
-             @id, @project_id, @title, @position, @created_at, @updated_at, NULL
+             @id, @project_id, @title, @position, @created_at, @updated_at, @deleted_at
            )`
         ).run({
           id,
@@ -681,6 +739,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
           position,
           created_at: createdAt,
           updated_at: createdAt,
+          deleted_at: deletedAt,
         })
 
         const row = db
@@ -694,7 +753,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
           .prepare(
             `SELECT id
              FROM project_sections
-             WHERE project_id = @project_id AND deleted_at IS NULL
+             WHERE project_id = @project_id AND ${sectionScopeWhere(scope)}
              ORDER BY position ASC`
           )
           .all({ project_id: input.project_id }) as Array<{ id: string }>
@@ -730,15 +789,16 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
         }
       }
 
-      const updatedAt = nowIso()
+        const updatedAt = nowIso()
 
       const tx = db.transaction(() => {
+        const scope = normalizeEntityScope(parsed.data.scope)
         const sync = createLocalSyncRecorder(db, updatedAt)
         const res = db
           .prepare(
             `UPDATE project_sections
              SET title = @title, updated_at = @updated_at
-             WHERE id = @id AND deleted_at IS NULL`
+             WHERE id = @id AND ${sectionScopeWhere(scope)}`
           )
           .run({ id: parsed.data.id, title: parsed.data.title, updated_at: updatedAt })
         if (res.changes === 0) {
@@ -781,6 +841,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
       }
 
       const input = parsed.data
+      const scope = normalizeEntityScope(input.scope)
       const duplicateSectionIds = new Set<string>()
       const seenSectionIds = new Set<string>()
       for (const sectionId of input.ordered_section_ids) {
@@ -806,7 +867,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
           .prepare(
             `SELECT id
              FROM projects
-             WHERE id = @project_id AND deleted_at IS NULL
+             WHERE id = @project_id AND ${projectScopeWhere(scope)}
              LIMIT 1`
           )
           .get({ project_id: input.project_id }) as { id: string } | undefined
@@ -827,7 +888,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
             `SELECT id
              FROM project_sections
              WHERE project_id = @project_id
-               AND deleted_at IS NULL
+               AND ${sectionScopeWhere(scope)}
              ORDER BY position ASC`
           )
           .all({ project_id: input.project_id }) as { id: string }[]
@@ -861,12 +922,12 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
         }
 
         const updateSection = db.prepare(
-          `UPDATE project_sections
-           SET position = @position,
-               updated_at = @updated_at
-           WHERE id = @id
-             AND project_id = @project_id
-             AND deleted_at IS NULL`
+            `UPDATE project_sections
+             SET position = @position,
+                 updated_at = @updated_at
+             WHERE id = @id
+               AND project_id = @project_id
+               AND ${sectionScopeWhere(scope)}`
         )
 
         for (let i = 0; i < input.ordered_section_ids.length; i++) {

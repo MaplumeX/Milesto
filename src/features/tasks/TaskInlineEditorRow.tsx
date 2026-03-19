@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import type { EntityScope } from '../../../shared/schemas/common'
 import { TaskEditorPaper, type TaskEditorPaperHandle } from './TaskEditorPaper'
 import { useTaskSelection } from './TaskSelectionContext'
 
 export function TaskInlineEditorRow({
   taskId,
   showProjectActions = true,
+  scope = 'active',
+  projectScope = 'active',
 }: {
   taskId: string
   showProjectActions?: boolean
+  scope?: EntityScope
+  projectScope?: EntityScope
 }) {
   const { t } = useTranslation()
   const { closeTask, registerOpenEditor } = useTaskSelection()
@@ -72,6 +77,8 @@ export function TaskInlineEditorRow({
         taskId={taskId}
         variant="inline"
         showProjectActions={showProjectActions}
+        scope={scope}
+        projectScope={projectScope}
         onRequestClose={() => void attemptClose()}
       />
     </section>

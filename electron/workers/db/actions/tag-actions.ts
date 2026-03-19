@@ -7,6 +7,15 @@ import { nowIso, uuidv7 } from './utils'
 
 import { TagCreateInputSchema, TagDeleteInputSchema, TagSchema, TagUpdateInputSchema, TaskSetTagsInputSchema } from '../../../../shared/schemas/tag'
 import { TaskSchema } from '../../../../shared/schemas/task'
+import type { EntityScope } from '../../../../shared/schemas/common'
+
+function normalizeEntityScope(scope?: EntityScope): EntityScope {
+  return scope === 'trash' ? 'trash' : 'active'
+}
+
+function taskScopeWhere(scope: EntityScope): string {
+  return scope === 'trash' ? 'deleted_at IS NOT NULL AND purged_at IS NULL' : 'deleted_at IS NULL'
+}
 
 export function createTagActions(db: Database.Database): Record<string, DbActionHandler> {
   return {
@@ -214,11 +223,14 @@ export function createTagActions(db: Database.Database): Record<string, DbAction
         }
       }
 
+      const scope = normalizeEntityScope(parsed.data.scope)
       const updatedAt = nowIso()
 
       const tx = db.transaction(() => {
         const sync = createLocalSyncRecorder(db, updatedAt)
-        const exists = db.prepare('SELECT id FROM tasks WHERE id = ? AND deleted_at IS NULL').get(parsed.data.task_id)
+        const exists = db
+          .prepare(`SELECT id FROM tasks WHERE id = ? AND ${taskScopeWhere(scope)}`)
+          .get(parsed.data.task_id)
         if (!exists) {
           return {
             ok: false as const,

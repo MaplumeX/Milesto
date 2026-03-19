@@ -23,6 +23,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
+import type { EntityScope } from '../../../shared/schemas/common'
 import type { ProjectSection } from '../../../shared/schemas/project'
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 import { taskListIdProject } from '../../../shared/task-list-ids'
@@ -401,6 +402,7 @@ function ProjectSectionDragOverlay({
 
 export function ProjectGroupedList({
   projectId,
+  scope,
   sections,
   openTasks,
   doneTasks,
@@ -412,6 +414,7 @@ export function ProjectGroupedList({
   onAfterReorder,
 }: {
   projectId: string
+  scope: EntityScope
   sections: ProjectSection[]
   openTasks: TaskListItem[]
   doneTasks: TaskListItem[] | null
@@ -610,7 +613,7 @@ export function ProjectGroupedList({
   }
 
   async function persistSectionReorder(nextOrderedSectionIds: string[]) {
-    const res = await window.api.project.reorderSections(projectId, nextOrderedSectionIds)
+    const res = await window.api.project.reorderSections(projectId, nextOrderedSectionIds, scope)
     if (!res.ok) throw new Error(`${res.error.code}: ${res.error.message}`)
   }
 
@@ -832,7 +835,7 @@ export function ProjectGroupedList({
       }
 
       const destSectionId = sectionIdFromProjectContainerId(toContainer)
-      const updated = await window.api.task.update({ id: activeId, section_id: destSectionId })
+      const updated = await window.api.task.update({ id: activeId, section_id: destSectionId, scope })
       if (!updated.ok) throw new Error(`${updated.error.code}: ${updated.error.message}`)
 
       await Promise.all([persistReorder(fromContainer, nextFrom), persistReorder(toContainer, nextTo)])
@@ -1384,7 +1387,14 @@ export function ProjectGroupedList({
                       />
                     )
                   }
-                  editorContent={<TaskInlineEditorRow taskId={t.id} showProjectActions={false} />}
+                  editorContent={
+                    <TaskInlineEditorRow
+                      taskId={t.id}
+                      scope={scope}
+                      projectScope={scope}
+                      showProjectActions={false}
+                    />
+                  }
                   onHeightChange={() => {
                     if (liEl) rowVirtualizer.measureElement(liEl)
                   }}

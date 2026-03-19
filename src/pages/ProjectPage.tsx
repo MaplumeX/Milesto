@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
 import type { Area } from '../../shared/schemas/area'
+import type { EntityScope } from '../../shared/schemas/common'
 import type { Project, ProjectSection } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
 import type { TaskListItem } from '../../shared/schemas/task-list'
@@ -20,6 +21,7 @@ import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 import { usePrefersReducedMotion } from '../features/tasks/dnd-drop-animation'
 import { useOptimisticTaskTitles } from '../features/tasks/use-optimistic-task-titles'
 import { formatLocalDate, formatMonthDay, parseLocalDate } from '../lib/dates'
+import { getEntityScopeFromSearch } from '../lib/entity-scope'
 
 const PROJECT_CREATE_SECTION_EVENT = 'milesto:project.createSection'
 
@@ -30,6 +32,7 @@ export function ProjectPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const pid = projectId ?? ''
+  const projectScope = getEntityScopeFromSearch(location.search)
 
   const [project, setProject] = useState<Project | null>(null)
   const [projectTags, setProjectTags] = useState<Tag[]>([])
@@ -75,11 +78,11 @@ export function ProjectPage() {
     if (!pid) return
 
     const [projectDetailRes, areasRes, openTasksRes, sectionsRes, doneCountRes] = await Promise.all([
-      window.api.project.getDetail(pid),
+      window.api.project.getDetail(pid, projectScope),
       window.api.area.list(),
-      window.api.task.listProject(pid),
-      window.api.project.listSections(pid),
-      window.api.task.countProjectDone(pid),
+      window.api.task.listProject(pid, projectScope),
+      window.api.project.listSections(pid, projectScope),
+      window.api.task.countProjectDone(pid, projectScope),
     ])
 
     if (!projectDetailRes.ok) {
@@ -110,7 +113,7 @@ export function ProjectPage() {
     setOpenTasks(openTasksRes.data)
     setSections(sectionsRes.data)
     setDoneCount(doneCountRes.data.count)
-  }, [pid])
+  }, [pid, projectScope])
 
   useEffect(() => {
     void revision
@@ -120,13 +123,14 @@ export function ProjectPage() {
   // Completed toggle state is not persisted and should reset on navigation.
   useEffect(() => {
     void pid
+    void projectScope
     setIsCompletedExpanded(false)
     setDoneTasks(null)
     setEditingSectionId(null)
     setIsEditingTitle(false)
     hasUserInteractedRef.current = false
     consumedEditTitleForIdRef.current = null
-  }, [pid])
+  }, [pid, projectScope])
 
   useEffect(() => {
     function markInteracted() {
@@ -192,7 +196,7 @@ export function ProjectPage() {
       if (requestedProjectId !== pid) return
 
       void (async () => {
-        const res = await window.api.project.createSection(pid, '')
+        const res = await window.api.project.createSection(pid, '', projectScope)
         if (!res.ok) {
           setError(res.error)
           return
@@ -205,7 +209,7 @@ export function ProjectPage() {
 
     window.addEventListener(PROJECT_CREATE_SECTION_EVENT, handleCreateSection)
     return () => window.removeEventListener(PROJECT_CREATE_SECTION_EVENT, handleCreateSection)
-  }, [pid, refresh])
+  }, [pid, projectScope, refresh])
 
   // Keep notes draft in sync when switching projects.
   useEffect(() => {
@@ -242,14 +246,14 @@ export function ProjectPage() {
     if (doneTasks && doneTasks.length === doneCount) return
 
     void (async () => {
-      const res = await window.api.task.listProjectDone(pid)
+      const res = await window.api.task.listProjectDone(pid, projectScope)
       if (!res.ok) {
         setError(res.error)
         return
       }
       setDoneTasks(res.data)
     })()
-  }, [doneCount, doneTasks, isCompletedExpanded, pid])
+  }, [doneCount, doneTasks, isCompletedExpanded, pid, projectScope])
 
   useEffect(() => {
     if (!isMenuOpen) return
@@ -330,7 +334,7 @@ export function ProjectPage() {
       return
     }
 
-    const res = await window.api.project.update({ id: p.id, title: next })
+    const res = await window.api.project.update({ id: p.id, title: next, scope: projectScope })
     if (!res.ok) {
       setError(res.error)
       return
@@ -361,7 +365,7 @@ export function ProjectPage() {
                     if (!project) return
 
                     if (project.status === 'done') {
-                      const res = await window.api.project.update({ id: project.id, status: 'open' })
+                      const res = await window.api.project.update({ id: project.id, status: 'open', scope: projectScope })
                       if (!res.ok) {
                         setError(res.error)
                         return
@@ -374,7 +378,7 @@ export function ProjectPage() {
                     const confirmed = confirm(t('project.completeConfirm', { count: openCount }))
                     if (!confirmed) return
 
-                    const res = await window.api.project.complete(project.id)
+                    const res = await window.api.project.complete(project.id, projectScope)
                     if (!res.ok) {
                       setError(res.error)
                       return
@@ -462,6 +466,7 @@ export function ProjectPage() {
                 project={project}
                 projectTags={projectTags}
                 areas={areas}
+                scope={projectScope}
                 openTaskCount={openCount}
                 onClose={closeMenu}
                 onMutate={mutateAndRefresh}
@@ -482,6 +487,7 @@ export function ProjectPage() {
                 id: project.id,
                 scheduled_at: null,
                 is_someday: false,
+                scope: projectScope,
               })
               if (!res.ok) {
                 setError(res.error)
@@ -491,7 +497,7 @@ export function ProjectPage() {
               await refresh()
             }}
             onClearDue={async () => {
-              const res = await window.api.project.update({ id: project.id, due_at: null })
+              const res = await window.api.project.update({ id: project.id, due_at: null, scope: projectScope })
               if (!res.ok) {
                 setError(res.error)
                 return
@@ -501,7 +507,7 @@ export function ProjectPage() {
             }}
             onRemoveTag={async (tagId) => {
               const nextIds = projectTags.filter((t) => t.id !== tagId).map((t) => t.id)
-              const res = await window.api.project.setTags(project.id, nextIds)
+              const res = await window.api.project.setTags(project.id, nextIds, projectScope)
               if (!res.ok) {
                 setError(res.error)
                 return
@@ -524,7 +530,7 @@ export function ProjectPage() {
               if (notesSaveDebounceRef.current) window.clearTimeout(notesSaveDebounceRef.current)
               notesSaveDebounceRef.current = window.setTimeout(() => {
                 void (async () => {
-                  const res = await window.api.project.update({ id: p.id, notes: next })
+                  const res = await window.api.project.update({ id: p.id, notes: next, scope: projectScope })
                   if (!res.ok) {
                     setError(res.error)
                     return
@@ -542,7 +548,7 @@ export function ProjectPage() {
               notesSaveDebounceRef.current = null
               const next = notesDraft
               void (async () => {
-                const res = await window.api.project.update({ id: p.id, notes: next })
+                const res = await window.api.project.update({ id: p.id, notes: next, scope: projectScope })
                 if (!res.ok) {
                   setError(res.error)
                   return
@@ -556,6 +562,7 @@ export function ProjectPage() {
 
         <ProjectGroupedList
           projectId={pid}
+          scope={projectScope}
           sections={sections}
           openTasks={openTasks}
           doneTasks={null}
@@ -563,7 +570,7 @@ export function ProjectPage() {
           onStartSectionTitleEdit={(sectionId) => setEditingSectionId(sectionId)}
           onCancelSectionTitleEdit={() => setEditingSectionId(null)}
           onCommitSectionTitle={async (sectionId, title) => {
-            const res = await window.api.project.renameSection(sectionId, title)
+            const res = await window.api.project.renameSection(sectionId, title, projectScope)
             if (!res.ok) {
               setError(res.error)
               return
@@ -573,7 +580,7 @@ export function ProjectPage() {
             await refresh()
           }}
           onToggleDone={async (taskId, done) => {
-            const updated = await window.api.task.toggleDone(taskId, done)
+            const updated = await window.api.task.toggleDone(taskId, done, projectScope)
             if (!updated.ok) {
               setError(updated.error)
               return
@@ -582,7 +589,7 @@ export function ProjectPage() {
             await refresh()
             if (isCompletedExpanded) {
               setDoneTasks(null)
-              const res = await window.api.task.listProjectDone(pid)
+              const res = await window.api.task.listProjectDone(pid, projectScope)
               if (res.ok) setDoneTasks(res.data)
             }
           }}
@@ -609,8 +616,9 @@ export function ProjectPage() {
           <ProjectDoneTaskList
             doneTasks={doneTasks}
             sections={sections}
+            scope={projectScope}
             onToggleDone={async (taskId, done) => {
-              const updated = await window.api.task.toggleDone(taskId, done)
+              const updated = await window.api.task.toggleDone(taskId, done, projectScope)
               if (!updated.ok) {
                 setError(updated.error)
                 return
@@ -618,7 +626,7 @@ export function ProjectPage() {
               bumpRevision()
               await refresh()
               setDoneTasks(null)
-              const res = await window.api.task.listProjectDone(pid)
+              const res = await window.api.task.listProjectDone(pid, projectScope)
               if (res.ok) setDoneTasks(res.data)
             }}
           />
@@ -632,10 +640,12 @@ export function ProjectPage() {
 function ProjectDoneTaskList({
   doneTasks,
   sections,
+  scope,
   onToggleDone,
 }: {
   doneTasks: TaskListItem[]
   sections: ProjectSection[]
+  scope: EntityScope
   onToggleDone: (taskId: string, done: boolean) => Promise<void>
 }) {
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
@@ -691,7 +701,14 @@ function ProjectDoneTaskList({
                   }}
                 />
               }
-              editorContent={<TaskInlineEditorRow taskId={task.id} showProjectActions={false} />}
+              editorContent={
+                <TaskInlineEditorRow
+                  taskId={task.id}
+                  scope={scope}
+                  projectScope={scope}
+                  showProjectActions={false}
+                />
+              }
               onHeightChange={() => {}}
               prefersReducedMotion={prefersReducedMotion}
             />
@@ -736,7 +753,14 @@ function ProjectDoneTaskList({
                           }}
                         />
                       }
-                      editorContent={<TaskInlineEditorRow taskId={task.id} showProjectActions={false} />}
+                      editorContent={
+                        <TaskInlineEditorRow
+                          taskId={task.id}
+                          scope={scope}
+                          projectScope={scope}
+                          showProjectActions={false}
+                        />
+                      }
                       onHeightChange={() => {}}
                       prefersReducedMotion={prefersReducedMotion}
                     />
@@ -881,6 +905,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
     project,
     projectTags,
     areas,
+    scope,
     openTaskCount,
     onClose,
     onMutate,
@@ -892,6 +917,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
     project: Project
     projectTags: Tag[]
     areas: Area[]
+    scope: EntityScope
     onClose: () => void
     openTaskCount: number
     onMutate: () => Promise<void>
@@ -904,6 +930,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
   const { t } = useTranslation()
   type View = 'root' | 'plan' | 'due' | 'move' | 'tags'
   type RootKey = 'complete' | 'plan' | 'due' | 'move' | 'tags' | 'delete'
+  const isTrashScope = scope === 'trash'
 
   const [view, setView] = useState<View>('root')
 
@@ -1017,7 +1044,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                     onError(null)
 
                     if (project.status === 'done') {
-                      const res = await window.api.project.update({ id: project.id, status: 'open' })
+                      const res = await window.api.project.update({ id: project.id, status: 'open', scope })
                       if (!res.ok) {
                         onError(res.error)
                         return
@@ -1029,7 +1056,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
 
                     const confirmed = confirm(t('project.completeConfirm', { count: openTaskCount }))
                     if (!confirmed) return
-                    const res = await window.api.project.complete(project.id)
+                    const res = await window.api.project.complete(project.id, scope)
                     if (!res.ok) {
                       onError(res.error)
                       return
@@ -1060,14 +1087,16 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                 {t('taskEditor.dueLabel')}
               </button>
 
-              <button
-                ref={moveBtnRef}
-                type="button"
-                className="task-inline-popover-item"
-                onClick={() => goSubview('move', 'move')}
-              >
-                {t('common.move')}
-              </button>
+              {!isTrashScope ? (
+                <button
+                  ref={moveBtnRef}
+                  type="button"
+                  className="task-inline-popover-item"
+                  onClick={() => goSubview('move', 'move')}
+                >
+                  {t('common.move')}
+                </button>
+              ) : null}
 
               <button
                 ref={tagsBtnRef}
@@ -1083,31 +1112,33 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                 {t('taskEditor.tagsLabel')}
               </button>
 
-              <button
-                ref={deleteBtnRef}
-                type="button"
-                className="task-inline-popover-item"
-                onClick={() => {
-                  void (async () => {
-                    onError(null)
+              {!isTrashScope ? (
+                <button
+                  ref={deleteBtnRef}
+                  type="button"
+                  className="task-inline-popover-item"
+                  onClick={() => {
+                    void (async () => {
+                      onError(null)
 
-                    const confirmed = confirm(t('project.deleteConfirm'))
-                    if (!confirmed) return
+                      const confirmed = confirm(t('project.deleteConfirm'))
+                      if (!confirmed) return
 
-                    const res = await window.api.project.delete(project.id)
-                    if (!res.ok) {
-                      onError(res.error)
-                      return
-                    }
+                      const res = await window.api.project.delete(project.id)
+                      if (!res.ok) {
+                        onError(res.error)
+                        return
+                      }
 
-                    onBumpRevision()
-                    onClose()
-                    onNavigate('/today')
-                  })()
-                }}
-              >
-                {t('common.delete')}
-              </button>
+                      onBumpRevision()
+                      onClose()
+                      onNavigate('/today')
+                    })()
+                  }}
+                >
+                  {t('common.delete')}
+                </button>
+              ) : null}
             </div>
           </>
         ) : (
@@ -1146,6 +1177,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                           id: project.id,
                           scheduled_at: nextDate,
                           is_someday: false,
+                          scope,
                         })
                         if (!res.ok) {
                           onError(res.error)
@@ -1171,6 +1203,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                           id: project.id,
                           is_someday: true,
                           scheduled_at: null,
+                          scope,
                         })
                         if (!res.ok) {
                           onError(res.error)
@@ -1193,6 +1226,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                           id: project.id,
                           scheduled_at: today,
                           is_someday: false,
+                          scope,
                         })
                         if (!res.ok) {
                           onError(res.error)
@@ -1215,6 +1249,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                           id: project.id,
                           scheduled_at: null,
                           is_someday: false,
+                          scope,
                         })
                         if (!res.ok) {
                           onError(res.error)
@@ -1239,7 +1274,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                       const nextDate = date ? formatLocalDate(date) : null
                       void (async () => {
                         onError(null)
-                        const res = await window.api.project.update({ id: project.id, due_at: nextDate })
+                        const res = await window.api.project.update({ id: project.id, due_at: nextDate, scope })
                         if (!res.ok) {
                           onError(res.error)
                           return
@@ -1260,7 +1295,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                     onClick={() => {
                       void (async () => {
                         onError(null)
-                        const res = await window.api.project.update({ id: project.id, due_at: today })
+                        const res = await window.api.project.update({ id: project.id, due_at: today, scope })
                         if (!res.ok) {
                           onError(res.error)
                           return
@@ -1278,7 +1313,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                     onClick={() => {
                       void (async () => {
                         onError(null)
-                        const res = await window.api.project.update({ id: project.id, due_at: null })
+                        const res = await window.api.project.update({ id: project.id, due_at: null, scope })
                         if (!res.ok) {
                           onError(res.error)
                           return
@@ -1305,7 +1340,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                     const next = e.target.value ? e.target.value : null
                     void (async () => {
                       onError(null)
-                      const res = await window.api.project.update({ id: project.id, area_id: next })
+                      const res = await window.api.project.update({ id: project.id, area_id: next, scope })
                       if (!res.ok) {
                         onError(res.error)
                         return
@@ -1348,7 +1383,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                     const selectedIds = projectTags.map((t) => t.id)
                     const persist = async (nextIds: string[]) => {
                       onError(null)
-                      const res = await window.api.project.setTags(project.id, nextIds)
+                      const res = await window.api.project.setTags(project.id, nextIds, scope)
                       if (!res.ok) {
                         onError(res.error)
                         return false
@@ -1423,7 +1458,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
 
                             void (async () => {
                               onError(null)
-                              const res = await window.api.project.setTags(project.id, next)
+                              const res = await window.api.project.setTags(project.id, next, scope)
                               if (!res.ok) {
                                 onError(res.error)
                                 return

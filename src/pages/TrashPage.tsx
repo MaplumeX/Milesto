@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
 import type { TrashEntry } from '../../shared/schemas/trash'
 import { useAppEvents } from '../app/AppEventsContext'
+import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 import { TrashList } from '../features/trash/TrashList'
-
-function pickNextSelectedEntryId(entries: TrashEntry[], entryId: string): string | null {
-  const currentIndex = entries.findIndex((entry) => entry.id === entryId)
-  if (currentIndex < 0) return entries[0]?.id ?? null
-  return entries[currentIndex + 1]?.id ?? entries[currentIndex - 1]?.id ?? null
-}
+import { buildProjectPath } from '../lib/entity-scope'
 
 function resolveSelectedEntryId(entries: TrashEntry[], preferredId: string | null): string | null {
   if (entries.length === 0) return null
@@ -21,9 +18,10 @@ function resolveSelectedEntryId(entries: TrashEntry[], preferredId: string | nul
 export function TrashPage() {
   const { t } = useTranslation()
   const { revision, bumpRevision } = useAppEvents()
+  const navigate = useNavigate()
+  const { closeTask, openTask, openTaskId, requestCloseTask, selectTask } = useTaskSelection()
   const [entries, setEntries] = useState<TrashEntry[]>([])
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null)
-  const [busyEntryId, setBusyEntryId] = useState<string | null>(null)
   const [isEmptying, setIsEmptying] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<AppError | null>(null)
@@ -60,57 +58,59 @@ export function TrashPage() {
     [entries, selectedEntryId]
   )
 
-  const handleRestoreEntry = useCallback(
-    async (entry: TrashEntry) => {
-      setBusyEntryId(entry.id)
-      const nextSelectedId = pickNextSelectedEntryId(entries, entry.id)
-      const res =
-        entry.kind === 'task'
-          ? await window.api.trash.restoreTask(entry.id)
-          : await window.api.trash.restoreProject(entry.id)
+  useEffect(() => {
+    if (!selectedEntry) {
+      selectTask(null)
+      return
+    }
 
-      if (!res.ok) {
-        setError(res.error)
-        setBusyEntryId(null)
-        return
-      }
+    selectTask(selectedEntry.kind === 'task' ? selectedEntry.id : null)
+  }, [selectTask, selectedEntry])
 
-      skipNextRevisionRefreshRef.current = true
-      bumpRevision()
-      await refresh(nextSelectedId)
-      setBusyEntryId(null)
+  useEffect(() => {
+    if (!openTaskId) return
+    const hasOpenTask = entries.some((entry) => entry.kind === 'task' && entry.id === openTaskId)
+    if (hasOpenTask) return
+    closeTask()
+  }, [closeTask, entries, openTaskId])
+
+  const handleOpenTask = useCallback(
+    async (taskId: string) => {
+      setSelectedEntryId(taskId)
+      await openTask(taskId)
     },
-    [bumpRevision, entries, refresh]
+    [openTask]
   )
 
-  const handlePurgeEntry = useCallback(
-    async (entry: TrashEntry) => {
-      if (!window.confirm(t('trash.purgeConfirm'))) return
+  const handleOpenProject = useCallback(
+    async (projectId: string) => {
+      const ok = await requestCloseTask()
+      if (!ok) return
+      setSelectedEntryId(projectId)
+      navigate(buildProjectPath(projectId, 'trash'))
+    },
+    [navigate, requestCloseTask]
+  )
 
-      setBusyEntryId(entry.id)
-      const nextSelectedId = pickNextSelectedEntryId(entries, entry.id)
-      const res =
-        entry.kind === 'task'
-          ? await window.api.trash.purgeTask(entry.id)
-          : await window.api.trash.purgeProject(entry.id)
-
+  const handleToggleTaskDone = useCallback(
+    async (taskId: string, done: boolean) => {
+      const res = await window.api.task.toggleDone(taskId, done, 'trash')
       if (!res.ok) {
         setError(res.error)
-        setBusyEntryId(null)
         return
       }
 
       skipNextRevisionRefreshRef.current = true
       bumpRevision()
-      await refresh(nextSelectedId)
-      setBusyEntryId(null)
+      await refresh(taskId)
     },
-    [bumpRevision, entries, refresh, t]
+    [bumpRevision, refresh]
   )
 
   const handleEmpty = useCallback(async () => {
     if (!hasEntries) return
     if (!window.confirm(t('trash.emptyConfirm'))) return
+    if (!(await requestCloseTask())) return
 
     setIsEmptying(true)
     const res = await window.api.trash.empty()
@@ -129,16 +129,13 @@ export function TrashPage() {
   return (
     <div className="page">
       <header className="page-header trash-page-header">
-        <div>
-          <h1 className="page-title">{t('nav.trash')}</h1>
-          {hasEntries ? <div className="nav-muted">{t('trash.rootCount', { count: entries.length })}</div> : null}
-        </div>
+        <h1 className="page-title">{t('nav.trash')}</h1>
 
         <button
           type="button"
           className="button button-ghost"
           onClick={() => void handleEmpty()}
-          disabled={!hasEntries || isEmptying || busyEntryId !== null}
+          disabled={!hasEntries || isEmptying}
           data-trash-empty-action="true"
         >
           {t('trash.emptyAction')}
@@ -155,10 +152,11 @@ export function TrashPage() {
         <TrashList
           entries={entries}
           selectedEntryId={selectedEntry?.id ?? selectedEntryId}
-          busyEntryId={busyEntryId}
+          openTaskId={openTaskId}
           onSelectEntry={setSelectedEntryId}
-          onRestoreEntry={handleRestoreEntry}
-          onPurgeEntry={handlePurgeEntry}
+          onOpenTask={handleOpenTask}
+          onOpenProject={handleOpenProject}
+          onToggleTaskDone={handleToggleTaskDone}
         />
       ) : null}
     </div>
