@@ -2,6 +2,7 @@
   "name": "milesto",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "predev": "node ./scripts/ensure-electron-native-deps.mjs",

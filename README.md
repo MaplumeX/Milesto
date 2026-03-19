@@ -148,4 +148,4 @@ shared/
 
 ## License
 
-This project does not yet have a license. All rights reserved by the author until a license is chosen.
+This project is licensed under the [MIT License](./LICENSE).
