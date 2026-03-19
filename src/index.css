@@ -196,11 +196,11 @@ body {
 
 .nav-item {
   display: block;
-  padding: 8px 10px;
-  border-radius: 10px;
+  padding: 5px 8px;
+  border-radius: 8px;
   color: var(--text);
   text-decoration: none;
-  margin: 2px 0;
+  margin: 1px 0;
 }
 
 .nav > .nav-item,
@@ -222,18 +222,18 @@ body {
 }
 
 .nav-item.is-indent {
-  margin-left: 10px;
+  margin-left: 8px;
 }
 
 .nav-project-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 2px 0;
+  gap: 6px;
+  margin: 1px 0;
 }
 
 .nav-project-header.is-indent {
-  margin-left: 10px;
+  margin-left: 8px;
 }
 
 .nav-project-header:hover .nav-project-row:not(.is-active),
@@ -247,7 +247,7 @@ body {
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .nav-project-label {
@@ -265,7 +265,7 @@ body {
 }
 
 .nav-area {
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .nav-area-header {
@@ -275,9 +275,9 @@ body {
 .nav-area-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   /* Leave space for the collapse button (absolutely positioned). */
-  padding-right: 34px;
+  padding-right: 30px;
 }
 
 .nav-area-icon {
@@ -300,14 +300,14 @@ body {
 
 .nav-area-collapse {
   position: absolute;
-  right: 6px;
+  right: 4px;
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
-  border-radius: 8px;
+  padding: 3px;
+  border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
@@ -723,7 +723,7 @@ body {
 .upcoming-task-title-button {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
 }
 
 .upcoming-date-prefix {
@@ -746,8 +746,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
+  gap: 10px;
+  padding: 6px 10px;
   /* Keep grouping headers visually flat (no card background). */
   background: transparent;
   border-bottom: 1px solid var(--border);
@@ -755,7 +755,7 @@ body {
 
 .project-group-header.is-selected {
   background: var(--wash);
-  border-radius: 12px;
+  border-radius: 10px;
   border-bottom-color: transparent;
 }
 
@@ -799,7 +799,7 @@ body {
 .project-group-left {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -810,8 +810,8 @@ body {
   border: 0;
   background: transparent;
   /* Expand into the li padding, then re-apply padding on the button itself. */
-  margin: -8px -12px;
-  padding: 8px 12px;
+  margin: -6px -10px;
+  padding: 6px 10px;
   font: inherit;
   color: inherit;
   cursor: pointer;
@@ -851,7 +851,7 @@ body {
 
 .project-group-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 
@@ -1195,7 +1195,7 @@ body {
 }
 
 .task-row.task-row-virtual .task-row-inner {
-  padding: 10px 8px;
+  padding: 6px 8px;
   /* Preserve the 1px layout parity used by the virtualizer. */
   border-bottom: 1px solid transparent;
 }
@@ -1204,7 +1204,7 @@ body {
 .task-row-inner {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   /* Inner wrapper is where dnd-kit applies transforms. */
   position: relative;
@@ -1226,8 +1226,8 @@ body {
 .sidebar-dnd-overlay {
   min-width: 180px;
   max-width: 260px;
-  padding: 8px 10px;
-  border-radius: 12px;
+  padding: 6px 8px;
+  border-radius: 10px;
   background: var(--paper);
   box-shadow: var(--shadow-dnd);
   pointer-events: none;
@@ -1237,14 +1237,14 @@ body {
 }
 
 .task-dnd-overlay {
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--paper);
   box-shadow: var(--shadow-dnd);
   pointer-events: none;
 }
 
 .task-dnd-overlay .task-row-inner {
-  padding: 10px 8px;
+  padding: 6px 8px;
 }
 
 .project-section-dnd-overlay {
@@ -1256,7 +1256,7 @@ body {
 .project-section-dnd-overlay-edge {
   position: absolute;
   inset: 0;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--paper);
   pointer-events: none;
@@ -1278,9 +1278,9 @@ body {
   min-width: 220px;
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 12px;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--paper);
   box-shadow: var(--shadow-popover);
@@ -1630,14 +1630,14 @@ body {
 }
 
 .task-checkbox input {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .project-progress-control {
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
   border: 2px solid var(--ppc-color);
   background: transparent;
@@ -1775,12 +1775,12 @@ button.project-progress-control:hover:not(:disabled):not(.is-done) {
   flex: 1;
   min-width: 0;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .task-project-affiliation {
-  font-size: 12px;
-  line-height: 1.25;
+  font-size: 11px;
+  line-height: 1.15;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -1798,7 +1798,7 @@ button.project-progress-control:hover:not(:disabled):not(.is-done) {
 
 .task-row.is-selected {
   background: var(--wash);
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 .trash-page-header {
@@ -1813,7 +1813,7 @@ button.project-progress-control:hover:not(:disabled):not(.is-done) {
 
 .task-row.task-row-virtual.is-selected .task-row-inner {
   background: var(--wash);
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 /* When a row is expanded into the inline editor, avoid the selection highlight wash. */
