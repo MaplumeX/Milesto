@@ -91,6 +91,8 @@ export const messagesEn = {
   },
   settings: {
     title: 'Settings',
+    generalTab: 'General',
+    syncTab: 'Sync',
     language: 'Language',
     languageEnglish: 'English',
     languageChinese: '中文',
@@ -313,6 +315,8 @@ export const messagesZhCN = {
   },
   settings: {
     title: '设置',
+    generalTab: '常规',
+    syncTab: '同步',
     language: '语言',
     languageEnglish: 'English',
     languageChinese: '中文',

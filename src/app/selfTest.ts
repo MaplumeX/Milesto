@@ -946,7 +946,16 @@ async function runSelfTest(): Promise<SelfTestResult> {
         throw new Error(`Theme suite: expected effectiveTheme=light in self-test, got ${initialThemeRes.data.effectiveTheme}`)
       }
 
-      window.location.hash = '/settings'
+      const settingsTrigger = await waitFor('Settings trigger (theme)', () =>
+        document.querySelector<HTMLButtonElement>('button[data-settings-trigger="true"]')
+      )
+
+      settingsTrigger.click()
+
+      const settingsDialog = await waitFor('Settings dialog (theme)', () =>
+        document.querySelector<HTMLElement>('[data-settings-dialog="true"]')
+      )
+
       const themeSelect = await waitFor('Theme select (settings)', () =>
         document.querySelector<HTMLSelectElement>('select[data-settings-theme-select="true"]')
       )
@@ -1008,6 +1017,14 @@ async function runSelfTest(): Promise<SelfTestResult> {
       themeSelect.value = 'system'
       themeSelect.dispatchEvent(new Event('change', { bubbles: true }))
       await waitForThemeState('Theme suite: preference persisted (system)', (s) => s.preference === 'system')
+
+      settingsDialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      await waitFor('Settings dialog closed (Escape, theme)', () =>
+        document.querySelector('[data-settings-dialog="true"]') ? null : true
+      )
+      await waitFor('Settings trigger focus restored (theme)', () =>
+        document.activeElement === settingsTrigger ? true : null
+      )
     }
 
     const contentScroller = await waitFor('Content scroller', () =>

@@ -203,6 +203,14 @@ body {
   margin: 1px 0;
 }
 
+.nav-item-button {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
 .nav > .nav-item,
 .sidebar-bottom .nav-item {
   font-weight: 650;
@@ -1710,6 +1718,11 @@ body {
   justify-content: center;
 }
 
+.task-checkbox input {
+  width: 14px;
+  height: 14px;
+}
+
 .project-progress-control {
   flex: none;
   width: 18px;
@@ -1919,6 +1932,145 @@ button.project-progress-control:hover:not(:disabled):not(.is-done) {
   gap: 16px;
 }
 
+.settings-page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-panel,
+.settings-sync-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-general-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.settings-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(20px, 7vh, 72px) 20px 20px;
+  background: var(--scrim);
+  z-index: 55;
+}
+
+.settings-dialog {
+  width: min(680px, calc(100vw - 96px));
+  max-height: min(80vh, 720px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: var(--shadow-sheet);
+  overflow: hidden;
+  animation: overlay-paper-in 160ms ease-out;
+}
+
+.settings-dialog-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.settings-dialog-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.settings-dialog-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.settings-dialog-tablist {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--glass);
+}
+
+.settings-dialog-tab {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.settings-dialog-tab:hover {
+  color: var(--text);
+}
+
+.settings-dialog-tab:focus-visible,
+.settings-dialog-close:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.settings-dialog-tab[aria-selected='true'] {
+  background: var(--wash-strong);
+  box-shadow: 0 1px 0 var(--shadow);
+  color: var(--text);
+}
+
+.settings-dialog-close {
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.settings-dialog-close:hover {
+  border-color: var(--border);
+  background: var(--glass);
+  color: var(--text);
+}
+
+.settings-dialog-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px;
+}
+
+.settings-dialog-panel {
+  min-width: 0;
+}
+
 .card {
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -1941,6 +2093,74 @@ button.project-progress-control:hover:not(:disabled):not(.is-done) {
   justify-content: space-between;
   gap: 12px;
   margin-top: 10px;
+}
+
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settings-field-stack {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.settings-field-label {
+  flex: 0 0 160px;
+  min-width: 120px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settings-field .input,
+.settings-field-stack .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.settings-inline-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.settings-meta-grid,
+.settings-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.settings-meta-item,
+.settings-status-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-meta-label,
+.settings-status-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
 }
 
 .mono {
@@ -2003,6 +2223,34 @@ button.project-progress-control:hover:not(:disabled):not(.is-done) {
   }
   .page {
     padding: 18px;
+  }
+  .settings-dialog-overlay {
+    padding: 16px;
+  }
+  .settings-dialog-header,
+  .settings-dialog-body {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .settings-dialog-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .settings-dialog-close {
+    align-self: flex-start;
+  }
+  .settings-general-grid,
+  .settings-meta-grid,
+  .settings-status-grid {
+    grid-template-columns: 1fr;
+  }
+  .settings-field,
+  .settings-inline-note {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .settings-field-label {
+    flex: none;
   }
   .content-bottom-bar {
     padding: 0 18px;

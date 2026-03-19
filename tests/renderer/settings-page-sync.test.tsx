@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { ok } from '../../shared/result'
 import type { WindowApi } from '../../shared/window-api'
 import type { SyncState } from '../../shared/schemas/sync'
-import { SettingsPage } from '../../src/pages/SettingsPage'
+import { SyncSettingsPanel } from '../../src/features/settings/SyncSettingsPanel'
 
 type SyncApi = {
   getState: () => Promise<ReturnType<typeof ok<SyncState>>>
@@ -40,9 +40,10 @@ const ERROR_STATE: SyncState = {
   },
 }
 
-describe('SettingsPage sync card', () => {
+describe('SyncSettingsPanel', () => {
   afterEach(() => {
     vi.useRealTimers()
+    cleanup()
   })
 
   it('renders sync status and exposes Sync now without leaking error details', async () => {
@@ -68,9 +69,9 @@ describe('SettingsPage sync card', () => {
       syncNow,
     }
 
-    render(<SettingsPage />)
+    render(<SyncSettingsPanel />)
 
-    expect(await screen.findByTestId('settings-sync-card')).toBeInTheDocument()
+    expect(await screen.findByTestId('settings-sync-panel')).toBeInTheDocument()
     expect(screen.getByDisplayValue('MacBook Pro')).toBeInTheDocument()
     expect(screen.getByText('SYNC_PULL_FAILED')).toBeInTheDocument()
     expect(screen.getByText('Pull failed.')).toBeInTheDocument()
@@ -110,9 +111,8 @@ describe('SettingsPage sync card', () => {
       syncNow: vi.fn(async () => ok(ERROR_STATE)),
     }
 
-    render(<SettingsPage />)
-    const cards = await screen.findAllByTestId('settings-sync-card')
-    const card = cards[cards.length - 1]!
+    render(<SyncSettingsPanel />)
+    const card = await screen.findByTestId('settings-sync-panel')
 
     const textInputs = Array.from(card.querySelectorAll<HTMLInputElement>('input.input'))
     expect(textInputs.length).toBeGreaterThanOrEqual(8)
@@ -187,13 +187,12 @@ describe('SettingsPage sync card', () => {
       syncNow: vi.fn(async () => ok(ERROR_STATE)),
     }
 
-    render(<SettingsPage />)
+    render(<SyncSettingsPanel />)
     await act(async () => {
       await Promise.resolve()
     })
 
-    const cards = screen.getAllByTestId('settings-sync-card')
-    const card = cards[cards.length - 1]!
+    const card = screen.getByTestId('settings-sync-panel')
     expect(within(card).getByText('0')).toBeInTheDocument()
 
     await act(async () => {

@@ -30,6 +30,7 @@ import { useAppEvents } from './AppEventsContext'
 import { ContentScrollProvider } from './ContentScrollContext'
 import { type OpenEditorHandle, TaskSelectionProvider } from '../features/tasks/TaskSelectionContext'
 import { ProjectProgressIndicator } from '../features/projects/ProjectProgressControl'
+import { SettingsDialog, type SettingsTabId } from '../features/settings/SettingsDialog'
 import { SearchPanel } from './SearchPanel'
 import { ContentBottomBarActions } from './ContentBottomBarActions'
 import { formatLocalDate } from '../lib/dates'
@@ -165,7 +166,10 @@ export function AppShell() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [openTaskId, setOpenTaskId] = useState<string | null>(null)
   const [createPopover, setCreatePopover] = useState<CreatePopover>(null)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [settingsActiveTab, setSettingsActiveTab] = useState<SettingsTabId>('general')
   const createPopoverRef = useRef<CreatePopover>(createPopover)
+  const settingsTriggerRef = useRef<HTMLButtonElement | null>(null)
   useEffect(() => {
     createPopoverRef.current = createPopover
   }, [createPopover])
@@ -246,6 +250,22 @@ export function AppShell() {
     window.setTimeout(() => {
       if (cur.anchorEl.isConnected) cur.anchorEl.focus()
     }, 0)
+  }, [])
+
+  const closeSettingsDialog = useCallback((opts?: { restoreFocus?: boolean }) => {
+    setIsSettingsOpen(false)
+
+    if (!opts?.restoreFocus) return
+
+    const trigger = settingsTriggerRef.current
+    window.setTimeout(() => {
+      if (trigger?.isConnected) trigger.focus()
+    }, 0)
+  }, [])
+
+  const openSettingsDialog = useCallback((tab: SettingsTabId = 'general') => {
+    setSettingsActiveTab(tab)
+    setIsSettingsOpen(true)
   }, [])
 
   useEffect(() => {
@@ -1391,14 +1411,32 @@ export function AppShell() {
             {t('shell.new')}
           </button>
 
-          <NavItem to="/settings" label={t('nav.settings')} />
+          <button
+            ref={settingsTriggerRef}
+            type="button"
+            className="nav-item nav-item-button"
+            aria-haspopup="dialog"
+            aria-expanded={isSettingsOpen}
+            aria-controls="settings-dialog"
+            data-settings-trigger="true"
+            onClick={() => {
+              closeCreatePopover({ restoreFocus: false })
+              openSettingsDialog('general')
+            }}
+          >
+            {t('nav.settings')}
+          </button>
         </div>
       </aside>
 
         <main className="content" aria-label={t('aria.content')}>
           <div className="content-grid">
             <div className="content-main">
-              <div ref={contentScrollRef} className="content-scroll" tabIndex={-1}>
+              <div
+                ref={contentScrollRef}
+                className={`content-scroll${isSettingsOpen ? ' is-locked' : ''}`}
+                tabIndex={-1}
+              >
                 <Outlet />
               </div>
 
@@ -1472,6 +1510,12 @@ export function AppShell() {
         </main>
 
         <SearchPanel />
+        <SettingsDialog
+          isOpen={isSettingsOpen}
+          activeTab={settingsActiveTab}
+          onClose={() => closeSettingsDialog({ restoreFocus: true })}
+          onTabChange={setSettingsActiveTab}
+        />
       </div>
       </ContentScrollProvider>
     </TaskSelectionProvider>
