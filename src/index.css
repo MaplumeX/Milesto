@@ -203,6 +203,11 @@ body {
   margin: 2px 0;
 }
 
+.nav > .nav-item,
+.sidebar-bottom .nav-item {
+  font-weight: 650;
+}
+
 .nav-item.is-placeholder {
   color: var(--muted);
 }
@@ -284,6 +289,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 650;
 }
 
 /* When interacting with the collapse button, keep the row hover affordance. */
@@ -813,7 +819,7 @@ body {
 }
 
 .project-group-title {
-  font-weight: 650;
+  font-weight: 700;
   font-size: 11px;
   color: var(--project-group-title-color);
   white-space: nowrap;
