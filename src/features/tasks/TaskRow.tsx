@@ -18,6 +18,7 @@ export function TaskRow({
   onRestore,
   isOverlay,
   showProjectAffiliation = true,
+  projectAffiliationLabel,
 }: {
   task: TaskListItem
   dragHandle?: React.ReactNode
@@ -32,6 +33,7 @@ export function TaskRow({
   onRestore?: (taskId: string) => void
   isOverlay?: boolean
   showProjectAffiliation?: boolean
+  projectAffiliationLabel?: string | null
 }) {
   const { t } = useTranslation()
   const isTitleActivator = !!titleActivatorProps
@@ -104,6 +106,7 @@ export function TaskRow({
             <TaskProjectAffiliation
               projectId={task.project_id}
               projectTitle={task.project_title}
+              overrideLabel={projectAffiliationLabel}
             />
           ) : null}
         </span>

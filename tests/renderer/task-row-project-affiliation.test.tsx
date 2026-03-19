@@ -152,4 +152,51 @@ describe('TaskRow project affiliation', () => {
 
     expect(screen.queryByText('Project Alpha')).toBeNull()
   })
+
+  it('prefers an explicit affiliation label over project lookup', () => {
+    const api = (window as unknown as { api: WindowApi }).api
+    api.project.get = vi.fn(async () =>
+      ok({
+        id: 'p1',
+        title: 'Fetched Project',
+        notes: '',
+        area_id: null,
+        status: 'open',
+        scheduled_at: null,
+        is_someday: false,
+        due_at: null,
+        created_at: '2026-03-17T00:00:00.000Z',
+        updated_at: '2026-03-17T00:00:00.000Z',
+        completed_at: null,
+        deleted_at: null,
+      })
+    )
+
+    render(
+      <TaskRow
+        task={{
+          id: 't-explicit-affiliation',
+          title: 'Task With Section Label',
+          status: 'done',
+          is_inbox: false,
+          is_someday: false,
+          project_id: 'p1',
+          project_title: null,
+          section_id: 's1',
+          area_id: null,
+          scheduled_at: null,
+          due_at: null,
+          created_at: '2026-03-17T00:00:00.000Z',
+          updated_at: '2026-03-17T00:00:00.000Z',
+          completed_at: '2026-03-17T01:00:00.000Z',
+          deleted_at: null,
+        }}
+        projectAffiliationLabel="Section Alpha"
+      />
+    )
+
+    expect(screen.getByText('Section Alpha')).toBeInTheDocument()
+    expect(screen.queryByText('Fetched Project')).toBeNull()
+    expect(api.project.get).not.toHaveBeenCalled()
+  })
 })

@@ -31,15 +31,20 @@ async function loadProjectTitle(projectId: string): Promise<string | null> {
 export function TaskProjectAffiliation({
   projectId,
   projectTitle,
+  overrideLabel,
 }: {
   projectId: string | null
   projectTitle?: string | null
+  overrideLabel?: string | null
 }) {
   const { t } = useTranslation()
+  const trimmedOverrideLabel = overrideLabel?.trim() || null
   const trimmedPropTitle = projectTitle?.trim()
   const [resolvedTitle, setResolvedTitle] = useState<string | null>(trimmedPropTitle ?? null)
 
   useEffect(() => {
+    if (trimmedOverrideLabel) return
+
     if (!projectId) {
       setResolvedTitle(null)
       return
@@ -68,7 +73,11 @@ export function TaskProjectAffiliation({
     return () => {
       cancelled = true
     }
-  }, [projectId, trimmedPropTitle])
+  }, [projectId, trimmedOverrideLabel, trimmedPropTitle])
+
+  if (trimmedOverrideLabel) {
+    return <span className="task-project-affiliation">{trimmedOverrideLabel}</span>
+  }
 
   if (!projectId) return null
 

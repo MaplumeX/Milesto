@@ -20,6 +20,7 @@ import { TaskInlineEditorRow } from '../features/tasks/TaskInlineEditorRow'
 import { TaskRow } from '../features/tasks/TaskRow'
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 import { usePrefersReducedMotion } from '../features/tasks/dnd-drop-animation'
+import { buildProjectDoneTaskRows } from '../features/tasks/project-done-task-rows'
 import { useOptimisticTaskTitles } from '../features/tasks/use-optimistic-task-titles'
 import { formatLocalDate, formatMonthDay, parseLocalDate } from '../lib/dates'
 import { getEntityScopeFromSearch } from '../lib/entity-scope'
@@ -297,7 +298,7 @@ export function ProjectPage() {
 
   if (!pid) {
     return (
-      <div className="page">
+      <div className="page" data-page="project">
         <h1 className="page-title">{t('shell.project')}</h1>
         <div className="error">{t('errors.missingProjectId')}</div>
       </div>
@@ -353,7 +354,7 @@ export function ProjectPage() {
     <>
       {error ? <ErrorBanner error={error} /> : null}
 
-        <div className="page">
+        <div className="page" data-page="project">
           <header className="page-header">
             <div className="project-header-left">
               {project ? (
@@ -660,22 +661,14 @@ function ProjectDoneTaskList({
     return formatMonthDay(new Date(ms))
   }
 
-  // Group done tasks by section_id
-  const doneNone: TaskListItem[] = []
-  const doneBySection = new Map<string, TaskListItem[]>()
-  for (const t of doneTasksWithOptimisticTitles) {
-    if (!t.section_id) {
-      doneNone.push(t)
-    } else {
-      const list = doneBySection.get(t.section_id) ?? []
-      list.push(t)
-      doneBySection.set(t.section_id, list)
-    }
-  }
+  const doneRows = buildProjectDoneTaskRows({
+    doneTasks: doneTasksWithOptimisticTitles,
+    sections,
+  })
 
   return (
     <ul className="task-list" role="list">
-      {doneNone.map((task) => {
+      {doneRows.map(({ task, affiliationLabel }) => {
         const isOpen = openTaskId === task.id
         const titlePrefix = getDoneDatePrefix(task)
 
@@ -693,7 +686,7 @@ function ProjectDoneTaskList({
                 <TaskRow
                   task={task}
                   titlePrefix={titlePrefix}
-                  showProjectAffiliation={false}
+                  projectAffiliationLabel={affiliationLabel}
                   onSelect={selectTask}
                   onOpen={(taskId) => void openTask(taskId)}
                   onToggleDone={(taskId, done) => {
@@ -713,62 +706,6 @@ function ProjectDoneTaskList({
               onHeightChange={() => {}}
               prefersReducedMotion={prefersReducedMotion}
             />
-          </li>
-        )
-      })}
-      {sections.map((section) => {
-        const sectionDone = doneBySection.get(section.id)
-        if (!sectionDone || sectionDone.length === 0) return null
-        return (
-          <li key={`done-section:${section.id}`}>
-            <div className="project-group-header">
-              <div className="project-group-title">
-                {section.title.trim() || '\u00A0'}
-              </div>
-            </div>
-            <ul className="task-list" role="list">
-              {sectionDone.map((task) => {
-                const isOpen = openTaskId === task.id
-                const titlePrefix = getDoneDatePrefix(task)
-
-                return (
-                  <li
-                    key={task.id}
-                    className={`task-row${isOpen ? ' is-open' : ' task-row-virtual'}${task.status === 'done' ? ' is-done' : ''}${
-                      selectedTaskId === task.id ? ' is-selected' : ''
-                    }`}
-                    data-task-id={task.id}
-                  >
-                    <AnimatedTaskSlot
-                      isOpen={isOpen}
-                      rowContent={
-                        <TaskRow
-                          task={task}
-                          titlePrefix={titlePrefix}
-                          showProjectAffiliation={false}
-                          onSelect={selectTask}
-                          onOpen={(taskId) => void openTask(taskId)}
-                          onToggleDone={(taskId, done) => {
-                            if (done) return
-                            void onToggleDone(taskId, done)
-                          }}
-                        />
-                      }
-                      editorContent={
-                        <TaskInlineEditorRow
-                          taskId={task.id}
-                          scope={scope}
-                          projectScope={scope}
-                          showProjectActions={false}
-                        />
-                      }
-                      onHeightChange={() => {}}
-                      prefersReducedMotion={prefersReducedMotion}
-                    />
-                  </li>
-                )
-              })}
-            </ul>
           </li>
         )
       })}

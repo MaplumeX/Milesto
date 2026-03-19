@@ -45,4 +45,10 @@ describe('completed date theme contract', () => {
       /\.task-row\[data-logbook-row\]\s+\.upcoming-task-title-button\s*\{[\s\S]*align-items:\s*center;/
     )
   })
+
+  it('cancels the done-title line-through only within the project page scope', () => {
+    expect(css).toMatch(
+      /\.page\[data-page="project"\]\s+\.task-row\.is-done\s+\.task-title-text\s*\{[\s\S]*text-decoration:\s*none;/
+    )
+  })
 })
