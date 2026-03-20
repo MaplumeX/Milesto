@@ -100,4 +100,25 @@ describe('S3SyncRepository', () => {
 
     expect(batches.map((batch) => batch.sequence_number)).toEqual([2])
   })
+
+  it('drops legacy session tokens before creating the repository client', async () => {
+    const clientFactory = vi.fn(() => ({ send: vi.fn(async () => ({})) }) as never)
+
+    const repository = new S3SyncRepository({
+      clientFactory,
+    })
+
+    await repository.ensureReady(
+      CONFIG,
+      {
+        ...CREDENTIALS,
+        session_token: 'legacy-session-token',
+      } as never
+    )
+
+    expect(clientFactory).toHaveBeenCalledWith(CONFIG, {
+      access_key_id: 'access-key',
+      secret_access_key: 'secret-key',
+    })
+  })
 })

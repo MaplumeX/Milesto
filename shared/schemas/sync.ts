@@ -22,7 +22,6 @@ export type SyncRepositoryConfig = z.infer<typeof SyncRepositoryConfigSchema>
 export const SyncCredentialsSchema = z.object({
   access_key_id: z.string().min(1),
   secret_access_key: z.string().min(1),
-  session_token: z.string().min(1).optional(),
 })
 
 export type SyncCredentials = z.infer<typeof SyncCredentialsSchema>
@@ -31,7 +30,6 @@ export const SyncCredentialUpdateSchema = z
   .object({
     access_key_id: z.string().min(1).optional(),
     secret_access_key: z.string().min(1).optional(),
-    session_token: z.string().nullable().optional(),
   })
   .superRefine((value, ctx) => {
     const hasAccess = value.access_key_id !== undefined

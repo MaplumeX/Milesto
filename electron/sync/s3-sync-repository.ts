@@ -37,7 +37,6 @@ function createDefaultClient(config: SyncRepositoryConfig, credentials: SyncCred
     credentials: {
       accessKeyId: credentials.access_key_id,
       secretAccessKey: credentials.secret_access_key,
-      sessionToken: credentials.session_token,
     },
   })
 }

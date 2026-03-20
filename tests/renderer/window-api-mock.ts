@@ -3,7 +3,7 @@ import { vi } from 'vitest'
 import { err, ok } from '../../shared/result'
 import type { AppError } from '../../shared/app-error'
 import type { WindowApi } from '../../shared/window-api'
-import type { SyncState } from '../../shared/schemas/sync'
+import type { SyncCredentials, SyncState } from '../../shared/schemas/sync'
 
 const unimplementedError: AppError = {
   code: 'TEST_UNIMPLEMENTED',
@@ -23,6 +23,8 @@ export function createWindowApiMock(): WindowApi {
     last_attempted_sync_at: null,
     last_error: null,
   }
+
+  const syncCredentialsErrorResult = err<SyncCredentials>(unimplementedError)
 
   return {
     app: {
@@ -59,6 +61,7 @@ export function createWindowApiMock(): WindowApi {
 
     sync: {
       getState: vi.fn<WindowApi['sync']['getState']>(async () => ok(syncState)),
+      getCredentials: vi.fn<WindowApi['sync']['getCredentials']>(async () => syncCredentialsErrorResult),
       testConnection: vi.fn<WindowApi['sync']['testConnection']>(async () => ok({ reachable: true })),
       saveConfiguration: vi.fn<WindowApi['sync']['saveConfiguration']>(async () => ok(syncState)),
       enable: vi.fn<WindowApi['sync']['enable']>(async () => ok(syncState)),

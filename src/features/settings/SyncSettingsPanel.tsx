@@ -3,13 +3,13 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../../shared/app-error'
-import type { SyncConnectionInput, SyncSaveConfigurationInput, SyncState } from '../../../shared/schemas/sync'
+import type {
+  SyncConnectionInput,
+  SyncCredentials,
+  SyncSaveConfigurationInput,
+  SyncState,
+} from '../../../shared/schemas/sync'
 import { Checkbox } from '../../components/Checkbox'
-
-function trimToNull(value: string): string | null {
-  const trimmed = value.trim()
-  return trimmed ? trimmed : null
-}
 
 function buildSaveInput(
   form: SyncFormState,
@@ -25,12 +25,11 @@ function buildSaveInput(
       prefix: form.prefix.trim(),
       force_path_style: form.forcePathStyle,
     },
-    device_name: form.deviceName.trim() || currentState?.device_name || 'This Device',
+    device_name: currentState?.device_name || 'This Device',
     credentials: hasCredentialInput
       ? {
           access_key_id: form.accessKeyId.trim(),
           secret_access_key: form.secretAccessKey.trim(),
-          session_token: trimToNull(form.sessionToken),
         }
       : undefined,
   }
@@ -50,7 +49,6 @@ function buildTestInput(form: SyncFormState): SyncConnectionInput | null {
     credentials: {
       access_key_id: form.accessKeyId.trim(),
       secret_access_key: form.secretAccessKey.trim(),
-      session_token: trimToNull(form.sessionToken) ?? undefined,
     },
   }
 }
@@ -61,10 +59,8 @@ type SyncFormState = {
   bucket: string
   prefix: string
   forcePathStyle: boolean
-  deviceName: string
   accessKeyId: string
   secretAccessKey: string
-  sessionToken: string
 }
 
 const EMPTY_FORM: SyncFormState = {
@@ -73,15 +69,17 @@ const EMPTY_FORM: SyncFormState = {
   bucket: '',
   prefix: '',
   forcePathStyle: true,
-  deviceName: '',
   accessKeyId: '',
   secretAccessKey: '',
-  sessionToken: '',
 }
 
 const STATUS_REFRESH_MS = 5_000
 
-function applyStateToForm(current: SyncFormState, state: SyncState): SyncFormState {
+function applyStateToForm(
+  current: SyncFormState,
+  state: SyncState,
+  credentials?: SyncCredentials
+): SyncFormState {
   return {
     ...current,
     endpoint: state.config?.endpoint ?? current.endpoint,
@@ -89,7 +87,8 @@ function applyStateToForm(current: SyncFormState, state: SyncState): SyncFormSta
     bucket: state.config?.bucket ?? current.bucket,
     prefix: state.config?.prefix ?? current.prefix,
     forcePathStyle: state.config?.force_path_style ?? current.forcePathStyle,
-    deviceName: state.device_name,
+    accessKeyId: credentials?.access_key_id ?? current.accessKeyId,
+    secretAccessKey: credentials?.secret_access_key ?? current.secretAccessKey,
   }
 }
 
@@ -114,11 +113,27 @@ export function SyncSettingsPanel() {
       return
     }
 
-    setSyncError(null)
     setSyncState(result.data)
     if (options?.syncForm) {
-      setForm((current) => applyStateToForm(current, result.data))
+      let credentials: SyncCredentials | undefined
+
+      if (result.data.has_stored_credentials) {
+        const credentialsResult = await window.api.sync.getCredentials()
+        if (!credentialsResult.ok) {
+          setSyncError(credentialsResult.error)
+          setForm((current) => applyStateToForm(current, result.data))
+          return
+        }
+
+        credentials = credentialsResult.data
+      }
+
+      setSyncError(null)
+      setForm((current) => applyStateToForm(current, result.data, credentials))
+      return
     }
+
+    setSyncError(null)
   }
 
   useEffect(() => {
@@ -175,11 +190,6 @@ export function SyncSettingsPanel() {
             </div>
 
             <div className="settings-status-item">
-              <div className="settings-status-label">{t('settings.syncDeviceName')}</div>
-              <div className="mono">{syncState.device_name}</div>
-            </div>
-
-            <div className="settings-status-item">
               <div className="settings-status-label">{t('settings.syncPendingOutbox')}</div>
               <div className="mono">{String(syncState.pending_outbox_count)}</div>
             </div>
@@ -205,7 +215,7 @@ export function SyncSettingsPanel() {
           </div>
         ) : null}
 
-        {syncState?.has_stored_credentials && !form.accessKeyId && !form.secretAccessKey && !form.sessionToken ? (
+        {syncState?.has_stored_credentials && !form.accessKeyId && !form.secretAccessKey ? (
           <div className="settings-inline-note">
             <div className="mono">{t('settings.syncStoredCredentialsHint')}</div>
           </div>
@@ -216,19 +226,6 @@ export function SyncSettingsPanel() {
         <h3 className="card-title">{t('settings.syncTab')}</h3>
 
         <div className="settings-stack">
-          <div className="settings-field">
-            <div className="settings-field-label">{t('settings.syncDeviceName')}</div>
-            <input
-              className="input"
-              aria-label={t('settings.syncDeviceName')}
-              value={form.deviceName}
-              onChange={(event) => {
-                const value = event.target.value
-                setForm((current) => ({ ...current, deviceName: value }))
-              }}
-            />
-          </div>
-
           <div className="settings-field">
             <div className="settings-field-label">{t('settings.syncEndpoint')}</div>
             <input
@@ -315,19 +312,6 @@ export function SyncSettingsPanel() {
               onChange={(event) => {
                 const value = event.target.value
                 setForm((current) => ({ ...current, secretAccessKey: value }))
-              }}
-            />
-          </div>
-
-          <div className="settings-field">
-            <div className="settings-field-label">{t('settings.syncSessionToken')}</div>
-            <input
-              className="input"
-              aria-label={t('settings.syncSessionToken')}
-              value={form.sessionToken}
-              onChange={(event) => {
-                const value = event.target.value
-                setForm((current) => ({ ...current, sessionToken: value }))
               }}
             />
           </div>

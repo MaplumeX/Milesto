@@ -31,6 +31,7 @@ const api: WindowApi = {
   },
   sync: {
     getState: () => invoke('sync:getState'),
+    getCredentials: () => invoke('sync:getCredentials'),
     testConnection: (input) => invoke('sync:testConnection', input),
     saveConfiguration: (input) => invoke('sync:saveConfiguration', input),
     enable: () => invoke('sync:enable'),

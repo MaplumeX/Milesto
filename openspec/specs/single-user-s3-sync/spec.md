@@ -13,13 +13,16 @@ The system MUST allow a user to configure one optional single-user sync reposito
 - `forcePathStyle`
 - `accessKeyId`
 - `secretAccessKey`
-- optional `sessionToken`
 
 The system MUST validate the repository configuration before enabling synchronization.
 
 Non-sensitive repository configuration MUST be persisted locally.
 
-Sensitive credentials MUST be stored in secure local storage and MUST NOT be exposed to the renderer as raw secrets.
+Sensitive credentials MUST be stored in secure local storage.
+
+When the user opens the Settings dialog's `Sync` tab to review or edit the current sync credentials, the system MAY expose the stored raw credentials to the renderer for that explicit editing workflow.
+
+The periodic sync status surface MUST NOT include raw credentials.
 
 The system MUST expose this configuration workflow in the Settings dialog's `Sync` tab.
 
@@ -167,4 +170,3 @@ The `Sync` tab MUST present sync status above the repository configuration form 
 - **THEN** the Settings dialog's `Sync` tab MUST show that sync is in an error state
 - **AND** the Settings dialog's `Sync` tab MUST show the most recent error using `code` and `message`
 - **AND** the user MUST still be able to trigger `Sync now`
-

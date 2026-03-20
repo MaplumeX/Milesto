@@ -78,6 +78,7 @@ import {
   SidebarReorderProjectsInputSchema,
   SidebarReorderResultSchema,
   SyncConnectionInputSchema,
+  SyncCredentialsSchema,
   SyncSaveConfigurationInputSchema,
   SyncStateSchema,
   SyncTestConnectionResultSchema,
@@ -217,6 +218,7 @@ const SetSidebarStatePayloadSchema = z.object({ state: z.unknown() })
 const ThemeStateResultSchema = resultSchema(ThemeStateSchema)
 const SetThemePreferencePayloadSchema = z.object({ preference: z.unknown() })
 const SyncStateResultSchema = resultSchema(SyncStateSchema)
+const SyncCredentialsResultSchema = resultSchema(SyncCredentialsSchema)
 const SyncTestConnectionResultResponseSchema = resultSchema(SyncTestConnectionResultSchema)
 
 const DbLocaleRowSchema = z.object({ locale: z.string().nullable() })
@@ -830,6 +832,24 @@ function registerIpcHandlers(
     }
   })
 
+  ipcMain.handle('sync:getCredentials', async (event) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return SyncCredentialsResultSchema.parse(err(senderErr))
+
+    try {
+      return SyncCredentialsResultSchema.parse(ok(await credentialsStore.load()))
+    } catch (error) {
+      return SyncCredentialsResultSchema.parse(
+        err(
+          toAppError(error, {
+            code: 'SYNC_CREDENTIALS_LOAD_FAILED',
+            message: 'Failed to load sync credentials.',
+          })
+        )
+      )
+    }
+  })
+
   ipcMain.handle('sync:testConnection', async (event, payload) => {
     const senderErr = ensureTrustedSender(event)
     if (senderErr) return SyncTestConnectionResultResponseSchema.parse(err(senderErr))
@@ -881,7 +901,6 @@ function registerIpcHandlers(
         await credentialsStore.save({
           access_key_id: parsed.data.credentials.access_key_id,
           secret_access_key: parsed.data.credentials.secret_access_key,
-          session_token: parsed.data.credentials.session_token ?? undefined,
         })
       }
 

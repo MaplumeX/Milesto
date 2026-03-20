@@ -41,6 +41,7 @@ import type {
 } from './schemas/sidebar'
 import type {
   SyncConnectionInput,
+  SyncCredentials,
   SyncState,
   SyncTestConnectionResult,
   SyncSaveConfigurationInput,
@@ -87,6 +88,7 @@ export type WindowApi = {
 
   sync: {
     getState(): Promise<Result<SyncState>>
+    getCredentials(): Promise<Result<SyncCredentials>>
     testConnection(input: SyncConnectionInput): Promise<Result<SyncTestConnectionResult>>
     saveConfiguration(input: SyncSaveConfigurationInput): Promise<Result<SyncState>>
     enable(): Promise<Result<SyncState>>

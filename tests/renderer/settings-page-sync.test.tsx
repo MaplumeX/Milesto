@@ -4,11 +4,12 @@ import userEvent from '@testing-library/user-event'
 
 import { ok } from '../../shared/result'
 import type { WindowApi } from '../../shared/window-api'
-import type { SyncState } from '../../shared/schemas/sync'
+import type { SyncCredentials, SyncState } from '../../shared/schemas/sync'
 import { SyncSettingsPanel } from '../../src/features/settings/SyncSettingsPanel'
 
 type SyncApi = {
   getState: () => Promise<ReturnType<typeof ok<SyncState>>>
+  getCredentials: () => Promise<ReturnType<typeof ok<SyncCredentials>>>
   testConnection: (input: unknown) => Promise<ReturnType<typeof ok<{ reachable: true }>>>
   saveConfiguration: (input: unknown) => Promise<ReturnType<typeof ok<SyncState>>>
   enable: () => Promise<ReturnType<typeof ok<SyncState>>>
@@ -40,6 +41,11 @@ const ERROR_STATE: SyncState = {
   },
 }
 
+const STORED_CREDENTIALS: SyncCredentials = {
+  access_key_id: 'AKIA_STORED',
+  secret_access_key: 'SECRET_STORED',
+}
+
 describe('SyncSettingsPanel', () => {
   afterEach(() => {
     vi.useRealTimers()
@@ -62,6 +68,7 @@ describe('SyncSettingsPanel', () => {
 
     api.sync = {
       getState: vi.fn(async () => ok(ERROR_STATE)),
+      getCredentials: vi.fn(async () => ok(STORED_CREDENTIALS)),
       testConnection: vi.fn(async () => ok({ reachable: true as const })),
       saveConfiguration: vi.fn(async () => ok(ERROR_STATE)),
       enable: vi.fn(async () => ok(ERROR_STATE)),
@@ -72,7 +79,12 @@ describe('SyncSettingsPanel', () => {
     render(<SyncSettingsPanel />)
 
     expect(await screen.findByTestId('settings-sync-panel')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('MacBook Pro')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('MacBook Pro')).not.toBeInTheDocument()
+    expect(screen.queryByText('settings.syncDeviceName')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('settings.syncDeviceName')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('settings.syncSessionToken')).not.toBeInTheDocument()
+    expect(screen.getByDisplayValue('AKIA_STORED')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('SECRET_STORED')).toBeInTheDocument()
     expect(screen.getByText('SYNC_PULL_FAILED')).toBeInTheDocument()
     expect(screen.getByText('Pull failed.')).toBeInTheDocument()
     expect(screen.queryByText(/details/i)).not.toBeInTheDocument()
@@ -104,6 +116,7 @@ describe('SyncSettingsPanel', () => {
           has_stored_credentials: false,
         })
       ),
+      getCredentials: vi.fn(async () => ok(STORED_CREDENTIALS)),
       testConnection: vi.fn(async () => ok({ reachable: true as const })),
       saveConfiguration,
       enable: vi.fn(async () => ok(ERROR_STATE)),
@@ -115,40 +128,44 @@ describe('SyncSettingsPanel', () => {
     const card = await screen.findByTestId('settings-sync-panel')
 
     const textInputs = Array.from(card.querySelectorAll<HTMLInputElement>('input.input'))
-    expect(textInputs.length).toBeGreaterThanOrEqual(8)
+    expect(textInputs.length).toBeGreaterThanOrEqual(6)
+    expect(screen.queryByLabelText('settings.syncDeviceName')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('settings.syncSessionToken')).not.toBeInTheDocument()
 
-    const [
-      deviceNameInput,
-      endpointInput,
-      regionInput,
-      bucketInput,
-      prefixInput,
-      accessKeyIdInput,
-      secretAccessKeyInput,
-      sessionTokenInput,
-    ] = textInputs
+    const endpointInput = screen.getByLabelText('settings.syncEndpoint')
+    const regionInput = screen.getByLabelText('settings.syncRegion')
+    const bucketInput = screen.getByLabelText('settings.syncBucket')
+    const prefixInput = screen.getByLabelText('settings.syncPrefix')
+    const accessKeyIdInput = screen.getByLabelText('settings.syncAccessKeyId')
+    const secretAccessKeyInput = screen.getByLabelText('settings.syncSecretAccessKey')
 
-    await user.clear(deviceNameInput!)
-    await user.type(deviceNameInput!, 'Studio Mac')
-    await user.clear(endpointInput!)
-    await user.type(endpointInput!, 'https://objects.example.test')
-    await user.clear(regionInput!)
-    await user.type(regionInput!, 'auto')
-    await user.clear(bucketInput!)
-    await user.type(bucketInput!, 'milesto-sync')
-    await user.clear(prefixInput!)
-    await user.type(prefixInput!, 'users/demo')
-    await user.type(accessKeyIdInput!, 'AKIA_TEST')
-    await user.type(secretAccessKeyInput!, 'SECRET_TEST')
-    await user.type(sessionTokenInput!, 'SESSION_TEST')
+    await user.clear(endpointInput)
+    await user.type(endpointInput, 'https://objects.example.test')
+    await user.clear(regionInput)
+    await user.type(regionInput, 'auto')
+    await user.clear(bucketInput)
+    await user.type(bucketInput, 'milesto-sync')
+    await user.clear(prefixInput)
+    await user.type(prefixInput, 'users/demo')
+    await user.type(accessKeyIdInput, 'AKIA_TEST')
+    await user.type(secretAccessKeyInput, 'SECRET_TEST')
 
     await user.click(within(card).getByText('settings.syncSaveConfiguration'))
 
     expect(saveConfiguration).toHaveBeenCalledTimes(1)
+    expect(saveConfiguration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        device_name: 'MacBook Pro',
+        credentials: {
+          access_key_id: 'AKIA_TEST',
+          secret_access_key: 'SECRET_TEST',
+        },
+      })
+    )
     expect(screen.queryByText('SYNC_PULL_FAILED')).not.toBeInTheDocument()
     expect(screen.getByDisplayValue('AKIA_TEST')).toBeInTheDocument()
     expect(screen.getByDisplayValue('SECRET_TEST')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('SESSION_TEST')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('SESSION_TEST')).not.toBeInTheDocument()
   })
 
   it('refreshes the displayed sync status while the settings page stays open', async () => {
@@ -163,7 +180,7 @@ describe('SyncSettingsPanel', () => {
           enabled: false,
           mode: 'disabled' as const,
           pending_outbox_count: 0,
-          has_stored_credentials: false,
+          has_stored_credentials: true,
           last_error: null,
         })
       )
@@ -178,8 +195,11 @@ describe('SyncSettingsPanel', () => {
         })
       )
 
+    const getCredentials = vi.fn(async () => ok(STORED_CREDENTIALS))
+
     api.sync = {
       getState,
+      getCredentials,
       testConnection: vi.fn(async () => ok({ reachable: true as const })),
       saveConfiguration: vi.fn(async () => ok(ERROR_STATE)),
       enable: vi.fn(async () => ok(ERROR_STATE)),
@@ -194,12 +214,15 @@ describe('SyncSettingsPanel', () => {
 
     const card = screen.getByTestId('settings-sync-panel')
     expect(within(card).getByText('0')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('AKIA_STORED')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('SECRET_STORED')).toBeInTheDocument()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5_000)
     })
 
     expect(getState).toHaveBeenCalledTimes(2)
+    expect(getCredentials).toHaveBeenCalledTimes(1)
     expect(within(card).getByText('2')).toBeInTheDocument()
     expect(within(card).getByText('settings.syncModeSyncing')).toBeInTheDocument()
   })
