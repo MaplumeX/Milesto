@@ -11,6 +11,7 @@ import type { TaskUpdateInput } from '../../shared/schemas/task'
 import { TaskMovePopoverContent } from '../features/tasks/TaskMovePopoverContent'
 import { formatLocalDate } from '../lib/dates'
 import { getLocalToday } from '../lib/use-local-today'
+import { BottomBarActionButton } from './BottomBarActionButton'
 
 const UI_OPEN_SEARCH_PANEL_EVENT = 'milesto:ui.openSearchPanel'
 
@@ -277,30 +278,24 @@ export function ContentBottomBarActions({
   return (
     <>
       {!isEditMode ? (
-        <button
-          type="button"
-          className="button button-ghost"
+        <BottomBarActionButton
+          label={t('common.schedule')}
+          iconKey="schedule"
           disabled={!isTaskSelected}
           onClick={(e) => openSchedule(e.currentTarget as HTMLElement)}
-        >
-          {t('common.schedule')}
-        </button>
+        />
       ) : null}
       {showMoveAction ? (
-        <button
-          type="button"
-          className="button button-ghost"
+        <BottomBarActionButton
+          label={t('common.move')}
+          iconKey="move"
           disabled={!isTaskSelected}
           onClick={(e) => openMove(e.currentTarget as HTMLElement)}
           data-content-bottom-edit-action={isEditMode ? 'move' : undefined}
-        >
-          {t('common.move')}
-        </button>
+        />
       ) : null}
       {!isEditMode ? (
-        <button type="button" className="button button-ghost" onClick={openSearch}>
-          {t('common.search')}
-        </button>
+        <BottomBarActionButton label={t('common.search')} iconKey="search" onClick={openSearch} />
       ) : null}
 
       {renderPopover()}

@@ -34,6 +34,7 @@ import { ProjectProgressIndicator } from '../features/projects/ProjectProgressCo
 import { SettingsDialog, type SettingsTabId } from '../features/settings/SettingsDialog'
 import { SearchPanel } from './SearchPanel'
 import { ContentBottomBarActions } from './ContentBottomBarActions'
+import { BottomBarActionButton } from './BottomBarActionButton'
 import { formatLocalDate } from '../lib/dates'
 import { getEntityScopeFromSearch } from '../lib/entity-scope'
 import {
@@ -1229,24 +1230,18 @@ export function AppShell() {
   const contentBottomBarListActions = (
     <>
       {location.pathname !== '/trash' ? (
-        <button type="button" className="button button-ghost" onClick={() => void handleAddTask()}>
-          {t('shell.task')}
-        </button>
+        <BottomBarActionButton label={t('shell.task')} iconKey="task" onClick={() => void handleAddTask()} />
       ) : null}
       {areaIdFromRoute ? (
-        <button
-          type="button"
-          className="button button-ghost"
+        <BottomBarActionButton
+          label={t('common.addProject')}
+          iconKey="project"
           onClick={() => void handleAddProjectForArea()}
           disabled={isCreating}
-        >
-          {t('common.addProject')}
-        </button>
+        />
       ) : null}
       {projectIdFromRoute ? (
-        <button type="button" className="button button-ghost" onClick={handleAddSection}>
-          {t('shell.section')}
-        </button>
+        <BottomBarActionButton label={t('shell.section')} iconKey="section" onClick={handleAddSection} />
       ) : null}
 
       <ContentBottomBarActions
@@ -1274,25 +1269,21 @@ export function AppShell() {
         }}
       />
       {taskScopeFromRoute === 'active' ? (
-        <button
-          type="button"
-          className="button button-ghost"
+        <BottomBarActionButton
+          label={t('common.delete')}
+          iconKey="delete"
           onClick={() => void handleDeleteOpenTask()}
           data-content-bottom-edit-action="delete"
-        >
-          {t('common.delete')}
-        </button>
+        />
       ) : null}
-      <button
-        type="button"
-        className="button button-ghost"
+      <BottomBarActionButton
+        label={t('common.more')}
+        iconKey="more"
         onClick={() => {
           // Placeholder: reserved for future menu.
         }}
         data-content-bottom-edit-action="more"
-      >
-        {t('common.more')}
-      </button>
+      />
     </>
   ) : null
 

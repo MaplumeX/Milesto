@@ -592,11 +592,80 @@ body {
   box-shadow: none;
 }
 
+.content-bottom-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.content-bottom-action-button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.content-bottom-action-button:hover,
+.content-bottom-action-button:focus-visible {
+  color: var(--text);
+}
+
+.content-bottom-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+}
+
+.content-bottom-action-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.content-bottom-action-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translate(-50%, 4px);
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--paper);
+  box-shadow: var(--shadow-popover);
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 2;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.content-bottom-action[data-tooltip-visible='true'] .content-bottom-action-tooltip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 .content-bottom-bar .button:hover,
 .content-bottom-bar .button:focus-visible {
   border-color: var(--border);
   background: var(--glass);
   box-shadow: 0 1px 0 var(--shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content-bottom-action-tooltip {
+    transition: none;
+  }
 }
 
 .detail {
