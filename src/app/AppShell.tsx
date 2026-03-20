@@ -28,6 +28,7 @@ import type { Project } from '../../shared/schemas/project'
 
 import { useAppEvents } from './AppEventsContext'
 import { ContentScrollProvider } from './ContentScrollContext'
+import { SidebarNavItem } from './SidebarNavItem'
 import { type OpenEditorHandle, TaskSelectionProvider } from '../features/tasks/TaskSelectionContext'
 import { ProjectProgressIndicator } from '../features/projects/ProjectProgressControl'
 import { SettingsDialog, type SettingsTabId } from '../features/settings/SettingsDialog'
@@ -1315,15 +1316,15 @@ export function AppShell() {
         </div>
 
         <nav className="nav" aria-label={t('aria.mainNavigation')} onKeyDown={handleSidebarKeyDown}>
-          <NavItem to="/inbox" label={t('nav.inbox')} />
-          <NavItem to="/today" label={t('nav.today')} />
-          <NavItem to="/upcoming" label={t('nav.upcoming')} />
-          <NavItem to="/anytime" label={t('nav.anytime')} />
-          <NavItem to="/someday" label={t('nav.someday')} />
+          <SidebarNavItem to="/inbox" label={t('nav.inbox')} iconKey="inbox" />
+          <SidebarNavItem to="/today" label={t('nav.today')} iconKey="today" />
+          <SidebarNavItem to="/upcoming" label={t('nav.upcoming')} iconKey="upcoming" />
+          <SidebarNavItem to="/anytime" label={t('nav.anytime')} iconKey="anytime" />
+          <SidebarNavItem to="/someday" label={t('nav.someday')} iconKey="someday" />
 
           <div className="nav-sep" />
-          <NavItem to="/logbook" label={t('nav.logbook')} />
-          <NavItem to="/trash" label={t('nav.trash')} />
+          <SidebarNavItem to="/logbook" label={t('nav.logbook')} iconKey="logbook" />
+          <SidebarNavItem to="/trash" label={t('nav.trash')} iconKey="trash" />
 
           <div className="nav-sep" />
           <div className="nav-section-title">{t('nav.projects')}</div>
@@ -1860,25 +1861,4 @@ function SidebarDragOverlay({
   }
 
   return null
-}
-
-function NavItem({
-  to,
-  label,
-  indent,
-}: {
-  to: string
-  label: string
-  indent?: boolean
-}) {
-  return (
-    <NavLink
-      className={({ isActive }) =>
-        `nav-item${isActive ? ' is-active' : ''}${indent ? ' is-indent' : ''}`
-      }
-      to={to}
-    >
-      {label}
-    </NavLink>
-  )
 }

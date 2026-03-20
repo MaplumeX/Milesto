@@ -233,6 +233,68 @@ body {
   margin-left: 8px;
 }
 
+.nav-item-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nav-item-icon {
+  --nav-icon-color: var(--muted);
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--nav-icon-color);
+  background: color-mix(in srgb, var(--nav-icon-color) 16%, var(--panel));
+}
+
+.nav-item-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.nav-item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-item-icon--inbox {
+  --nav-icon-color: #4A8DF8;
+}
+
+.nav-item-icon--today {
+  --nav-icon-color: #E16A3D;
+}
+
+.nav-item-icon--upcoming {
+  --nav-icon-color: #9A63D8;
+}
+
+.nav-item-icon--anytime {
+  --nav-icon-color: #26A69A;
+}
+
+.nav-item-icon--someday {
+  --nav-icon-color: #C58A2E;
+}
+
+.nav-item-icon--logbook {
+  --nav-icon-color: #7B8594;
+}
+
+.nav-item-icon--trash {
+  --nav-icon-color: #D35E5E;
+}
+
 .nav-project-header {
   display: flex;
   align-items: center;
