@@ -5,9 +5,9 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { TaskListItem } from '../../shared/schemas/task-list'
 import { AppEventsProvider } from '../../src/app/AppEventsContext'
 import { ContentScrollProvider } from '../../src/app/ContentScrollContext'
+import { ProjectGroupedList } from '../../src/features/tasks/ProjectGroupedList'
 import type { TaskSelection } from '../../src/features/tasks/TaskSelectionContext'
 import { TaskSelectionProvider } from '../../src/features/tasks/TaskSelectionContext'
-import { UpcomingGroupedList } from '../../src/features/tasks/UpcomingGroupedList'
 
 vi.mock('@tanstack/react-virtual', () => {
   return {
@@ -24,7 +24,11 @@ vi.mock('@tanstack/react-virtual', () => {
   }
 })
 
-function UpcomingGroupedListHarness({ tasks }: { tasks: TaskListItem[] }) {
+function ProjectGroupedListHarness({
+  openTasks,
+}: {
+  openTasks: TaskListItem[]
+}) {
   const contentScrollRef = useRef<HTMLDivElement | null>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [openTaskId, setOpenTaskId] = useState<string | null>(null)
@@ -47,9 +51,16 @@ function UpcomingGroupedListHarness({ tasks }: { tasks: TaskListItem[] }) {
       <TaskSelectionProvider value={selection}>
         <ContentScrollProvider scrollRef={contentScrollRef}>
           <div ref={contentScrollRef} className="content-scroll">
-            <UpcomingGroupedList
-              tasks={tasks}
-              today="2026-03-17"
+            <ProjectGroupedList
+              projectId="project-1"
+              scope="active"
+              sections={[]}
+              openTasks={openTasks}
+              doneTasks={[]}
+              editingSectionId={null}
+              onStartSectionTitleEdit={() => {}}
+              onCancelSectionTitleEdit={() => {}}
+              onCommitSectionTitle={async () => {}}
               onToggleDone={async () => {}}
             />
           </div>
@@ -62,39 +73,33 @@ function UpcomingGroupedListHarness({ tasks }: { tasks: TaskListItem[] }) {
 function makeTask(): TaskListItem {
   return {
     id: 't1',
-    title: 'Upcoming task',
+    title: 'Project task',
     status: 'open',
     is_inbox: false,
     is_someday: false,
-    project_id: 'p1',
+    project_id: 'project-1',
     project_title: 'Project Alpha',
     section_id: null,
     area_id: null,
-    scheduled_at: '2026-03-18',
+    scheduled_at: null,
     due_at: null,
     created_at: '2026-03-17T00:00:00.000Z',
     updated_at: '2026-03-17T00:00:00.000Z',
     completed_at: null,
     deleted_at: null,
+    rank: 1000,
   }
 }
 
-describe('UpcomingGroupedList', () => {
+describe('ProjectGroupedList', () => {
   afterEach(() => {
     cleanup()
   })
 
-  it('shows the task project affiliation below the title', async () => {
-    render(<UpcomingGroupedListHarness tasks={[makeTask()]} />)
+  it('opens the shared task context menu on right click for project task rows', async () => {
+    render(<ProjectGroupedListHarness openTasks={[makeTask()]} />)
 
-    await screen.findByText('Upcoming task')
-    expect(screen.getByText('Project Alpha')).toBeInTheDocument()
-  })
-
-  it('opens the shared task context menu on right click', async () => {
-    render(<UpcomingGroupedListHarness tasks={[makeTask()]} />)
-
-    const titleButton = await screen.findByRole('button', { name: /Upcoming task/ })
+    const titleButton = await screen.findByRole('button', { name: 'Project task' })
     fireEvent.contextMenu(titleButton, { clientX: 120, clientY: 80 })
 
     expect(await screen.findByRole('button', { name: 'common.schedule' })).toBeInTheDocument()

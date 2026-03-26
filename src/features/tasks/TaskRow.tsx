@@ -16,6 +16,7 @@ export function TaskRow({
   onOpen,
   onToggleDone,
   onRestore,
+  onContextMenu,
   isOverlay,
   showProjectAffiliation = true,
   projectAffiliationLabel,
@@ -31,6 +32,7 @@ export function TaskRow({
   onOpen?: (taskId: string) => void
   onToggleDone?: (taskId: string, done: boolean) => void
   onRestore?: (taskId: string) => void
+  onContextMenu?: React.MouseEventHandler<HTMLDivElement>
   isOverlay?: boolean
   showProjectAffiliation?: boolean
   projectAffiliationLabel?: string | null
@@ -51,6 +53,7 @@ export function TaskRow({
       ref={innerRef}
       className="task-row-inner"
       style={innerStyle}
+      onContextMenu={onContextMenu}
     >
       {dragHandle}
 

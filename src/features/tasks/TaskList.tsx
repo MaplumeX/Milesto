@@ -20,12 +20,14 @@ import {
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
+import type { EntityScope } from '../../../shared/schemas/common'
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useTaskSelection } from './TaskSelectionContext'
 import { AnimatedTaskSlot } from './AnimatedTaskSlot'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
 import { TaskRow } from './TaskRow'
+import { useTaskContextMenu } from './use-task-context-menu'
 import { useOptimisticTaskTitles } from './use-optimistic-task-titles'
 import { useContentScrollRef } from '../../app/ContentScrollContext'
 import {
@@ -41,6 +43,7 @@ function SortableTaskRow({
   onOpen,
   onToggleDone,
   onRestore,
+  onContextMenu,
   onSelectForDrag,
 }: {
   task: TaskListItem
@@ -49,6 +52,7 @@ function SortableTaskRow({
   onOpen?: (taskId: string) => void
   onToggleDone?: (taskId: string, done: boolean) => void
   onRestore?: (taskId: string) => void
+  onContextMenu?: React.MouseEventHandler<HTMLDivElement>
   onSelectForDrag?: (taskId: string) => void
 }) {
   const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition } = useSortable({
@@ -78,6 +82,7 @@ function SortableTaskRow({
       onOpen={onOpen}
       onToggleDone={onToggleDone}
       onRestore={onRestore}
+      onContextMenu={onContextMenu}
     />
   )
 }
@@ -86,6 +91,7 @@ export function TaskList({
   title,
   tasks,
   listId,
+  scope = 'active',
   onToggleDone,
   onRestore,
   onAfterReorder,
@@ -96,6 +102,7 @@ export function TaskList({
   tasks: TaskListItem[]
   // If provided, enables drag-and-drop + keyboard reordering persisted via list_positions.
   listId?: string
+  scope?: EntityScope
   onToggleDone?: (taskId: string, done: boolean) => Promise<void>
   onRestore?: (taskId: string) => Promise<void>
   onAfterReorder?: () => Promise<void>
@@ -105,6 +112,10 @@ export function TaskList({
   const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
   const tasksWithOptimisticTitles = useOptimisticTaskTitles(tasks)
+  const { openTaskContextMenu, menuNode } = useTaskContextMenu({
+    scope,
+    enabled: scope !== 'trash',
+  })
 
   const contentScrollRef = useContentScrollRef()
 
@@ -282,6 +293,33 @@ export function TaskList({
       return `t:${t.id}`
     },
   })
+
+  const handleTaskContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>, task: TaskListItem) => {
+      if (scope === 'trash') return
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      const eventTarget = event.target
+      const restoreFocusEl =
+        eventTarget instanceof HTMLElement
+          ? eventTarget.closest<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget.querySelector<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget
+          : event.currentTarget.querySelector<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget
+
+      void openTaskContextMenu({
+        task,
+        scope,
+        anchorX: event.clientX,
+        anchorY: event.clientY,
+        restoreFocusEl,
+      })
+    },
+    [openTaskContextMenu, scope]
+  )
 
   const lastSelectedIndexRef = useRef(0)
   useEffect(() => {
@@ -546,6 +584,7 @@ export function TaskList({
                             onRestore={(taskId) => {
                               if (onRestore) void onRestore(taskId)
                             }}
+                            onContextMenu={(event) => handleTaskContextMenu(event, t)}
                             onSelectForDrag={(taskId) => selectTask(taskId)}
                           />
                         ) : (
@@ -559,6 +598,7 @@ export function TaskList({
                             onRestore={(taskId) => {
                               if (onRestore) void onRestore(taskId)
                             }}
+                            onContextMenu={(event) => handleTaskContextMenu(event, t)}
                           />
                         )
                       }
@@ -591,6 +631,8 @@ export function TaskList({
             )
           : null}
       </DndContext>
+
+      {menuNode}
     </div>
   )
 }

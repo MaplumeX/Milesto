@@ -1,14 +1,14 @@
-import { useLayoutEffect, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useTranslation } from 'react-i18next'
 
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
-import { Checkbox } from '../../components/Checkbox'
 import { useTaskSelection } from './TaskSelectionContext'
 import { AnimatedTaskSlot } from './AnimatedTaskSlot'
-import { TaskProjectAffiliation } from './TaskProjectAffiliation'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
+import { TaskRow } from './TaskRow'
+import { useTaskContextMenu } from './use-task-context-menu'
 import { useContentScrollRef } from '../../app/ContentScrollContext'
 import { usePrefersReducedMotion } from './dnd-drop-animation'
 import { buildUpcomingRows } from './upcoming-grouping'
@@ -28,6 +28,7 @@ export function UpcomingGroupedList({
   const contentScrollRef = useContentScrollRef()
   const prefersReducedMotion = usePrefersReducedMotion()
   const tasksWithOptimisticTitles = useOptimisticTaskTitles(tasks)
+  const { openTaskContextMenu, menuNode } = useTaskContextMenu({ scope: 'active' })
   const listboxRef = useRef<HTMLDivElement | null>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
 
@@ -105,6 +106,30 @@ export function UpcomingGroupedList({
       return `t:${row.task.id}`
     },
   })
+
+  const handleTaskContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>, task: TaskListItem) => {
+      event.preventDefault()
+      event.stopPropagation()
+
+      const eventTarget = event.target
+      const restoreFocusEl =
+        eventTarget instanceof HTMLElement
+          ? eventTarget.closest<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget.querySelector<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget
+          : event.currentTarget.querySelector<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget
+
+      void openTaskContextMenu({
+        task,
+        anchorX: event.clientX,
+        anchorY: event.clientY,
+        restoreFocusEl,
+      })
+    },
+    [openTaskContextMenu]
+  )
 
   return (
     <div className="page">
@@ -245,38 +270,16 @@ export function UpcomingGroupedList({
                 <AnimatedTaskSlot
                   isOpen={isOpen}
                   rowContent={
-                    <>
-                      <Checkbox
-                        className="task-checkbox"
-                        ariaLabel={t('aria.taskDone')}
-                        checked={task.status === 'done'}
-                        onCheckedChange={(checked) => {
-                          void onToggleDone(task.id, checked)
-                        }}
-                      />
-
-                      <button
-                        type="button"
-                        className={`task-title task-title-button${row.datePrefix ? ' upcoming-task-title-button' : ''}`}
-                        data-task-focus-target="true"
-                        data-task-id={task.id}
-                        onClick={() => selectTask(task.id)}
-                        onDoubleClick={() => void openTask(task.id)}
-                      >
-                        {row.datePrefix ? (
-                          <span className="upcoming-date-prefix" aria-hidden="true">
-                            {row.datePrefix}
-                          </span>
-                        ) : null}
-                        <span className="task-title-stack">
-                          <span className="upcoming-task-title task-title-text">{task.title}</span>
-                          <TaskProjectAffiliation
-                            projectId={task.project_id}
-                            projectTitle={task.project_title}
-                          />
-                        </span>
-                      </button>
-                    </>
+                    <TaskRow
+                      task={task}
+                      titlePrefix={row.datePrefix}
+                      onSelect={selectTask}
+                      onOpen={(taskId) => void openTask(taskId)}
+                      onToggleDone={(taskId, done) => {
+                        void onToggleDone(taskId, done)
+                      }}
+                      onContextMenu={(event) => handleTaskContextMenu(event, task)}
+                    />
                   }
                   editorContent={<TaskInlineEditorRow taskId={task.id} />}
                   onHeightChange={() => {
@@ -295,6 +298,8 @@ export function UpcomingGroupedList({
       <div className="nav-muted" style={{ marginTop: 10 }}>
         {t('upcoming.showingAfter', { date: today })}
       </div>
+
+      {menuNode}
     </div>
   )
 }

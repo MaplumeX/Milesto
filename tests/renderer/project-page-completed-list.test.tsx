@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { ok } from '../../shared/result'
@@ -67,6 +67,10 @@ function ProjectPageHarness() {
 }
 
 describe('ProjectPage completed list', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
   it('keeps completed tasks flat and shows the section name in the task affiliation line', async () => {
     const user = userEvent.setup()
     const api = (window as unknown as { api: WindowApi }).api
@@ -143,5 +147,66 @@ describe('ProjectPage completed list', () => {
     expect(taskRow).not.toBeNull()
     expect(within(taskRow as HTMLElement).getByText('Section Alpha')).toBeInTheDocument()
     expect(container.querySelectorAll('.project-group-header')).toHaveLength(headerCountBeforeExpand)
+  })
+
+  it('opens the shared task context menu for completed project tasks', async () => {
+    const user = userEvent.setup()
+    const api = (window as unknown as { api: WindowApi }).api
+
+    api.project.getDetail = vi.fn<WindowApi['project']['getDetail']>(async () =>
+      ok({
+        project: {
+          id: 'project-1',
+          title: 'Project Alpha',
+          notes: '',
+          area_id: null,
+          status: 'open',
+          scheduled_at: null,
+          is_someday: false,
+          due_at: null,
+          created_at: '2026-03-18T09:00:00.000Z',
+          updated_at: '2026-03-18T09:00:00.000Z',
+          completed_at: null,
+          deleted_at: null,
+        },
+        tags: [],
+      })
+    )
+    api.area.list = vi.fn<WindowApi['area']['list']>(async () => ok([]))
+    api.task.listProject = vi.fn<WindowApi['task']['listProject']>(async () => ok([]))
+    api.project.listSections = vi.fn<WindowApi['project']['listSections']>(async () => ok([]))
+    api.task.countProjectDone = vi.fn<WindowApi['task']['countProjectDone']>(async () => ok({ count: 1 }))
+    api.task.listProjectDone = vi.fn<WindowApi['task']['listProjectDone']>(async () =>
+      ok([
+        {
+          id: 'done-1',
+          title: 'Completed task in section',
+          status: 'done',
+          is_inbox: false,
+          is_someday: false,
+          project_id: 'project-1',
+          project_title: 'Project Alpha',
+          section_id: null,
+          area_id: null,
+          scheduled_at: null,
+          due_at: null,
+          created_at: '2026-03-18T09:10:00.000Z',
+          updated_at: '2026-03-18T09:30:00.000Z',
+          completed_at: '2026-03-18T09:40:00.000Z',
+          deleted_at: null,
+          rank: 1000,
+        },
+      ])
+    )
+
+    render(<ProjectPageHarness />)
+
+    await screen.findByText('Project Alpha')
+    await user.click(screen.getAllByRole('button', { name: /projectPage\.completed/ })[0]!)
+
+    const taskButton = await screen.findByRole('button', { name: /Completed task in section/ })
+    fireEvent.contextMenu(taskButton, { clientX: 120, clientY: 80 })
+
+    expect(await screen.findByRole('button', { name: 'task.restore' })).toBeInTheDocument()
   })
 })

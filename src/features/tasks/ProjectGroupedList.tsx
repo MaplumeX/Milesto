@@ -33,6 +33,7 @@ import { AnimatedTaskSlot } from './AnimatedTaskSlot'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
 import { TaskRow } from './TaskRow'
 import { useTaskSelection } from './TaskSelectionContext'
+import { useTaskContextMenu } from './use-task-context-menu'
 import { useOptimisticTaskTitles } from './use-optimistic-task-titles'
 import {
   getTaskDropAnimationConfig,
@@ -340,12 +341,14 @@ function SortableProjectTaskRow({
   onSelect,
   onOpen,
   onToggleDone,
+  onContextMenu,
   onSelectForDrag,
 }: {
   task: TaskListItem
   onSelect: (taskId: string) => void
   onOpen: (taskId: string) => void
   onToggleDone: (taskId: string, done: boolean) => void
+  onContextMenu?: React.MouseEventHandler<HTMLDivElement>
   onSelectForDrag: (taskId: string) => void
 }) {
   const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition } = useSortable({
@@ -375,6 +378,7 @@ function SortableProjectTaskRow({
       onSelect={onSelect}
       onOpen={onOpen}
       onToggleDone={onToggleDone}
+      onContextMenu={onContextMenu}
     />
   )
 }
@@ -429,6 +433,7 @@ export function ProjectGroupedList({
   const { selectedTaskId, selectTask, openTask, openTaskId, requestCloseTask } = useTaskSelection()
   const contentScrollRef = useContentScrollRef()
   const openTasksWithOptimisticTitles = useOptimisticTaskTitles(openTasks)
+  const { openTaskContextMenu, menuNode } = useTaskContextMenu({ scope })
 
   const [orderedSectionIds, setOrderedSectionIds] = useState<string[]>(() => sections.map((s) => s.id))
   const orderedSectionIdsRef = useRef(orderedSectionIds)
@@ -1087,6 +1092,31 @@ export function ProjectGroupedList({
     },
   })
 
+  const handleTaskContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>, task: TaskListItem) => {
+      event.preventDefault()
+      event.stopPropagation()
+
+      const eventTarget = event.target
+      const restoreFocusEl =
+        eventTarget instanceof HTMLElement
+          ? eventTarget.closest<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget.querySelector<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget
+          : event.currentTarget.querySelector<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget
+
+      void openTaskContextMenu({
+        task,
+        scope,
+        anchorX: event.clientX,
+        anchorY: event.clientY,
+        restoreFocusEl,
+      })
+    },
+    [openTaskContextMenu, scope]
+  )
+
   useLayoutEffect(() => {
     const taskId = pendingScrollTaskIdRef.current
     if (!taskId) return
@@ -1373,6 +1403,7 @@ export function ProjectGroupedList({
                           onSelect={selectTaskRow}
                           onOpen={(taskId) => void openTask(taskId)}
                           onToggleDone={(taskId, done) => void onToggleDone(taskId, done)}
+                          onContextMenu={(event) => handleTaskContextMenu(event, t)}
                           onSelectForDrag={selectTaskRow}
                         />
                         {isLastOpenInContainer ? <ProjectSectionTailDropZone containerId={containerId} /> : null}
@@ -1384,6 +1415,7 @@ export function ProjectGroupedList({
                         onSelect={selectTaskRow}
                         onOpen={(taskId) => void openTask(taskId)}
                         onToggleDone={(taskId, done) => void onToggleDone(taskId, done)}
+                        onContextMenu={(event) => handleTaskContextMenu(event, t)}
                       />
                     )
                   }
@@ -1424,6 +1456,8 @@ export function ProjectGroupedList({
             document.body
           )
         : null}
+
+      {menuNode}
     </DndContext>
   )
 }

@@ -21,6 +21,7 @@ import { TaskRow } from '../features/tasks/TaskRow'
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 import { usePrefersReducedMotion } from '../features/tasks/dnd-drop-animation'
 import { buildProjectDoneTaskRows } from '../features/tasks/project-done-task-rows'
+import { useTaskContextMenu } from '../features/tasks/use-task-context-menu'
 import { useOptimisticTaskTitles } from '../features/tasks/use-optimistic-task-titles'
 import { formatLocalDate, formatMonthDay, parseLocalDate } from '../lib/dates'
 import { getEntityScopeFromSearch } from '../lib/entity-scope'
@@ -653,6 +654,7 @@ function ProjectDoneTaskList({
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
   const doneTasksWithOptimisticTitles = useOptimisticTaskTitles(doneTasks)
   const prefersReducedMotion = usePrefersReducedMotion()
+  const { openTaskContextMenu, menuNode } = useTaskContextMenu({ scope })
 
   function getDoneDatePrefix(task: TaskListItem): string | null {
     const iso = task.completed_at ?? task.updated_at
@@ -666,50 +668,80 @@ function ProjectDoneTaskList({
     sections,
   })
 
-  return (
-    <ul className="task-list" role="list">
-      {doneRows.map(({ task, affiliationLabel }) => {
-        const isOpen = openTaskId === task.id
-        const titlePrefix = getDoneDatePrefix(task)
+  const handleTaskContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>, task: TaskListItem) => {
+      event.preventDefault()
+      event.stopPropagation()
 
-        return (
-          <li
-            key={task.id}
-            className={`task-row${isOpen ? ' is-open' : ' task-row-virtual'}${task.status === 'done' ? ' is-done' : ''}${
-              selectedTaskId === task.id ? ' is-selected' : ''
-            }`}
-            data-task-id={task.id}
-          >
-            <AnimatedTaskSlot
-              isOpen={isOpen}
-              rowContent={
-                <TaskRow
-                  task={task}
-                  titlePrefix={titlePrefix}
-                  projectAffiliationLabel={affiliationLabel}
-                  onSelect={selectTask}
-                  onOpen={(taskId) => void openTask(taskId)}
-                  onToggleDone={(taskId, done) => {
-                    if (done) return
-                    void onToggleDone(taskId, done)
-                  }}
-                />
-              }
-              editorContent={
-                <TaskInlineEditorRow
-                  taskId={task.id}
-                  scope={scope}
-                  projectScope={scope}
-                  showProjectActions={false}
-                />
-              }
-              onHeightChange={() => {}}
-              prefersReducedMotion={prefersReducedMotion}
-            />
-          </li>
-        )
-      })}
-    </ul>
+      const eventTarget = event.target
+      const restoreFocusEl =
+        eventTarget instanceof HTMLElement
+          ? eventTarget.closest<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget.querySelector<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget
+          : event.currentTarget.querySelector<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget
+
+      void openTaskContextMenu({
+        task,
+        scope,
+        anchorX: event.clientX,
+        anchorY: event.clientY,
+        restoreFocusEl,
+      })
+    },
+    [openTaskContextMenu, scope]
+  )
+
+  return (
+    <>
+      <ul className="task-list" role="list">
+        {doneRows.map(({ task, affiliationLabel }) => {
+          const isOpen = openTaskId === task.id
+          const titlePrefix = getDoneDatePrefix(task)
+
+          return (
+            <li
+              key={task.id}
+              className={`task-row${isOpen ? ' is-open' : ' task-row-virtual'}${task.status === 'done' ? ' is-done' : ''}${
+                selectedTaskId === task.id ? ' is-selected' : ''
+              }`}
+              data-task-id={task.id}
+            >
+              <AnimatedTaskSlot
+                isOpen={isOpen}
+                rowContent={
+                  <TaskRow
+                    task={task}
+                    titlePrefix={titlePrefix}
+                    projectAffiliationLabel={affiliationLabel}
+                    onSelect={selectTask}
+                    onOpen={(taskId) => void openTask(taskId)}
+                    onToggleDone={(taskId, done) => {
+                      if (done) return
+                      void onToggleDone(taskId, done)
+                    }}
+                    onContextMenu={(event) => handleTaskContextMenu(event, task)}
+                  />
+                }
+                editorContent={
+                  <TaskInlineEditorRow
+                    taskId={task.id}
+                    scope={scope}
+                    projectScope={scope}
+                    showProjectActions={false}
+                  />
+                }
+                onHeightChange={() => {}}
+                prefersReducedMotion={prefersReducedMotion}
+              />
+            </li>
+          )
+        })}
+      </ul>
+
+      {menuNode}
+    </>
   )
 }
 

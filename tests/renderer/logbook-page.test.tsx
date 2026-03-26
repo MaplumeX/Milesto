@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { ok } from '../../shared/result'
@@ -157,6 +157,10 @@ function makeReopenedProject(params: { id: string; title: string; updated_at: st
 }
 
 describe('LogbookPage (renderer smoke via mocks)', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
   it('renders mixed rows and supports restore/uncheck + project reopen', async () => {
     const user = userEvent.setup()
     const api = (window as unknown as { api: WindowApi }).api
@@ -248,5 +252,37 @@ describe('LogbookPage (renderer smoke via mocks)', () => {
     const projectButton = await screen.findByRole('button', { name: 'Done Project' })
     const projectRow = projectButton.closest<HTMLElement>('li.task-row')
     expect(projectRow).toHaveAttribute('data-logbook-row', 'project')
+  })
+
+  it('opens the task context menu for logbook task rows but not project rows', async () => {
+    const api = (window as unknown as { api: WindowApi }).api
+
+    api.task.listLogbook = vi.fn<WindowApi['task']['listLogbook']>(async () =>
+      ok([
+        makeDoneTask({
+          id: 't1',
+          title: 'Done Task',
+          completed_at: '2026-02-17T12:00:00.000Z',
+        }),
+      ])
+    )
+    api.project.listDone = vi.fn<WindowApi['project']['listDone']>(async () =>
+      ok([makeDoneProject({ id: 'p1', title: 'Done Project', completed_at: '2026-02-16T12:00:00.000Z' })])
+    )
+
+    render(<LogbookPageHarness />)
+
+    const taskButton = await screen.findByRole('button', { name: 'Done Task' })
+    fireEvent.contextMenu(taskButton, { clientX: 120, clientY: 80 })
+    expect(await screen.findByRole('button', { name: 'task.restore' })).toBeInTheDocument()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'task.restore' })).toBeNull()
+    })
+
+    const projectButton = screen.getByRole('button', { name: 'Done Project' })
+    fireEvent.contextMenu(projectButton, { clientX: 140, clientY: 90 })
+    expect(screen.queryByRole('button', { name: 'task.restore' })).toBeNull()
   })
 })

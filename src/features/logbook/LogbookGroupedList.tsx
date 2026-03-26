@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useTranslation } from 'react-i18next'
@@ -12,6 +12,7 @@ import { AnimatedTaskSlot } from '../tasks/AnimatedTaskSlot'
 import { TaskInlineEditorRow } from '../tasks/TaskInlineEditorRow'
 import { TaskRow } from '../tasks/TaskRow'
 import { useTaskSelection } from '../tasks/TaskSelectionContext'
+import { useTaskContextMenu } from '../tasks/use-task-context-menu'
 import { usePrefersReducedMotion } from '../tasks/dnd-drop-animation'
 import { useOptimisticTaskTitles } from '../tasks/use-optimistic-task-titles'
 import { buildLogbookRows } from './logbook-rows'
@@ -35,6 +36,7 @@ export function LogbookGroupedList({
   const contentScrollRef = useContentScrollRef()
   const prefersReducedMotion = usePrefersReducedMotion()
   const tasksWithOptimisticTitles = useOptimisticTaskTitles(tasks)
+  const { openTaskContextMenu, menuNode } = useTaskContextMenu({ scope: 'active' })
   const listboxRef = useRef<HTMLDivElement | null>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -121,6 +123,33 @@ export function LogbookGroupedList({
       return `p:${row.entry.id}`
     },
   })
+
+  const handleTaskContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>, task: TaskListItem, rowIndex: number) => {
+      event.preventDefault()
+      event.stopPropagation()
+
+      setSelectedProjectId(null)
+      setSelectedRowIndex(rowIndex)
+
+      const eventTarget = event.target
+      const restoreFocusEl =
+        eventTarget instanceof HTMLElement
+          ? eventTarget.closest<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget.querySelector<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget
+          : event.currentTarget.querySelector<HTMLElement>('[data-task-focus-target="true"]') ??
+            event.currentTarget
+
+      void openTaskContextMenu({
+        task,
+        anchorX: event.clientX,
+        anchorY: event.clientY,
+        restoreFocusEl,
+      })
+    },
+    [openTaskContextMenu]
+  )
 
   return (
     <div className="page">
@@ -327,6 +356,7 @@ export function LogbookGroupedList({
                         if (done) return
                         void onRestoreTask(taskId)
                       }}
+                      onContextMenu={(event) => handleTaskContextMenu(event, task, virtualRow.index)}
                     />
                   }
                   editorContent={<TaskInlineEditorRow taskId={task.id} />}
@@ -342,6 +372,8 @@ export function LogbookGroupedList({
       </div>
 
       {rows.length === 0 ? <div className="nav-muted">{t('shell.empty')}</div> : null}
+
+      {menuNode}
     </div>
   )
 }
