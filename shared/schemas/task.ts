@@ -92,9 +92,17 @@ export type TaskToggleDoneInput = z.infer<typeof TaskToggleDoneInputSchema>
 
 export const TaskRestoreInputSchema = z.object({
   id: IdSchema,
+  scope: EntityScopeSchema.optional(),
 })
 
 export type TaskRestoreInput = z.infer<typeof TaskRestoreInputSchema>
+
+export const TaskCancelInputSchema = z.object({
+  id: IdSchema,
+  scope: EntityScopeSchema.optional(),
+})
+
+export type TaskCancelInput = z.infer<typeof TaskCancelInputSchema>
 
 export const TaskDeleteInputSchema = z.object({
   id: IdSchema,

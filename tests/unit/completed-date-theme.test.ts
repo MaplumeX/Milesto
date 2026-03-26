@@ -51,4 +51,16 @@ describe('completed date theme contract', () => {
       /\.page\[data-page="project"\]\s+\.task-row\.is-done\s+\.task-title-text\s*\{[\s\S]*text-decoration:\s*none;/
     )
   })
+
+  it('keeps cancelled task titles struck through in closed-task rows', () => {
+    expect(css).toMatch(
+      /\.task-row\.is-cancelled\s+\.task-title-text\s*\{[\s\S]*text-decoration:\s*line-through;/
+    )
+  })
+
+  it('keeps cancelled editor titles struck through in the task overlay', () => {
+    expect(css).toMatch(
+      /\.task-inline-title\.is-cancelled\s*\{[\s\S]*text-decoration:\s*line-through;/
+    )
+  })
 })

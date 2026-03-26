@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import type { AppError } from '../../shared/app-error'
 import type { Area } from '../../shared/schemas/area'
 import type { EntityScope } from '../../shared/schemas/common'
+import { isClosedProjectStatus } from '../../shared/schemas/common'
 import type { Project, ProjectSection } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
 import type { TaskListItem } from '../../shared/schemas/task-list'
@@ -367,7 +368,7 @@ export function ProjectPage() {
                   onActivate={async () => {
                     if (!project) return
 
-                    if (project.status === 'done') {
+                    if (isClosedProjectStatus(project.status)) {
                       const res = await window.api.project.update({ id: project.id, status: 'open', scope: projectScope })
                       if (!res.ok) {
                         setError(res.error)
@@ -436,7 +437,9 @@ export function ProjectPage() {
                   <button
                     ref={titleButtonRef}
                     type="button"
-                    className={`page-title-button${hasProjectTitle ? '' : ' is-placeholder'}`}
+                    className={`page-title-button${hasProjectTitle ? '' : ' is-placeholder'}${
+                      project.status === 'cancelled' ? ' is-cancelled' : ''
+                    }`}
                     onClick={enterTitleEdit}
                     onDoubleClick={enterTitleEdit}
                   >
@@ -703,9 +706,9 @@ function ProjectDoneTaskList({
           return (
             <li
               key={task.id}
-              className={`task-row${isOpen ? ' is-open' : ' task-row-virtual'}${task.status === 'done' ? ' is-done' : ''}${
-                selectedTaskId === task.id ? ' is-selected' : ''
-              }`}
+              className={`task-row${isOpen ? ' is-open' : ' task-row-virtual'}${
+                task.status === 'done' ? ' is-done' : task.status === 'cancelled' ? ' is-cancelled' : ''
+              }${selectedTaskId === task.id ? ' is-selected' : ''}`}
               data-task-id={task.id}
             >
               <AnimatedTaskSlot
@@ -1013,7 +1016,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                   void (async () => {
                     onError(null)
 
-                    if (project.status === 'done') {
+                    if (isClosedProjectStatus(project.status)) {
                       const res = await window.api.project.update({ id: project.id, status: 'open', scope })
                       if (!res.ok) {
                         onError(res.error)
@@ -1036,8 +1039,34 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                   })()
                 }}
               >
-                {project.status === 'done' ? t('projectPage.reopen') : t('projectPage.markDone')}
+                {isClosedProjectStatus(project.status) ? t('projectPage.reopen') : t('projectPage.markDone')}
               </button>
+
+              {project.status === 'open' ? (
+                <button
+                  type="button"
+                  className="task-inline-popover-item"
+                  onClick={() => {
+                    void (async () => {
+                      onError(null)
+
+                      const confirmed = confirm(t('project.cancelConfirm', { count: openTaskCount }))
+                      if (!confirmed) return
+
+                      const res = await window.api.project.cancel(project.id, scope)
+                      if (!res.ok) {
+                        onError(res.error)
+                        return
+                      }
+
+                      await onMutate()
+                      onClose()
+                    })()
+                  }}
+                >
+                  {t('project.cancel')}
+                </button>
+              ) : null}
 
               <button
                 ref={planBtnRef}

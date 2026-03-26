@@ -17,6 +17,8 @@ import {
   DataExportSchema,
   AreaDetailSchema,
   ProjectCompleteInputSchema,
+  ProjectCancelInputSchema,
+  ProjectCancelResultSchema,
   ProjectCompleteResultSchema,
   ProjectCreateInputSchema,
   ProjectDeleteInputSchema,
@@ -36,6 +38,7 @@ import {
   TagUpdateInputSchema,
   TaskCreateInputSchema,
   TaskDeleteInputSchema,
+  TaskCancelInputSchema,
   TaskReorderBatchInputSchema,
   TaskRestoreInputSchema,
   TaskDetailSchema,
@@ -1013,6 +1016,7 @@ function registerIpcHandlers(
   handleDb('db:task.create', 'task.create', TaskCreateInputSchema, TaskSchema)
   handleDb('db:task.update', 'task.update', TaskUpdateInputSchema, TaskSchema)
   handleDb('db:task.toggleDone', 'task.toggleDone', TaskToggleDoneInputSchema, TaskSchema)
+  handleDb('db:task.cancel', 'task.cancel', TaskCancelInputSchema, TaskSchema)
   handleDb('db:task.restore', 'task.restore', TaskRestoreInputSchema, TaskSchema)
   handleDb('db:task.delete', 'task.delete', TaskDeleteInputSchema, z.object({ deleted: z.boolean() }))
   handleDb('db:task.getDetail', 'task.getDetail', TaskIdInputSchema, TaskDetailSchema)
@@ -1072,6 +1076,7 @@ function registerIpcHandlers(
   handleDb('db:project.getDetail', 'project.getDetail', ProjectIdInputSchema, ProjectDetailSchema)
   handleDb('db:project.update', 'project.update', ProjectUpdateInputSchema, ProjectSchema)
   handleDb('db:project.complete', 'project.complete', ProjectCompleteInputSchema, ProjectCompleteResultSchema)
+  handleDb('db:project.cancel', 'project.cancel', ProjectCancelInputSchema, ProjectCancelResultSchema)
   handleDb('db:project.delete', 'project.delete', ProjectDeleteInputSchema, z.object({ deleted: z.boolean() }))
   handleDb('db:project.listOpen', 'project.listOpen', z.object({}), z.array(ProjectSchema))
   handleDb('db:project.listDone', 'project.listDone', z.object({}), z.array(ProjectSchema))

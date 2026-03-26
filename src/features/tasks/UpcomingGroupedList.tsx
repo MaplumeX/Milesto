@@ -249,9 +249,9 @@ export function UpcomingGroupedList({
             return (
               <li
                 key={`t:${task.id}`}
-                className={`task-row${isOpen ? ' is-open' : ''}${task.status === 'done' ? ' is-done' : ''}${
-                  selectedTaskId === task.id ? ' is-selected' : ''
-                }`}
+                className={`task-row${isOpen ? ' is-open' : ''}${
+                  task.status === 'done' ? ' is-done' : task.status === 'cancelled' ? ' is-cancelled' : ''
+                }${selectedTaskId === task.id ? ' is-selected' : ''}`}
                 data-task-id={task.id}
                 ref={(el) => {
                   liEl = el

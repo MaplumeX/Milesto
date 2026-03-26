@@ -50,7 +50,8 @@ const api: WindowApi = {
     create: (input) => invoke('db:task.create', input),
     update: (input) => invoke('db:task.update', input),
     toggleDone: (id, done, scope) => invoke('db:task.toggleDone', { id, done, scope }),
-    restore: (id) => invoke('db:task.restore', { id }),
+    cancel: (id, scope) => invoke('db:task.cancel', { id, scope }),
+    restore: (id, scope) => invoke('db:task.restore', { id, scope }),
     delete: (id) => invoke('db:task.delete', { id }),
 
     getDetail: (id, scope) => invoke('db:task.getDetail', { id, scope }),
@@ -93,6 +94,7 @@ const api: WindowApi = {
     getDetail: (id, scope) => invoke('db:project.getDetail', { id, scope }),
     update: (input) => invoke('db:project.update', input),
     complete: (id, scope) => invoke('db:project.complete', { id, scope }),
+    cancel: (id, scope) => invoke('db:project.cancel', { id, scope }),
     delete: (id) => invoke('db:project.delete', { id }),
     listOpen: () => invoke('db:project.listOpen', {}),
     listDone: () => invoke('db:project.listDone', {}),

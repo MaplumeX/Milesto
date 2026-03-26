@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../../shared/app-error'
 import type { EntityScope } from '../../../shared/schemas/common'
+import { isClosedTaskStatus } from '../../../shared/schemas/common'
 import type { Tag } from '../../../shared/schemas/tag'
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
@@ -202,6 +203,30 @@ export function useTaskContextMenu({
     closeMenu({ restoreFocus: true })
   }
 
+  async function persistTaskCancel() {
+    if (!menuState) return
+    const res = await window.api.task.cancel(menuState.task.id, menuState.scope)
+    if (!res.ok) {
+      setActionError(res.error)
+      return
+    }
+
+    bumpRevision()
+    closeMenu({ restoreFocus: true })
+  }
+
+  async function persistTaskRestore() {
+    if (!menuState) return
+    const res = await window.api.task.restore(menuState.task.id, menuState.scope)
+    if (!res.ok) {
+      setActionError(res.error)
+      return
+    }
+
+    bumpRevision()
+    closeMenu({ restoreFocus: true })
+  }
+
   async function persistTagIds(nextTagIds: string[]) {
     if (!menuState || selectedTagIds === null) return
 
@@ -233,6 +258,7 @@ export function useTaskContextMenu({
     )
     const isCalendar = menuState.view === 'schedule' || menuState.view === 'due'
     const isTags = menuState.view === 'tags'
+    const isClosed = isClosedTaskStatus(menuState.task.status)
     const today = getLocalToday()
 
     return createPortal(
@@ -275,10 +301,26 @@ export function useTaskContextMenu({
               <button
                 type="button"
                 className="task-inline-popover-item"
-                onClick={() => void persistTaskToggleDone(menuState.task.status !== 'done')}
+                onClick={() => {
+                  if (isClosed) {
+                    void persistTaskRestore()
+                    return
+                  }
+
+                  void persistTaskToggleDone(true)
+                }}
               >
-                {menuState.task.status === 'done' ? t('task.restore') : t('taskEditor.markDone')}
+                {isClosed ? t('task.restore') : t('taskEditor.markDone')}
               </button>
+              {!isClosed ? (
+                <button
+                  type="button"
+                  className="task-inline-popover-item"
+                  onClick={() => void persistTaskCancel()}
+                >
+                  {t('task.cancel')}
+                </button>
+              ) : null}
             </>
           ) : (
             <>

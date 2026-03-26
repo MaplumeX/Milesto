@@ -550,7 +550,7 @@ export function TaskList({
                   <li
                     key={t.id}
                     className={`task-row${isOpen ? ' is-open' : ' task-row-virtual'}${
-                      t.status === 'done' ? ' is-done' : ''
+                      t.status === 'done' ? ' is-done' : t.status === 'cancelled' ? ' is-cancelled' : ''
                     }${selectedTaskId === t.id ? ' is-selected' : ''}${
                       !isOpen && activeTaskId === t.id ? ' is-dragging' : ''
                     }`}

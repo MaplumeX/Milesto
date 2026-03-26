@@ -1375,7 +1375,7 @@ export function ProjectGroupedList({
               <li
                 key={t.id}
                 className={`task-row${isOpen ? ' is-open' : ' task-row-virtual'}${
-                  t.status === 'done' ? ' is-done' : ''
+                  t.status === 'done' ? ' is-done' : t.status === 'cancelled' ? ' is-cancelled' : ''
                 }${isSelected ? ' is-selected' : ''}${isDragging ? ' is-dragging' : ''}`}
                 data-task-id={t.id}
                 ref={(el) => {

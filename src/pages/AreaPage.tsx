@@ -5,6 +5,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
+import { isClosedProjectStatus } from '../../shared/schemas/common'
 import type { Area } from '../../shared/schemas/area'
 import type { Project } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
@@ -253,7 +254,7 @@ export function AreaPage() {
                   const counts = projectProgress[p.id]
                   if (!counts) return
 
-                  if (p.status === 'done') {
+                  if (isClosedProjectStatus(p.status)) {
                     const res = await window.api.project.update({ id: p.id, status: 'open' })
                     if (!res.ok) {
                       setError(res.error)
@@ -293,7 +294,11 @@ export function AreaPage() {
                   navigate(`/projects/${p.id}`)
                 }}
               >
-                <span className={p.title.trim() ? undefined : 'task-title-placeholder'}>
+                <span
+                  className={`task-title-text${p.title.trim() ? '' : ' task-title-placeholder'}${
+                    p.status === 'cancelled' ? ' is-cancelled' : ''
+                  }`}
+                >
                   {p.title.trim() ? p.title : t('project.untitled')}
                 </span>
               </button>

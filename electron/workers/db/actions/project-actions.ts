@@ -6,6 +6,8 @@ import { createLocalSyncRecorder, replaceProjectTags } from './sync-support'
 import { nowIso, uuidv7 } from './utils'
 
 import {
+  ProjectCancelInputSchema,
+  ProjectCancelResultSchema,
   ProjectCompleteInputSchema,
   ProjectCompleteResultSchema,
   ProjectCreateInputSchema,
@@ -51,6 +53,11 @@ function taskScopeWhere(scope: EntityScope, alias?: string): string {
   return scope === 'trash'
     ? `${prefix}deleted_at IS NOT NULL AND ${prefix}purged_at IS NULL`
     : `${prefix}deleted_at IS NULL`
+}
+
+function projectClosedStatusWhere(alias?: string): string {
+  const prefix = alias ? `${alias}.` : ''
+  return `${prefix}status IN ('done', 'cancelled')`
 }
 
 export function createProjectActions(db: Database.Database): Record<string, DbActionHandler> {
@@ -369,11 +376,26 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
         }
 
         if (input.status !== undefined) {
+          if (
+            input.status !== exists.status &&
+            input.status !== 'open' &&
+            exists.status !== 'open'
+          ) {
+            return {
+              ok: false as const,
+              error: {
+                code: 'INVALID_STATE_TRANSITION',
+                message: 'Closed projects must be reopened before changing terminal status.',
+                details: { id: input.id, from: exists.status, to: input.status },
+              },
+            }
+          }
+
           fields.push('status = @status')
           changedFields.push('status')
           params.status = input.status
 
-          if (input.status === 'done' && exists.status !== 'done') {
+          if (input.status !== 'open' && exists.status !== input.status) {
             fields.push('completed_at = @completed_at')
             changedFields.push('completed_at')
             params.completed_at = updatedAt
@@ -535,6 +557,17 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
           }
         }
 
+        if (existing.status === 'cancelled') {
+          return {
+            ok: false as const,
+            error: {
+              code: 'INVALID_STATE_TRANSITION',
+              message: 'Cancelled projects must be reopened before completing.',
+              details: { id: parsed.data.id, status: existing.status },
+            },
+          }
+        }
+
         if (existing.status !== 'done') {
           db.prepare(
             `UPDATE projects
@@ -594,6 +627,110 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
       return tx()
     },
 
+    'project.cancel': (payload) => {
+      const parsed = ProjectCancelInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid project.cancel payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const scope = normalizeEntityScope(parsed.data.scope)
+      const updatedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        const sync = createLocalSyncRecorder(db, updatedAt)
+        const existing = db
+          .prepare(
+            `SELECT id, status
+             FROM projects
+             WHERE id = ? AND ${projectScopeWhere(scope)}
+             LIMIT 1`
+          )
+          .get(parsed.data.id) as { id: string; status: string } | undefined
+
+        if (!existing) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Project not found.',
+              details: { id: parsed.data.id },
+            },
+          }
+        }
+
+        if (existing.status !== 'open') {
+          return {
+            ok: false as const,
+            error: {
+              code: 'INVALID_STATE_TRANSITION',
+              message: 'Only open projects can be cancelled.',
+              details: { id: parsed.data.id, status: existing.status },
+            },
+          }
+        }
+
+        db.prepare(
+          `UPDATE projects
+           SET status = 'cancelled',
+               completed_at = @completed_at,
+               updated_at = @updated_at
+           WHERE id = @id AND ${projectScopeWhere(scope)}`
+        ).run({ id: parsed.data.id, completed_at: updatedAt, updated_at: updatedAt })
+
+        const taskRes = db
+          .prepare(
+            `UPDATE tasks
+             SET status = 'cancelled',
+                 completed_at = @completed_at,
+                 updated_at = @updated_at
+             WHERE ${taskScopeWhere(scope)}
+               AND project_id = @project_id
+               AND status = 'open'`
+          )
+          .run({ project_id: parsed.data.id, completed_at: updatedAt, updated_at: updatedAt })
+
+        const row = db
+          .prepare(
+            `SELECT id, title, notes, area_id, status, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at
+             FROM projects WHERE id = ? AND ${projectScopeWhere(scope)} LIMIT 1`
+          )
+          .get(parsed.data.id)
+
+        const result = ProjectCancelResultSchema.parse({
+          project: ProjectSchema.parse(row),
+          tasks_completed: taskRes.changes,
+        })
+
+        sync.recordEntity('project', result.project, ['status', 'completed_at', 'updated_at'])
+
+        const cancelledTaskRows = db
+          .prepare(
+            `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id,
+                    scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+             FROM tasks
+             WHERE project_id = @project_id
+               AND ${taskScopeWhere(scope)}
+               AND updated_at = @updated_at`
+          )
+          .all({ project_id: parsed.data.id, updated_at: updatedAt })
+        for (const taskRow of cancelledTaskRows) {
+          sync.recordEntity('task', TaskSchema.parse(taskRow), ['status', 'completed_at', 'updated_at'])
+        }
+        sync.finalize()
+
+        return { ok: true as const, data: result }
+      })
+
+      return tx()
+    },
+
     'project.listOpen': () => {
       const rows = db
         .prepare(
@@ -637,7 +774,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
         .prepare(
           `SELECT id, title, notes, area_id, status, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at
            FROM projects
-           WHERE deleted_at IS NULL AND status = 'done'
+           WHERE deleted_at IS NULL AND ${projectClosedStatusWhere()}
            ORDER BY COALESCE(completed_at, updated_at) DESC, updated_at DESC`
          )
          .all()

@@ -56,6 +56,13 @@ export const ProjectCompleteInputSchema = z.object({
 
 export type ProjectCompleteInput = z.infer<typeof ProjectCompleteInputSchema>
 
+export const ProjectCancelInputSchema = z.object({
+  id: IdSchema,
+  scope: EntityScopeSchema.optional(),
+})
+
+export type ProjectCancelInput = z.infer<typeof ProjectCancelInputSchema>
+
 export const ProjectDeleteInputSchema = z.object({
   id: IdSchema,
 })
@@ -69,6 +76,14 @@ export const ProjectCompleteResultSchema = z.object({
 })
 
 export type ProjectCompleteResult = z.infer<typeof ProjectCompleteResultSchema>
+
+export const ProjectCancelResultSchema = z.object({
+  project: ProjectSchema,
+  // Number of tasks transitioned from open -> cancelled by this operation.
+  tasks_completed: z.number().int().nonnegative(),
+})
+
+export type ProjectCancelResult = z.infer<typeof ProjectCancelResultSchema>
 
 export const ProjectCreateInputSchema = z.object({
   title: z.string(),

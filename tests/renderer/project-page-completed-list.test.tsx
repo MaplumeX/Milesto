@@ -209,4 +209,92 @@ describe('ProjectPage completed list', () => {
 
     expect(await screen.findByRole('button', { name: 'task.restore' })).toBeInTheDocument()
   })
+
+  it('exposes cancel project in the header overflow menu for open projects', async () => {
+    const user = userEvent.setup()
+    const api = (window as unknown as { api: WindowApi }).api
+    const confirmSpy = vi.fn(() => true)
+    vi.stubGlobal('confirm', confirmSpy)
+
+    api.project.getDetail = vi.fn<WindowApi['project']['getDetail']>(async () =>
+      ok({
+        project: {
+          id: 'project-1',
+          title: 'Project Alpha',
+          notes: '',
+          area_id: null,
+          status: 'open',
+          scheduled_at: null,
+          is_someday: false,
+          due_at: null,
+          created_at: '2026-03-18T09:00:00.000Z',
+          updated_at: '2026-03-18T09:00:00.000Z',
+          completed_at: null,
+          deleted_at: null,
+        },
+        tags: [],
+      })
+    )
+    api.area.list = vi.fn<WindowApi['area']['list']>(async () => ok([]))
+    api.task.listProject = vi.fn<WindowApi['task']['listProject']>(async () =>
+      ok([
+        {
+          id: 'open-1',
+          title: 'Open child task',
+          status: 'open',
+          is_inbox: false,
+          is_someday: false,
+          project_id: 'project-1',
+          project_title: 'Project Alpha',
+          section_id: null,
+          area_id: null,
+          scheduled_at: null,
+          due_at: null,
+          created_at: '2026-03-18T09:10:00.000Z',
+          updated_at: '2026-03-18T09:10:00.000Z',
+          completed_at: null,
+          deleted_at: null,
+          rank: 1000,
+        },
+      ])
+    )
+    api.project.listSections = vi.fn<WindowApi['project']['listSections']>(async () => ok([]))
+    api.task.countProjectDone = vi.fn<WindowApi['task']['countProjectDone']>(async () => ok({ count: 0 }))
+    api.task.listProjectDone = vi.fn<WindowApi['task']['listProjectDone']>(async () => ok([]))
+    ;(api.project as typeof api.project & { cancel: (...args: unknown[]) => unknown }).cancel = vi.fn(
+      async (id: string) =>
+        ok({
+          project: {
+            id,
+            title: 'Project Alpha',
+            notes: '',
+            area_id: null,
+            status: 'cancelled',
+            scheduled_at: null,
+            is_someday: false,
+            due_at: null,
+            created_at: '2026-03-18T09:00:00.000Z',
+            updated_at: '2026-03-18T09:30:00.000Z',
+            completed_at: '2026-03-18T09:30:00.000Z',
+            deleted_at: null,
+          },
+          tasks_completed: 1,
+        })
+    )
+
+    render(<ProjectPageHarness />)
+
+    await screen.findByText('Project Alpha')
+    await user.click(screen.getByRole('button', { name: '...' }))
+
+    const cancelButton = await screen.findByRole('button', { name: 'project.cancel' })
+    await user.click(cancelButton)
+
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+    expect(
+      (api.project as typeof api.project & { cancel: ReturnType<typeof vi.fn> }).cancel
+    ).toHaveBeenCalledWith('project-1', 'active')
+
+    vi.unstubAllGlobals()
+  })
 })

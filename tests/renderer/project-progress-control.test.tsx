@@ -19,6 +19,20 @@ describe('ProjectProgressControl', () => {
 
     expect(getByRole('button', { name: 'aria.projectProgressDone' })).toBeInTheDocument()
   })
+
+  it('renders cancelled state with a cancelled a11y label', () => {
+    const { getByRole } = render(
+      <ProjectProgressControl
+        status="cancelled"
+        doneCount={0}
+        totalCount={0}
+        size="list"
+        onActivate={() => {}}
+      />
+    )
+
+    expect(getByRole('button', { name: 'aria.projectProgressCancelled' })).toBeInTheDocument()
+  })
 })
 
 describe('ProjectProgressIndicator', () => {
@@ -53,6 +67,17 @@ describe('ProjectProgressIndicator', () => {
     expect(el).not.toBeNull()
     expect(el?.dataset.progress).toBe('done')
     expect(el?.classList.contains('is-done')).toBe(true)
+    expect(el?.querySelector('svg')).not.toBeNull()
+  })
+
+  it('renders cancelled progress with an x icon and cancelled styling', () => {
+    const { container } = render(
+      <ProjectProgressIndicator status="cancelled" doneCount={0} totalCount={0} size="list" />
+    )
+    const el = container.querySelector<HTMLSpanElement>('span.project-progress-control')
+    expect(el).not.toBeNull()
+    expect(el?.dataset.progress).toBe('cancelled')
+    expect(el?.classList.contains('is-cancelled')).toBe(true)
     expect(el?.querySelector('svg')).not.toBeNull()
   })
 })
