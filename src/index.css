@@ -1004,6 +1004,15 @@ body {
   box-shadow: none;
 }
 
+.project-meta {
+  display: grid;
+  gap: 6px;
+}
+
+.project-meta-row {
+  min-width: 0;
+}
+
 .project-notes-textarea {
   padding: 6px 0;
 }
@@ -1612,13 +1621,17 @@ body {
 }
 
 .task-inline-chip {
+  --task-inline-chip-bg: var(--glass);
+  --task-inline-chip-border: var(--border);
+  --task-inline-chip-text: var(--text);
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--glass);
+  border: 1px solid var(--task-inline-chip-border);
+  background: var(--task-inline-chip-bg);
+  color: var(--task-inline-chip-text);
 }
 
 .task-inline-chip-main {
@@ -1627,7 +1640,7 @@ body {
   padding: 0;
   font: inherit;
   font-size: 10px;
-  color: var(--text);
+  color: inherit;
   cursor: pointer;
 }
 
@@ -1643,6 +1656,50 @@ body {
 
 .task-inline-chip-close:hover {
   color: var(--text);
+}
+
+.task-inline-chip--primary {
+  --task-inline-chip-border: color-mix(in srgb, var(--focus) 48%, transparent);
+}
+
+.task-inline-chip--plan {
+  --task-inline-chip-bg: color-mix(in srgb, var(--ppc-color) 10%, var(--glass-strong));
+  --task-inline-chip-text: color-mix(in srgb, var(--ppc-color) 84%, var(--text));
+}
+
+.task-inline-chip--due {
+  --task-inline-chip-bg: color-mix(in srgb, #F29A4A 14%, var(--glass-strong));
+  --task-inline-chip-border: color-mix(in srgb, #F29A4A 28%, var(--border));
+  --task-inline-chip-text: color-mix(in srgb, #C76A1E 84%, var(--text));
+}
+
+.task-inline-chip--secondary {
+  --task-inline-chip-bg: var(--glass-soft);
+  --task-inline-chip-border: color-mix(in srgb, var(--border) 92%, transparent);
+  --task-inline-chip-text: var(--muted);
+}
+
+.task-inline-chip-button {
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.task-inline-chip-button:hover {
+  --task-inline-chip-bg: color-mix(in srgb, var(--wash) 70%, var(--glass-strong));
+  --task-inline-chip-border: color-mix(in srgb, var(--focus) 42%, var(--border));
+  --task-inline-chip-text: var(--text);
+}
+
+.task-inline-chip-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.task-inline-chip--summary {
+  --task-inline-chip-bg: color-mix(in srgb, var(--wash) 48%, var(--glass-strong));
+  --task-inline-chip-border: color-mix(in srgb, var(--border) 90%, transparent);
+  --task-inline-chip-text: var(--muted);
 }
 
 .task-inline-popover {

@@ -27,6 +27,15 @@ import { formatLocalDate, formatMonthDay, parseLocalDate } from '../lib/dates'
 import { getEntityScopeFromSearch } from '../lib/entity-scope'
 
 const PROJECT_CREATE_SECTION_EVENT = 'milesto:project.createSection'
+const MAX_VISIBLE_PROJECT_META_TAGS = 4
+
+type ProjectMenuView = 'root' | 'plan' | 'due' | 'move' | 'tags'
+
+type ProjectMenuState = {
+  anchorEl: HTMLElement
+  focusReturnEl: HTMLElement
+  initialView: ProjectMenuView
+} | null
 
 export function ProjectPage() {
   const { t } = useTranslation()
@@ -68,13 +77,29 @@ export function ProjectPage() {
   const notesSyncedRef = useRef<{ projectId: string | null; notes: string }>({ projectId: null, notes: '' })
 
   const [isCompletedExpanded, setIsCompletedExpanded] = useState(false)
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [menuState, setMenuState] = useState<ProjectMenuState>(null)
   const menuButtonRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   const closeMenu = useCallback(() => {
-    setIsMenuOpen(false)
-    menuButtonRef.current?.focus()
+    setMenuState((current) => {
+      current?.focusReturnEl.focus()
+      return null
+    })
+  }, [])
+
+  const openMenu = useCallback((anchorEl: HTMLElement, initialView: ProjectMenuView = 'root') => {
+    setMenuState((current) => {
+      if (current && current.focusReturnEl === anchorEl && current.initialView === initialView) {
+        return null
+      }
+
+      return {
+        anchorEl,
+        focusReturnEl: anchorEl,
+        initialView,
+      }
+    })
   }, [])
 
   const refresh = useCallback(async () => {
@@ -259,14 +284,14 @@ export function ProjectPage() {
   }, [doneCount, doneTasks, isCompletedExpanded, pid, projectScope])
 
   useEffect(() => {
-    if (!isMenuOpen) return
+    if (!menuState) return
+    const launcher = menuState.focusReturnEl
 
     function handlePointerDown(e: PointerEvent) {
       if (e.button !== 0) return
       if (!(e.target instanceof Node)) return
       const pop = menuRef.current
-      const btn = menuButtonRef.current
-      if (pop?.contains(e.target) || btn?.contains(e.target)) return
+      if (pop?.contains(e.target) || launcher.contains(e.target)) return
       e.preventDefault()
       e.stopPropagation()
       closeMenu()
@@ -293,7 +318,7 @@ export function ProjectPage() {
       window.removeEventListener('resize', handleClose)
       window.removeEventListener('scroll', handleClose, true)
     }
-  }, [closeMenu, isMenuOpen])
+  }, [closeMenu, menuState])
 
   const completedLabel = t('projectPage.completed')
 
@@ -453,19 +478,21 @@ export function ProjectPage() {
               type="button"
               className="button button-ghost"
               aria-haspopup="dialog"
-              aria-expanded={isMenuOpen}
-              onClick={() => setIsMenuOpen((v) => !v)}
+              aria-expanded={menuState !== null}
+              onClick={(e) => openMenu(e.currentTarget, 'root')}
             >
               ...
             </button>
           </div>
         </header>
 
-        {isMenuOpen && project && menuButtonRef.current
+        {menuState && project
           ? createPortal(
               <ProjectMenu
                 ref={menuRef}
-                anchorEl={menuButtonRef.current}
+                key={`${menuState.initialView}-${menuState.anchorEl === menuButtonRef.current ? 'menu' : 'meta'}`}
+                anchorEl={menuState.anchorEl}
+                initialView={menuState.initialView}
                 project={project}
                 projectTags={projectTags}
                 areas={areas}
@@ -518,6 +545,7 @@ export function ProjectPage() {
               bumpRevision()
               await refresh()
             }}
+            onManageTags={(triggerEl) => openMenu(triggerEl, 'tags')}
           />
         ) : null}
 
@@ -751,12 +779,14 @@ function ProjectMetaRow({
   onClearPlan,
   onClearDue,
   onRemoveTag,
+  onManageTags,
 }: {
   project: Project
   tags: Tag[]
   onClearPlan: () => Promise<void>
   onClearDue: () => Promise<void>
   onRemoveTag: (tagId: string) => Promise<void>
+  onManageTags: (triggerEl: HTMLElement) => void
 }) {
   const { t } = useTranslation()
   const today = formatLocalDate(new Date())
@@ -764,74 +794,96 @@ function ProjectMetaRow({
   const hasPlan = Boolean(project.is_someday || project.scheduled_at)
   const hasDue = Boolean(project.due_at)
   const hasTags = tags.length > 0
+  const visibleTags = tags.slice(0, MAX_VISIBLE_PROJECT_META_TAGS)
+  const overflowCount = Math.max(tags.length - visibleTags.length, 0)
 
   if (!hasPlan && !hasDue && !hasTags) return null
 
   return (
-    <div style={{ marginTop: 10 }}>
-      <div className="task-inline-action-bar-left">
-        {hasPlan ? (
-          <div className="task-inline-chip">
-            <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
-              {t('taskEditor.scheduledPrefix')}{' '}
-              {project.is_someday
-                ? t('nav.someday')
-                : project.scheduled_at === today
-                  ? t('nav.today')
-                  : project.scheduled_at}
-            </span>
-            <button
-              type="button"
-              className="task-inline-chip-close"
-              aria-label={t('taskEditor.clearScheduledAria')}
-              onClick={(e) => {
-                e.preventDefault()
-                void onClearPlan()
-              }}
-            >
-              ×
-            </button>
-          </div>
-        ) : null}
+    <div className="project-meta" style={{ marginTop: 10 }}>
+      {hasPlan || hasDue ? (
+        <div className="task-inline-action-bar-left project-meta-row" data-project-meta-line="primary">
+          {hasPlan ? (
+            <div className="task-inline-chip task-inline-chip--primary task-inline-chip--plan">
+              <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
+                {t('taskEditor.scheduledPrefix')}{' '}
+                {project.is_someday
+                  ? t('nav.someday')
+                  : project.scheduled_at === today
+                    ? t('nav.today')
+                    : project.scheduled_at}
+              </span>
+              <button
+                type="button"
+                className="task-inline-chip-close"
+                aria-label={t('taskEditor.clearScheduledAria')}
+                onClick={(e) => {
+                  e.preventDefault()
+                  void onClearPlan()
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ) : null}
 
-        {hasDue ? (
-          <div className="task-inline-chip">
-            <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
-              {t('taskEditor.duePrefix')} {project.due_at}
-            </span>
-            <button
-              type="button"
-              className="task-inline-chip-close"
-              aria-label={t('taskEditor.clearDueAria')}
-              onClick={(e) => {
-                e.preventDefault()
-                void onClearDue()
-              }}
-            >
-              ×
-            </button>
-          </div>
-        ) : null}
+          {hasDue ? (
+            <div className="task-inline-chip task-inline-chip--primary task-inline-chip--due">
+              <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
+                {t('taskEditor.duePrefix')} {project.due_at}
+              </span>
+              <button
+                type="button"
+                className="task-inline-chip-close"
+                aria-label={t('taskEditor.clearDueAria')}
+                onClick={(e) => {
+                  e.preventDefault()
+                  void onClearDue()
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
-        {tags.map((tag) => (
-          <div key={tag.id} className="task-inline-chip">
-            <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
-              {tag.title}
-            </span>
+      {hasTags ? (
+        <div className="task-inline-action-bar-left project-meta-row" data-project-meta-line="tags">
+          {visibleTags.map((tag) => (
+            <div key={tag.id} className="task-inline-chip task-inline-chip--secondary">
+              <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
+                {tag.title}
+              </span>
+              <button
+                type="button"
+                className="task-inline-chip-close"
+                aria-label={t('aria.removeTag', { title: tag.title })}
+                onClick={(e) => {
+                  e.preventDefault()
+                  void onRemoveTag(tag.id)
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+
+          {overflowCount > 0 ? (
             <button
               type="button"
-              className="task-inline-chip-close"
-              aria-label={t('aria.removeTag', { title: tag.title })}
+              className="task-inline-chip task-inline-chip-button task-inline-chip--summary"
+              aria-label={t('aria.manageMoreProjectTags', { count: overflowCount })}
               onClick={(e) => {
                 e.preventDefault()
-                void onRemoveTag(tag.id)
+                onManageTags(e.currentTarget)
               }}
             >
-              ×
+              <span className="task-inline-chip-main">+{overflowCount}</span>
             </button>
-          </div>
-        ))}
-      </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -872,6 +924,7 @@ function ProjectNotes({
 const ProjectMenu = forwardRef(function ProjectMenu(
   {
     anchorEl,
+    initialView,
     project,
     projectTags,
     areas,
@@ -884,6 +937,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
     onNavigate,
   }: {
     anchorEl: HTMLElement
+    initialView: ProjectMenuView
     project: Project
     projectTags: Tag[]
     areas: Area[]
@@ -898,11 +952,10 @@ const ProjectMenu = forwardRef(function ProjectMenu(
   ref: ForwardedRef<HTMLDivElement>
 ) {
   const { t } = useTranslation()
-  type View = 'root' | 'plan' | 'due' | 'move' | 'tags'
   type RootKey = 'complete' | 'plan' | 'due' | 'move' | 'tags' | 'delete'
   const isTrashScope = scope === 'trash'
 
-  const [view, setView] = useState<View>('root')
+  const [view, setView] = useState<ProjectMenuView>(initialView)
 
   const lastRootFocusRef = useRef<RootKey>('complete')
   const backButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -941,7 +994,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
     window.setTimeout(() => focusRoot(key), 0)
   }
 
-  const goSubview = (nextView: View, returnFocus: RootKey) => {
+  const goSubview = (nextView: ProjectMenuView, returnFocus: RootKey) => {
     lastRootFocusRef.current = returnFocus
     setView(nextView)
   }
