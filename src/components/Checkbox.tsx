@@ -6,6 +6,7 @@ type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'child
   className?: string
   style?: CSSProperties
   controlClassName?: string
+  mark?: 'check' | 'x'
   onCheckedChange?: (checked: boolean, event: ChangeEvent<HTMLInputElement>) => void
 }
 
@@ -19,6 +20,7 @@ export function Checkbox({
   className,
   style,
   controlClassName,
+  mark = 'check',
   disabled,
   onChange,
   onCheckedChange,
@@ -37,15 +39,38 @@ export function Checkbox({
           onCheckedChange?.(event.target.checked, event)
         }}
       />
-      <span className={joinClassNames('checkbox-control', controlClassName)} aria-hidden="true">
+      <span
+        className={joinClassNames('checkbox-control', controlClassName)}
+        data-mark={mark}
+        aria-hidden="true"
+      >
         <svg className="checkbox-control-mark" viewBox="0 0 12 10" fill="none">
-          <path
-            d="M1 5L4.25 8.25L11 1.5"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          {mark === 'x' ? (
+            <>
+              <path
+                d="M1.75 1.75L10.25 8.25"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M10.25 1.75L1.75 8.25"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </>
+          ) : (
+            <path
+              d="M1 5L4.25 8.25L11 1.5"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
         </svg>
       </span>
       {children}

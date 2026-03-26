@@ -109,7 +109,8 @@ export type WindowApi = {
     create(input: TaskCreateInput): Promise<Result<Task>>
     update(input: TaskUpdateInput): Promise<Result<Task>>
     toggleDone(id: string, done: boolean, scope?: EntityScope): Promise<Result<Task>>
-    restore(id: string): Promise<Result<Task>>
+    cancel(id: string, scope?: EntityScope): Promise<Result<Task>>
+    restore(id: string, scope?: EntityScope): Promise<Result<Task>>
     delete(id: string): Promise<Result<{ deleted: boolean }>>
 
     getDetail(id: string, scope?: EntityScope): Promise<Result<TaskDetail>>
@@ -138,6 +139,7 @@ export type WindowApi = {
     getDetail(id: string, scope?: EntityScope): Promise<Result<ProjectDetail>>
     update(input: ProjectUpdateInput): Promise<Result<Project>>
     complete(id: string, scope?: EntityScope): Promise<Result<ProjectCompleteResult>>
+    cancel(id: string, scope?: EntityScope): Promise<Result<ProjectCompleteResult>>
     delete(id: string): Promise<Result<{ deleted: boolean }>>
     listOpen(): Promise<Result<Project[]>>
     listDone(): Promise<Result<Project[]>>

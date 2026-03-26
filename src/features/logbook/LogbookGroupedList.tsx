@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useTranslation } from 'react-i18next'
 
+import { isClosedTaskStatus } from '../../../shared/schemas/common'
 import type { Project } from '../../../shared/schemas/project'
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
@@ -251,7 +252,9 @@ export function LogbookGroupedList({
               return (
                 <li
                   key={`p:${p.id}`}
-                  className={`task-row${selectedProjectId === p.id ? ' is-selected' : ''}`}
+                  className={`task-row${p.status === 'done' ? ' is-done' : p.status === 'cancelled' ? ' is-cancelled' : ''}${
+                    selectedProjectId === p.id ? ' is-selected' : ''
+                  }`}
                   data-logbook-row="project"
                   ref={(el) => {
                     if (!el) return
@@ -304,7 +307,9 @@ export function LogbookGroupedList({
                     <span className="upcoming-date-prefix" aria-hidden="true">
                       {row.entry.datePrefix}
                     </span>
-                    <span className={hasTitle ? undefined : 'task-title-placeholder'}>{displayTitle}</span>
+                    <span className={`task-title-text${hasTitle ? '' : ' task-title-placeholder'}`}>
+                      {displayTitle}
+                    </span>
                   </button>
                 </li>
               )
@@ -318,6 +323,8 @@ export function LogbookGroupedList({
               <li
                 key={`t:${task.id}`}
                 className={`task-row${isOpen ? ' is-open' : ' task-row-virtual'}${
+                  task.status === 'done' ? ' is-done' : task.status === 'cancelled' ? ' is-cancelled' : ''
+                }${
                   selectedTaskId === task.id ? ' is-selected' : ''
                 }`}
                 data-logbook-row="task"
@@ -353,6 +360,7 @@ export function LogbookGroupedList({
                         setSelectedRowIndex(virtualRow.index)
                       }}
                       onToggleDone={(taskId, done) => {
+                        if (!isClosedTaskStatus(task.status)) return
                         if (done) return
                         void onRestoreTask(taskId)
                       }}

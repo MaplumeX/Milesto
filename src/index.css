@@ -1874,7 +1874,16 @@ body {
   color: var(--muted);
 }
 
+.task-row.is-cancelled .task-title-text {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
 .page[data-page="project"] .task-row.is-done .task-title-text {
+  text-decoration: none;
+}
+
+.task-row[data-logbook-row].is-done .task-title-text {
   text-decoration: none;
 }
 
@@ -1887,6 +1896,18 @@ body {
 }
 
 .task-row.is-done .upcoming-task-title-button {
+  align-items: center;
+}
+
+.task-row.is-cancelled .upcoming-date-prefix {
+  display: inline-flex;
+  justify-content: center;
+  color: var(--completed-date-color);
+  text-align: center;
+  font-weight: 650;
+}
+
+.task-row.is-cancelled .upcoming-task-title-button {
   align-items: center;
 }
 
@@ -1980,12 +2001,21 @@ body {
   background: var(--ppc-color);
 }
 
+.project-progress-control.is-cancelled {
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.project-progress-control.is-cancelled::before {
+  background: transparent;
+}
+
 .project-progress-control:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
-button.project-progress-control:hover:not(:disabled):not(.is-done) {
+button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cancelled) {
   border-color: var(--ppc-color);
   filter: brightness(1.1);
 }
@@ -2009,6 +2039,21 @@ button.project-progress-control:hover:not(:disabled):not(.is-done) {
 
 .sidebar .project-progress-control.is-done::before {
   background: var(--text);
+}
+
+.task-inline-title.is-cancelled {
+  text-decoration: line-through;
+}
+
+.task-title-input.is-cancelled,
+.page-title-button.is-cancelled,
+.task-title-text.is-cancelled {
+  text-decoration: line-through;
+}
+
+.badge-cancelled {
+  background: var(--wash);
+  color: var(--muted);
 }
 
 @media (prefers-color-scheme: dark) {

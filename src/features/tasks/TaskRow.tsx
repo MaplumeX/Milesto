@@ -1,4 +1,5 @@
 import type { TaskListItem } from '../../../shared/schemas/task-list'
+import { isClosedTaskStatus } from '../../../shared/schemas/common'
 import { useTranslation } from 'react-i18next'
 
 import { Checkbox } from '../../components/Checkbox'
@@ -40,6 +41,8 @@ export function TaskRow({
   const { t } = useTranslation()
   const isTitleActivator = !!titleActivatorProps
   const hasTitlePrefix = Boolean(titlePrefix)
+  const isCancelled = task.status === 'cancelled'
+  const isClosed = isClosedTaskStatus(task.status)
   const {
     className: titleActivatorClassName,
     disabled: titleActivatorDisabled,
@@ -60,7 +63,8 @@ export function TaskRow({
       <Checkbox
         className="task-checkbox"
         ariaLabel={t('aria.taskDone')}
-        checked={task.status === 'done'}
+        checked={isClosed}
+        mark={isCancelled ? 'x' : 'check'}
         disabled={isOverlay || !onToggleDone}
         onCheckedChange={(checked) => {
           if (!onToggleDone) return
@@ -115,7 +119,7 @@ export function TaskRow({
         </span>
       </button>
 
-      {task.status === 'done' && onRestore ? (
+      {isClosed && onRestore ? (
         <button
           type="button"
           className="button button-ghost"

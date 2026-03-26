@@ -8,6 +8,7 @@ import type { AppError } from '../../../shared/app-error'
 import type { Area } from '../../../shared/schemas/area'
 import type { ChecklistItem } from '../../../shared/schemas/checklist'
 import type { EntityScope } from '../../../shared/schemas/common'
+import { isClosedTaskStatus } from '../../../shared/schemas/common'
 import type { Project, ProjectSection } from '../../../shared/schemas/project'
 import type { Tag } from '../../../shared/schemas/tag'
 import type { TaskDetail } from '../../../shared/schemas/task-detail'
@@ -756,7 +757,37 @@ export const TaskEditorPaper = forwardRef<
       )
     }
 
-    const statusLabel = detail.task.status === 'done' ? t('taskEditor.statusDone') : t('taskEditor.statusOpen')
+    const isCancelledTask = detail.task.status === 'cancelled'
+    const isClosedTask = isClosedTaskStatus(detail.task.status)
+    const statusLabel =
+      detail.task.status === 'done'
+        ? t('taskEditor.statusDone')
+        : detail.task.status === 'cancelled'
+          ? t('taskEditor.statusCancelled')
+          : t('taskEditor.statusOpen')
+    const statusBadgeClass =
+      detail.task.status === 'done'
+        ? 'badge-done'
+        : detail.task.status === 'cancelled'
+          ? 'badge-cancelled'
+          : 'badge-open'
+
+    const applyTaskStatusAction = async (action: 'cancel' | 'done' | 'restore') => {
+      const res =
+        action === 'done'
+          ? await window.api.task.toggleDone(detail.task.id, true, scope)
+          : action === 'cancel'
+            ? await window.api.task.cancel(detail.task.id, scope)
+            : await window.api.task.restore(detail.task.id, scope)
+
+      if (!res.ok) {
+        setActionError(res.error)
+        return
+      }
+
+      setActionError(null)
+      setDetail((d) => (d ? { ...d, task: res.data } : d))
+    }
 
     const syncProjectAffiliationState = (updatedTask: Task) => {
       setDetail((current) => (current ? { ...current, task: updatedTask } : current))
@@ -1282,16 +1313,18 @@ export const TaskEditorPaper = forwardRef<
               <Checkbox
                 className="task-checkbox"
                 ariaLabel={t('aria.taskDone')}
-                checked={detail.task.status === 'done'}
+                checked={isClosedTask}
+                mark={isCancelledTask ? 'x' : 'check'}
                 onCheckedChange={(nextDone) => {
                   void (async () => {
-                    const res = await window.api.task.toggleDone(detail.task.id, nextDone, scope)
-                    if (!res.ok) {
-                      setActionError(res.error)
+                    if (!isClosedTask) {
+                      if (!nextDone) return
+                      await applyTaskStatusAction('done')
                       return
                     }
-                    setActionError(null)
-                    setDetail((d) => (d ? { ...d, task: res.data } : d))
+
+                    if (nextDone) return
+                    await applyTaskStatusAction('restore')
                   })()
                 }}
               />
@@ -1299,7 +1332,7 @@ export const TaskEditorPaper = forwardRef<
               <input
                 id="task-title"
                 ref={titleInputRef}
-                className="task-inline-title"
+                className={`task-inline-title${isCancelledTask ? ' is-cancelled' : ''}`}
                 value={draft.title}
                 onChange={(e) => {
                   const next = { ...draft, title: e.target.value }
@@ -1551,7 +1584,7 @@ export const TaskEditorPaper = forwardRef<
         ) : null}
 
         <div className="detail-meta" style={{ marginTop: 6 }}>
-          <span className={`badge ${detail.task.status === 'done' ? 'badge-done' : 'badge-open'}`}>{statusLabel}</span>
+          <span className={`badge ${statusBadgeClass}`}>{statusLabel}</span>
           {detail.task.is_someday ? (
             <span className="badge">
               {t('taskEditor.scheduledPrefix')} {t('nav.someday')}
@@ -1575,7 +1608,7 @@ export const TaskEditorPaper = forwardRef<
           <input
             id="task-title"
             ref={titleInputRef}
-            className="input"
+            className={`input task-title-input${isCancelledTask ? ' is-cancelled' : ''}`}
             value={draft.title}
             onChange={(e) => {
               const next = { ...draft, title: e.target.value }
@@ -1906,42 +1939,31 @@ export const TaskEditorPaper = forwardRef<
         </div>
 
         <div className="detail-actions">
-          {detail.task.status === 'done' ? (
+          {isClosedTask ? (
             <button
               type="button"
               className="button button-ghost"
-              onClick={() => {
-                void (async () => {
-                  const res = await window.api.task.toggleDone(detail.task.id, false, scope)
-                  if (!res.ok) {
-                    setActionError(res.error)
-                    return
-                  }
-                  setActionError(null)
-                  setDetail((d) => (d ? { ...d, task: res.data } : d))
-                })()
-              }}
+              onClick={() => void applyTaskStatusAction('restore')}
             >
               {t('task.restore')}
             </button>
           ) : (
-            <button
-              type="button"
-              className="button button-ghost"
-              onClick={() => {
-                void (async () => {
-                  const res = await window.api.task.toggleDone(detail.task.id, true, scope)
-                  if (!res.ok) {
-                    setActionError(res.error)
-                    return
-                  }
-                  setActionError(null)
-                  setDetail((d) => (d ? { ...d, task: res.data } : d))
-                })()
-              }}
-            >
-              {t('taskEditor.markDone')}
-            </button>
+            <>
+              <button
+                type="button"
+                className="button button-ghost"
+                onClick={() => void applyTaskStatusAction('done')}
+              >
+                {t('taskEditor.markDone')}
+              </button>
+              <button
+                type="button"
+                className="button button-ghost"
+                onClick={() => void applyTaskStatusAction('cancel')}
+              >
+                {t('task.cancel')}
+              </button>
+            </>
           )}
         </div>
       </div>

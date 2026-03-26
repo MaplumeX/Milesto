@@ -82,6 +82,7 @@ export function createWindowApiMock(): WindowApi {
       create: vi.fn<WindowApi['task']['create']>(async () => err(unimplementedError)),
       update: vi.fn<WindowApi['task']['update']>(async () => err(unimplementedError)),
       toggleDone: vi.fn<WindowApi['task']['toggleDone']>(async () => err(unimplementedError)),
+      cancel: vi.fn<WindowApi['task']['cancel']>(async () => err(unimplementedError)),
       restore: vi.fn<WindowApi['task']['restore']>(async () => err(unimplementedError)),
       delete: vi.fn<WindowApi['task']['delete']>(async () => err(unimplementedError)),
 
@@ -111,6 +112,7 @@ export function createWindowApiMock(): WindowApi {
       getDetail: vi.fn<WindowApi['project']['getDetail']>(async () => err(unimplementedError)),
       update: vi.fn<WindowApi['project']['update']>(async () => err(unimplementedError)),
       complete: vi.fn<WindowApi['project']['complete']>(async () => err(unimplementedError)),
+      cancel: vi.fn<WindowApi['project']['cancel']>(async () => err(unimplementedError)),
       delete: vi.fn<WindowApi['project']['delete']>(async () => err(unimplementedError)),
       listOpen: vi.fn<WindowApi['project']['listOpen']>(async () => ok([])),
       listDone: vi.fn<WindowApi['project']['listDone']>(async () => ok([])),

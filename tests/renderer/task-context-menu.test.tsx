@@ -146,7 +146,7 @@ describe('task context menu', () => {
     cleanup()
   })
 
-  it('opens a root context menu with schedule, tags, due, and complete actions for open tasks', async () => {
+  it('opens a root context menu with schedule, tags, due, complete, and cancel actions for open tasks', async () => {
     render(<TaskListHarness tasks={[makeTask()]} />)
 
     const titleButton = await screen.findByRole('button', { name: 'Task A' })
@@ -156,6 +156,7 @@ describe('task context menu', () => {
     expect(screen.getByRole('button', { name: 'taskEditor.tagsLabel' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'taskEditor.dueLabel' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'taskEditor.markDone' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'task.cancel' })).toBeInTheDocument()
   })
 
   it('shows restore instead of complete for done tasks', async () => {
@@ -166,6 +167,22 @@ describe('task context menu', () => {
 
     expect(await screen.findByRole('button', { name: 'task.restore' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'taskEditor.markDone' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'task.cancel' })).toBeNull()
+  })
+
+  it('shows restore instead of complete for cancelled tasks', async () => {
+    render(
+      <TaskListHarness
+        tasks={[makeTask({ status: 'cancelled', completed_at: '2026-03-17T02:00:00.000Z' })]}
+      />
+    )
+
+    const titleButton = await screen.findByRole('button', { name: 'Task A' })
+    fireEvent.contextMenu(titleButton, { clientX: 120, clientY: 80 })
+
+    expect(await screen.findByRole('button', { name: 'task.restore' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'taskEditor.markDone' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'task.cancel' })).toBeNull()
   })
 
   it('closes the context menu on Escape', async () => {
@@ -323,17 +340,44 @@ describe('task context menu', () => {
     expect(screen.queryByRole('button', { name: 'common.schedule' })).toBeNull()
   })
 
+  it('cancels open tasks immediately from the menu root and closes on success', async () => {
+    const api = getApi()
+    ;(api.task as typeof api.task & { cancel: (...args: unknown[]) => unknown }).cancel = vi.fn(
+      async (id: string, scope?: EntityScope) =>
+        ok(
+          makeTaskRecord({
+            id,
+            status: 'cancelled',
+            completed_at: '2026-03-17T02:00:00.000Z',
+          })
+        )
+    )
+
+    render(<TaskListHarness tasks={[makeTask()]} />)
+
+    const titleButton = await screen.findByRole('button', { name: 'Task A' })
+    fireEvent.contextMenu(titleButton, { clientX: 120, clientY: 80 })
+    fireEvent.click(await screen.findByRole('button', { name: 'task.cancel' }))
+
+    await waitFor(() => {
+      expect(
+        (api.task as typeof api.task & { cancel: ReturnType<typeof vi.fn> }).cancel
+      ).toHaveBeenCalledWith('t1', 'active')
+    })
+    expect(screen.queryByRole('button', { name: 'common.schedule' })).toBeNull()
+  })
+
   it('restores done tasks immediately from the menu root and closes on success', async () => {
     const api = getApi()
-    api.task.toggleDone = vi.fn<WindowApi['task']['toggleDone']>(async (id, done) =>
+    api.task.restore = vi.fn(async (id: string) =>
       ok(
         makeTaskRecord({
           id,
-          status: done ? 'done' : 'open',
-          completed_at: done ? '2026-03-17T02:00:00.000Z' : null,
+          status: 'open',
+          completed_at: null,
         })
       )
-    )
+    ) as WindowApi['task']['restore']
 
     render(<TaskListHarness tasks={[makeTask({ status: 'done', completed_at: '2026-03-17T02:00:00.000Z' })]} />)
 
@@ -342,7 +386,35 @@ describe('task context menu', () => {
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'task.restore' }))
 
     await waitFor(() => {
-      expect(api.task.toggleDone).toHaveBeenCalledWith('t1', false, 'active')
+      expect(api.task.restore).toHaveBeenCalledWith('t1', 'active')
+    })
+    expect(screen.queryByRole('button', { name: 'common.schedule' })).toBeNull()
+  })
+
+  it('restores cancelled tasks immediately from the menu root and closes on success', async () => {
+    const api = getApi()
+    api.task.restore = vi.fn(async (id: string) =>
+      ok(
+        makeTaskRecord({
+          id,
+          status: 'open',
+          completed_at: null,
+        })
+      )
+    ) as WindowApi['task']['restore']
+
+    render(
+      <TaskListHarness
+        tasks={[makeTask({ status: 'cancelled', completed_at: '2026-03-17T02:00:00.000Z' })]}
+      />
+    )
+
+    const titleButton = await screen.findByRole('button', { name: 'Task A' })
+    fireEvent.contextMenu(titleButton, { clientX: 120, clientY: 80 })
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'task.restore' }))
+
+    await waitFor(() => {
+      expect(api.task.restore).toHaveBeenCalledWith('t1', 'active')
     })
     expect(screen.queryByRole('button', { name: 'common.schedule' })).toBeNull()
   })

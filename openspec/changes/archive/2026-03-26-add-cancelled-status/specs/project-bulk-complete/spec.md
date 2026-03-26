@@ -1,33 +1,4 @@
-# project-bulk-complete Specification
-
-## Purpose
-TBD - created by archiving change redesign-project-page. Update Purpose after archive.
-## Requirements
-### Requirement: Completing a project completes all tasks in that project
-The system SHALL allow the user to mark a Project as completed from the Project page.
-
-When the user completes a project:
-
-- The Project status SHALL become `done`.
-- All non-deleted Tasks with `project_id = <that project>` SHALL become `done`.
-
-#### Scenario: Complete project with open tasks
-- **WHEN** the user completes a project that has open tasks
-- **THEN** the project SHALL be updated to status `done`
-- **AND** all tasks in the project SHALL be updated to status `done`
-
-#### Scenario: Complete project with already-done tasks
-- **WHEN** the user completes a project that already has some done tasks
-- **THEN** those tasks SHALL remain `done`
-
-### Requirement: Project completion requires confirmation
-Completing a project impacts multiple records (the project and its tasks), so the UI SHALL require explicit user confirmation before applying the change.
-
-#### Scenario: User cancels completion
-- **WHEN** the user initiates project completion
-- **AND** the user cancels the confirmation
-- **THEN** the project SHALL remain unchanged
-- **AND** tasks in the project SHALL remain unchanged
+## ADDED Requirements
 
 ### Requirement: Cancelling a project cancels open tasks in that project
 The system SHALL allow the user to mark a Project as cancelled from project-level action surfaces.
@@ -56,19 +27,14 @@ Cancelling a project impacts multiple records and removes the project from activ
 - **THEN** the project SHALL remain unchanged
 - **AND** tasks in the project SHALL remain unchanged
 
-### Requirement: Project completion is atomic
-Project completion (project status update + task status updates) SHALL be applied atomically.
-
-#### Scenario: No partial completion
-- **WHEN** project completion fails
-- **THEN** the project SHALL NOT be left in a partially-completed state
-
 ### Requirement: Project cancellation is atomic
 Project cancellation (project status update + open task status updates) SHALL be applied atomically.
 
 #### Scenario: No partial cancellation
 - **WHEN** project cancellation fails
 - **THEN** the project SHALL NOT be left in a partially-cancelled state
+
+## MODIFIED Requirements
 
 ### Requirement: Reopening a project does not restore tasks
 The system SHALL allow the user to reopen a closed Project.

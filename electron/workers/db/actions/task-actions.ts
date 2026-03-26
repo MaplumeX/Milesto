@@ -7,6 +7,7 @@ import { createLocalSyncRecorder } from './sync-support'
 import { nowIso, uuidv7 } from './utils'
 
 import {
+  TaskCancelInputSchema,
   TaskCreateInputSchema,
   TaskDeleteInputSchema,
   TaskRestoreInputSchema,
@@ -98,6 +99,11 @@ function taskScopeWhere(scope: EntityScope, alias?: string): string {
   return scope === 'trash'
     ? `${prefix}deleted_at IS NOT NULL AND ${prefix}purged_at IS NULL`
     : `${prefix}deleted_at IS NULL`
+}
+
+function taskClosedStatusWhere(alias?: string): string {
+  const prefix = alias ? `${alias}.` : ''
+  return `${prefix}status IN ('done', 'cancelled')`
 }
 
 export function createTaskActions(db: Database.Database): Record<string, DbActionHandler> {
@@ -410,6 +416,37 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const completedAt = input.done ? updatedAt : null
 
       const tx = db.transaction(() => {
+        const existing = db
+          .prepare(
+            `SELECT status
+             FROM tasks
+             WHERE id = ? AND ${taskScopeWhere(scope)}
+             LIMIT 1`
+          )
+          .get(input.id) as { status: string } | undefined
+
+        if (!existing) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Task not found.',
+              details: { id: input.id },
+            },
+          }
+        }
+
+        if (input.done && existing.status === 'cancelled') {
+          return {
+            ok: false as const,
+            error: {
+              code: 'INVALID_STATE_TRANSITION',
+              message: 'Cancelled tasks must be restored before completing.',
+              details: { id: input.id, status: existing.status },
+            },
+          }
+        }
+
         const sync = createLocalSyncRecorder(db, updatedAt)
         const res = db
           .prepare(
@@ -452,6 +489,82 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       return tx()
     },
 
+    'task.cancel': (payload) => {
+      const parsed = TaskCancelInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid task.cancel payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const scope = normalizeEntityScope(parsed.data.scope)
+      const updatedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        const existing = db
+          .prepare(
+            `SELECT status
+             FROM tasks
+             WHERE id = ? AND ${taskScopeWhere(scope)}
+             LIMIT 1`
+          )
+          .get(parsed.data.id) as { status: string } | undefined
+
+        if (!existing) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Task not found.',
+              details: { id: parsed.data.id },
+            },
+          }
+        }
+
+        if (existing.status !== 'open') {
+          return {
+            ok: false as const,
+            error: {
+              code: 'INVALID_STATE_TRANSITION',
+              message: 'Only open tasks can be cancelled.',
+              details: { id: parsed.data.id, status: existing.status },
+            },
+          }
+        }
+
+        const sync = createLocalSyncRecorder(db, updatedAt)
+        db.prepare(
+          `UPDATE tasks
+           SET status = 'cancelled',
+               completed_at = @completed_at,
+               updated_at = @updated_at
+           WHERE id = @id AND ${taskScopeWhere(scope)}`
+        ).run({
+          id: parsed.data.id,
+          completed_at: updatedAt,
+          updated_at: updatedAt,
+        })
+
+        const row = db
+          .prepare(
+            `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+             FROM tasks WHERE id = ? AND ${taskScopeWhere(scope)} LIMIT 1`
+          )
+          .get(parsed.data.id)
+        const task = TaskSchema.parse(row)
+        sync.recordEntity('task', task, ['status', 'completed_at', 'updated_at'])
+        sync.finalize()
+        return { ok: true as const, data: task }
+      })
+
+      return tx()
+    },
+
     'task.restore': (payload) => {
       const parsed = TaskRestoreInputSchema.safeParse(payload)
       if (!parsed.success) {
@@ -465,6 +578,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         }
       }
 
+      const scope = normalizeEntityScope(parsed.data.scope)
       const updatedAt = nowIso()
       const tx = db.transaction(() => {
         const sync = createLocalSyncRecorder(db, updatedAt)
@@ -474,7 +588,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
              SET status = 'open',
                  completed_at = NULL,
                  updated_at = @updated_at
-             WHERE id = @id AND deleted_at IS NULL`
+             WHERE id = @id AND ${taskScopeWhere(scope)}`
           )
           .run({ id: parsed.data.id, updated_at: updatedAt })
         if (res.changes === 0) {
@@ -491,7 +605,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         const row = db
           .prepare(
             `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
-             FROM tasks WHERE id = ? AND deleted_at IS NULL LIMIT 1`
+             FROM tasks WHERE id = ? AND ${taskScopeWhere(scope)} LIMIT 1`
           )
           .get(parsed.data.id)
         const task = TaskSchema.parse(row)
@@ -943,7 +1057,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
            LEFT JOIN projects p
              ON p.id = tasks.project_id AND p.deleted_at IS NULL
            WHERE tasks.deleted_at IS NULL
-             AND tasks.status = 'done'
+             AND ${taskClosedStatusWhere('tasks')}
             ORDER BY COALESCE(tasks.completed_at, tasks.updated_at) DESC, tasks.updated_at DESC`
          )
          .all()
@@ -1010,7 +1124,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
            FROM tasks
            WHERE ${taskScopeWhere(scope)}
              AND project_id = @project_id
-             AND status = 'done'`
+             AND ${taskClosedStatusWhere()}`
         )
         .get({ project_id: parsed.data.project_id }) as { count: number }
 
@@ -1048,11 +1162,11 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
           `SELECT
              project_id,
              COUNT(1) AS total_count,
-             COALESCE(SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END), 0) AS done_count
+             COALESCE(SUM(CASE WHEN status IN ('done', 'cancelled') THEN 1 ELSE 0 END), 0) AS done_count
            FROM tasks
            WHERE deleted_at IS NULL
              AND project_id IN (${placeholders})
-             AND status IN ('open', 'done')
+             AND status IN ('open', 'done', 'cancelled')
            GROUP BY project_id`
         )
         .all(...uniqueProjectIds) as unknown[]
@@ -1096,7 +1210,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
              ON lp.task_id = t.id
             AND lp.list_id = ('project:' || @project_id || ':' || COALESCE(t.section_id, 'none'))
            WHERE ${taskScopeWhere(scope, 't')}
-             AND t.status = 'done'
+             AND ${taskClosedStatusWhere('t')}
              AND t.project_id = @project_id
            ORDER BY
              CASE WHEN lp.rank IS NULL THEN 1 ELSE 0 END,
@@ -1179,7 +1293,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
              JOIN tasks t ON tasks_fts.rowid = t.rowid
              LEFT JOIN projects p ON p.id = t.project_id AND p.deleted_at IS NULL
              WHERE t.deleted_at IS NULL
-               AND (${includeLogbook ? '1=1' : "t.status = 'open'"})
+               AND (${includeLogbook ? "t.status IN ('open', 'done', 'cancelled')" : "t.status = 'open'"})
                AND tasks_fts MATCH @query
               ORDER BY bm25(tasks_fts) ASC
               LIMIT 200`

@@ -44,4 +44,14 @@ describe('shared/schemas/task invariants', () => {
   it('accepts a valid task row', () => {
     expect(TaskSchema.parse(makeBaseTask()).id).toBe('t1')
   })
+
+  it('accepts cancelled rows as a distinct terminal status', () => {
+    expect(
+      TaskSchema.parse({
+        ...makeBaseTask(),
+        status: 'cancelled',
+        completed_at: '2026-01-02T00:00:00.000Z',
+      }).status
+    ).toBe('cancelled')
+  })
 })

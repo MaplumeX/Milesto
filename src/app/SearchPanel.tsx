@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
+import { isClosedTaskStatus } from '../../shared/schemas/common'
 import type { TaskSearchResultItem } from '../../shared/schemas/search'
 
 import { getLocalToday, useLocalToday } from '../lib/use-local-today'
@@ -43,7 +44,7 @@ export function SearchPanel() {
   function jumpToTask(item: TaskSearchResultItem) {
     const todayNow = getLocalToday()
     const to = (() => {
-      if (item.status === 'done') return '/logbook'
+      if (isClosedTaskStatus(item.status)) return '/logbook'
       if (item.scheduled_at === todayNow) return '/today'
       if (item.scheduled_at && item.scheduled_at > todayNow) return '/upcoming'
       if (item.project_id) return `/projects/${item.project_id}`

@@ -5,7 +5,7 @@ import type { Project } from '../../../shared/schemas/project'
 
 type ProjectStatus = Project['status']
 
-type ProgressKind = 'done' | 'none' | 'full' | 'partial'
+type ProgressKind = 'cancelled' | 'done' | 'none' | 'full' | 'partial'
 
 function getProgressModel(params: {
   status: ProjectStatus
@@ -24,7 +24,7 @@ function getProgressModel(params: {
   const openCount = Math.max(0, safeTotal - safeDone)
 
   const percent =
-    params.status === 'done'
+    params.status === 'done' || params.status === 'cancelled'
       ? 100
       : safeTotal <= 0
         ? 0
@@ -33,6 +33,8 @@ function getProgressModel(params: {
   const progressKind: ProgressKind =
     params.status === 'done'
       ? 'done'
+      : params.status === 'cancelled'
+        ? 'cancelled'
       : safeTotal <= 0 || safeDone <= 0
         ? 'none'
         : safeDone >= safeTotal
@@ -86,17 +88,21 @@ export function ProjectProgressControl({
   const ariaLabel =
     status === 'done'
       ? t('aria.projectProgressDone')
+      : status === 'cancelled'
+        ? t('aria.projectProgressCancelled')
       : t('aria.projectProgressOpen', {
           percent: model.percent,
           doneCount: model.safeDone,
           totalCount: model.safeTotal,
           openCount: model.openCount,
         })
+  const statusClassName =
+    status === 'done' ? ' is-done' : status === 'cancelled' ? ' is-cancelled' : ''
 
   return (
     <button
       type="button"
-      className={`project-progress-control${status === 'done' ? ' is-done' : ''}`}
+      className={`project-progress-control${statusClassName}`}
       data-size={size ?? 'list'}
       data-progress={model.progressKind}
       data-ready={readyRef.current || undefined}
@@ -113,7 +119,7 @@ export function ProjectProgressControl({
         void onActivate?.()
       }}
     >
-      {status === 'done' ? <CheckIcon /> : null}
+      {status === 'done' ? <CheckIcon /> : status === 'cancelled' ? <XIcon /> : null}
     </button>
   )
 }
@@ -131,17 +137,19 @@ export function ProjectProgressIndicator({
 }) {
   const readyRef = useReadyAfterMount()
   const model = getProgressModel({ status, doneCount, totalCount })
+  const statusClassName =
+    status === 'done' ? ' is-done' : status === 'cancelled' ? ' is-cancelled' : ''
 
   return (
     <span
-      className={`project-progress-control${status === 'done' ? ' is-done' : ''}`}
+      className={`project-progress-control${statusClassName}`}
       data-size={size ?? 'list'}
       data-progress={model.progressKind}
       data-ready={readyRef.current || undefined}
       aria-hidden="true"
       style={model.style}
     >
-      {status === 'done' ? <CheckIcon /> : null}
+      {status === 'done' ? <CheckIcon /> : status === 'cancelled' ? <XIcon /> : null}
     </span>
   )
 }
@@ -160,6 +168,25 @@ function CheckIcon() {
       aria-hidden="true"
     >
       <path d="M4.5 10.5l3.1 3.1L15.7 6" />
+    </svg>
+  )
+}
+
+function XIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width="1em"
+      height="1em"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5.5 5.5l9 9" />
+      <path d="M14.5 5.5l-9 9" />
     </svg>
   )
 }
