@@ -37,6 +37,7 @@ import { ContentBottomBarActions } from './ContentBottomBarActions'
 import { BottomBarActionButton } from './BottomBarActionButton'
 import { formatLocalDate } from '../lib/dates'
 import { getEntityScopeFromSearch } from '../lib/entity-scope'
+import { useSidebarAreaContextMenu, useSidebarProjectContextMenu } from './use-sidebar-entity-context-menu'
 import {
   getTaskDropAnimationConfig,
   getTaskDropAnimationDurationMs,
@@ -153,6 +154,25 @@ type CreatePopover = {
   anchorEl: HTMLButtonElement
 } | null
 
+type SidebarEditingEntity =
+  | {
+      kind: 'area'
+      id: string
+    }
+  | {
+      kind: 'project'
+      id: string
+    }
+
+type SidebarTitleEditController = {
+  draft: string
+  inputRef: React.RefCallback<HTMLInputElement>
+  onChange: (next: string) => void
+  onCommit: (next: string) => void
+  onCancel: () => void
+  onBlur: (next: string) => void
+}
+
 export function AppShell() {
   const { t } = useTranslation()
   const { revision, bumpRevision } = useAppEvents()
@@ -177,6 +197,11 @@ export function AppShell() {
   }, [createPopover])
   const createPopoverNodeRef = useRef<HTMLDivElement | null>(null)
   const [isCreating, setIsCreating] = useState(false)
+  const [editingSidebarEntity, setEditingSidebarEntity] = useState<SidebarEditingEntity | null>(null)
+  const [sidebarTitleDraft, setSidebarTitleDraft] = useState('')
+  const sidebarTitleInputRef = useRef<HTMLInputElement | null>(null)
+  const ignoreNextSidebarTitleBlurRef = useRef(false)
+  const isCommittingSidebarTitleRef = useRef(false)
 
   useEffect(() => {
     collapsedAreaIdsRef.current = collapsedAreaIds
@@ -864,6 +889,209 @@ export function AppShell() {
     if (!res.ok) throw new Error(`${res.error.code}: ${res.error.message}`)
   }
 
+  const runSidebarMutation = useCallback(async () => {
+    await refreshSidebar()
+    bumpRevision()
+  }, [bumpRevision, refreshSidebar])
+
+  const moveProjectFromContextMenu = useCallback(
+    async (projectId: string, targetAreaId: string | null) => {
+      const dragId = projectDragId(projectId)
+      const fromContainerId = findContainerForIdInDrag(dragId)
+      const toContainerId = targetAreaId ? sidebarAreaContainerId(targetAreaId) : SIDEBAR_UNASSIGNED_CONTAINER_ID
+      if (!fromContainerId || fromContainerId === toContainerId) return false
+
+      const fromOrderedProjectDragIds = (openItemsByContainerRef.current[fromContainerId] ?? []).filter((id) => id !== dragId)
+      const toOrderedProjectDragIds = [...(openItemsByContainerRef.current[toContainerId] ?? []), dragId]
+
+      await persistProjectMove({
+        projectDragId: dragId,
+        fromContainerId,
+        toContainerId,
+        fromOrderedProjectDragIds,
+        toOrderedProjectDragIds,
+      })
+      return true
+    },
+    [openItemsByContainerRef]
+  )
+
+  const setSidebarTitleInputEl = useCallback((el: HTMLInputElement | null) => {
+    sidebarTitleInputRef.current = el
+  }, [])
+
+  const beginSidebarAreaRename = useCallback((area: Area) => {
+    ignoreNextSidebarTitleBlurRef.current = false
+    setSidebarError(null)
+    setSidebarTitleDraft(area.title ?? '')
+    setEditingSidebarEntity({ kind: 'area', id: area.id })
+  }, [])
+
+  const beginSidebarProjectRename = useCallback((project: Project) => {
+    ignoreNextSidebarTitleBlurRef.current = false
+    setSidebarError(null)
+    setSidebarTitleDraft(project.title ?? '')
+    setEditingSidebarEntity({ kind: 'project', id: project.id })
+  }, [])
+
+  const cancelSidebarTitleEdit = useCallback(() => {
+    const current = editingSidebarEntity
+    if (!current) return
+
+    ignoreNextSidebarTitleBlurRef.current = true
+    setEditingSidebarEntity(null)
+    setSidebarTitleDraft('')
+    focusSidebarRowByDndId(current.kind === 'area' ? areaDragId(current.id) : projectDragId(current.id))
+  }, [editingSidebarEntity])
+
+  const commitSidebarTitleEdit = useCallback(
+    async (nextRaw: string) => {
+      const current = editingSidebarEntity
+      if (!current || isCommittingSidebarTitleRef.current) return
+
+      const next = nextRaw.trim()
+      setSidebarError(null)
+
+      if (current.kind === 'area') {
+        const area = areaById.get(current.id)
+        if (!area) return
+        if (next === area.title.trim()) {
+          cancelSidebarTitleEdit()
+          return
+        }
+
+        isCommittingSidebarTitleRef.current = true
+        try {
+          const res = await window.api.area.update({ id: area.id, title: next })
+          if (!res.ok) {
+            setSidebarError(`${res.error.code}: ${res.error.message}`)
+            return
+          }
+
+          ignoreNextSidebarTitleBlurRef.current = true
+          setEditingSidebarEntity(null)
+          setSidebarTitleDraft('')
+          await runSidebarMutation()
+          focusSidebarRowByDndId(areaDragId(area.id))
+        } finally {
+          isCommittingSidebarTitleRef.current = false
+        }
+        return
+      }
+
+      const project = projectById.get(current.id)
+      if (!project) return
+      if (next === project.title.trim()) {
+        cancelSidebarTitleEdit()
+        return
+      }
+
+      isCommittingSidebarTitleRef.current = true
+      try {
+        const res = await window.api.project.update({ id: project.id, title: next })
+        if (!res.ok) {
+          setSidebarError(`${res.error.code}: ${res.error.message}`)
+          return
+        }
+
+        ignoreNextSidebarTitleBlurRef.current = true
+        setEditingSidebarEntity(null)
+        setSidebarTitleDraft('')
+        await runSidebarMutation()
+        focusSidebarRowByDndId(projectDragId(project.id))
+      } finally {
+        isCommittingSidebarTitleRef.current = false
+      }
+    },
+    [areaById, cancelSidebarTitleEdit, editingSidebarEntity, projectById, runSidebarMutation]
+  )
+
+  useEffect(() => {
+    if (!editingSidebarEntity) return
+
+    window.setTimeout(() => {
+      const input = sidebarTitleInputRef.current
+      if (!input) return
+      input.focus()
+      const cursor = input.value.length
+      input.setSelectionRange(cursor, cursor)
+    }, 0)
+  }, [editingSidebarEntity])
+
+  useEffect(() => {
+    const current = editingSidebarEntity
+    if (!current) return
+
+    const exists = current.kind === 'area' ? areaById.has(current.id) : projectById.has(current.id)
+    if (exists) return
+
+    setEditingSidebarEntity(null)
+    setSidebarTitleDraft('')
+  }, [areaById, editingSidebarEntity, projectById])
+
+  const sidebarTitleEditController: SidebarTitleEditController = {
+    draft: sidebarTitleDraft,
+    inputRef: setSidebarTitleInputEl,
+    onChange: setSidebarTitleDraft,
+    onCommit: (next) => {
+      void commitSidebarTitleEdit(next)
+    },
+    onCancel: cancelSidebarTitleEdit,
+    onBlur: (next) => {
+      if (ignoreNextSidebarTitleBlurRef.current) {
+        ignoreNextSidebarTitleBlurRef.current = false
+        return
+      }
+
+      void commitSidebarTitleEdit(next)
+    },
+  }
+
+  const { openSidebarAreaContextMenu, menuNode: sidebarAreaContextMenuNode } = useSidebarAreaContextMenu({
+    currentPathname: location.pathname,
+    onAfterMutation: runSidebarMutation,
+    onNavigate: navigate,
+    onRename: beginSidebarAreaRename,
+  })
+
+  const { openSidebarProjectContextMenu, menuNode: sidebarProjectContextMenuNode } =
+    useSidebarProjectContextMenu({
+      areas: sidebar.areas,
+      currentPathname: location.pathname,
+      onAfterMutation: runSidebarMutation,
+      onNavigate: navigate,
+      onMoveProject: moveProjectFromContextMenu,
+      onRename: beginSidebarProjectRename,
+    })
+
+  const handleSidebarAreaContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLAnchorElement>, area: Area) => {
+      event.preventDefault()
+      event.stopPropagation()
+      openSidebarAreaContextMenu({
+        area,
+        anchorX: event.clientX,
+        anchorY: event.clientY,
+        restoreFocusEl: event.currentTarget,
+      })
+    },
+    [openSidebarAreaContextMenu]
+  )
+
+  const handleSidebarProjectContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLAnchorElement>, project: Project) => {
+      event.preventDefault()
+      event.stopPropagation()
+      openSidebarProjectContextMenu({
+        project,
+        anchorX: event.clientX,
+        anchorY: event.clientY,
+        restoreFocusEl: event.currentTarget,
+      })
+    },
+    [openSidebarProjectContextMenu]
+  )
+
   function handleDragStart(e: DragStartEvent) {
     const activeId = String(e.active.id)
     const dragType = e.active.data.current?.type
@@ -1335,8 +1563,12 @@ export function AppShell() {
               projectDragIds={openItemsByContainer[SIDEBAR_UNASSIGNED_CONTAINER_ID] ?? []}
               projectById={projectById}
               activeProjectDragId={activeProjectId}
+              currentPathname={location.pathname}
+              editingProjectId={editingSidebarEntity?.kind === 'project' ? editingSidebarEntity.id : null}
+              titleEdit={sidebarTitleEditController}
               suppressClickRef={suppressClickRef}
               projectProgressById={sidebarProjectProgress}
+              onProjectContextMenu={handleSidebarProjectContextMenu}
             />
 
             <SortableContext items={orderedAreaDragIds} strategy={verticalListSortingStrategy}>
@@ -1349,6 +1581,10 @@ export function AppShell() {
                   projectById={projectById}
                   activeAreaDragId={activeAreaId}
                   activeProjectDragId={activeProjectId}
+                  currentPathname={location.pathname}
+                  editingAreaId={editingSidebarEntity?.kind === 'area' ? editingSidebarEntity.id : null}
+                  editingProjectId={editingSidebarEntity?.kind === 'project' ? editingSidebarEntity.id : null}
+                  titleEdit={sidebarTitleEditController}
                   suppressClickRef={suppressClickRef}
                   projectProgressById={sidebarProjectProgress}
                   isCollapsed={collapsedAreaIds.includes(area.id)}
@@ -1369,6 +1605,8 @@ export function AppShell() {
                       setSidebarError(`${res.error.code}: ${res.error.message}`)
                     })()
                   }}
+                  onAreaContextMenu={handleSidebarAreaContextMenu}
+                  onProjectContextMenu={handleSidebarProjectContextMenu}
                 />
               ))}
             </SortableContext>
@@ -1388,6 +1626,8 @@ export function AppShell() {
         </nav>
 
         {createPopover ? renderCreatePopover() : null}
+        {sidebarAreaContextMenuNode}
+        {sidebarProjectContextMenuNode}
 
         <div className="sidebar-bottom">
           <button
@@ -1569,14 +1809,20 @@ function SortableSidebarProjectNavItem({
   project,
   indent,
   activeProjectDragId,
+  isActiveRoute,
+  titleEdit,
   suppressClickRef,
   progress,
+  onContextMenu,
 }: {
   project: Project
   indent?: boolean
   activeProjectDragId: string | null
+  isActiveRoute: boolean
+  titleEdit?: SidebarTitleEditController
   suppressClickRef: React.MutableRefObject<boolean>
   progress: { done_count: number; total_count: number } | null
+  onContextMenu?: React.MouseEventHandler<HTMLAnchorElement>
 }) {
   const { t } = useTranslation()
   const hasProjectTitle = project.title.trim().length > 0
@@ -1601,33 +1847,69 @@ function SortableSidebarProjectNavItem({
         visibility: isHiddenForOverlay ? 'hidden' : undefined,
       }}
     >
-      <NavLink
-        ref={setActivatorNodeRef}
-        className={({ isActive }) =>
-          `nav-item nav-project-row${isActive ? ' is-active' : ''}${hasProjectTitle ? '' : ' is-placeholder'}`
-        }
-        to={`/projects/${project.id}`}
-        data-sidebar-row-activator="true"
-        {...attributes}
-        {...(listeners ?? {})}
-        onPointerDown={(e) => {
-          listeners?.onPointerDown?.(e)
-        }}
-        onClick={(e) => {
-          if (suppressClickRef.current) {
-            e.preventDefault()
-            e.stopPropagation()
+      {titleEdit ? (
+        <div className={`nav-item nav-project-row${isActiveRoute ? ' is-active' : ''}`}>
+          <ProjectProgressIndicator
+            status={project.status}
+            doneCount={progress?.done_count ?? 0}
+            totalCount={progress?.total_count ?? 0}
+            size="list"
+          />
+          <input
+            ref={titleEdit.inputRef}
+            className="sidebar-row-title-input nav-project-label"
+            value={titleEdit.draft}
+            placeholder={t('project.untitled')}
+            aria-label={t('aria.projectTitle')}
+            onChange={(e) => titleEdit.onChange(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation()
+
+              if (e.key === 'Enter') {
+                if (e.nativeEvent.isComposing) return
+                e.preventDefault()
+                titleEdit.onCommit(e.currentTarget.value)
+                return
+              }
+
+              if (e.key === 'Escape') {
+                e.preventDefault()
+                titleEdit.onCancel()
+              }
+            }}
+            onBlur={(e) => titleEdit.onBlur(e.currentTarget.value)}
+          />
+        </div>
+      ) : (
+        <NavLink
+          ref={setActivatorNodeRef}
+          className={({ isActive }) =>
+            `nav-item nav-project-row${isActive ? ' is-active' : ''}${hasProjectTitle ? '' : ' is-placeholder'}`
           }
-        }}
-      >
-        <ProjectProgressIndicator
-          status={project.status}
-          doneCount={progress?.done_count ?? 0}
-          totalCount={progress?.total_count ?? 0}
-          size="list"
-        />
-        <span className="nav-project-label">{displayProjectTitle}</span>
-      </NavLink>
+          to={`/projects/${project.id}`}
+          data-sidebar-row-activator="true"
+          {...attributes}
+          {...(listeners ?? {})}
+          onPointerDown={(e) => {
+            listeners?.onPointerDown?.(e)
+          }}
+          onClick={(e) => {
+            if (suppressClickRef.current) {
+              e.preventDefault()
+              e.stopPropagation()
+            }
+          }}
+          onContextMenu={onContextMenu}
+        >
+          <ProjectProgressIndicator
+            status={project.status}
+            doneCount={progress?.done_count ?? 0}
+            totalCount={progress?.total_count ?? 0}
+            size="list"
+          />
+          <span className="nav-project-label">{displayProjectTitle}</span>
+        </NavLink>
+      )}
     </div>
   )
 }
@@ -1637,15 +1919,23 @@ function SidebarUnassignedGroup({
   projectDragIds,
   projectById,
   activeProjectDragId,
+  currentPathname,
+  editingProjectId,
+  titleEdit,
   suppressClickRef,
   projectProgressById,
+  onProjectContextMenu,
 }: {
   containerId: ContainerId
   projectDragIds: string[]
   projectById: Map<string, Project>
   activeProjectDragId: string | null
+  currentPathname: string
+  editingProjectId: string | null
+  titleEdit: SidebarTitleEditController
   suppressClickRef: React.MutableRefObject<boolean>
   projectProgressById: Record<string, { done_count: number; total_count: number }>
+  onProjectContextMenu?: (event: React.MouseEvent<HTMLAnchorElement>, project: Project) => void
 }) {
   const { setNodeRef } = useDroppable({
     id: containerId,
@@ -1666,8 +1956,11 @@ function SidebarUnassignedGroup({
               key={project.id}
               project={project}
               activeProjectDragId={activeProjectDragId}
+              isActiveRoute={currentPathname === `/projects/${project.id}`}
+              titleEdit={editingProjectId === project.id ? titleEdit : undefined}
               suppressClickRef={suppressClickRef}
               progress={progress}
+              onContextMenu={onProjectContextMenu ? (event) => onProjectContextMenu(event, project) : undefined}
             />
           )
         })}
@@ -1685,10 +1978,16 @@ function SortableSidebarAreaGroup({
   projectById,
   activeAreaDragId,
   activeProjectDragId,
+  currentPathname,
+  editingAreaId,
+  editingProjectId,
+  titleEdit,
   suppressClickRef,
   projectProgressById,
   isCollapsed,
   onToggleCollapsed,
+  onAreaContextMenu,
+  onProjectContextMenu,
 }: {
   area: Area
   containerId: ContainerId
@@ -1696,10 +1995,16 @@ function SortableSidebarAreaGroup({
   projectById: Map<string, Project>
   activeAreaDragId: string | null
   activeProjectDragId: string | null
+  currentPathname: string
+  editingAreaId: string | null
+  editingProjectId: string | null
+  titleEdit: SidebarTitleEditController
   suppressClickRef: React.MutableRefObject<boolean>
   projectProgressById: Record<string, { done_count: number; total_count: number }>
   isCollapsed: boolean
   onToggleCollapsed: () => void
+  onAreaContextMenu?: (event: React.MouseEvent<HTMLAnchorElement>, area: Area) => void
+  onProjectContextMenu?: (event: React.MouseEvent<HTMLAnchorElement>, project: Project) => void
 }) {
   const { t } = useTranslation()
   const { setNodeRef: setDroppableNodeRef } = useDroppable({
@@ -1739,28 +2044,59 @@ function SortableSidebarAreaGroup({
       }}
     >
       <div className="nav-area-header">
-        <NavLink
-          ref={setActivatorNodeRef}
-          className={({ isActive }) =>
-            `nav-item nav-area-row${isActive ? ' is-active' : ''}${hasAreaTitle ? '' : ' is-placeholder'}`
-          }
-          to={`/areas/${area.id}`}
-          data-sidebar-row-activator="true"
-          {...attributes}
-          {...(listeners ?? {})}
-          onPointerDown={(e) => {
-            listeners?.onPointerDown?.(e)
-          }}
-          onClick={(e) => {
-            if (suppressClickRef.current) {
-              e.preventDefault()
-              e.stopPropagation()
+        {editingAreaId === area.id ? (
+          <div className={`nav-item nav-area-row${currentPathname === `/areas/${area.id}` ? ' is-active' : ''}`}>
+            <SidebarFolderIcon className="nav-area-icon" />
+            <input
+              ref={titleEdit.inputRef}
+              className="sidebar-row-title-input nav-area-label"
+              value={titleEdit.draft}
+              placeholder={t('area.untitled')}
+              aria-label={t('aria.areaTitle')}
+              onChange={(e) => titleEdit.onChange(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+
+                if (e.key === 'Enter') {
+                  if (e.nativeEvent.isComposing) return
+                  e.preventDefault()
+                  titleEdit.onCommit(e.currentTarget.value)
+                  return
+                }
+
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  titleEdit.onCancel()
+                }
+              }}
+              onBlur={(e) => titleEdit.onBlur(e.currentTarget.value)}
+            />
+          </div>
+        ) : (
+          <NavLink
+            ref={setActivatorNodeRef}
+            className={({ isActive }) =>
+              `nav-item nav-area-row${isActive ? ' is-active' : ''}${hasAreaTitle ? '' : ' is-placeholder'}`
             }
-          }}
-        >
-          <SidebarFolderIcon className="nav-area-icon" />
-          <span className="nav-area-label">{displayAreaTitle}</span>
-        </NavLink>
+            to={`/areas/${area.id}`}
+            data-sidebar-row-activator="true"
+            {...attributes}
+            {...(listeners ?? {})}
+            onPointerDown={(e) => {
+              listeners?.onPointerDown?.(e)
+            }}
+            onClick={(e) => {
+              if (suppressClickRef.current) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
+            }}
+            onContextMenu={onAreaContextMenu ? (event) => onAreaContextMenu(event, area) : undefined}
+          >
+            <SidebarFolderIcon className="nav-area-icon" />
+            <span className="nav-area-label">{displayAreaTitle}</span>
+          </NavLink>
+        )}
 
         <button
           type="button"
@@ -1802,8 +2138,11 @@ function SortableSidebarAreaGroup({
                   project={project}
                   indent
                   activeProjectDragId={activeProjectDragId}
+                  isActiveRoute={currentPathname === `/projects/${project.id}`}
+                  titleEdit={editingProjectId === project.id ? titleEdit : undefined}
                   suppressClickRef={suppressClickRef}
                   progress={progress}
+                  onContextMenu={onProjectContextMenu ? (event) => onProjectContextMenu(event, project) : undefined}
                 />
               )
             })}

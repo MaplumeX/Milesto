@@ -124,6 +124,7 @@ export function createWindowApiMock(): WindowApi {
       createSection: vi.fn<WindowApi['project']['createSection']>(async () => err(unimplementedError)),
       renameSection: vi.fn<WindowApi['project']['renameSection']>(async () => err(unimplementedError)),
       deleteSection: vi.fn<WindowApi['project']['deleteSection']>(async () => err(unimplementedError)),
+      moveSection: vi.fn<WindowApi['project']['moveSection']>(async () => err(unimplementedError)),
       reorderSections: vi.fn<WindowApi['project']['reorderSections']>(async () => err(unimplementedError)),
     },
 

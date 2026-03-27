@@ -29,6 +29,8 @@ import {
   ProjectSectionCreateInputSchema,
   ProjectSectionDeleteInputSchema,
   ProjectSectionListInputSchema,
+  ProjectSectionMoveInputSchema,
+  ProjectSectionMoveResultSchema,
   ProjectSectionReorderBatchInputSchema,
   ProjectSectionSchema,
   ProjectSectionRenameInputSchema,
@@ -384,6 +386,7 @@ function registerIpcHandlers(
     'project.setTags',
     'project.section.create',
     'project.section.rename',
+    'project.section.move',
     'project.section.reorderBatch',
     'project.section.delete',
     'area.create',
@@ -1091,6 +1094,7 @@ function registerIpcHandlers(
   handleDb('db:project.section.create', 'project.section.create', ProjectSectionCreateInputSchema, ProjectSectionSchema)
   handleDb('db:project.section.rename', 'project.section.rename', ProjectSectionRenameInputSchema, ProjectSectionSchema)
   handleDb('db:project.section.delete', 'project.section.delete', ProjectSectionDeleteInputSchema, z.object({ deleted: z.boolean(), moved_to_section_id: z.string().nullable() }))
+  handleDb('db:project.section.move', 'project.section.move', ProjectSectionMoveInputSchema, ProjectSectionMoveResultSchema)
   handleDb(
     'db:project.section.reorderBatch',
     'project.section.reorderBatch',
