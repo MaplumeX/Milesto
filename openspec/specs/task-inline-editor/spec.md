@@ -28,41 +28,69 @@ TBD - created by archiving change inline-task-editor-row-expand. Update Purpose 
 ### Requirement: Notes are borderless and visually part of the title block
 展开态的 Notes 输入 MUST 无边框、无底色，视觉上与标题区域属于同一个内容块；Notes placeholder MUST 显示为“备注”，且以提示色呈现。
 
+Notes 输入 MUST 默认提供一个可见的多行编辑区域，而不是接近单行输入框的高度。
+
 #### Scenario: Notes looks like inline text
 - **WHEN** 任务展开编辑器
 - **THEN** Notes 区域没有明显边框/输入框背景
 - **THEN** Notes placeholder 显示“备注”且与正文可区分（提示色）
 
-### Requirement: Action bar shows Schedule/Tags/Due and conditional Checklist add
-展开态底部右侧 MUST 提供精简 Action Bar 按钮组：`Tags` 按钮常驻；`Schedule` 与 `Due` 按钮 MUST 仅在对应字段当前为空时显示，作为“添加入口”。
+#### Scenario: Notes keep a visible multi-line editing area by default
+- **WHEN** 任务展开编辑器
+- **THEN** Notes 区域在未输入内容时也保持明显的多行编辑高度
 
-其中，Schedule 的“当前为空” MUST 按以下规则判断：
-- `scheduled_at` 为空且 `is_someday=false` 时，Schedule 视为“为空”
-- `scheduled_at` 有值或 `is_someday=true` 时，Schedule 视为“有值”
+### Requirement: Expanded inline editor renders a metadata info band below notes
+When the inline editor is expanded, the system MUST render a metadata info band below the notes area and above checklist or action areas.
 
-`Checklist` 按钮 MUST 仅在该任务当前没有任何 checklist 项时显示，并作为“最快新增 checklist”的入口。
+The info band MUST:
+- display existing schedule, due, and tag metadata as chips
+- preserve the visual order `Schedule -> Due -> Tags`
+- omit chips whose source value is absent
 
-同时，展开态底部左侧 MUST 提供摘要 chips 区域，用于展示当前已有的 `Scheduled`/`Due`/`Tags` 值（详见 ADDED Requirements）。
+The expanded reading order MUST be `Title -> Notes -> Metadata info band -> Checklist content -> Action area`.
 
-#### Scenario: Schedule and Due buttons hide when value exists
-- **WHEN** 任务展开且（`scheduled_at` 有值或 `is_someday=true`）
-- **THEN** Action Bar 不显示 `Schedule` 按钮
-- **WHEN** 任务展开且（`scheduled_at` 为空且 `is_someday=false`）
-- **THEN** Action Bar 显示 `Schedule` 按钮
-- **WHEN** 任务展开且 `due_at` 有值
-- **THEN** Action Bar 不显示 `Due` 按钮
-- **WHEN** 任务展开且 `due_at` 为空
-- **THEN** Action Bar 显示 `Due` 按钮
+#### Scenario: Expanded editor shows metadata below notes
+- **WHEN** a task is opened in the inline editor and has visible metadata
+- **THEN** the editor renders the metadata info band below the notes area
+- **AND** the notes area is rendered above the info band
 
-#### Scenario: Tags button is always visible
-- **WHEN** 任务展开（无论 tags 是否为空）
-- **THEN** Action Bar 显示 `Tags` 按钮
+#### Scenario: Missing metadata does not render empty chips
+- **WHEN** a task is opened in the inline editor and one or more metadata values are absent
+- **THEN** the editor omits the corresponding chips from the info band
 
-#### Scenario: Checklist button only appears when checklist is empty
-- **WHEN** 任务展开且 checklist 项数量为 0
-- **THEN** Action Bar 显示 `Checklist` 按钮
-- **WHEN** checklist 项数量大于 0
-- **THEN** Action Bar 不显示 `Checklist` 按钮
+### Requirement: Metadata info band chips are the primary metadata editing entry
+The metadata info band chips MUST be interactive and MUST act as the primary entry points for editing schedule, due date, and tags in the expanded inline editor.
+
+Activating a chip MUST open the corresponding picker or panel.
+
+#### Scenario: Clicking the schedule chip opens the schedule picker
+- **WHEN** the expanded inline editor shows a schedule chip
+- **AND** the user activates that chip
+- **THEN** the system opens the existing schedule picker
+
+#### Scenario: Clicking the due chip opens the due picker
+- **WHEN** the expanded inline editor shows a due chip
+- **AND** the user activates that chip
+- **THEN** the system opens the existing due picker
+
+#### Scenario: Clicking the tags chip opens the tags picker
+- **WHEN** the expanded inline editor shows a tags chip or tag preview group
+- **AND** the user activates that chip or preview group
+- **THEN** the system opens the existing tags picker
+
+### Requirement: Expanded action area avoids duplicate metadata controls
+The expanded inline editor action area MUST NOT render duplicate `Schedule`, `Due`, or `Tags` action buttons when the metadata info band is present.
+
+The action area MAY still render non-duplicate actions such as checklist creation or project-related actions.
+
+#### Scenario: Footer action area omits duplicate metadata buttons
+- **WHEN** a task is opened in the expanded inline editor
+- **THEN** the footer action area does not render separate `Schedule`, `Due`, or `Tags` buttons
+
+#### Scenario: Checklist entry remains available when checklist is empty
+- **WHEN** a task is opened in the expanded inline editor
+- **AND** the checklist is empty
+- **THEN** the action area still renders the `Checklist` entry action
 
 ### Requirement: Checklist button focuses add-item input
 当 checklist 为空且用户点击 `Checklist` 按钮时，系统 MUST 创建一条空 checklist 行并立即进入编辑状态。
@@ -110,47 +138,6 @@ TBD - created by archiving change inline-task-editor-row-expand. Update Purpose 
 - **WHEN** 用户单击某条任务（例如点击任务标题区域）
 - **THEN** 该任务成为当前选中项
 - **THEN** 行内任务编辑器保持收起（不展开）
-
-### Requirement: Footer summary chips show existing Schedule/Due/Tags and support clear
-展开态底部左侧 MUST 显示摘要 chips，用于展示已有值：
-
-- 当（`scheduled_at` 有值或 `is_someday=true`）时，显示 `Scheduled` chip
-- 当 `due_at` 有值时，显示 `Due` chip
-- 当 tags 非空时，显示 `Tags` chip
-
-当 `is_someday=true` 时，`Scheduled` chip 的展示文本 MUST 为 `Someday`（例如 `Scheduled: Someday`）。
-
-每个 chip MUST 可点击以打开对应的 picker；每个 chip 右侧 MUST 提供 `×` 清除按钮。
-点击 `×` MUST 清除对应值且 MUST NOT 打开 picker。
-
-#### Scenario: Chip appears only when value exists
-- **WHEN** 任务展开且（`scheduled_at` 为空且 `is_someday=false`）
-- **THEN** 不显示 `Scheduled` chip
-- **WHEN** 任务展开且（`scheduled_at` 有值或 `is_someday=true`）
-- **THEN** 显示 `Scheduled` chip
-- **WHEN** 任务展开且 `due_at` 为空
-- **THEN** 不显示 `Due` chip
-- **WHEN** 任务展开且 `due_at` 有值
-- **THEN** 显示 `Due` chip
-- **WHEN** 任务展开且 tags 为空
-- **THEN** 不显示 `Tags` chip
-- **WHEN** 任务展开且 tags 非空
-- **THEN** 显示 `Tags` chip
-
-#### Scenario: Chip click opens picker, close button clears without opening
-- **WHEN** 用户点击 `Scheduled`/`Due`/`Tags` chip 的主体区域
-- **THEN** 系统打开对应的 picker
-- **WHEN** 用户点击 chip 右侧的 `×`
-- **THEN** 系统清除该字段/集合的值
-- **THEN** 系统不打开 picker
-
-#### Scenario: Clearing Scheduled chip clears date or Someday
-- **WHEN** `Scheduled` chip 可见且 `scheduled_at` 有值
-- **WHEN** 用户点击 `Scheduled` chip 的 `×`
-- **THEN** 系统将 `scheduled_at` 清除为 null
-- **WHEN** `Scheduled` chip 可见且 `is_someday=true`
-- **WHEN** 用户点击 `Scheduled` chip 的 `×`
-- **THEN** 系统将 `is_someday` 设为 false
 
 ### Requirement: Schedule/Due/Tags are edited via pickers without expanding editor height
 `Schedule` / `Due` / `Tags` 的编辑 MUST 通过 floating picker 完成，MUST NOT 通过在编辑器内插入展开区块来提供选择 UI，从而避免行内编辑器高度因临时选择器而抖动。
@@ -265,4 +252,3 @@ The system MUST NOT compute the `today` date once at component mount and reuse i
 - **AND** the user opens the inline editor schedule picker
 - **AND** the user selects `Today`
 - **THEN** the task is persisted with `scheduled_at=<current local date>`
-

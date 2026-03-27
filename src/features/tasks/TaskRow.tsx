@@ -3,6 +3,7 @@ import { isClosedTaskStatus } from '../../../shared/schemas/common'
 import { useTranslation } from 'react-i18next'
 
 import { Checkbox } from '../../components/Checkbox'
+import { getTaskSchedulePreviewLabel, getTaskTagPreview } from './task-metadata'
 import { TaskProjectAffiliation } from './TaskProjectAffiliation'
 
 export function TaskRow({
@@ -43,6 +44,14 @@ export function TaskRow({
   const hasTitlePrefix = Boolean(titlePrefix)
   const isCancelled = task.status === 'cancelled'
   const isClosed = isClosedTaskStatus(task.status)
+  const schedulePreview = getTaskSchedulePreviewLabel(task, {
+    someday: t('nav.someday'),
+  })
+  const tagPreview = getTaskTagPreview(
+    task.tag_preview ?? [],
+    task.tag_count ?? task.tag_preview?.length ?? 0
+  )
+  const hasMetadata = Boolean(schedulePreview || task.due_at || tagPreview.visible.length || tagPreview.overflowCount)
   const {
     className: titleActivatorClassName,
     disabled: titleActivatorDisabled,
@@ -118,6 +127,48 @@ export function TaskRow({
           ) : null}
         </span>
       </button>
+
+      {hasMetadata ? (
+        <div className="task-row-metadata" data-task-row-meta="cluster">
+          {schedulePreview ? (
+            <span
+              className="task-row-meta-item task-row-meta-item--schedule"
+              data-task-row-meta-kind="schedule"
+            >
+              <span className="task-row-meta-label">{t('taskEditor.scheduledPrefix')}</span>
+              <span className="task-row-meta-value">{schedulePreview}</span>
+            </span>
+          ) : null}
+
+          {task.due_at ? (
+            <span
+              className="task-row-meta-item task-row-meta-item--due"
+              data-task-row-meta-kind="due"
+            >
+              <span className="task-row-meta-label">{t('taskEditor.duePrefix')}</span>
+              <span className="task-row-meta-value">{task.due_at}</span>
+            </span>
+          ) : null}
+
+          {tagPreview.visible.length > 0 || tagPreview.overflowCount > 0 ? (
+            <span
+              className="task-row-meta-item task-row-meta-item--tags"
+              data-task-row-meta-kind="tags"
+            >
+              <span className="task-row-meta-tags">
+                {tagPreview.visible.map((title, index) => (
+                  <span key={`${title}-${index}`} className="task-row-meta-tag">
+                    {title}
+                  </span>
+                ))}
+                {tagPreview.overflowCount > 0 ? (
+                  <span className="task-row-meta-overflow">+{tagPreview.overflowCount}</span>
+                ) : null}
+              </span>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {isClosed && onRestore ? (
         <button

@@ -90,6 +90,79 @@ describe('task project affiliation DB contract', () => {
     expect(search.data[0]).toMatchObject({ project_id: projectId, project_title: 'Project Alpha' })
   })
 
+  it('returns lightweight tag preview metadata for list and search queries', async () => {
+    const testDb = await createTestDb()
+    cleanup = testDb.cleanup
+
+    const { db } = testDb
+    const handlers = buildDbHandlers(db)
+
+    const createdTask = dispatchDbRequest(handlers, {
+      id: '1',
+      type: 'db',
+      action: 'task.create',
+      payload: {
+        title: 'Tagged Task',
+        scheduled_at: '2026-03-26',
+        due_at: '2026-03-29',
+      },
+    } satisfies DbWorkerRequest)
+    expect(createdTask.ok).toBe(true)
+    if (!createdTask.ok) return
+
+    const createdTags = ['Urgent', 'Home', 'Deep Work'].map((title, index) =>
+      dispatchDbRequest(handlers, {
+        id: `tag-${index + 1}`,
+        type: 'db',
+        action: 'tag.create',
+        payload: { title },
+      } satisfies DbWorkerRequest)
+    )
+    expect(createdTags.every((result) => result.ok)).toBe(true)
+    if (createdTags.some((result) => !result.ok)) return
+
+    const setTags = dispatchDbRequest(handlers, {
+      id: '5',
+      type: 'db',
+      action: 'task.setTags',
+      payload: {
+        task_id: createdTask.data.id,
+        tag_ids: createdTags.map((result) => (result.ok ? result.data.id : '')),
+      },
+    } satisfies DbWorkerRequest)
+    expect(setTags.ok).toBe(true)
+
+    const today = dispatchDbRequest(handlers, {
+      id: '6',
+      type: 'db',
+      action: 'task.listToday',
+      payload: { date: '2026-03-26' },
+    } satisfies DbWorkerRequest)
+    expect(today.ok).toBe(true)
+    if (!today.ok) return
+
+    expect(today.data[0]).toMatchObject({
+      scheduled_at: '2026-03-26',
+      due_at: '2026-03-29',
+      tag_preview: ['Urgent', 'Home'],
+      tag_count: 3,
+    })
+
+    const search = dispatchDbRequest(handlers, {
+      id: '7',
+      type: 'db',
+      action: 'task.search',
+      payload: { query: 'Tagged' },
+    } satisfies DbWorkerRequest)
+    expect(search.ok).toBe(true)
+    if (!search.ok) return
+
+    expect(search.data[0]).toMatchObject({
+      tag_preview: ['Urgent', 'Home'],
+      tag_count: 3,
+    })
+  })
+
   it('listArea excludes tasks that are only affiliated through a project area', async () => {
     const testDb = await createTestDb()
     cleanup = testDb.cleanup

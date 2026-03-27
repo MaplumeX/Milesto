@@ -1427,8 +1427,77 @@ body {
   align-items: center;
   gap: 8px;
   width: 100%;
+  min-width: 0;
   /* Inner wrapper is where dnd-kit applies transforms. */
   position: relative;
+}
+
+.task-row-metadata {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.task-row-meta-item {
+  --task-row-meta-bg: var(--glass-soft);
+  --task-row-meta-border: color-mix(in srgb, var(--border) 92%, transparent);
+  --task-row-meta-text: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--task-row-meta-border);
+  background: var(--task-row-meta-bg);
+  color: var(--task-row-meta-text);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.task-row-meta-item--schedule {
+  --task-row-meta-bg: color-mix(in srgb, var(--ppc-color) 10%, var(--glass-strong));
+  --task-row-meta-text: color-mix(in srgb, var(--ppc-color) 78%, var(--text));
+}
+
+.task-row-meta-item--due {
+  --task-row-meta-bg: color-mix(in srgb, #F29A4A 16%, var(--glass-strong));
+  --task-row-meta-border: color-mix(in srgb, #F29A4A 30%, var(--border));
+  --task-row-meta-text: color-mix(in srgb, #C76A1E 84%, var(--text));
+  font-weight: 600;
+}
+
+.task-row-meta-item--tags {
+  --task-row-meta-bg: color-mix(in srgb, var(--wash) 48%, var(--glass-strong));
+}
+
+.task-row-meta-label {
+  opacity: 0.74;
+}
+
+.task-row-meta-value,
+.task-row-meta-tag,
+.task-row-meta-overflow {
+  color: inherit;
+}
+
+.task-row-meta-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.task-row-meta-tag {
+  max-width: 92px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-row-meta-overflow {
+  font-weight: 600;
 }
 
 
@@ -1583,7 +1652,7 @@ body {
   color: var(--text);
   resize: none;
   overflow: hidden;
-  min-height: 44px;
+  min-height: 48px;
 }
 
 .task-inline-notes:focus {
@@ -1601,6 +1670,24 @@ body {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--border);
+}
+
+.task-inline-metadata-band {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.task-inline-metadata-band .task-inline-chip {
+  max-width: 100%;
+}
+
+.task-inline-metadata-band .task-inline-chip-main {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .task-inline-action-bar {
@@ -2076,6 +2163,7 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 
 .task-title {
   flex: 1;
+  min-width: 0;
 }
 
 .task-title-button {
@@ -2083,6 +2171,7 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
   align-items: flex-start;
   gap: 8px;
   width: 100%;
+  min-width: 0;
   text-align: left;
   border: 0;
   background: transparent;
@@ -2098,6 +2187,14 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
   min-width: 0;
   flex-direction: column;
   gap: 1px;
+}
+
+.task-title-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .task-project-affiliation {

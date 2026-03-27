@@ -18,7 +18,8 @@ import { useAppEvents } from '../../app/AppEventsContext'
 import { Checkbox } from '../../components/Checkbox'
 import { formatLocalDate, parseLocalDate } from '../../lib/dates'
 import { buildProjectPath } from '../../lib/entity-scope'
-import { getLocalToday, useLocalToday } from '../../lib/use-local-today'
+import { getLocalToday } from '../../lib/use-local-today'
+import { getTaskSchedulePreviewLabel, getTaskTagPreview } from './task-metadata'
 import { TaskEditorProjectActions } from './TaskEditorProjectActions'
 
 type Draft = {
@@ -119,6 +120,7 @@ function mergeChecklistRows(
 
 const TITLE_NOTES_DEBOUNCE_MS = 450
 const OTHER_FIELDS_DEBOUNCE_MS = 120
+const TASK_INLINE_NOTES_MIN_HEIGHT_PX = 48
 
 const TAG_COLOR_PRESETS: Array<{ name: string; value: string | null; hex: string | null }> = [
   { name: 'None', value: null, hex: null },
@@ -292,8 +294,6 @@ export const TaskEditorPaper = forwardRef<
       doneCount: number
       totalCount: number
     } | null>(null)
-
-    const today = useLocalToday()
 
     const saveDebounceRef = useRef<number | null>(null)
     const pendingSnapshotRef = useRef<Draft | null>(null)
@@ -709,6 +709,18 @@ export const TaskEditorPaper = forwardRef<
     }, [draft?.project_id, detail?.task.status, showProjectActions])
 
     const selectedTagIds = useMemo(() => new Set(detail?.tag_ids ?? []), [detail?.tag_ids])
+    const selectedTagTitles = useMemo(() => {
+      if (!detail?.tag_ids?.length) return []
+
+      const titleById = new Map(tags.map((tag) => [tag.id, tag.title]))
+      return detail.tag_ids
+        .map((id) => titleById.get(id))
+        .filter((title): title is string => Boolean(title))
+    }, [detail?.tag_ids, tags])
+    const tagPreview = useMemo(
+      () => getTaskTagPreview(selectedTagTitles, detail?.tag_ids.length ?? selectedTagTitles.length),
+      [detail?.tag_ids.length, selectedTagTitles]
+    )
     const checklist = detail?.checklist_items ?? []
     const selectedProject = useMemo(() => {
       if (!draft?.project_id) return null
@@ -759,6 +771,14 @@ export const TaskEditorPaper = forwardRef<
 
     const isCancelledTask = detail.task.status === 'cancelled'
     const isClosedTask = isClosedTaskStatus(detail.task.status)
+    const schedulePreviewLabel = getTaskSchedulePreviewLabel(draft, {
+      someday: t('nav.someday'),
+    })
+    const hasMetadataBand = Boolean(schedulePreviewLabel || draft.due_at || selectedTagIds.size > 0)
+    const tagsPreviewLabel =
+      tagPreview.visible.length > 0
+        ? `${tagPreview.visible.join(', ')}${tagPreview.overflowCount > 0 ? ` +${tagPreview.overflowCount}` : ''}`
+        : `${t('taskEditor.tagsPrefix')} ${selectedTagIds.size}`
     const statusLabel =
       detail.task.status === 'done'
         ? t('taskEditor.statusDone')
@@ -1397,6 +1417,7 @@ export const TaskEditorPaper = forwardRef<
                 id="task-notes"
                 ref={notesInputRef}
                 className="task-inline-notes"
+                style={{ minHeight: `${TASK_INLINE_NOTES_MIN_HEIGHT_PX}px` }}
                 value={draft.notes}
                 onChange={(e) => {
                   const next = { ...draft, notes: e.target.value }
@@ -1405,6 +1426,56 @@ export const TaskEditorPaper = forwardRef<
                 }}
                 placeholder={t('task.notesPlaceholder')}
               />
+
+              {hasMetadataBand ? (
+                <div className="task-inline-metadata-band" data-task-inline-meta-band="true">
+                  {schedulePreviewLabel ? (
+                    <div
+                      className="task-inline-chip task-inline-chip--plan"
+                      data-task-inline-meta-kind="schedule"
+                    >
+                      <button
+                        type="button"
+                        className="task-inline-chip-main"
+                        onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
+                      >
+                        {t('taskEditor.scheduledPrefix')} {schedulePreviewLabel}
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {draft.due_at ? (
+                    <div
+                      className="task-inline-chip task-inline-chip--due"
+                      data-task-inline-meta-kind="due"
+                    >
+                      <button
+                        type="button"
+                        className="task-inline-chip-main"
+                        onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}
+                      >
+                        {t('taskEditor.duePrefix')} {draft.due_at}
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {selectedTagIds.size > 0 ? (
+                    <div
+                      className="task-inline-chip task-inline-chip--summary"
+                      data-task-inline-meta-kind="tags"
+                    >
+                      <button
+                        ref={tagsButtonRef}
+                        type="button"
+                        className="task-inline-chip-main"
+                        onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
+                      >
+                        {tagsPreviewLabel}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               {isChecklistExpanded ? (
                 <div className="task-inline-section">
@@ -1423,76 +1494,10 @@ export const TaskEditorPaper = forwardRef<
               ) : null}
 
               <div className="task-inline-action-bar">
-                <div className="task-inline-action-bar-left">
-                  {draft.scheduled_at || draft.is_someday ? (
-                    <div className="task-inline-chip">
-                      <button
-                        type="button"
-                        className="task-inline-chip-main"
-                        onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
-                      >
-                        {t('taskEditor.scheduledPrefix')}{' '}
-                        {draft.is_someday ? t('nav.someday') : draft.scheduled_at === today ? t('nav.today') : draft.scheduled_at}
-                      </button>
-                      <button
-                        type="button"
-                        className="task-inline-chip-close"
-                        aria-label={t('taskEditor.clearScheduledAria')}
-                        onClick={(e) => {
-                          e.preventDefault()
-                          const next = draft.is_someday ? { ...draft, is_someday: false } : { ...draft, scheduled_at: null }
-                          setDraft(next)
-                          scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {draft.due_at ? (
-                    <div className="task-inline-chip">
-                      <button type="button" className="task-inline-chip-main" onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}>
-                        {t('taskEditor.duePrefix')} {draft.due_at}
-                      </button>
-                      <button
-                        type="button"
-                        className="task-inline-chip-close"
-                        aria-label={t('taskEditor.clearDueAria')}
-                        onClick={(e) => {
-                          e.preventDefault()
-                          const next = { ...draft, due_at: null }
-                          setDraft(next)
-                          scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {selectedTagIds.size > 0 ? (
-                    <div className="task-inline-chip">
-                      <button type="button" className="task-inline-chip-main" onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}>
-                        {t('taskEditor.tagsPrefix')} {selectedTagIds.size}
-                      </button>
-                      <button
-                        type="button"
-                        className="task-inline-chip-close"
-                        aria-label={t('taskEditor.clearTagsAria')}
-                        onClick={(e) => {
-                          e.preventDefault()
-                          persistTags([])
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
+                <div className="task-inline-action-bar-left" />
 
                 <div className="task-inline-action-bar-right">
-                  {!draft.scheduled_at && !draft.is_someday ? (
+                  {!schedulePreviewLabel ? (
                     <button
                       type="button"
                       className="button button-ghost"
@@ -1502,14 +1507,16 @@ export const TaskEditorPaper = forwardRef<
                     </button>
                   ) : null}
 
-                  <button
-                    ref={tagsButtonRef}
-                    type="button"
-                    className="button button-ghost"
-                    onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
-                  >
-                    {t('taskEditor.tagsLabel')}
-                  </button>
+                  {selectedTagIds.size === 0 ? (
+                    <button
+                      ref={tagsButtonRef}
+                      type="button"
+                      className="button button-ghost"
+                      onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
+                    >
+                      {t('taskEditor.tagsLabel')}
+                    </button>
+                  ) : null}
 
                   {!draft.due_at ? (
                     <button type="button" className="button button-ghost" onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}>

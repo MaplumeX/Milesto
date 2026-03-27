@@ -50,6 +50,14 @@ const TagIdRowSchema = z.object({ id: z.string() })
 const ChecklistDbRowSchema = ChecklistItemSchema.extend({
   done: z.preprocess((v) => Boolean(v), z.boolean()),
 })
+const TaskListPreviewRowSchema = z
+  .object({
+    tag_count: z.number().int().nonnegative().nullable().optional(),
+    tag_preview_text: z.string().nullable().optional(),
+  })
+  .passthrough()
+
+const TASK_TAG_PREVIEW_SEPARATOR = '|||'
 
 function buildFts5PrefixMatchQuery(raw: string): string | null {
   // Convert arbitrary user input into a safe FTS5 prefix query.
@@ -104,6 +112,91 @@ function taskScopeWhere(scope: EntityScope, alias?: string): string {
 function taskClosedStatusWhere(alias?: string): string {
   const prefix = alias ? `${alias}.` : ''
   return `${prefix}status IN ('done', 'cancelled')`
+}
+
+function taskTagCountSql(taskAlias: string): string {
+  return `(
+    SELECT COUNT(1)
+    FROM task_tags tt
+    JOIN tags tag ON tag.id = tt.tag_id AND tag.deleted_at IS NULL
+    WHERE tt.deleted_at IS NULL
+      AND tt.task_id = ${taskAlias}.id
+  )`
+}
+
+function taskTagPreviewSql(taskAlias: string): string {
+  return `(
+    SELECT group_concat(preview.title, '${TASK_TAG_PREVIEW_SEPARATOR}')
+    FROM (
+      SELECT tag.title AS title
+      FROM task_tags tt
+      JOIN tags tag ON tag.id = tt.tag_id AND tag.deleted_at IS NULL
+      WHERE tt.deleted_at IS NULL
+        AND tt.task_id = ${taskAlias}.id
+      ORDER BY tt.created_at ASC, tt.rowid ASC
+      LIMIT 2
+    ) preview
+  )`
+}
+
+function buildTaskListSelectColumns(
+  taskAlias: string,
+  options?: {
+    projectTitleExpr?: string
+    rankExpr?: string
+    extraColumns?: string[]
+  }
+): string {
+  const projectTitleExpr = options?.projectTitleExpr ?? 'NULL'
+  const columns = [
+    `${taskAlias}.id`,
+    `${taskAlias}.title`,
+    `${taskAlias}.status`,
+    `${taskAlias}.is_inbox`,
+    `${taskAlias}.is_someday`,
+    `${taskAlias}.project_id`,
+    `${projectTitleExpr} AS project_title`,
+    `${taskAlias}.section_id`,
+    `${taskAlias}.area_id`,
+    `${taskAlias}.scheduled_at`,
+    `${taskAlias}.due_at`,
+    `${taskAlias}.created_at`,
+    `${taskAlias}.updated_at`,
+    `${taskAlias}.completed_at`,
+    `${taskAlias}.deleted_at`,
+    `${taskTagCountSql(taskAlias)} AS tag_count`,
+    `${taskTagPreviewSql(taskAlias)} AS tag_preview_text`,
+  ]
+
+  if (options?.rankExpr) columns.push(`${options.rankExpr} AS rank`)
+  if (options?.extraColumns) columns.push(...options.extraColumns)
+
+  return columns.join(',\n             ')
+}
+
+function parseTaskTagPreviewText(value: string | null | undefined): string[] {
+  if (!value) return []
+  return value.split(TASK_TAG_PREVIEW_SEPARATOR).filter((title) => title.length > 0)
+}
+
+function parseTaskListItems(rows: unknown[]) {
+  return z.array(TaskListPreviewRowSchema).parse(rows).map((row) =>
+    TaskListItemSchema.parse({
+      ...row,
+      tag_preview: parseTaskTagPreviewText(row.tag_preview_text),
+      tag_count: row.tag_count ?? 0,
+    })
+  )
+}
+
+function parseTaskSearchResultItems(rows: unknown[]) {
+  return z.array(TaskListPreviewRowSchema).parse(rows).map((row) =>
+    TaskSearchResultItemSchema.parse({
+      ...row,
+      tag_preview: parseTaskTagPreviewText(row.tag_preview_text),
+      tag_count: row.tag_count ?? 0,
+    })
+  )
 }
 
 export function createTaskActions(db: Database.Database): Record<string, DbActionHandler> {
@@ -863,9 +956,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, p.title AS project_title, t.section_id, t.area_id,
-             t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
-             lp.rank AS rank
+             ${buildTaskListSelectColumns('t', { projectTitleExpr: 'p.title', rankExpr: 'lp.rank' })}
            FROM tasks t
            LEFT JOIN projects p
              ON p.id = t.project_id AND p.deleted_at IS NULL
@@ -881,7 +972,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         )
         .all({ list_id: listId })
 
-      const items = z.array(TaskListItemSchema).parse(rows)
+      const items = parseTaskListItems(rows)
       return { ok: true, data: items }
     },
 
@@ -902,9 +993,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, p.title AS project_title, t.section_id, t.area_id,
-             t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
-             lp.rank AS rank
+             ${buildTaskListSelectColumns('t', { projectTitleExpr: 'p.title', rankExpr: 'lp.rank' })}
            FROM tasks t
            LEFT JOIN projects p
              ON p.id = t.project_id AND p.deleted_at IS NULL
@@ -922,7 +1011,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         )
         .all({ list_id: listId })
 
-      const items = z.array(TaskListItemSchema).parse(rows)
+      const items = parseTaskListItems(rows)
       return { ok: true, data: items }
     },
 
@@ -943,9 +1032,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, p.title AS project_title, t.section_id, t.area_id,
-             t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
-             lp.rank AS rank
+             ${buildTaskListSelectColumns('t', { projectTitleExpr: 'p.title', rankExpr: 'lp.rank' })}
            FROM tasks t
            LEFT JOIN projects p
              ON p.id = t.project_id AND p.deleted_at IS NULL
@@ -961,7 +1048,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         )
         .all({ list_id: listId })
 
-      const items = z.array(TaskListItemSchema).parse(rows)
+      const items = parseTaskListItems(rows)
       return { ok: true, data: items }
     },
 
@@ -982,9 +1069,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, p.title AS project_title, t.section_id, t.area_id,
-             t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
-             lp.rank AS rank
+             ${buildTaskListSelectColumns('t', { projectTitleExpr: 'p.title', rankExpr: 'lp.rank' })}
            FROM tasks t
            LEFT JOIN projects p
              ON p.id = t.project_id AND p.deleted_at IS NULL
@@ -1000,7 +1085,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         )
         .all({ list_id: listId, date: parsed.data.date })
 
-      const items = z.array(TaskListItemSchema).parse(rows)
+      const items = parseTaskListItems(rows)
       return { ok: true, data: items }
     },
 
@@ -1019,8 +1104,8 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
 
       const rows = db
         .prepare(
-          `SELECT tasks.id, tasks.title, tasks.status, tasks.is_inbox, tasks.is_someday, tasks.project_id, tasks.section_id, tasks.area_id,
-                  p.title AS project_title, tasks.scheduled_at, tasks.due_at, tasks.created_at, tasks.updated_at, tasks.completed_at, tasks.deleted_at
+          `SELECT
+                  ${buildTaskListSelectColumns('tasks', { projectTitleExpr: 'p.title' })}
            FROM tasks
            LEFT JOIN projects p
              ON p.id = tasks.project_id AND p.deleted_at IS NULL
@@ -1032,7 +1117,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         )
         .all({ from_date: parsed.data.from_date })
 
-      const items = z.array(TaskListItemSchema).parse(rows)
+      const items = parseTaskListItems(rows)
       return { ok: true, data: items }
     },
 
@@ -1051,8 +1136,8 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
 
       const rows = db
         .prepare(
-          `SELECT tasks.id, tasks.title, tasks.status, tasks.is_inbox, tasks.is_someday, tasks.project_id, tasks.section_id, tasks.area_id,
-                  p.title AS project_title, tasks.scheduled_at, tasks.due_at, tasks.created_at, tasks.updated_at, tasks.completed_at, tasks.deleted_at
+          `SELECT
+                  ${buildTaskListSelectColumns('tasks', { projectTitleExpr: 'p.title' })}
            FROM tasks
            LEFT JOIN projects p
              ON p.id = tasks.project_id AND p.deleted_at IS NULL
@@ -1062,7 +1147,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
          )
          .all()
 
-      const items = z.array(TaskListItemSchema).parse(rows)
+      const items = parseTaskListItems(rows)
       return { ok: true, data: items }
     },
 
@@ -1083,9 +1168,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
-             t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
-             lp.rank AS rank
+             ${buildTaskListSelectColumns('t', { rankExpr: 'lp.rank' })}
            FROM tasks t
            LEFT JOIN list_positions lp
              ON lp.task_id = t.id
@@ -1100,7 +1183,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         )
         .all({ project_id: parsed.data.project_id })
 
-      const items = z.array(TaskListItemSchema).parse(rows)
+      const items = parseTaskListItems(rows)
       return { ok: true, data: items }
     },
 
@@ -1202,9 +1285,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, t.section_id, t.area_id,
-             t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
-             lp.rank AS rank
+             ${buildTaskListSelectColumns('t', { rankExpr: 'lp.rank' })}
            FROM tasks t
            LEFT JOIN list_positions lp
              ON lp.task_id = t.id
@@ -1219,7 +1300,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         )
         .all({ project_id: parsed.data.project_id })
 
-      const items = z.array(TaskListItemSchema).parse(rows)
+      const items = parseTaskListItems(rows)
       return { ok: true, data: items }
     },
 
@@ -1240,9 +1321,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       const rows = db
         .prepare(
           `SELECT
-             t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, p.title AS project_title, t.section_id, t.area_id,
-             t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
-             lp.rank AS rank
+             ${buildTaskListSelectColumns('t', { projectTitleExpr: 'p.title', rankExpr: 'lp.rank' })}
            FROM tasks t
            LEFT JOIN projects p
              ON p.id = t.project_id AND p.deleted_at IS NULL
@@ -1258,7 +1337,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         )
         .all({ list_id: listId, area_id: parsed.data.area_id })
 
-      const items = z.array(TaskListItemSchema).parse(rows)
+      const items = parseTaskListItems(rows)
       return { ok: true, data: items }
     },
 
@@ -1286,9 +1365,10 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         const rows = db
           .prepare(
             `SELECT
-               t.id, t.title, t.status, t.is_inbox, t.is_someday, t.project_id, p.title AS project_title, t.section_id, t.area_id,
-               t.scheduled_at, t.due_at, t.created_at, t.updated_at, t.completed_at, t.deleted_at,
-               snippet(tasks_fts, -1, '[', ']', '…', 10) AS snippet
+               ${buildTaskListSelectColumns('t', {
+                 projectTitleExpr: 'p.title',
+                 extraColumns: ["snippet(tasks_fts, -1, '[', ']', '…', 10) AS snippet"],
+               })}
              FROM tasks_fts
              JOIN tasks t ON tasks_fts.rowid = t.rowid
              LEFT JOIN projects p ON p.id = t.project_id AND p.deleted_at IS NULL
@@ -1300,7 +1380,7 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
           )
           .all({ query: matchQuery })
 
-        const items = z.array(TaskSearchResultItemSchema).parse(rows)
+        const items = parseTaskSearchResultItems(rows)
         return { ok: true, data: items }
       } catch (e) {
         return {
