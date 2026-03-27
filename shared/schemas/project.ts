@@ -167,6 +167,20 @@ export const ProjectSectionDeleteInputSchema = z.object({
   id: IdSchema,
 })
 
+export const ProjectSectionMoveInputSchema = z.object({
+  id: IdSchema,
+  target_project_id: IdSchema,
+})
+
+export type ProjectSectionMoveInput = z.infer<typeof ProjectSectionMoveInputSchema>
+
+export const ProjectSectionMoveResultSchema = z.object({
+  moved: z.boolean(),
+  section: ProjectSectionSchema,
+})
+
+export type ProjectSectionMoveResult = z.infer<typeof ProjectSectionMoveResultSchema>
+
 export const ProjectSectionReorderBatchInputSchema = z.object({
   project_id: IdSchema,
   ordered_section_ids: z.array(IdSchema),

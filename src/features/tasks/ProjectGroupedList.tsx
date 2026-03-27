@@ -32,6 +32,7 @@ import { useContentScrollRef } from '../../app/ContentScrollContext'
 import { AnimatedTaskSlot } from './AnimatedTaskSlot'
 import { TaskInlineEditorRow } from './TaskInlineEditorRow'
 import { TaskRow } from './TaskRow'
+import { useProjectSectionContextMenu } from './use-project-section-context-menu'
 import { useTaskSelection } from './TaskSelectionContext'
 import { useTaskContextMenu } from './use-task-context-menu'
 import { useOptimisticTaskTitles } from './use-optimistic-task-titles'
@@ -205,6 +206,7 @@ function ProjectGroupHeaderRow({
   onEnterEdit,
   onCancelEdit,
   onCommitTitle,
+  onContextMenu,
   measureElement,
   index,
   translateY,
@@ -222,6 +224,7 @@ function ProjectGroupHeaderRow({
   onEnterEdit: () => void
   onCancelEdit: () => void
   onCommitTitle: (nextTitle: string) => void
+  onContextMenu?: React.MouseEventHandler<HTMLDivElement>
   measureElement: (el: HTMLLIElement | null) => void
   index: number
   translateY: number
@@ -267,6 +270,7 @@ function ProjectGroupHeaderRow({
         ref={setHeaderNodeRef}
         className={`project-group-header${isSelected ? ' is-selected' : ''}${isDragging ? ' is-dragging' : ''}`}
         data-section-id={sectionId}
+        onContextMenu={onContextMenu}
       >
         {isEditing ? (
           <div className="project-group-left">
@@ -434,6 +438,7 @@ export function ProjectGroupedList({
   const contentScrollRef = useContentScrollRef()
   const openTasksWithOptimisticTitles = useOptimisticTaskTitles(openTasks)
   const { openTaskContextMenu, menuNode } = useTaskContextMenu({ scope })
+  const pendingRemovedSectionRef = useRef<{ sectionId: string; rowIndex: number } | null>(null)
 
   const [orderedSectionIds, setOrderedSectionIds] = useState<string[]>(() => sections.map((s) => s.id))
   const orderedSectionIdsRef = useRef(orderedSectionIds)
@@ -462,6 +467,12 @@ export function ProjectGroupedList({
 
     return out
   }, [orderedSectionIds, sections])
+
+  const sectionById = useMemo(() => {
+    const out = new Map<string, ProjectSection>()
+    for (const section of sections) out.set(section.id, section)
+    return out
+  }, [sections])
 
   const [openItemsByContainer, setOpenItemsByContainer] = useState<Record<ContainerId, string[]>>(() =>
     deriveOpenItemsByContainer({ projectId, sections, openTasks: openTasksWithOptimisticTitles })
@@ -1011,6 +1022,22 @@ export function ProjectGroupedList({
     return groupRowIndexBySectionId.get(selectedRow.sectionId) ?? null
   }, [groupRowIndexBySectionId, selectedRow, taskRowIndexById])
 
+  const { openProjectSectionContextMenu, menuNode: sectionContextMenuNode } = useProjectSectionContextMenu({
+    scope,
+    onMutate: async () => {
+      await onAfterReorder?.()
+    },
+    onSectionRemoved: (sectionId) => {
+      if (selectedRow?.type !== 'group' || selectedRow.sectionId !== sectionId) {
+        pendingRemovedSectionRef.current = null
+        return
+      }
+
+      const rowIndex = groupRowIndexBySectionId.get(sectionId)
+      pendingRemovedSectionRef.current = rowIndex === undefined ? null : { sectionId, rowIndex }
+    },
+  })
+
   useEffect(() => {
     if (rows.length === 0) {
       setSelectedRow(null)
@@ -1160,6 +1187,54 @@ export function ProjectGroupedList({
       rowVirtualizer.scrollToIndex(index)
     },
     [rowVirtualizer, rows, selectTask]
+  )
+
+  useEffect(() => {
+    const pending = pendingRemovedSectionRef.current
+    if (!pending) return
+    if (groupRowIndexBySectionId.has(pending.sectionId)) return
+
+    pendingRemovedSectionRef.current = null
+    if (rows[pending.rowIndex]) {
+      selectRowByIndex(pending.rowIndex)
+      return
+    }
+
+    if (pending.rowIndex - 1 >= 0 && rows[pending.rowIndex - 1]) {
+      selectRowByIndex(pending.rowIndex - 1)
+      return
+    }
+
+    setSelectedRow(null)
+    selectTask(null)
+  }, [groupRowIndexBySectionId, rows, selectRowByIndex, selectTask])
+
+  const handleSectionContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>, section: ProjectSection, rowIndex: number) => {
+      event.preventDefault()
+      event.stopPropagation()
+      if (editingSectionId) return
+
+      selectRowByIndex(rowIndex)
+
+      const eventTarget = event.target
+      const restoreFocusEl =
+        eventTarget instanceof HTMLElement
+          ? eventTarget.closest<HTMLElement>('.project-group-left-button') ??
+            event.currentTarget.querySelector<HTMLElement>('.project-group-left-button') ??
+            event.currentTarget
+          : event.currentTarget.querySelector<HTMLElement>('.project-group-left-button') ?? event.currentTarget
+
+      openProjectSectionContextMenu({
+        section,
+        projectId,
+        scope,
+        anchorX: event.clientX,
+        anchorY: event.clientY,
+        restoreFocusEl,
+      })
+    },
+    [editingSectionId, openProjectSectionContextMenu, projectId, scope, selectRowByIndex]
   )
 
   function moveSelection(dir: -1 | 1) {
@@ -1328,6 +1403,8 @@ export function ProjectGroupedList({
               if (!sectionId) return null
 
               const containerId = taskListIdProject(projectId, sectionId)
+              const section = sectionById.get(sectionId)
+              if (!section) return null
               const isEditing = sectionId === editingSectionId
               const isSelected = selectedRowIndex === virtualRow.index
 
@@ -1347,6 +1424,7 @@ export function ProjectGroupedList({
                   onEnterEdit={() => void enterSectionTitleEdit(sectionId)}
                   onCancelEdit={onCancelSectionTitleEdit}
                   onCommitTitle={(nextTitle) => void onCommitSectionTitle(sectionId, nextTitle)}
+                  onContextMenu={(event) => handleSectionContextMenu(event, section, virtualRow.index)}
                   measureElement={(el) => {
                     if (!el) return
                     rowVirtualizer.measureElement(el)
@@ -1458,6 +1536,7 @@ export function ProjectGroupedList({
         : null}
 
       {menuNode}
+      {sectionContextMenuNode}
     </DndContext>
   )
 }

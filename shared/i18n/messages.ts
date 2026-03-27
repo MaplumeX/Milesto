@@ -15,6 +15,7 @@ export const messagesEn = {
     rename: 'Rename',
     delete: 'Delete',
     search: 'Search',
+    plan: 'Plan',
     schedule: 'Schedule',
     move: 'Move',
     more: 'More',
@@ -36,6 +37,7 @@ export const messagesEn = {
     projectTitle: 'Project title',
     projectActions: 'Project actions',
     areaActions: 'Area actions',
+    sectionActions: 'Section actions',
     markProjectDone: 'Mark project done',
     projectProgressOpen: 'Complete project (confirmation required). Progress: {{percent}}% ({{doneCount}}/{{totalCount}}).',
     projectProgressDone: 'Reopen project',
@@ -163,6 +165,7 @@ export const messagesEn = {
   },
   section: {
     untitled: 'New section',
+    deleteConfirm: 'Delete this section? Tasks in it will be moved before the section is deleted.',
   },
   task: {
     untitled: 'New task',
@@ -244,6 +247,7 @@ export const messagesZhCN = {
     rename: '重命名',
     delete: '删除',
     search: '搜索',
+    plan: '计划',
     schedule: '计划',
     move: '移动',
     more: '更多',
@@ -265,6 +269,7 @@ export const messagesZhCN = {
     projectTitle: '项目标题',
     projectActions: '项目操作',
     areaActions: '领域操作',
+    sectionActions: '分组操作',
     markProjectDone: '标记项目完成',
     projectProgressOpen: '完成项目（需要确认）。进度：{{percent}}%（{{doneCount}}/{{totalCount}}）。',
     projectProgressDone: '重新打开项目',
@@ -392,6 +397,7 @@ export const messagesZhCN = {
   },
   section: {
     untitled: '新建分组',
+    deleteConfirm: '删除此分组？其中的任务会先被重新归位，再删除分组。',
   },
   task: {
     untitled: '新建任务',

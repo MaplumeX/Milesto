@@ -112,6 +112,8 @@ const api: WindowApi = {
       invoke('db:project.section.create', { project_id: projectId, title, scope }),
     renameSection: (id, title, scope) => invoke('db:project.section.rename', { id, title, scope }),
     deleteSection: (id) => invoke('db:project.section.delete', { id }),
+    moveSection: (id, targetProjectId) =>
+      invoke('db:project.section.move', { id, target_project_id: targetProjectId }),
     reorderSections: (projectId, orderedSectionIds, scope) =>
       invoke('db:project.section.reorderBatch', {
         project_id: projectId,

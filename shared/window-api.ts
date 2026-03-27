@@ -14,6 +14,7 @@ import type {
   ProjectCreateInput,
   ProjectCompleteResult,
   ProjectSection,
+  ProjectSectionMoveResult,
   ProjectSectionReorderBatchResult,
   ProjectUpdateInput,
 } from './schemas/project'
@@ -151,6 +152,7 @@ export type WindowApi = {
     createSection(projectId: string, title: string, scope?: EntityScope): Promise<Result<ProjectSection>>
     renameSection(id: string, title: string, scope?: EntityScope): Promise<Result<ProjectSection>>
     deleteSection(id: string): Promise<Result<{ deleted: boolean; moved_to_section_id: string | null }>>
+    moveSection(id: string, targetProjectId: string): Promise<Result<ProjectSectionMoveResult>>
     reorderSections(
       projectId: string,
       orderedSectionIds: string[],

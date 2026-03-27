@@ -17,6 +17,8 @@ import {
   ProjectSectionCreateInputSchema,
   ProjectSectionDeleteInputSchema,
   ProjectSectionListInputSchema,
+  ProjectSectionMoveInputSchema,
+  ProjectSectionMoveResultSchema,
   ProjectSectionReorderBatchInputSchema,
   ProjectSectionReorderBatchResultSchema,
   ProjectSectionRenameInputSchema,
@@ -29,6 +31,7 @@ import { ProjectSetTagsInputSchema } from '../../../../shared/schemas/project-se
 import { TagSchema } from '../../../../shared/schemas/tag'
 import { TaskSchema } from '../../../../shared/schemas/task'
 import type { EntityScope } from '../../../../shared/schemas/common'
+import { taskListIdProject } from '../../../../shared/task-list-ids'
 
 function normalizeEntityScope(scope?: EntityScope): EntityScope {
   return scope === 'trash' ? 'trash' : 'active'
@@ -58,6 +61,95 @@ function taskScopeWhere(scope: EntityScope, alias?: string): string {
 function projectClosedStatusWhere(alias?: string): string {
   const prefix = alias ? `${alias}.` : ''
   return `${prefix}status IN ('done', 'cancelled')`
+}
+
+function listActiveSectionIds(db: Database.Database, projectId: string): string[] {
+  const rows = db
+    .prepare(
+      `SELECT id
+       FROM project_sections
+       WHERE project_id = @project_id
+         AND deleted_at IS NULL
+       ORDER BY position ASC`
+    )
+    .all({ project_id: projectId }) as Array<{ id: string }>
+
+  return rows.map((row) => row.id)
+}
+
+function compactActiveSectionPositions(
+  db: Database.Database,
+  projectId: string,
+  orderedSectionIds: readonly string[],
+  updatedAt: string
+) {
+  const update = db.prepare(
+    `UPDATE project_sections
+     SET position = @position,
+         updated_at = @updated_at
+     WHERE id = @id
+       AND project_id = @project_id
+       AND deleted_at IS NULL`
+  )
+
+  for (let index = 0; index < orderedSectionIds.length; index++) {
+    update.run({
+      id: orderedSectionIds[index],
+      project_id: projectId,
+      position: (index + 1) * 1000,
+      updated_at: updatedAt,
+    })
+  }
+}
+
+function listSectionTaskIdsInDisplayOrder(
+  db: Database.Database,
+  projectId: string,
+  sectionId: string
+): string[] {
+  const listId = taskListIdProject(projectId, sectionId)
+  const rows = db
+    .prepare(
+      `SELECT t.id
+       FROM tasks t
+       LEFT JOIN list_positions lp
+         ON lp.task_id = t.id
+        AND lp.list_id = @list_id
+       WHERE t.section_id = @section_id
+         AND t.purged_at IS NULL
+       ORDER BY
+         CASE WHEN lp.rank IS NULL THEN 1 ELSE 0 END,
+         lp.rank ASC,
+         t.created_at ASC`
+    )
+    .all({ list_id: listId, section_id: sectionId }) as Array<{ id: string }>
+
+  return rows.map((row) => row.id)
+}
+
+function replaceTaskListOrder(
+  db: Database.Database,
+  listId: string,
+  orderedTaskIds: readonly string[],
+  updatedAt: string
+) {
+  db.prepare('DELETE FROM list_positions WHERE list_id = ?').run(listId)
+
+  if (orderedTaskIds.length === 0) return
+
+  const insert = db.prepare(
+    `INSERT INTO list_positions (list_id, task_id, rank, updated_at)
+     VALUES (@list_id, @task_id, @rank, @updated_at)`
+  )
+
+  for (let index = 0; index < orderedTaskIds.length; index++) {
+    insert.run({
+      list_id: listId,
+      task_id: orderedTaskIds[index],
+      rank: (index + 1) * 1000,
+      updated_at: updatedAt,
+    })
+  }
 }
 
 export function createProjectActions(db: Database.Database): Record<string, DbActionHandler> {
@@ -959,6 +1051,191 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
         sync.recordEntity('project_section', section, ['title', 'updated_at'])
         sync.finalize()
         return { ok: true as const, data: section }
+      })
+
+      return tx()
+    },
+
+    'project.section.move': (payload) => {
+      const parsed = ProjectSectionMoveInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid project.section.move payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const updatedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        const sectionRow = db
+          .prepare(
+            `SELECT id, project_id, title, position, created_at, updated_at, deleted_at
+             FROM project_sections
+             WHERE id = @id
+               AND deleted_at IS NULL
+             LIMIT 1`
+          )
+          .get({ id: parsed.data.id })
+
+        if (!sectionRow) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Project section not found.',
+              details: { id: parsed.data.id },
+            },
+          }
+        }
+
+        const sourceSection = ProjectSectionSchema.parse(sectionRow)
+        const sourceProject = db
+          .prepare(
+            `SELECT id
+             FROM projects
+             WHERE id = @id
+               AND deleted_at IS NULL
+             LIMIT 1`
+          )
+          .get({ id: sourceSection.project_id }) as { id: string } | undefined
+
+        if (!sourceProject) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Source project not found.',
+              details: { id: sourceSection.project_id },
+            },
+          }
+        }
+
+        if (sourceSection.project_id === parsed.data.target_project_id) {
+          return {
+            ok: true as const,
+            data: ProjectSectionMoveResultSchema.parse({
+              moved: false,
+              section: sourceSection,
+            }),
+          }
+        }
+
+        const targetProject = db
+          .prepare(
+            `SELECT id, status
+             FROM projects
+             WHERE id = @id
+               AND deleted_at IS NULL
+             LIMIT 1`
+          )
+          .get({ id: parsed.data.target_project_id }) as { id: string; status: string } | undefined
+
+        if (!targetProject) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Target project not found.',
+              details: { id: parsed.data.target_project_id },
+            },
+          }
+        }
+
+        if (targetProject.status !== 'open') {
+          return {
+            ok: false as const,
+            error: {
+              code: 'INVALID_MOVE',
+              message: 'Project sections can only be moved into open projects.',
+              details: { id: parsed.data.target_project_id, status: targetProject.status },
+            },
+          }
+        }
+
+        const sourceSectionIds = listActiveSectionIds(db, sourceSection.project_id)
+        const targetSectionIds = listActiveSectionIds(db, targetProject.id)
+        const nextSourceSectionIds = sourceSectionIds.filter((sectionId) => sectionId !== sourceSection.id)
+        const nextTargetSectionIds = [...targetSectionIds, sourceSection.id]
+        const movedTaskIds = listSectionTaskIdsInDisplayOrder(db, sourceSection.project_id, sourceSection.id)
+        const sourceListId = taskListIdProject(sourceSection.project_id, sourceSection.id)
+        const targetListId = taskListIdProject(targetProject.id, sourceSection.id)
+
+        db.prepare(
+          `UPDATE project_sections
+           SET project_id = @project_id,
+               position = @position,
+               updated_at = @updated_at
+           WHERE id = @id
+             AND deleted_at IS NULL`
+        ).run({
+          id: sourceSection.id,
+          project_id: targetProject.id,
+          position: nextTargetSectionIds.length * 1000,
+          updated_at: updatedAt,
+        })
+
+        compactActiveSectionPositions(db, sourceSection.project_id, nextSourceSectionIds, updatedAt)
+
+        db.prepare(
+          `UPDATE tasks
+           SET project_id = @project_id,
+               updated_at = @updated_at
+           WHERE section_id = @section_id
+             AND purged_at IS NULL`
+        ).run({
+          section_id: sourceSection.id,
+          project_id: targetProject.id,
+          updated_at: updatedAt,
+        })
+
+        replaceTaskListOrder(db, sourceListId, [], updatedAt)
+        replaceTaskListOrder(db, targetListId, movedTaskIds, updatedAt)
+
+        const movedSectionRow = db
+          .prepare(
+            `SELECT id, project_id, title, position, created_at, updated_at, deleted_at
+             FROM project_sections
+             WHERE id = @id
+             LIMIT 1`
+          )
+          .get({ id: sourceSection.id })
+        const movedSection = ProjectSectionSchema.parse(movedSectionRow)
+
+        const movedTaskRows =
+          movedTaskIds.length === 0
+            ? []
+            : db
+                .prepare(
+                  `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id,
+                          scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at, purged_at
+                   FROM tasks
+                   WHERE id IN (${movedTaskIds.map(() => '?').join(', ')})`
+                )
+                .all(...movedTaskIds)
+
+        const sync = createLocalSyncRecorder(db, updatedAt)
+        sync.recordEntity('project_section', movedSection, ['project_id', 'position', 'updated_at'])
+        for (const row of movedTaskRows) {
+          sync.recordEntity('task', TaskSchema.parse(row), ['project_id', 'updated_at'])
+        }
+        sync.recordList(`project-sections:${sourceSection.project_id}`, nextSourceSectionIds, updatedAt)
+        sync.recordList(`project-sections:${targetProject.id}`, nextTargetSectionIds, updatedAt)
+        sync.recordList(`task-list:${sourceListId}`, [], updatedAt)
+        sync.recordList(`task-list:${targetListId}`, movedTaskIds, updatedAt)
+        sync.finalize()
+
+        return {
+          ok: true as const,
+          data: ProjectSectionMoveResultSchema.parse({
+            moved: true,
+            section: movedSection,
+          }),
+        }
       })
 
       return tx()
