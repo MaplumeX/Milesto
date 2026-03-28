@@ -1028,6 +1028,18 @@ body {
   gap: 6px;
 }
 
+.project-meta .task-inline-chip-close {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease, color 160ms ease;
+}
+
+.project-meta .task-inline-chip:hover .task-inline-chip-close,
+.project-meta .task-inline-chip:focus-within .task-inline-chip-close {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .project-meta-row {
   min-width: 0;
 }
