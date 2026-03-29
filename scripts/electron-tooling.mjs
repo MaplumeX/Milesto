@@ -19,3 +19,7 @@ export function resolveElectronBinary() {
 export function resolveElectronBuilderScript(scriptName) {
   return require.resolve(`electron-builder/${scriptName}`)
 }
+
+export function resolveElectronBuilderCli() {
+  return resolveElectronBuilderScript('cli.js')
+}
