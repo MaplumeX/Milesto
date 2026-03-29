@@ -47,7 +47,7 @@ Milesto is a cross-platform desktop app for personal task management, covering t
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) >= 18
+- [Node.js](https://nodejs.org/) 20 / 22 / 23 / 24 / 25 (20 LTS or 22 LTS recommended)
 - npm (ships with Node.js)
 
 ### Install & Run
@@ -55,6 +55,8 @@ Milesto is a cross-platform desktop app for personal task management, covering t
 ```bash
 # Install dependencies
 npm ci
+
+# The first startup auto-rebuilds the better-sqlite3 native module for Electron.
 
 # Start in development mode
 npm run dev

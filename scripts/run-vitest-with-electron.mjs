@@ -1,10 +1,8 @@
 import { spawn } from 'node:child_process'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { repoRoot, resolveElectronBinary } from './electron-tooling.mjs'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const suffix = process.platform === 'win32' ? '.cmd' : ''
-const electronBin = path.join(repoRoot, 'node_modules', '.bin', `electron${suffix}`)
+const electronBin = resolveElectronBinary()
 const vitestCli = path.join(repoRoot, 'node_modules', 'vitest', 'vitest.mjs')
 
 const child = spawn(electronBin, [vitestCli, ...process.argv.slice(2)], {

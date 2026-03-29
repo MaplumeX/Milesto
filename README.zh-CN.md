@@ -47,7 +47,7 @@ Milesto 是一个跨平台桌面应用，用于个人任务管理，覆盖完整
 
 ### 环境要求
 
-- [Node.js](https://nodejs.org/) >= 18
+- [Node.js](https://nodejs.org/) 20 / 22 / 23 / 24 / 25（推荐 20 LTS 或 22 LTS）
 - npm（随 Node.js 自带）
 
 ### 安装与运行
@@ -55,6 +55,8 @@ Milesto 是一个跨平台桌面应用，用于个人任务管理，覆盖完整
 ```bash
 # 安装依赖
 npm ci
+
+# 首次启动前会自动为 Electron 重建 better-sqlite3 原生依赖
 
 # 启动开发模式
 npm run dev

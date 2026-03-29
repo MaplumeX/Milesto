@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": "20.x || 22.x || 23.x || 24.x || 25.x"
+  },
   "scripts": {
     "predev": "node ./scripts/ensure-electron-native-deps.mjs",
     "dev": "vite",

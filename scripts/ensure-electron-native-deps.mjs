@@ -1,13 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-
-function resolveBin(name) {
-  const suffix = process.platform === 'win32' ? '.cmd' : ''
-  return path.join(repoRoot, 'node_modules', '.bin', `${name}${suffix}`)
-}
+import { repoRoot, resolveElectronBinary, resolveElectronBuilderScript } from './electron-tooling.mjs'
 
 function run(command, args, options = {}) {
   return spawnSync(command, args, {
@@ -18,8 +10,8 @@ function run(command, args, options = {}) {
   })
 }
 
-const electronBin = resolveBin('electron')
-const electronBuilderBin = resolveBin('electron-builder')
+const electronBin = resolveElectronBinary()
+const electronBuilderInstallAppDeps = resolveElectronBuilderScript('install-app-deps.js')
 
 const probe = run(
   electronBin,
@@ -37,9 +29,12 @@ if (probe.status === 0) {
 }
 
 process.stdout.write('[milesto] Rebuilding Electron native dependencies for better-sqlite3...\n')
-const rebuild = run(electronBuilderBin, ['install-app-deps'], { stdio: 'inherit' })
+const rebuild = run(process.execPath, [electronBuilderInstallAppDeps], { stdio: 'inherit' })
 
 if (rebuild.status !== 0) {
+  if (rebuild.error) {
+    process.stderr.write(`[milesto] Failed to start native dependency rebuild: ${rebuild.error.message}\n`)
+  }
   process.stderr.write('[milesto] Failed to rebuild Electron native dependencies.\n')
   process.exit(rebuild.status ?? 1)
 }
