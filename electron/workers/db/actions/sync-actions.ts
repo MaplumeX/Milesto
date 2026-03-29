@@ -18,6 +18,7 @@ import {
 } from './sync-support'
 
 import {
+  SyncApplyRemoteBatchInputSchema,
   SyncMarkOutboxUploadedInputSchema,
   SyncRepositoryConfigSchema,
   SyncSetCredentialsBlobInputSchema,
@@ -204,16 +205,28 @@ export function createSyncActions(db: Database.Database): Record<string, DbActio
     },
 
     'sync.applyRemoteBatch': (payload) => {
-      try {
-        const result = applyRemoteBatch(db, payload)
-        return { ok: true as const, data: result }
-      } catch (error) {
+      const parsed = SyncApplyRemoteBatchInputSchema.safeParse(payload)
+      if (!parsed.success) {
         return {
           ok: false,
           error: {
             code: 'VALIDATION_FAILED',
             message: 'Invalid sync.applyRemoteBatch payload.',
-            details: { error: String(error) },
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      try {
+        const result = applyRemoteBatch(db, parsed.data)
+        return { ok: true as const, data: result }
+      } catch (error) {
+        return {
+          ok: false,
+          error: {
+            code: 'SYNC_APPLY_REMOTE_BATCH_FAILED',
+            message: 'Failed to apply remote sync batch.',
+            details: { error: String(error), batch_id: parsed.data.batch.batch_id },
           },
         }
       }

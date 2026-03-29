@@ -48,6 +48,124 @@ const BASE_STATE: SyncState = {
   last_error: null,
 }
 
+const REMOTE_PROJECT_BATCH: SyncBatch = {
+  batch_id: 'newer-device:1',
+  source_device_id: 'newer-device',
+  sequence_number: 1,
+  created_at: '2026-03-16T00:00:01.000Z',
+  version: '2026031600001-000000-newer-device',
+  operations: [
+    {
+      kind: 'entity.put',
+      entity_type: 'project',
+      changed_fields: [
+        'title',
+        'notes',
+        'area_id',
+        'status',
+        'scheduled_at',
+        'is_someday',
+        'due_at',
+        'created_at',
+        'updated_at',
+        'completed_at',
+        'deleted_at',
+      ],
+      field_versions: {
+        title: '2026031600001-000000-newer-device',
+        notes: '2026031600001-000000-newer-device',
+        area_id: '2026031600001-000000-newer-device',
+        status: '2026031600001-000000-newer-device',
+        scheduled_at: '2026031600001-000000-newer-device',
+        is_someday: '2026031600001-000000-newer-device',
+        due_at: '2026031600001-000000-newer-device',
+        created_at: '2026031600001-000000-newer-device',
+        updated_at: '2026031600001-000000-newer-device',
+        completed_at: '2026031600001-000000-newer-device',
+        deleted_at: '2026031600001-000000-newer-device',
+      },
+      entity: {
+        id: 'project-1',
+        title: 'Remote project',
+        notes: '',
+        area_id: null,
+        status: 'open',
+        position: null,
+        scheduled_at: null,
+        is_someday: false,
+        due_at: null,
+        created_at: '2026-03-16T00:00:01.000Z',
+        updated_at: '2026-03-16T00:00:01.000Z',
+        completed_at: null,
+        deleted_at: null,
+      },
+    },
+  ],
+}
+
+const REMOTE_TASK_BATCH: SyncBatch = {
+  batch_id: 'older-device:1',
+  source_device_id: 'older-device',
+  sequence_number: 1,
+  created_at: '2026-03-16T00:00:02.000Z',
+  version: '2026031600002-000000-older-device',
+  operations: [
+    {
+      kind: 'entity.put',
+      entity_type: 'task',
+      changed_fields: [
+        'title',
+        'notes',
+        'status',
+        'is_inbox',
+        'is_someday',
+        'project_id',
+        'section_id',
+        'area_id',
+        'scheduled_at',
+        'due_at',
+        'created_at',
+        'updated_at',
+        'completed_at',
+        'deleted_at',
+      ],
+      field_versions: {
+        title: '2026031600002-000000-older-device',
+        notes: '2026031600002-000000-older-device',
+        status: '2026031600002-000000-older-device',
+        is_inbox: '2026031600002-000000-older-device',
+        is_someday: '2026031600002-000000-older-device',
+        project_id: '2026031600002-000000-older-device',
+        section_id: '2026031600002-000000-older-device',
+        area_id: '2026031600002-000000-older-device',
+        scheduled_at: '2026031600002-000000-older-device',
+        due_at: '2026031600002-000000-older-device',
+        created_at: '2026031600002-000000-older-device',
+        updated_at: '2026031600002-000000-older-device',
+        completed_at: '2026031600002-000000-older-device',
+        deleted_at: '2026031600002-000000-older-device',
+      },
+      entity: {
+        id: 'task-1',
+        title: 'Remote task',
+        notes: '',
+        status: 'open',
+        is_inbox: false,
+        is_someday: false,
+        project_id: 'project-1',
+        section_id: null,
+        area_id: null,
+        scheduled_at: null,
+        due_at: null,
+        created_at: '2026-03-16T00:00:02.000Z',
+        updated_at: '2026-03-16T00:00:02.000Z',
+        completed_at: null,
+        deleted_at: null,
+      },
+    },
+  ],
+}
+
 function createDbBridge() {
   let state = { ...BASE_STATE }
 
@@ -219,5 +337,45 @@ describe('SyncService', () => {
     await service.notifyLocalChange()
     expect(service.getStateSnapshot().pending_outbox_count).toBe(2)
     expect(service.getStateSnapshot().mode).toBe('idle')
+  })
+
+  it('retries remote batches until parent entities are available locally', async () => {
+    const db = createDbBridge()
+    const credentials = createCredentialsStore()
+    const repository = createRepository()
+    let hasProject = false
+
+    db.listPendingOutboxBatches.mockResolvedValue([])
+    repository.listRemoteBatches.mockResolvedValue([REMOTE_TASK_BATCH, REMOTE_PROJECT_BATCH])
+    db.applyRemoteBatch.mockImplementation(async ({ batch }) => {
+      if (batch.batch_id === REMOTE_TASK_BATCH.batch_id && !hasProject) {
+        throw {
+          code: 'SYNC_APPLY_REMOTE_BATCH_FAILED',
+          message: 'Failed to apply remote sync batch.',
+        }
+      }
+
+      if (batch.batch_id === REMOTE_PROJECT_BATCH.batch_id) {
+        hasProject = true
+      }
+
+      return { applied: true, duplicate: false }
+    })
+
+    const service = new SyncService({
+      db,
+      credentialsStore: credentials,
+      repositoryFactory: () => repository,
+    })
+
+    const state = await service.syncNow()
+
+    expect(state.mode).toBe('idle')
+    expect(state.last_error).toBeNull()
+    expect(db.applyRemoteBatch.mock.calls.map(([input]) => input.batch.batch_id)).toEqual([
+      REMOTE_TASK_BATCH.batch_id,
+      REMOTE_PROJECT_BATCH.batch_id,
+      REMOTE_TASK_BATCH.batch_id,
+    ])
   })
 })

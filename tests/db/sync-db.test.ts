@@ -205,6 +205,153 @@ describe('DB sync support', () => {
     expect(cursor?.last_applied_sequence).toBe(1)
   })
 
+  it('returns a runtime apply error when a remote batch arrives before its parent entity', async () => {
+    const testDb = await createTestDb()
+    cleanup = testDb.cleanup
+
+    const { db } = testDb
+    const handlers = buildDbHandlers(db)
+
+    const childBatch: SyncBatch = {
+      batch_id: 'older-device:1',
+      source_device_id: 'older-device',
+      sequence_number: 1,
+      created_at: REMOTE_CREATED_AT,
+      version: '2026031600002-000000-older-device',
+      operations: [
+        {
+          kind: 'entity.put',
+          entity_type: 'task',
+          changed_fields: [
+            'title',
+            'notes',
+            'status',
+            'is_inbox',
+            'is_someday',
+            'project_id',
+            'section_id',
+            'area_id',
+            'scheduled_at',
+            'due_at',
+            'created_at',
+            'updated_at',
+            'completed_at',
+            'deleted_at',
+          ],
+          field_versions: {
+            title: '2026031600002-000000-older-device',
+            notes: '2026031600002-000000-older-device',
+            status: '2026031600002-000000-older-device',
+            is_inbox: '2026031600002-000000-older-device',
+            is_someday: '2026031600002-000000-older-device',
+            project_id: '2026031600002-000000-older-device',
+            section_id: '2026031600002-000000-older-device',
+            area_id: '2026031600002-000000-older-device',
+            scheduled_at: '2026031600002-000000-older-device',
+            due_at: '2026031600002-000000-older-device',
+            created_at: '2026031600002-000000-older-device',
+            updated_at: '2026031600002-000000-older-device',
+            completed_at: '2026031600002-000000-older-device',
+            deleted_at: '2026031600002-000000-older-device',
+          },
+          entity: {
+            id: 'remote-task-with-parent',
+            title: 'Task that depends on project',
+            notes: '',
+            status: 'open',
+            is_inbox: false,
+            is_someday: false,
+            project_id: 'remote-project-parent',
+            section_id: null,
+            area_id: null,
+            scheduled_at: null,
+            due_at: null,
+            created_at: REMOTE_CREATED_AT,
+            updated_at: REMOTE_UPDATED_AT,
+            completed_at: null,
+            deleted_at: null,
+          },
+        },
+      ],
+    }
+
+    const parentBatch: SyncBatch = {
+      batch_id: 'newer-device:1',
+      source_device_id: 'newer-device',
+      sequence_number: 1,
+      created_at: REMOTE_UPDATED_AT,
+      version: '2026031600001-000000-newer-device',
+      operations: [
+        {
+          kind: 'entity.put',
+          entity_type: 'project',
+          changed_fields: [
+            'title',
+            'notes',
+            'area_id',
+            'status',
+            'scheduled_at',
+            'is_someday',
+            'due_at',
+            'created_at',
+            'updated_at',
+            'completed_at',
+            'deleted_at',
+          ],
+          field_versions: {
+            title: '2026031600001-000000-newer-device',
+            notes: '2026031600001-000000-newer-device',
+            area_id: '2026031600001-000000-newer-device',
+            status: '2026031600001-000000-newer-device',
+            scheduled_at: '2026031600001-000000-newer-device',
+            is_someday: '2026031600001-000000-newer-device',
+            due_at: '2026031600001-000000-newer-device',
+            created_at: '2026031600001-000000-newer-device',
+            updated_at: '2026031600001-000000-newer-device',
+            completed_at: '2026031600001-000000-newer-device',
+            deleted_at: '2026031600001-000000-newer-device',
+          },
+          entity: {
+            id: 'remote-project-parent',
+            title: 'Parent project',
+            notes: '',
+            area_id: null,
+            status: 'open',
+            position: null,
+            scheduled_at: null,
+            is_someday: false,
+            due_at: null,
+            created_at: REMOTE_CREATED_AT,
+            updated_at: REMOTE_UPDATED_AT,
+            completed_at: null,
+            deleted_at: null,
+          },
+        },
+      ],
+    }
+
+    const failedApply = run<{ applied: boolean; duplicate: boolean }>(handlers, 'sync.applyRemoteBatch', {
+      batch: childBatch,
+    })
+    expect(failedApply).toMatchObject({
+      ok: false,
+      error: {
+        code: 'SYNC_APPLY_REMOTE_BATCH_FAILED',
+        message: 'Failed to apply remote sync batch.',
+      },
+    })
+
+    const parentApply = run<{ applied: boolean; duplicate: boolean }>(handlers, 'sync.applyRemoteBatch', {
+      batch: parentBatch,
+    })
+    expect(parentApply).toMatchObject({ ok: true, data: { applied: true, duplicate: false } })
+
+    const childRetry = run<{ applied: boolean; duplicate: boolean }>(handlers, 'sync.applyRemoteBatch', {
+      batch: childBatch,
+    })
+    expect(childRetry).toMatchObject({ ok: true, data: { applied: true, duplicate: false } })
+  })
+
   it('uses field-level LWW so newer remote notes can win without overwriting a newer local title', async () => {
     const testDb = await createTestDb()
     cleanup = testDb.cleanup

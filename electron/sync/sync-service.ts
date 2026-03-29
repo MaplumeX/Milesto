@@ -40,6 +40,11 @@ type SyncTiming = {
   retry_backoff_ms: number
 }
 
+type PendingRemoteBatch = {
+  batch: SyncBatch
+  error: unknown
+}
+
 const DEFAULT_TIMING: SyncTiming = {
   local_debounce_ms: 1_500,
   foreground_poll_ms: 15_000,
@@ -212,9 +217,7 @@ export class SyncService {
         cursors: await this.db.listRemoteCursors(),
       })
 
-      for (const batch of remoteBatches) {
-        await this.db.applyRemoteBatch({ batch })
-      }
+      await this.applyRemoteBatches(remoteBatches)
 
       const successfulAt = nowIso()
       this.state = await this.db.updateStatus({
@@ -273,6 +276,47 @@ export class SyncService {
       this.pollTimer = null
       void this.syncNow()
     }, delayMs)
+  }
+
+  private async applyRemoteBatches(remoteBatches: SyncBatch[]) {
+    let pending = remoteBatches.map((batch) => ({ batch, error: null as unknown }))
+
+    while (pending.length > 0) {
+      let appliedCount = 0
+      const nextPending: PendingRemoteBatch[] = []
+
+      for (const entry of pending) {
+        try {
+          await this.db.applyRemoteBatch({ batch: entry.batch })
+          appliedCount += 1
+        } catch (error) {
+          nextPending.push({
+            batch: entry.batch,
+            error,
+          })
+        }
+      }
+
+      if (nextPending.length === 0) return
+
+      if (appliedCount === 0) {
+        const firstError = toAppError(nextPending[0]?.error, {
+          code: 'SYNC_PULL_FAILED',
+          message: 'Failed to apply remote sync batch.',
+        })
+
+        throw {
+          code: 'SYNC_PULL_FAILED',
+          message: 'Failed to apply remote sync batches.',
+          details: {
+            batch_ids: nextPending.map(({ batch }) => batch.batch_id),
+            last_error: firstError,
+          },
+        }
+      }
+
+      pending = nextPending
+    }
   }
 }
 
