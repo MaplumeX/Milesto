@@ -1,0 +1,13 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": "/Users/maplume/Code/Projects/Milesto/docs/redlines.md", "reason": "Hard frontend safety and boundary constraints"}
+{"file": "/Users/maplume/Code/Projects/Milesto/docs/standards.md", "reason": "Project-wide engineering and naming conventions"}
+{"file": "/Users/maplume/Code/Projects/Milesto/docs/ui.md", "reason": "Renderer UI and accessibility expectations"}
+{"file": "/Users/maplume/Code/Projects/Milesto/docs/tech-framework.md", "reason": "Frontend architecture and stack decisions"}
+{"file": "/Users/maplume/Code/Projects/Milesto/src/App.tsx", "reason": "Root app composition and providers"}
+{"file": "/Users/maplume/Code/Projects/Milesto/src/app/SearchPanel.tsx", "reason": "Search dialog interaction and async fetch pattern"}
+{"file": "/Users/maplume/Code/Projects/Milesto/src/features/tasks/TaskList.tsx", "reason": "Virtualized task list and feature component conventions"}
+{"file": "/Users/maplume/Code/Projects/Milesto/src/app/AppShell.tsx", "reason": "Primary app shell, routing shell, local state patterns"}
+{"file": "/Users/maplume/Code/Projects/Milesto/src/components/Checkbox.tsx", "reason": "Shared primitive component prop and accessibility pattern"}
+{"file": "/Users/maplume/Code/Projects/Milesto/shared/window-api.ts", "reason": "Typed renderer API boundary"}
+{"file": "/Users/maplume/Code/Projects/Milesto/shared/schemas/task.ts", "reason": "Zod schema and shared type conventions"}
+{"file": "/Users/maplume/Code/Projects/Milesto/tests/renderer/app-shell-bottom-bar.test.tsx", "reason": "Renderer test style and accessibility assertions"}

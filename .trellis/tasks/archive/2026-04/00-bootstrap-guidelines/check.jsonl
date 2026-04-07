@@ -1,0 +1,8 @@
+{"file": "/Users/maplume/Code/Projects/Milesto/docs/standards.md", "reason": "Verify naming, testing, and architecture guidance"}
+{"file": "/Users/maplume/Code/Projects/Milesto/docs/redlines.md", "reason": "Verify docs do not contradict hard constraints"}
+{"file": "/Users/maplume/Code/Projects/Milesto/src/app/AppShell.tsx", "reason": "Verify docs match shell and sidebar patterns"}
+{"file": "/Users/maplume/Code/Projects/Milesto/shared/window-api.ts", "reason": "Verify frontend boundary documentation"}
+{"file": "/Users/maplume/Code/Projects/Milesto/shared/schemas/task.ts", "reason": "Verify shared schema conventions"}
+{"file": "/Users/maplume/Code/Projects/Milesto/docs/ui.md", "reason": "Verify UI guidance and accessibility rules"}
+{"file": "/Users/maplume/Code/Projects/Milesto/src/features/tasks/TaskList.tsx", "reason": "Verify virtualization and drag-drop guidance"}
+{"file": "/Users/maplume/Code/Projects/Milesto/tests/renderer/app-shell-bottom-bar.test.tsx", "reason": "Verify testing guidance against real renderer tests"}
