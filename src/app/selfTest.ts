@@ -6,6 +6,20 @@ type SelfTestResult = {
   failures: string[]
 }
 
+type SelfTestWindow = Window & {
+  __milestoForceTaskUpdateError?: boolean
+  __milestoTaskUpdateDelayMs?: number
+  __milestoRunSelfTest?: () => Promise<SelfTestResult>
+  __milestoRunSearchSmokeTest?: () => Promise<SelfTestResult>
+  __milestoRunSidebarSelfTest?: () => Promise<SelfTestResult>
+  __milestoRunProjectSelfTest?: () => Promise<SelfTestResult>
+  __milestoRunTrashSelfTest?: () => Promise<SelfTestResult>
+}
+
+function getSelfTestWindow(): SelfTestWindow {
+  return window as SelfTestWindow
+}
+
 async function runSearchSmokeTest(): Promise<SelfTestResult> {
   const failures: string[] = []
 
@@ -1612,7 +1626,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
     const prevConfirmDelete = window.confirm
     try {
       // Canceling delete should keep the editor open and the task intact.
-      ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = () => false
+      window.confirm = () => false
       {
         const r = editDeleteBtn2.getBoundingClientRect()
         dispatchPointerDown(editDeleteBtn2, { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })
@@ -1643,7 +1657,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
       }
 
       // Confirming delete should soft-delete the task and close the editor.
-      ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = () => true
+      window.confirm = () => true
       editDeleteBtn2.click()
       await waitFor('Edit-mode editor closed after delete', () => (getInlinePaper() ? null : true))
       await waitFor('Edit-mode focus restored to listbox after delete', () => {
@@ -1675,7 +1689,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
         throw new Error('Edit-mode delete: expected deleted task excluded from search results')
       }
     } finally {
-      ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = prevConfirmDelete
+      window.confirm = prevConfirmDelete
     }
 
     // SearchPanel: Enter should navigate, select, and close.
@@ -1832,7 +1846,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
     }
 
     // Switching tasks should flush current draft before opening next.
-    ;(window as unknown as { __milestoTaskUpdateDelayMs?: number }).__milestoTaskUpdateDelayMs = 800
+    getSelfTestWindow().__milestoTaskUpdateDelayMs = 800
     const finalInboxATitle = `${token} Inbox A FINAL ${Date.now()}`
     setNativeInputValue(openedA.titleInput, `${token} Inbox A 1`)
     await sleep(520)
@@ -1878,7 +1892,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
     }
 
     // Scroll stability check: open an editor while scrolled.
-    ;(window as unknown as { __milestoTaskUpdateDelayMs?: number }).__milestoTaskUpdateDelayMs = 0
+    getSelfTestWindow().__milestoTaskUpdateDelayMs = 0
 
     const inboxListboxNow = await waitFor('Inbox listbox (scroll test)', () =>
       document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Tasks"]')
@@ -1929,7 +1943,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
       button: inboxAButtonTop,
       label: 'Inbox A (enter)',
     })
-    ;(window as unknown as { __milestoForceTaskUpdateError?: boolean }).__milestoForceTaskUpdateError = true
+    getSelfTestWindow().__milestoForceTaskUpdateError = true
     setNativeInputValue(openedA2.titleInput, `${token} Inbox A FAIL ${Date.now()}`)
     await sleep(520)
 
@@ -1939,7 +1953,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
       throw new Error('Inbox A: editor collapsed even though save is failing (flush should block close).')
     }
 
-    ;(window as unknown as { __milestoForceTaskUpdateError?: boolean }).__milestoForceTaskUpdateError = false
+    getSelfTestWindow().__milestoForceTaskUpdateError = false
     const retryButton = Array.from(
       document.querySelectorAll<HTMLButtonElement>('.task-inline-header .button')
     ).find((b) => (b.textContent ?? '').trim() === 'Retry')
@@ -2501,7 +2515,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
 
       // Project completion requires confirmation; auto-accept during self-test.
       const prevConfirm = window.confirm
-      ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = () => true
+      window.confirm = () => true
       try {
       const projectProgressControl = await waitFor('Project progress control (header)', () =>
         document.querySelector<HTMLButtonElement>('.page-header button.project-progress-control')
@@ -3214,14 +3228,13 @@ async function runSelfTest(): Promise<SelfTestResult> {
         throw new Error('Search: drag-and-drop activator should not be present')
       }
     } finally {
-      ;(window as unknown as { confirm: (message?: string) => boolean }).confirm = prevConfirm
+      window.confirm = prevConfirm
     }
   } catch (e) {
     failures.push(e instanceof Error ? e.message : String(e))
   } finally {
-    ;(window as unknown as { __milestoForceTaskUpdateError?: boolean }).__milestoForceTaskUpdateError =
-      prevForceError
-    ;(window as unknown as { __milestoTaskUpdateDelayMs?: number }).__milestoTaskUpdateDelayMs = prevDelay
+    getSelfTestWindow().__milestoForceTaskUpdateError = prevForceError
+    getSelfTestWindow().__milestoTaskUpdateDelayMs = prevDelay
   }
 
   return { ok: failures.length === 0, failures }
@@ -3818,7 +3831,7 @@ async function runProjectSelfTest(): Promise<SelfTestResult> {
           )
         }
 
-        function findAreaProjectRowByTitle(title: string): HTMLElement | null {
+        const findAreaProjectRowByTitle = (title: string): HTMLElement | null => {
           const root = document.querySelector<HTMLElement>('[data-area-projects="true"]')
           if (!root) return null
           const btn = Array.from(root.querySelectorAll<HTMLButtonElement>('button[data-area-project-id]')).find((b) =>
@@ -4240,18 +4253,11 @@ async function runTrashSelfTest(): Promise<SelfTestResult> {
 }
 
 export function registerSelfTest() {
-  ;(window as unknown as { __milestoRunSelfTest?: () => Promise<SelfTestResult> }).__milestoRunSelfTest =
-    runSelfTest
+  const selfTestWindow = getSelfTestWindow()
 
-  ;(window as unknown as { __milestoRunSearchSmokeTest?: () => Promise<SelfTestResult> }).__milestoRunSearchSmokeTest =
-    runSearchSmokeTest
-
-  ;(window as unknown as { __milestoRunSidebarSelfTest?: () => Promise<SelfTestResult> }).__milestoRunSidebarSelfTest =
-    runSidebarSelfTest
-
-  ;(window as unknown as { __milestoRunProjectSelfTest?: () => Promise<SelfTestResult> }).__milestoRunProjectSelfTest =
-    runProjectSelfTest
-
-  ;(window as unknown as { __milestoRunTrashSelfTest?: () => Promise<SelfTestResult> }).__milestoRunTrashSelfTest =
-    runTrashSelfTest
+  selfTestWindow.__milestoRunSelfTest = runSelfTest
+  selfTestWindow.__milestoRunSearchSmokeTest = runSearchSmokeTest
+  selfTestWindow.__milestoRunSidebarSelfTest = runSidebarSelfTest
+  selfTestWindow.__milestoRunProjectSelfTest = runProjectSelfTest
+  selfTestWindow.__milestoRunTrashSelfTest = runTrashSelfTest
 }

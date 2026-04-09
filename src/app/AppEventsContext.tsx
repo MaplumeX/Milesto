@@ -41,8 +41,9 @@ export function AppEventsProvider({ children }: { children: React.ReactNode }) {
       const baseMs = Date.parse(updatedAt)
       if (Number.isFinite(existingMs) && Number.isFinite(baseMs) && existingMs > baseMs) return prev
 
-      const { [taskId]: _removed, ...rest } = prev
-      return rest
+      const next = { ...prev }
+      delete next[taskId]
+      return next
     })
   }, [])
 

@@ -14,7 +14,6 @@ import {
   useSensor,
   useSensors,
   type CollisionDetection,
-  type DragCancelEvent,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -1193,7 +1192,9 @@ export function AppShell() {
       const overIndex = destItems.indexOf(overId)
       if (overIndex < 0) return
 
-      const overMid = e.over!.rect.top + e.over!.rect.height / 2
+      const overRect = e.over?.rect
+      if (!overRect) return
+      const overMid = overRect.top + overRect.height / 2
       const activeRect = e.active.rect.current.translated ?? e.active.rect.current.initial
       const activeMid = activeRect ? activeRect.top + activeRect.height / 2 : 0
       const isAfter = activeMid > overMid
@@ -1318,7 +1319,7 @@ export function AppShell() {
     }
   }
 
-  function handleDragCancel(_e: DragCancelEvent) {
+  function handleDragCancel() {
     cancelPendingDropTimers()
     suppressClickRef.current = false
     setActiveAreaId(null)
@@ -1672,71 +1673,71 @@ export function AppShell() {
                 <Outlet />
               </div>
 
-	                <div
-	                  className="content-bottom-bar"
-	                  data-content-bottom-actions={openTaskId === null ? 'true' : undefined}
-	                  data-content-bottom-actions-edit={openTaskId !== null ? 'true' : undefined}
-	                >
-	                  {prefersReducedMotion ? (
-	                    isTaskEditorOpen ? (
-	                      contentBottomBarEditActions
-	                    ) : (
-	                      contentBottomBarListActions
-	                    )
-	                  ) : (
-	                    <AnimatePresence initial={false} mode="wait">
-	                      {isTaskEditorOpen ? (
-	                        <motion.div
-	                          key="edit"
-	                          initial={{ opacity: 0, y: CONTENT_BOTTOM_BAR_SWITCH_Y_PX }}
-	                          animate={{
-	                            opacity: 1,
-	                            y: 0,
-	                            transition: CONTENT_BOTTOM_BAR_SWITCH_ENTER,
-	                          }}
-	                          exit={{
-	                            opacity: 0,
-	                            y: CONTENT_BOTTOM_BAR_SWITCH_Y_PX,
-	                            pointerEvents: 'none' as const,
-	                            transition: CONTENT_BOTTOM_BAR_SWITCH_EXIT,
-	                          }}
-	                          style={{
-	                            display: 'flex',
-	                            alignItems: 'center',
-	                            justifyContent: 'center',
-	                            gap: 8,
-	                          }}
-	                        >
-	                          {contentBottomBarEditActions}
-	                        </motion.div>
-	                      ) : (
-	                        <motion.div
-	                          key="list"
-	                          initial={{ opacity: 0, y: CONTENT_BOTTOM_BAR_SWITCH_Y_PX }}
-	                          animate={{
-	                            opacity: 1,
-	                            y: 0,
-	                            transition: CONTENT_BOTTOM_BAR_SWITCH_ENTER,
-	                          }}
-	                          exit={{
-	                            opacity: 0,
-	                            y: CONTENT_BOTTOM_BAR_SWITCH_Y_PX,
-	                            pointerEvents: 'none' as const,
-	                            transition: CONTENT_BOTTOM_BAR_SWITCH_EXIT,
-	                          }}
-	                          style={{
-	                            display: 'flex',
-	                            alignItems: 'center',
-	                            justifyContent: 'center',
-	                            gap: 8,
-	                          }}
-	                        >
-	                          {contentBottomBarListActions}
-	                        </motion.div>
-	                      )}
-	                    </AnimatePresence>
-	                  )}
-	                </div>
+              <div
+                className="content-bottom-bar"
+                data-content-bottom-actions={openTaskId === null ? 'true' : undefined}
+                data-content-bottom-actions-edit={openTaskId !== null ? 'true' : undefined}
+              >
+                {prefersReducedMotion ? (
+                  isTaskEditorOpen ? (
+                    contentBottomBarEditActions
+                  ) : (
+                    contentBottomBarListActions
+                  )
+                ) : (
+                  <AnimatePresence initial={false} mode="wait">
+                    {isTaskEditorOpen ? (
+                      <motion.div
+                        key="edit"
+                        initial={{ opacity: 0, y: CONTENT_BOTTOM_BAR_SWITCH_Y_PX }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                          transition: CONTENT_BOTTOM_BAR_SWITCH_ENTER,
+                        }}
+                        exit={{
+                          opacity: 0,
+                          y: CONTENT_BOTTOM_BAR_SWITCH_Y_PX,
+                          pointerEvents: 'none' as const,
+                          transition: CONTENT_BOTTOM_BAR_SWITCH_EXIT,
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        {contentBottomBarEditActions}
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="list"
+                        initial={{ opacity: 0, y: CONTENT_BOTTOM_BAR_SWITCH_Y_PX }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                          transition: CONTENT_BOTTOM_BAR_SWITCH_ENTER,
+                        }}
+                        exit={{
+                          opacity: 0,
+                          y: CONTENT_BOTTOM_BAR_SWITCH_Y_PX,
+                          pointerEvents: 'none' as const,
+                          transition: CONTENT_BOTTOM_BAR_SWITCH_EXIT,
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        {contentBottomBarListActions}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                )}
+              </div>
             </div>
           </div>
         </main>

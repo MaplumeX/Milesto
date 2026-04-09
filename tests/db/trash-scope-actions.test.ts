@@ -1,4 +1,3 @@
-import type Database from 'better-sqlite3'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { buildDbHandlers } from '../../electron/workers/db/db-handlers'

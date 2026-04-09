@@ -14,7 +14,6 @@ import {
   useSensor,
   useSensors,
   type CollisionDetection,
-  type DragCancelEvent,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -742,7 +741,9 @@ export function ProjectGroupedList({
       const overIndex = destItems.indexOf(overId)
       if (overIndex < 0) return
 
-      const overMid = e.over!.rect.top + e.over!.rect.height / 2
+      const overRect = e.over?.rect
+      if (!overRect) return
+      const overMid = overRect.top + overRect.height / 2
       const activeRect = e.active.rect.current.translated ?? e.active.rect.current.initial
       const activeMid = activeRect ? activeRect.top + activeRect.height / 2 : 0
       const isAfter = activeMid > overMid
@@ -865,7 +866,7 @@ export function ProjectGroupedList({
     }
   }
 
-  function handleDragCancel(_e: DragCancelEvent) {
+  function handleDragCancel() {
     cancelPendingDropTimers()
 
     if (activeSectionId) {

@@ -605,23 +605,52 @@ def _has_other_platform_dir(project_root: Path, exclude: set[str]) -> bool:
     )
 
 
+def _detect_runtime_platform(os_environ: dict[str, str]) -> Platform | None:
+    """Detect the active CLI platform from runtime-specific environment markers."""
+    if any(
+        os_environ.get(key)
+        for key in (
+            "CODEX_CI",
+            "CODEX_SHELL",
+            "CODEX_THREAD_ID",
+            "CODEX_SANDBOX",
+        )
+    ):
+        return "codex"
+
+    if os_environ.get("OPENCODE_NON_INTERACTIVE"):
+        return "opencode"
+
+    if os_environ.get("IFLOW_NON_INTERACTIVE"):
+        return "iflow"
+
+    if os_environ.get("KIRO_NON_INTERACTIVE"):
+        return "kiro"
+
+    if os_environ.get("CLAUDE_NON_INTERACTIVE"):
+        return "claude"
+
+    return None
+
+
 def detect_platform(project_root: Path) -> Platform:
     """Auto-detect platform based on existing config directories.
 
     Detection order:
     1. TRELLIS_PLATFORM environment variable (if set)
-    2. .opencode directory exists → opencode
-    3. .iflow directory exists → iflow
-    4. .cursor directory exists (without .claude) → cursor
-    5. .codex exists and no other platform dirs → codex
-    6. .kilocode directory exists → kilo
-    7. .kiro/skills exists and no other platform dirs → kiro
-    8. .gemini directory exists → gemini
-    9. .agent/workflows exists and no other platform dirs → antigravity
-    10. .windsurf/workflows exists and no other platform dirs → windsurf
-    11. .codebuddy directory exists → codebuddy
-    12. .qoder directory exists → qoder
-    13. Default → claude
+    2. Runtime environment markers (e.g. CODEX_*) → active platform
+    3. .opencode directory exists → opencode
+    4. .iflow directory exists → iflow
+    5. .cursor directory exists (without .claude) → cursor
+    6. .codex exists and no other platform dirs → codex
+    7. .kilocode directory exists → kilo
+    8. .kiro/skills exists and no other platform dirs → kiro
+    9. .gemini directory exists → gemini
+    10. .agent/workflows exists and no other platform dirs → antigravity
+    11. .windsurf/workflows exists and no other platform dirs → windsurf
+    12. .codebuddy directory exists → codebuddy
+    13. .qoder directory exists → qoder
+    14. Default → claude
 
     Args:
         project_root: Project root directory
@@ -649,6 +678,10 @@ def detect_platform(project_root: Path) -> Platform:
         "copilot",
     ):
         return env_platform  # type: ignore
+
+    runtime_platform = _detect_runtime_platform(os.environ)
+    if runtime_platform is not None:
+        return runtime_platform
 
     # Check for .opencode directory (OpenCode-specific)
     if (project_root / ".opencode").is_dir():

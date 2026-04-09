@@ -955,7 +955,7 @@ export const TaskEditorPaper = forwardRef<
     }
 
     if (variant === 'inline') {
-      function openChecklistAndFocus() {
+      const openChecklistAndFocus = () => {
         setIsChecklistExpanded(true)
         setChecklistCreateRequestToken((v) => v + 1)
       }

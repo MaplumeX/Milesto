@@ -12,7 +12,6 @@ import {
   useSensor,
   useSensors,
   type CollisionDetection,
-  type DragCancelEvent,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -416,7 +415,7 @@ export function TaskList({
     }
   }
 
-  function handleDragCancel(_e: DragCancelEvent) {
+  function handleDragCancel() {
     cancelPendingDropTimers()
     setActiveTaskId(null)
     lastOverIdRef.current = null

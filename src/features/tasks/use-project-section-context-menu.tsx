@@ -151,7 +151,7 @@ export function useProjectSectionContextMenu({
     }
   }, [menuState])
 
-  async function handleDeleteSection() {
+  const handleDeleteSection = useCallback(async () => {
     if (!menuState) return
 
     setActionError(null)
@@ -167,9 +167,9 @@ export function useProjectSectionContextMenu({
     onSectionRemoved?.(menuState.section.id)
     await onMutate()
     closeMenu({ restoreFocus: false })
-  }
+  }, [closeMenu, menuState, onMutate, onSectionRemoved, t])
 
-  async function handleMoveSection(targetProjectId: string) {
+  const handleMoveSection = useCallback(async (targetProjectId: string) => {
     if (!menuState) return
 
     setActionError(null)
@@ -192,7 +192,7 @@ export function useProjectSectionContextMenu({
     onSectionRemoved?.(menuState.section.id)
     await onMutate()
     closeMenu({ restoreFocus: false })
-  }
+  }, [closeMenu, menuState, onMutate, onSectionRemoved])
 
   const menuNode = useMemo(() => {
     if (!menuState) return null
@@ -303,7 +303,7 @@ export function useProjectSectionContextMenu({
       </div>,
       document.body
     )
-  }, [actionError, handleDeleteSection, menuState, moveTargets, moveTargetsError, moveTargetsLoading, t])
+  }, [actionError, handleDeleteSection, handleMoveSection, menuState, moveTargets, moveTargetsError, moveTargetsLoading, t])
 
   return { openProjectSectionContextMenu, closeMenu, menuNode }
 }

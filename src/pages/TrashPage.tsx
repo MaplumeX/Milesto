@@ -124,7 +124,7 @@ export function TrashPage() {
     bumpRevision()
     await refresh(null)
     setIsEmptying(false)
-  }, [bumpRevision, hasEntries, refresh, t])
+  }, [bumpRevision, hasEntries, refresh, requestCloseTask, t])
 
   return (
     <div className="page">

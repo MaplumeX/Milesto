@@ -175,7 +175,7 @@ export function useTaskContextMenu({
     }
   }, [menuState])
 
-  async function persistTaskUpdate(patch: Record<string, unknown>) {
+  const persistTaskUpdate = useCallback(async (patch: Record<string, unknown>) => {
     if (!menuState) return
     const res = await window.api.task.update({
       id: menuState.task.id,
@@ -189,9 +189,9 @@ export function useTaskContextMenu({
 
     bumpRevision()
     closeMenu({ restoreFocus: true })
-  }
+  }, [bumpRevision, closeMenu, menuState])
 
-  async function persistTaskToggleDone(done: boolean) {
+  const persistTaskToggleDone = useCallback(async (done: boolean) => {
     if (!menuState) return
     const res = await window.api.task.toggleDone(menuState.task.id, done, menuState.scope)
     if (!res.ok) {
@@ -201,9 +201,9 @@ export function useTaskContextMenu({
 
     bumpRevision()
     closeMenu({ restoreFocus: true })
-  }
+  }, [bumpRevision, closeMenu, menuState])
 
-  async function persistTaskCancel() {
+  const persistTaskCancel = useCallback(async () => {
     if (!menuState) return
     const res = await window.api.task.cancel(menuState.task.id, menuState.scope)
     if (!res.ok) {
@@ -213,9 +213,9 @@ export function useTaskContextMenu({
 
     bumpRevision()
     closeMenu({ restoreFocus: true })
-  }
+  }, [bumpRevision, closeMenu, menuState])
 
-  async function persistTaskRestore() {
+  const persistTaskRestore = useCallback(async () => {
     if (!menuState) return
     const res = await window.api.task.restore(menuState.task.id, menuState.scope)
     if (!res.ok) {
@@ -225,9 +225,9 @@ export function useTaskContextMenu({
 
     bumpRevision()
     closeMenu({ restoreFocus: true })
-  }
+  }, [bumpRevision, closeMenu, menuState])
 
-  async function persistTagIds(nextTagIds: string[]) {
+  const persistTagIds = useCallback(async (nextTagIds: string[]) => {
     if (!menuState || selectedTagIds === null) return
 
     const prev = selectedTagIds
@@ -241,7 +241,7 @@ export function useTaskContextMenu({
 
     setTagsError(null)
     bumpRevision()
-  }
+  }, [bumpRevision, menuState, selectedTagIds])
 
   const menuNode = useMemo(() => {
     if (!menuState) return null
@@ -463,7 +463,20 @@ export function useTaskContextMenu({
       </div>,
       document.body
     )
-  }, [actionError, bumpRevision, closeMenu, menuState, selectedTagIds, t, tags, tagsError, tagsLoading])
+  }, [
+    actionError,
+    menuState,
+    persistTagIds,
+    persistTaskCancel,
+    persistTaskRestore,
+    persistTaskToggleDone,
+    persistTaskUpdate,
+    selectedTagIds,
+    t,
+    tags,
+    tagsError,
+    tagsLoading,
+  ])
 
   return {
     openTaskContextMenu,

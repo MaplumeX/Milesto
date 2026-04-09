@@ -75,7 +75,8 @@ export function AnimatedTaskSlot({
   // the spring target stays in sync with the actual content dimensions.
   // This handles the async data load case where content grows after mount.
   const editorContentRefCallback = useCallback((el: HTMLDivElement | null) => {
-    ;(editorContentRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+    const mutableEditorContentRef = editorContentRef as { current: HTMLDivElement | null }
+    mutableEditorContentRef.current = el
     if (el) {
       setEditorHeight(el.getBoundingClientRect().height)
     }

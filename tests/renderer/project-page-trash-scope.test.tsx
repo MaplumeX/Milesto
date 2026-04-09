@@ -135,8 +135,8 @@ describe('ProjectPage trash scope', () => {
     expect(api.task.listProject).toHaveBeenCalledWith('project-1', 'trash')
     expect(api.project.listSections).toHaveBeenCalledWith('project-1', 'trash')
     expect(api.task.countProjectDone).toHaveBeenCalledWith('project-1', 'trash')
-    expect(screen.getByText('Deleted open task')).toBeInTheDocument()
-    expect(screen.getByText('Deleted section')).toBeInTheDocument()
+    expect(await screen.findByText('Deleted open task')).toBeInTheDocument()
+    expect(await screen.findByText('Deleted section')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '...' }))
     expect(screen.queryByRole('button', { name: 'common.move' })).toBeNull()

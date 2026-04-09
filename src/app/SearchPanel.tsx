@@ -91,7 +91,7 @@ export function SearchPanel() {
   }
 
   useEffect(() => {
-    function onOpen(_e: Event) {
+    function onOpen() {
       setIsOpen(true)
       // If we're already open, the isOpen-driven focus effect won't re-run.
       window.setTimeout(() => {

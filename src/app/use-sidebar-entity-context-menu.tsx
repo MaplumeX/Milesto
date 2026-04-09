@@ -188,7 +188,7 @@ export function useSidebarAreaContextMenu({
     tagsInputRef.current?.focus()
   }, [menuState])
 
-  async function persistAreaTags(nextIds: string[]) {
+  const persistAreaTags = useCallback(async (nextIds: string[]) => {
     if (!menuState) return false
 
     setTagPersistError(null)
@@ -202,7 +202,7 @@ export function useSidebarAreaContextMenu({
     const detailRes = await window.api.area.getDetail(menuState.area.id)
     if (detailRes.ok) setAreaTags(detailRes.data.tags)
     return true
-  }
+  }, [menuState, onAfterMutation])
 
   const menuNode = useMemo(() => {
     if (!menuState) return null
@@ -418,6 +418,7 @@ export function useSidebarAreaContextMenu({
     onAfterMutation,
     onNavigate,
     onRename,
+    persistAreaTags,
     t,
     tagCreateError,
     tagCreateTitle,
@@ -563,7 +564,7 @@ export function useSidebarProjectContextMenu({
     tagsInputRef.current?.focus()
   }, [menuState])
 
-  async function persistProjectUpdate(patch: Partial<Project>) {
+  const persistProjectUpdate = useCallback(async (patch: Partial<Project>) => {
     if (!menuState) return false
 
     setActionError(null)
@@ -579,9 +580,9 @@ export function useSidebarProjectContextMenu({
     await onAfterMutation()
     closeMenu({ restoreFocus: false })
     return true
-  }
+  }, [closeMenu, menuState, onAfterMutation])
 
-  async function persistProjectTags(nextIds: string[]) {
+  const persistProjectTags = useCallback(async (nextIds: string[]) => {
     if (!menuState) return false
 
     setTagPersistError(null)
@@ -595,7 +596,7 @@ export function useSidebarProjectContextMenu({
     const detailRes = await window.api.project.getDetail(menuState.project.id)
     if (detailRes.ok) setProjectTags(detailRes.data.tags)
     return true
-  }
+  }, [menuState, onAfterMutation])
 
   const menuNode = useMemo(() => {
     if (!menuState) return null
@@ -1039,6 +1040,7 @@ export function useSidebarProjectContextMenu({
     onMoveProject,
     onNavigate,
     onRename,
+    persistProjectTags,
     persistProjectUpdate,
     projectTags,
     t,

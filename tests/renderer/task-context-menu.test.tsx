@@ -343,7 +343,7 @@ describe('task context menu', () => {
   it('cancels open tasks immediately from the menu root and closes on success', async () => {
     const api = getApi()
     ;(api.task as typeof api.task & { cancel: (...args: unknown[]) => unknown }).cancel = vi.fn(
-      async (id: string, scope?: EntityScope) =>
+      async (id: string) =>
         ok(
           makeTaskRecord({
             id,

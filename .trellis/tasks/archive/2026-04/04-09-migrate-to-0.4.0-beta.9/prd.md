@@ -8,10 +8,16 @@ initialized_at=2026-04-07T10:54:54.161368
 
 ## Status
 
-- [ ] Review migration guide
-- [ ] Update custom files
-- [ ] Run `trellis update --migrate`
-- [ ] Test workflows
+- [x] Review migration guide
+- [x] Update custom files
+- [x] Run `trellis update --migrate`
+- [x] Test workflows
+
+## Migration Notes
+
+- Verified `trellis update --migrate` is a no-op on this repository at `0.4.0-beta.9`.
+- Fixed `detect_platform()` so Codex runtime markers take precedence over repository config directories like `.opencode/`.
+- Re-generated and validated task context files to confirm Codex now injects `.agents/skills/finish-work/SKILL.md` and `.agents/skills/check/SKILL.md`.
 
 ---
 
@@ -67,4 +73,3 @@ When helping users migrate to v0.4.0-beta.1:
 2. **If customized**: Help merge their customizations into the new unified `before-dev` and `check` files. The new files use `python3 ./.trellis/scripts/get_context.py --mode packages` to auto-detect which specs to load, replacing the hardcoded backend/frontend split.
 3. **If not customized**: Just run `trellis update` — safe-file-delete will handle cleanup automatically.
 4. **Python scripts**: No user action needed. The refactoring preserves all entry paths. If the user has custom scripts that import from `.trellis/scripts/common/`, they may need to update imports (e.g., `from common.io import read_json` instead of inline `_read_json_file`).
-
