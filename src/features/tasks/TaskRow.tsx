@@ -3,8 +3,10 @@ import { isClosedTaskStatus } from '../../../shared/schemas/common'
 import { useTranslation } from 'react-i18next'
 
 import { Checkbox } from '../../components/Checkbox'
-import { getTaskSchedulePreviewLabel, getTaskTagPreview } from './task-metadata'
+import { getTaskSchedulePreviewLabel, getTaskTagPreview, isDueUrgent } from './task-metadata'
+import { CalendarIcon, ClockIcon, TagIcon } from './task-metadata-icons'
 import { TaskProjectAffiliation } from './TaskProjectAffiliation'
+import { getLocalToday } from '../../lib/use-local-today'
 
 export function TaskRow({
   task,
@@ -134,18 +136,22 @@ export function TaskRow({
             <span
               className="task-row-meta-item task-row-meta-item--schedule"
               data-task-row-meta-kind="schedule"
+              title={`${t('taskEditor.scheduledPrefix')} ${schedulePreview}`}
             >
-              <span className="task-row-meta-label">{t('taskEditor.scheduledPrefix')}</span>
+              <CalendarIcon className="task-row-meta-icon" />
               <span className="task-row-meta-value">{schedulePreview}</span>
             </span>
           ) : null}
 
           {task.due_at ? (
             <span
-              className="task-row-meta-item task-row-meta-item--due"
+              className={`task-row-meta-item task-row-meta-item--due${
+                isDueUrgent(task.due_at, getLocalToday()) ? ' task-row-meta-item--due-urgent' : ''
+              }`}
               data-task-row-meta-kind="due"
+              title={`${t('taskEditor.duePrefix')} ${task.due_at}`}
             >
-              <span className="task-row-meta-label">{t('taskEditor.duePrefix')}</span>
+              <ClockIcon className="task-row-meta-icon" />
               <span className="task-row-meta-value">{task.due_at}</span>
             </span>
           ) : null}
@@ -154,7 +160,9 @@ export function TaskRow({
             <span
               className="task-row-meta-item task-row-meta-item--tags"
               data-task-row-meta-kind="tags"
+              title={tagPreview.visible.join(', ')}
             >
+              <TagIcon className="task-row-meta-icon" />
               <span className="task-row-meta-tags">
                 {tagPreview.visible.map((title, index) => (
                   <span key={`${title}-${index}`} className="task-row-meta-tag">

@@ -1478,8 +1478,8 @@ body {
   --task-row-meta-text: var(--muted);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
+  gap: 3px;
+  padding: 2px 7px;
   border-radius: 999px;
   border: 1px solid var(--task-row-meta-border);
   background: var(--task-row-meta-bg);
@@ -1498,6 +1498,19 @@ body {
   --task-row-meta-border: color-mix(in srgb, #F29A4A 30%, var(--border));
   --task-row-meta-text: color-mix(in srgb, #C76A1E 84%, var(--text));
   font-weight: 600;
+}
+
+.task-row-meta-item--due-urgent {
+  --task-row-meta-bg: color-mix(in srgb, var(--danger-border) 35%, var(--glass-strong));
+  --task-row-meta-border: color-mix(in srgb, var(--danger-text) 28%, var(--border));
+  --task-row-meta-text: var(--danger-text);
+  font-weight: 600;
+}
+
+.task-row-meta-icon {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
 }
 
 .task-row-meta-item--tags {
@@ -1753,6 +1766,9 @@ body {
 }
 
 .task-inline-chip-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   border: 0;
   background: transparent;
   padding: 0;
@@ -1760,6 +1776,29 @@ body {
   font-size: 10px;
   color: inherit;
   cursor: pointer;
+}
+
+.task-inline-chip-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.task-inline-chip-chevron {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.task-inline-chip--placeholder {
+  --task-inline-chip-bg: var(--glass-soft);
+  --task-inline-chip-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --task-inline-chip-text: var(--muted);
+}
+
+.task-inline-chip--placeholder:hover {
+  --task-inline-chip-text: var(--text);
 }
 
 .task-inline-chip-close {

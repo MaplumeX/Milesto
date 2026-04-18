@@ -20,6 +20,7 @@ import { formatLocalDate, parseLocalDate } from '../../lib/dates'
 import { buildProjectPath } from '../../lib/entity-scope'
 import { getLocalToday } from '../../lib/use-local-today'
 import { getTaskSchedulePreviewLabel, getTaskTagPreview } from './task-metadata'
+import { CalendarIcon, ChevronDownIcon, ClockIcon, TagIcon } from './task-metadata-icons'
 import { TaskEditorProjectActions } from './TaskEditorProjectActions'
 
 type Draft = {
@@ -774,7 +775,6 @@ export const TaskEditorPaper = forwardRef<
     const schedulePreviewLabel = getTaskSchedulePreviewLabel(draft, {
       someday: t('nav.someday'),
     })
-    const hasMetadataBand = Boolean(schedulePreviewLabel || draft.due_at || selectedTagIds.size > 0)
     const tagsPreviewLabel =
       tagPreview.visible.length > 0
         ? `${tagPreview.visible.join(', ')}${tagPreview.overflowCount > 0 ? ` +${tagPreview.overflowCount}` : ''}`
@@ -1427,56 +1427,6 @@ export const TaskEditorPaper = forwardRef<
                 placeholder={t('task.notesPlaceholder')}
               />
 
-              {hasMetadataBand ? (
-                <div className="task-inline-metadata-band" data-task-inline-meta-band="true">
-                  {schedulePreviewLabel ? (
-                    <div
-                      className="task-inline-chip task-inline-chip--plan"
-                      data-task-inline-meta-kind="schedule"
-                    >
-                      <button
-                        type="button"
-                        className="task-inline-chip-main"
-                        onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
-                      >
-                        {t('taskEditor.scheduledPrefix')} {schedulePreviewLabel}
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {draft.due_at ? (
-                    <div
-                      className="task-inline-chip task-inline-chip--due"
-                      data-task-inline-meta-kind="due"
-                    >
-                      <button
-                        type="button"
-                        className="task-inline-chip-main"
-                        onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}
-                      >
-                        {t('taskEditor.duePrefix')} {draft.due_at}
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {selectedTagIds.size > 0 ? (
-                    <div
-                      className="task-inline-chip task-inline-chip--summary"
-                      data-task-inline-meta-kind="tags"
-                    >
-                      <button
-                        ref={tagsButtonRef}
-                        type="button"
-                        className="task-inline-chip-main"
-                        onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
-                      >
-                        {tagsPreviewLabel}
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
               {isChecklistExpanded ? (
                 <div className="task-inline-section">
                   <Checklist
@@ -1493,49 +1443,104 @@ export const TaskEditorPaper = forwardRef<
                 </div>
               ) : null}
 
-              <div className="task-inline-action-bar">
-                <div className="task-inline-action-bar-left" />
-
-                <div className="task-inline-action-bar-right">
-                  {!schedulePreviewLabel ? (
+              <div className="task-inline-metadata-band" data-task-inline-meta-band="true">
+                {schedulePreviewLabel ? (
+                  <div
+                    className="task-inline-chip task-inline-chip--plan"
+                    data-task-inline-meta-kind="schedule"
+                  >
                     <button
                       type="button"
-                      className="button button-ghost"
+                      className="task-inline-chip-main"
                       onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
                     >
-                      {t('common.schedule')}
+                      <CalendarIcon className="task-inline-chip-icon" />
+                      {schedulePreviewLabel}
+                      <ChevronDownIcon className="task-inline-chip-chevron" />
                     </button>
-                  ) : null}
+                  </div>
+                ) : (
+                  <div className="task-inline-chip task-inline-chip--placeholder">
+                    <button
+                      type="button"
+                      className="task-inline-chip-main"
+                      onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
+                    >
+                      + {t('common.schedule')}
+                    </button>
+                  </div>
+                )}
 
-                  {selectedTagIds.size === 0 ? (
+                {draft.due_at ? (
+                  <div
+                    className="task-inline-chip task-inline-chip--due"
+                    data-task-inline-meta-kind="due"
+                  >
+                    <button
+                      type="button"
+                      className="task-inline-chip-main"
+                      onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}
+                    >
+                      <ClockIcon className="task-inline-chip-icon" />
+                      {draft.due_at}
+                      <ChevronDownIcon className="task-inline-chip-chevron" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="task-inline-chip task-inline-chip--placeholder">
+                    <button
+                      type="button"
+                      className="task-inline-chip-main"
+                      onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}
+                    >
+                      + {t('taskEditor.dueLabel')}
+                    </button>
+                  </div>
+                )}
+
+                {selectedTagIds.size > 0 ? (
+                  <div
+                    className="task-inline-chip task-inline-chip--summary"
+                    data-task-inline-meta-kind="tags"
+                  >
                     <button
                       ref={tagsButtonRef}
                       type="button"
-                      className="button button-ghost"
+                      className="task-inline-chip-main"
                       onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
                     >
-                      {t('taskEditor.tagsLabel')}
+                      <TagIcon className="task-inline-chip-icon" />
+                      {tagsPreviewLabel}
+                      <ChevronDownIcon className="task-inline-chip-chevron" />
                     </button>
-                  ) : null}
-
-                  {!draft.due_at ? (
-                    <button type="button" className="button button-ghost" onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}>
-                      {t('taskEditor.dueLabel')}
+                  </div>
+                ) : (
+                  <div className="task-inline-chip task-inline-chip--placeholder">
+                    <button
+                      ref={tagsButtonRef}
+                      type="button"
+                      className="task-inline-chip-main"
+                      onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
+                    >
+                      + {t('taskEditor.tagsLabel')}
                     </button>
-                  ) : null}
+                  </div>
+                )}
 
-                  {checklist.length === 0 && !isChecklistExpanded ? (
+                {checklist.length === 0 && !isChecklistExpanded ? (
+                  <div className="task-inline-chip task-inline-chip--placeholder">
                     <button
                       ref={checklistActionButtonRef}
                       type="button"
-                      className="button"
+                      className="task-inline-chip-main"
                       onClick={() => openChecklistAndFocus()}
                     >
-                      {t('taskEditor.checklistLabel')}
+                      + {t('taskEditor.checklistLabel')}
                     </button>
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
               </div>
+
             </div>
           </div>
 
