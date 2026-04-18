@@ -24,6 +24,7 @@ import { usePrefersReducedMotion } from '../features/tasks/dnd-drop-animation'
 import { buildProjectDoneTaskRows } from '../features/tasks/project-done-task-rows'
 import { useTaskContextMenu } from '../features/tasks/use-task-context-menu'
 import { useOptimisticTaskTitles } from '../features/tasks/use-optimistic-task-titles'
+import { CalendarIcon, ClockIcon } from '../features/tasks/task-metadata-icons'
 import { formatLocalDate, formatMonthDay, parseLocalDate } from '../lib/dates'
 import { getEntityScopeFromSearch } from '../lib/entity-scope'
 
@@ -809,7 +810,7 @@ function ProjectMetaRow({
           {hasPlan ? (
             <div className="task-inline-chip task-inline-chip--primary task-inline-chip--plan">
               <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
-                {t('taskEditor.scheduledPrefix')}{' '}
+                <CalendarIcon className="task-inline-chip-icon" />
                 {project.is_someday
                   ? t('nav.someday')
                   : project.scheduled_at === today
@@ -833,7 +834,8 @@ function ProjectMetaRow({
           {hasDue ? (
             <div className="task-inline-chip task-inline-chip--primary task-inline-chip--due">
               <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
-                {t('taskEditor.duePrefix')} {project.due_at}
+                <ClockIcon className="task-inline-chip-icon" />
+                {project.due_at}
               </span>
               <button
                 type="button"
@@ -856,6 +858,11 @@ function ProjectMetaRow({
           {visibleTags.map((tag) => (
             <div key={tag.id} className="task-inline-chip task-inline-chip--secondary">
               <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
+                <span
+                  className="tag-swatch"
+                  style={{ background: tag.color ?? 'transparent' }}
+                  aria-hidden="true"
+                />
                 {tag.title}
               </span>
               <button

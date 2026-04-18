@@ -176,7 +176,7 @@ describe('ProjectPage metadata row', () => {
 
     const primaryRow = container.querySelector('[data-project-meta-line="primary"]')
     const tagsRow = container.querySelector('[data-project-meta-line="tags"]')
-    const planChip = screen.getByText(/taskEditor\.scheduledPrefix/).closest('.task-inline-chip')
+    const planChip = screen.getByText('2026-03-27').closest('.task-inline-chip')
     const firstTagChip = screen.getByText('Design').closest('.task-inline-chip')
 
     expect(screen.getByText('Design')).toBeInTheDocument()
