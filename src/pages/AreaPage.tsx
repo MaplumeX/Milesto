@@ -16,6 +16,8 @@ import { useAppEvents } from '../app/AppEventsContext'
 import { Checkbox } from '../components/Checkbox'
 import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
 import { TaskList } from '../features/tasks/TaskList'
+import { TagFilter } from '../features/tasks/TagFilter'
+import { useTaskTagFilter } from '../features/tasks/use-task-tag-filter'
 
 export function AreaPage() {
   const { t } = useTranslation()
@@ -33,6 +35,14 @@ export function AreaPage() {
   const [error, setError] = useState<AppError | null>(null)
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+
+  const {
+    availableTags,
+    selectedTagIds,
+    setSelectedTagIds,
+    filteredTasks,
+    hasFilter,
+  } = useTaskTagFilter(tasks)
 
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -428,8 +438,18 @@ export function AreaPage() {
           </span>
         }
         listId={taskListIdArea(aid)}
-        tasks={tasks}
-        topContent={projectsTopContent}
+        tasks={filteredTasks}
+        topContent={
+          <>
+            <TagFilter
+              tags={availableTags}
+              selectedTagIds={selectedTagIds}
+              onChange={setSelectedTagIds}
+            />
+            {projectsTopContent}
+          </>
+        }
+        emptyState={hasFilter ? t('taskEditor.noTagsMatch') : undefined}
         onAfterReorder={refresh}
         headerActions={
           <>

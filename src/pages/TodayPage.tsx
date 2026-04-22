@@ -6,6 +6,8 @@ import type { TaskListItem } from '../../shared/schemas/task-list'
 import { TASK_LIST_ID_TODAY } from '../../shared/task-list-ids'
 import { formatLocalDate } from '../lib/dates'
 import { TaskList } from '../features/tasks/TaskList'
+import { TagFilter } from '../features/tasks/TagFilter'
+import { useTaskTagFilter } from '../features/tasks/use-task-tag-filter'
 import { useAppEvents } from '../app/AppEventsContext'
 
 export function TodayPage() {
@@ -13,6 +15,14 @@ export function TodayPage() {
   const { revision } = useAppEvents()
   const [tasks, setTasks] = useState<TaskListItem[]>([])
   const [error, setError] = useState<AppError | null>(null)
+
+  const {
+    availableTags,
+    selectedTagIds,
+    setSelectedTagIds,
+    filteredTasks,
+    hasFilter,
+  } = useTaskTagFilter(tasks)
 
   const refresh = useCallback(async () => {
     const today = formatLocalDate(new Date())
@@ -36,7 +46,15 @@ export function TodayPage() {
       <TaskList
         title={t('nav.today')}
         listId={TASK_LIST_ID_TODAY}
-        tasks={tasks}
+        tasks={filteredTasks}
+        topContent={
+          <TagFilter
+            tags={availableTags}
+            selectedTagIds={selectedTagIds}
+            onChange={setSelectedTagIds}
+          />
+        }
+        emptyState={hasFilter ? t('taskEditor.noTagsMatch') : undefined}
         onAfterReorder={refresh}
         onToggleDone={async (taskId, done) => {
           const updated = await window.api.task.toggleDone(taskId, done)

@@ -28,6 +28,7 @@ export const TaskListItemSchema = z.object({
   deleted_at: IsoDateTimeSchema.nullable(),
   tag_preview: z.array(z.string()).max(2).optional(),
   tag_count: z.number().int().nonnegative().optional(),
+  tag_ids: z.array(z.string()).optional(),
   rank: z.number().int().nullable().optional(),
 })
 

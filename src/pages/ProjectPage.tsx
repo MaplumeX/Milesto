@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ForwardedRef, RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { DayPicker } from 'react-day-picker'
@@ -17,6 +17,8 @@ import { Checkbox } from '../components/Checkbox'
 import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
 import { AnimatedTaskSlot } from '../features/tasks/AnimatedTaskSlot'
 import { ProjectGroupedList } from '../features/tasks/ProjectGroupedList'
+import { TagFilter } from '../features/tasks/TagFilter'
+import { useTaskTagFilter } from '../features/tasks/use-task-tag-filter'
 import { TaskInlineEditorRow } from '../features/tasks/TaskInlineEditorRow'
 import { TaskRow } from '../features/tasks/TaskRow'
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
@@ -56,6 +58,22 @@ export function ProjectPage() {
   const [doneTasks, setDoneTasks] = useState<TaskListItem[] | null>(null)
   const [sections, setSections] = useState<ProjectSection[]>([])
   const [error, setError] = useState<AppError | null>(null)
+
+  const {
+    availableTags,
+    selectedTagIds,
+    setSelectedTagIds,
+    filteredTasks: filteredOpenTasks,
+    hasFilter,
+  } = useTaskTagFilter(openTasks)
+
+  const filteredDoneTasks = useMemo(() => {
+    if (!doneTasks || selectedTagIds.length === 0) return doneTasks
+    return doneTasks.filter((task) => {
+      const taskTagIds = task.tag_ids ?? []
+      return selectedTagIds.some((id) => taskTagIds.includes(id))
+    })
+  }, [doneTasks, selectedTagIds])
 
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
 
@@ -595,11 +613,21 @@ export function ProjectPage() {
           />
         </div>
 
+        <TagFilter
+          tags={availableTags}
+          selectedTagIds={selectedTagIds}
+          onChange={setSelectedTagIds}
+        />
+
+        {hasFilter && filteredOpenTasks.length === 0 ? (
+          <div className="task-list-empty">{t('taskEditor.noTagsMatch')}</div>
+        ) : null}
+
         <ProjectGroupedList
           projectId={pid}
           scope={projectScope}
           sections={sections}
-          openTasks={openTasks}
+          openTasks={filteredOpenTasks}
           doneTasks={null}
           editingSectionId={editingSectionId}
           onStartSectionTitleEdit={(sectionId) => setEditingSectionId(sectionId)}
@@ -631,7 +659,7 @@ export function ProjectPage() {
           onAfterReorder={refresh}
         />
 
-        {doneCount > 0 ? (
+        {(hasFilter ? (filteredDoneTasks?.length ?? 0) : doneCount) > 0 ? (
           <div className="sections-header">
             <button
               type="button"
@@ -647,9 +675,9 @@ export function ProjectPage() {
           </div>
         ) : null}
 
-        {isCompletedExpanded && doneTasks ? (
+        {isCompletedExpanded && filteredDoneTasks ? (
           <ProjectDoneTaskList
-            doneTasks={doneTasks}
+            doneTasks={filteredDoneTasks}
             sections={sections}
             scope={projectScope}
             onToggleDone={async (taskId, done) => {

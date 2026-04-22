@@ -9,6 +9,7 @@ export const messagesEn = {
   common: {
     none: 'None',
     noneOption: '(none)',
+    all: 'All',
     clear: 'Clear',
     close: 'Close',
     retry: 'Retry',
@@ -219,6 +220,7 @@ export const messagesEn = {
     checklistItemDoneAria: 'Checklist item done',
     checklistItemPlaceholder: 'Checklist item',
     newTagPlaceholder: 'New tag',
+    noTagsMatch: 'No tasks match the selected tags.',
   },
   errors: {
     missingAreaId: 'Missing area id.',
@@ -241,6 +243,7 @@ export const messagesZhCN = {
   common: {
     none: '无',
     noneOption: '（无）',
+    all: '全部',
     clear: '清除',
     close: '关闭',
     retry: '重试',
@@ -451,6 +454,7 @@ export const messagesZhCN = {
     checklistItemDoneAria: '清单条目完成',
     checklistItemPlaceholder: '清单条目',
     newTagPlaceholder: '新建标签',
+    noTagsMatch: '没有任务匹配选中的标签。',
   },
   errors: {
     missingAreaId: '缺少领域 ID。',

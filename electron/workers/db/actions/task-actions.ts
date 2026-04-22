@@ -54,6 +54,7 @@ const TaskListPreviewRowSchema = z
   .object({
     tag_count: z.number().int().nonnegative().nullable().optional(),
     tag_preview_text: z.string().nullable().optional(),
+    tag_ids_text: z.string().nullable().optional(),
   })
   .passthrough()
 
@@ -139,6 +140,17 @@ function taskTagPreviewSql(taskAlias: string): string {
   )`
 }
 
+function taskTagIdsSql(taskAlias: string): string {
+  return `(
+    SELECT group_concat(tt.tag_id, '${TASK_TAG_PREVIEW_SEPARATOR}')
+    FROM task_tags tt
+    JOIN tags tag ON tag.id = tt.tag_id AND tag.deleted_at IS NULL
+    WHERE tt.deleted_at IS NULL
+      AND tt.task_id = ${taskAlias}.id
+    ORDER BY tt.created_at ASC, tt.rowid ASC
+  )`
+}
+
 function buildTaskListSelectColumns(
   taskAlias: string,
   options?: {
@@ -166,6 +178,7 @@ function buildTaskListSelectColumns(
     `${taskAlias}.deleted_at`,
     `${taskTagCountSql(taskAlias)} AS tag_count`,
     `${taskTagPreviewSql(taskAlias)} AS tag_preview_text`,
+    `${taskTagIdsSql(taskAlias)} AS tag_ids_text`,
   ]
 
   if (options?.rankExpr) columns.push(`${options.rankExpr} AS rank`)
@@ -179,12 +192,18 @@ function parseTaskTagPreviewText(value: string | null | undefined): string[] {
   return value.split(TASK_TAG_PREVIEW_SEPARATOR).filter((title) => title.length > 0)
 }
 
+function parseTaskTagIdsText(value: string | null | undefined): string[] {
+  if (!value) return []
+  return value.split(TASK_TAG_PREVIEW_SEPARATOR).filter((id) => id.length > 0)
+}
+
 function parseTaskListItems(rows: unknown[]) {
   return z.array(TaskListPreviewRowSchema).parse(rows).map((row) =>
     TaskListItemSchema.parse({
       ...row,
       tag_preview: parseTaskTagPreviewText(row.tag_preview_text),
       tag_count: row.tag_count ?? 0,
+      tag_ids: parseTaskTagIdsText(row.tag_ids_text),
     })
   )
 }
@@ -195,6 +214,7 @@ function parseTaskSearchResultItems(rows: unknown[]) {
       ...row,
       tag_preview: parseTaskTagPreviewText(row.tag_preview_text),
       tag_count: row.tag_count ?? 0,
+      tag_ids: parseTaskTagIdsText(row.tag_ids_text),
     })
   )
 }

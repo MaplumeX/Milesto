@@ -96,6 +96,7 @@ export function TaskList({
   onAfterReorder,
   headerActions,
   topContent,
+  emptyState,
 }: {
   title: React.ReactNode
   tasks: TaskListItem[]
@@ -107,6 +108,7 @@ export function TaskList({
   onAfterReorder?: () => Promise<void>
   headerActions?: React.ReactNode
   topContent?: React.ReactNode
+  emptyState?: React.ReactNode
 }) {
   const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
@@ -536,6 +538,9 @@ export function TaskList({
             }
           }}
         >
+          {tasks.length === 0 && emptyState ? (
+            <div className="task-list-empty">{emptyState}</div>
+          ) : (
           <SortableContext items={isDndEnabled ? orderedTaskIds : []} strategy={verticalListSortingStrategy}>
             <ul className="task-list" style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -612,6 +617,7 @@ export function TaskList({
               })}
             </ul>
           </SortableContext>
+          )}
         </div>
 
         {isDndEnabled && activeTaskId
