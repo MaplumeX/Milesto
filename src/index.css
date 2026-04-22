@@ -1548,9 +1548,13 @@ body {
   background: var(--wash);
 }
 
-.button:focus {
+.button:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+.button:focus {
+  background: var(--wash);
 }
 
 .button:disabled {
