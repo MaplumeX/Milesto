@@ -663,7 +663,7 @@ export function ProjectPage() {
           <div className="sections-header">
             <button
               type="button"
-              className="button button-ghost"
+              className="button button-ghost completed-toggle"
               aria-expanded={isCompletedExpanded}
               onClick={() => {
                 const next = !isCompletedExpanded

@@ -1564,6 +1564,19 @@ body {
   box-shadow: none;
 }
 
+.completed-toggle {
+  padding: 2px 8px;
+  font-size: 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.completed-toggle:hover {
+  background: transparent;
+  border-color: var(--border);
+}
+
 .task-list {
   list-style: none;
   margin: 0;
