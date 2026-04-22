@@ -895,17 +895,43 @@ body {
 .tag-picker {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+}
+
+.tag-picker-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.tag-picker-input-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--muted);
+  pointer-events: none;
+  flex-shrink: 0;
 }
 
 .tag-picker-input {
   width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px 8px 30px;
+  background: var(--glass-strong);
+  box-shadow: 0 1px 0 var(--shadow);
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.tag-picker-input::placeholder {
+  color: var(--muted);
 }
 
 .tag-picker-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   max-height: 240px;
   overflow-y: auto;
 }
@@ -913,10 +939,9 @@ body {
 .tag-picker-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  border-radius: 6px;
-  padding: 2px 4px;
-  transition: background 0.08s ease;
+  border-radius: 8px;
+  padding: 1px 4px;
+  transition: background 0.1s ease;
 }
 
 .tag-picker-item.is-active {
@@ -925,35 +950,28 @@ body {
 
 .tag-picker-item.is-selected .tag-picker-title {
   color: var(--text);
+  font-weight: 600;
 }
 
 .tag-picker-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex: 1;
   min-width: 0;
-  padding: 4px 2px;
+  padding: 6px 4px;
   background: transparent;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   text-align: left;
   font-size: 13px;
   color: var(--muted);
-  transition: color 0.08s ease;
+  transition: color 0.1s ease;
 }
 
 .tag-picker-row:hover {
   color: var(--text);
-}
-
-.tag-picker-swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  border: 1px solid var(--swatch-border);
-  flex-shrink: 0;
 }
 
 .tag-picker-title {
@@ -965,8 +983,8 @@ body {
 }
 
 .tag-picker-check {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -977,15 +995,17 @@ body {
 .tag-picker-create {
   display: flex;
   align-items: center;
-  padding: 6px 8px;
-  background: transparent;
-  border: 1px dashed var(--border);
-  border-radius: 6px;
+  gap: 6px;
+  padding: 7px 10px;
+  margin-top: 2px;
+  background: var(--wash);
+  border: 1px solid var(--border);
+  border-radius: 8px;
   cursor: pointer;
   text-align: left;
   font-size: 13px;
   color: var(--muted);
-  transition: background 0.08s ease, color 0.08s ease, border-color 0.08s ease;
+  transition: background 0.1s ease, color 0.1s ease, border-color 0.1s ease;
 }
 
 .tag-picker-create:hover,
@@ -998,6 +1018,11 @@ body {
 .tag-picker-create:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.tag-picker-create-icon {
+  flex-shrink: 0;
+  color: var(--muted);
 }
 
 .checklist {

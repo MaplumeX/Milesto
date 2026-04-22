@@ -37,7 +37,7 @@ export function TagPicker({
   const itemRefs = useRef<Map<number, HTMLButtonElement | null>>(new Map())
 
   const [query, setQuery] = useState('')
-  const [activeIndex, setActiveIndex] = useState(0)
+  const [activeIndex, setActiveIndex] = useState(-1)
   const [isCreating, setIsCreating] = useState(false)
   const [localCreateError, setLocalCreateError] = useState<AppError | null>(null)
 
@@ -60,11 +60,12 @@ export function TagPicker({
 
   // Reset active index when filter changes.
   useEffect(() => {
-    setActiveIndex(0)
+    setActiveIndex(-1)
   }, [query])
 
   // Scroll active item into view.
   useEffect(() => {
+    if (activeIndex < 0) return
     const el = itemRefs.current.get(activeIndex)
     if (el) {
       el.scrollIntoView({ block: 'nearest' })
@@ -85,13 +86,14 @@ export function TagPicker({
     if (e.key === 'ArrowUp') {
       e.preventDefault()
       e.stopPropagation()
-      setActiveIndex((prev) => Math.max(0, prev - 1))
+      setActiveIndex((prev) => Math.max(-1, prev - 1))
       return
     }
 
     if (e.key === 'Enter') {
       e.preventDefault()
       e.stopPropagation()
+      if (activeIndex < 0) return
       if (activeIndex < filteredTags.length) {
         const tag = filteredTags[activeIndex]
         if (tag) {
@@ -135,16 +137,22 @@ export function TagPicker({
 
   return (
     <div className="tag-picker" onKeyDown={handleKeyDown}>
-      <input
-        ref={inputRef}
-        className="input tag-picker-input"
-        placeholder={t('taskEditor.newTagPlaceholder')}
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value)
-          if (localCreateError) setLocalCreateError(null)
-        }}
-      />
+      <div className="tag-picker-input-wrap">
+        <svg className="tag-picker-input-icon" viewBox="0 0 16 16" fill="none" width="14" height="14" aria-hidden="true">
+          <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M11.5 11.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+        <input
+          ref={inputRef}
+          className="tag-picker-input"
+          placeholder={t('taskEditor.newTagPlaceholder')}
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            if (localCreateError) setLocalCreateError(null)
+          }}
+        />
+      </div>
 
       {createError ? (
         <div className="error" style={{ margin: '8px 0 0' }}>
@@ -178,11 +186,6 @@ export function TagPicker({
                 className="tag-picker-row"
                 onClick={() => onToggle(tag.id, !isSelected)}
               >
-                <span
-                  className="tag-picker-swatch"
-                  style={{ background: tag.color ?? 'transparent' }}
-                  aria-hidden="true"
-                />
                 <span className="tag-picker-title">{tag.title}</span>
                 <span className="tag-picker-check" aria-hidden="true">
                   {isSelected ? (
@@ -210,8 +213,11 @@ export function TagPicker({
             onClick={() => void handleCreate()}
             disabled={isCreating}
           >
+            <svg className="tag-picker-create-icon" viewBox="0 0 12 12" fill="none" width="12" height="12" aria-hidden="true">
+              <path d="M6 2.5V9.5M2.5 6H9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
             <span className="tag-picker-create-label">
-              {isCreating ? t('common.loading') : `${t('common.addTag')} 「${query.trim()}」`}
+              {isCreating ? t('common.loading') : `${t('common.addTag')}「${query.trim()}」`}
             </span>
           </button>
         ) : null}
