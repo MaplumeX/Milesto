@@ -22,6 +22,7 @@ import { getLocalToday } from '../../lib/use-local-today'
 import { getTaskSchedulePreviewLabel, getTaskTagPreview } from './task-metadata'
 import { CalendarIcon, ChevronDownIcon, ClockIcon, TagIcon } from './task-metadata-icons'
 import { TaskEditorProjectActions } from './TaskEditorProjectActions'
+import { TagPicker } from '../tags/TagPicker'
 
 type Draft = {
   title: string
@@ -123,17 +124,6 @@ const TITLE_NOTES_DEBOUNCE_MS = 450
 const OTHER_FIELDS_DEBOUNCE_MS = 120
 const TASK_INLINE_NOTES_MIN_HEIGHT_PX = 48
 
-const TAG_COLOR_PRESETS: Array<{ name: string; value: string | null; hex: string | null }> = [
-  { name: 'None', value: null, hex: null },
-  { name: 'Red', value: '#d14b2a', hex: '#d14b2a' },
-  { name: 'Orange', value: '#d9882a', hex: '#d9882a' },
-  { name: 'Yellow', value: '#d1b82a', hex: '#d1b82a' },
-  { name: 'Green', value: '#2d8a5f', hex: '#2d8a5f' },
-  { name: 'Blue', value: '#2f6fd6', hex: '#2f6fd6' },
-  { name: 'Purple', value: '#7a4bd6', hex: '#7a4bd6' },
-  { name: 'Gray', value: '#6c6a64', hex: '#6c6a64' },
-]
-
 function normalizeDraft(draft: Draft): Draft {
   let next = draft
 
@@ -186,10 +176,6 @@ function isDevForcedUpdateErrorEnabled(): boolean {
     (window as unknown as { __milestoForceTaskUpdateError?: boolean }).__milestoForceTaskUpdateError ===
     true
   )
-}
-
-function normalizeTagTitle(title: string): string {
-  return title.trim().toLowerCase()
 }
 
 function getDisplayTitle(title: string | null | undefined, untitledLabel: string): string {
@@ -248,8 +234,6 @@ export const TaskEditorPaper = forwardRef<
     const [loadError, setLoadError] = useState<AppError | null>(null)
     const [actionError, setActionError] = useState<AppError | null>(null)
     const [tagsError, setTagsError] = useState<AppError | null>(null)
-    const [tagCreateError, setTagCreateError] = useState<AppError | null>(null)
-    const [tagCreateTitle, setTagCreateTitle] = useState('')
     const [saveError, setSaveError] = useState<AppError | null>(null)
     const saveErrorRef = useRef<AppError | null>(null)
     useEffect(() => {
@@ -969,8 +953,6 @@ export const TaskEditorPaper = forwardRef<
       }
 
       const openTagsPicker = (anchorEl: HTMLElement) => {
-        setTagCreateError(null)
-        setTagCreateTitle('')
         setActivePicker({ kind: 'tags', anchorEl })
       }
 
@@ -1115,85 +1097,28 @@ export const TaskEditorPaper = forwardRef<
             ) : activePicker.kind === 'tags' ? (
               <div className="task-inline-popover-body">
                 <div className="task-inline-popover-title">{t('taskEditor.tagsLabel')}</div>
-                <input
-                  className="input"
-                  placeholder={t('taskEditor.newTagPlaceholder')}
-                  value={tagCreateTitle}
-                  onChange={(e) => {
-                    setTagCreateTitle(e.target.value)
-                    if (tagCreateError) setTagCreateError(null)
+                <TagPicker
+                  tags={tags}
+                  selectedTagIds={Array.from(selectedTagIds)}
+                  onToggle={(tagId, selected) => {
+                    const next = new Set(selectedTagIds)
+                    if (selected) next.add(tagId)
+                    else next.delete(tagId)
+                    persistTags(Array.from(next))
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key !== 'Enter') return
-                    e.preventDefault()
-                    e.stopPropagation()
-
-                    const title = tagCreateTitle.trim()
-                    if (!title) return
-
-                    const normalized = normalizeTagTitle(title)
-                    const existing = tags.find((t) => normalizeTagTitle(t.title) === normalized)
-                    if (existing) {
-                      const next = new Set(selectedTagIds)
-                      next.add(existing.id)
-                      if (next.size !== selectedTagIds.size) persistTags(Array.from(next))
-                      setTagCreateTitle('')
-                      setTagCreateError(null)
-                      return
-                    }
-
-                    void (async () => {
-                      setTagCreateError(null)
-                      const res = await window.api.tag.create({ title })
-                      if (!res.ok) {
-                        setTagCreateError(res.error)
-                        return
-                      }
-
-                      setTagCreateTitle('')
-                      const list = await window.api.tag.list()
-                      if (list.ok) setTags(list.data)
-
-                      const next = new Set(selectedTagIds)
-                      next.add(res.data.id)
-                      if (next.size !== selectedTagIds.size) persistTags(Array.from(next))
-                    })()
+                  onCreate={async (title) => {
+                    const res = await window.api.tag.create({ title })
+                    if (!res.ok) return { ok: false, error: res.error }
+                    const list = await window.api.tag.list()
+                    if (list.ok) setTags(list.data)
+                    return { ok: true, tag: res.data }
                   }}
-                  style={{ marginTop: 6 }}
+                  onRefresh={async () => {
+                    const list = await window.api.tag.list()
+                    if (list.ok) setTags(list.data)
+                  }}
+                  persistError={tagsError}
                 />
-
-                {tagCreateError ? (
-                  <div className="error" style={{ margin: '10px 0 0' }}>
-                    <div className="error-code">{tagCreateError.code}</div>
-                    <div>{tagCreateError.message}</div>
-                  </div>
-                ) : null}
-                <div className="tag-grid" style={{ marginTop: 6 }}>
-                  {tags.map((tag) => {
-                    const checked = selectedTagIds.has(tag.id)
-                    return (
-                      <Checkbox
-                        key={tag.id}
-                        className="tag-checkbox"
-                        style={{ display: 'flex', gap: 6, alignItems: 'center' }}
-                        checked={checked}
-                        onCheckedChange={(nextChecked) => {
-                          const next = new Set(selectedTagIds)
-                          if (nextChecked) next.add(tag.id)
-                          else next.delete(tag.id)
-                          persistTags(Array.from(next))
-                        }}
-                      >
-                        <span>{tag.title}</span>
-                        <span
-                          className="tag-swatch"
-                          style={{ marginLeft: 'auto', background: tag.color ?? 'transparent' }}
-                          aria-hidden="true"
-                        />
-                      </Checkbox>
-                    )
-                  })}
-                </div>
               </div>
             ) : activePicker.kind === 'schedule' ? (
               <div className="task-inline-popover-body">
@@ -1817,125 +1742,36 @@ export const TaskEditorPaper = forwardRef<
 
         <div className="detail-field">
           <div className="label">{t('taskEditor.tagsLabel')}</div>
-          <div className="tag-grid">
-            {tags.map((tag) => {
-              const checked = selectedTagIds.has(tag.id)
-              return (
-                <div key={tag.id} className="tag-pill">
-                  <Checkbox
-                    className="tag-checkbox"
-                    checked={checked}
-                    onCheckedChange={(nextChecked) => {
-                      const next = new Set(selectedTagIds)
-                      if (nextChecked) next.add(tag.id)
-                      else next.delete(tag.id)
+          <TagPicker
+            tags={tags}
+            selectedTagIds={Array.from(selectedTagIds)}
+            onToggle={(tagId, selected) => {
+              const next = new Set(selectedTagIds)
+              if (selected) next.add(tagId)
+              else next.delete(tagId)
 
-                      void (async () => {
-                        const res = await window.api.task.setTags(detail.task.id, Array.from(next), scope)
-                        if (!res.ok) {
-                          setActionError(res.error)
-                          return
-                        }
-                        setActionError(null)
-                        setDetail((d) => (d ? { ...d, tag_ids: Array.from(next) } : d))
-                      })()
-                    }}
-                  >
-                    <span>{tag.title}</span>
-                  </Checkbox>
-
-                  <span className="tag-swatch" style={{ background: tag.color ?? 'transparent' }} aria-hidden="true" />
-
-                  <select
-                    className="tag-color"
-                    value={tag.color ?? ''}
-                    onChange={(e) => {
-                      const nextColor = e.target.value ? e.target.value : null
-                      void (async () => {
-                        const res = await window.api.tag.update({ id: tag.id, color: nextColor })
-                        if (!res.ok) {
-                          setActionError(res.error)
-                          return
-                        }
-                        setActionError(null)
-                        const list = await window.api.tag.list()
-                        if (list.ok) setTags(list.data)
-                      })()
-                    }}
-                  >
-                    {TAG_COLOR_PRESETS.map((c) => (
-                      <option key={c.name} value={c.value ?? ''}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    type="button"
-                    className="button button-ghost"
-                    onClick={() => {
-                      const next = prompt(t('tag.renamePromptTitle'), tag.title)
-                      if (!next) return
-                      void (async () => {
-                        const res = await window.api.tag.update({ id: tag.id, title: next })
-                        if (!res.ok) {
-                          setActionError(res.error)
-                          return
-                        }
-                        setActionError(null)
-                        const list = await window.api.tag.list()
-                        if (list.ok) setTags(list.data)
-                      })()
-                    }}
-                  >
-                    {t('common.rename')}
-                  </button>
-
-                  <button
-                    type="button"
-                    className="button button-ghost"
-                    onClick={() => {
-                      const confirmed = confirm(t('tag.deleteConfirm'))
-                      if (!confirmed) return
-                      void (async () => {
-                        const res = await window.api.tag.delete(tag.id)
-                        if (!res.ok) {
-                          setActionError(res.error)
-                          return
-                        }
-                        setActionError(null)
-                        const list = await window.api.tag.list()
-                        if (list.ok) setTags(list.data)
-                      })()
-                    }}
-                  >
-                    {t('common.delete')}
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-
-          <button
-            type="button"
-            className="button button-ghost"
-            onClick={() => {
-              const title = prompt(t('tag.newPromptTitle'))
-              if (!title) return
               void (async () => {
-                const res = await window.api.tag.create({ title })
+                const res = await window.api.task.setTags(detail.task.id, Array.from(next), scope)
                 if (!res.ok) {
                   setActionError(res.error)
                   return
                 }
                 setActionError(null)
-                const list = await window.api.tag.list()
-                if (list.ok) setTags(list.data)
+                setDetail((d) => (d ? { ...d, tag_ids: Array.from(next) } : d))
               })()
             }}
-          >
-            {t('common.addTag')}
-          </button>
+            onCreate={async (title) => {
+              const res = await window.api.tag.create({ title })
+              if (!res.ok) return { ok: false, error: res.error }
+              const list = await window.api.tag.list()
+              if (list.ok) setTags(list.data)
+              return { ok: true, tag: res.data }
+            }}
+            onRefresh={async () => {
+              const list = await window.api.tag.list()
+              if (list.ok) setTags(list.data)
+            }}
+          />
         </div>
 
         <div className="detail-field">

@@ -13,8 +13,8 @@ import type { TaskListItem } from '../../shared/schemas/task-list'
 import { taskListIdArea } from '../../shared/task-list-ids'
 
 import { useAppEvents } from '../app/AppEventsContext'
-import { Checkbox } from '../components/Checkbox'
 import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
+import { TagPicker } from '../features/tags/TagPicker'
 import { TaskList } from '../features/tasks/TaskList'
 import { TagFilter } from '../features/tasks/TagFilter'
 import { useTaskTagFilter } from '../features/tasks/use-task-tag-filter'
@@ -542,16 +542,12 @@ const AreaMenu = forwardRef(function AreaMenu(
   const lastRootFocusRef = useRef<RootKey>('tags')
 
   const backButtonRef = useRef<HTMLButtonElement | null>(null)
-  const tagsInputRef = useRef<HTMLInputElement | null>(null)
 
   const tagsBtnRef = useRef<HTMLButtonElement | null>(null)
   const deleteBtnRef = useRef<HTMLButtonElement | null>(null)
 
   const [allTags, setAllTags] = useState<Tag[]>([])
   const [tagsError, setTagsError] = useState<AppError | null>(null)
-  const [tagCreateTitle, setTagCreateTitle] = useState('')
-  const [tagCreateError, setTagCreateError] = useState<AppError | null>(null)
-  const [tagPersistError, setTagPersistError] = useState<AppError | null>(null)
 
   const rootRefs: Record<RootKey, RefObject<HTMLButtonElement | null>> = {
     tags: tagsBtnRef,
@@ -570,19 +566,11 @@ const AreaMenu = forwardRef(function AreaMenu(
 
   const goTags = () => {
     lastRootFocusRef.current = 'tags'
-    setTagCreateError(null)
-    setTagsError(null)
-    setTagPersistError(null)
-    setTagCreateTitle('')
     setView('tags')
   }
 
   useLayoutEffect(() => {
     if (view === 'root') return
-    if (view === 'tags') {
-      tagsInputRef.current?.focus()
-      return
-    }
     backButtonRef.current?.focus()
   }, [view])
 
@@ -599,10 +587,6 @@ const AreaMenu = forwardRef(function AreaMenu(
       setAllTags(res.data)
     })()
   }, [view])
-
-  function normalizeTagTitle(title: string): string {
-    return title.trim().replace(/\s+/g, ' ').toLowerCase()
-  }
 
   const rect = anchorEl.getBoundingClientRect()
   const viewportPadding = 12
@@ -669,129 +653,36 @@ const AreaMenu = forwardRef(function AreaMenu(
               <div className="task-inline-popover-title">{t('taskEditor.tagsLabel')}</div>
             </div>
 
-            <input
-              ref={tagsInputRef}
-              className="input"
-              placeholder={t('taskEditor.newTagPlaceholder')}
-              value={tagCreateTitle}
-              onChange={(e) => {
-                setTagCreateTitle(e.target.value)
-                if (tagCreateError) setTagCreateError(null)
-              }}
-              onKeyDown={(e) => {
-                if (e.key !== 'Enter') return
-                // Don't treat IME composition confirmation as a commit.
-                if (e.nativeEvent.isComposing) return
-                e.preventDefault()
-                e.stopPropagation()
-
-                const title = tagCreateTitle.trim()
-                if (!title) return
-
-                const normalized = normalizeTagTitle(title)
-                const existing = allTags.find((t) => normalizeTagTitle(t.title) === normalized)
-
-                const selectedIds = areaTags.map((t) => t.id)
-                const persist = async (nextIds: string[]) => {
-                  setTagPersistError(null)
-                  const res = await window.api.area.setTags(areaId, nextIds)
-                  if (!res.ok) {
-                    setTagPersistError(res.error)
-                    return false
-                  }
-                  await onMutate()
-                  return true
-                }
-
-                if (existing) {
-                  if (!selectedIds.includes(existing.id)) {
-                    void persist([...selectedIds, existing.id])
-                  }
-                  setTagCreateTitle('')
-                  setTagCreateError(null)
-                  return
-                }
+            <TagPicker
+              tags={allTags}
+              selectedTagIds={areaTags.map((t) => t.id)}
+              onToggle={(tagId, selected) => {
+                const current = areaTags.map((t) => t.id)
+                const next = selected
+                  ? [...current, tagId]
+                  : current.filter((id) => id !== tagId)
 
                 void (async () => {
-                  setTagCreateError(null)
-                  const res = await window.api.tag.create({ title })
+                  const res = await window.api.area.setTags(areaId, next)
                   if (!res.ok) {
-                    setTagCreateError(res.error)
                     return
                   }
-
-                  setTagCreateTitle('')
-                  const list = await window.api.tag.list()
-                  if (list.ok) setAllTags(list.data)
-
-                  if (!selectedIds.includes(res.data.id)) {
-                    await persist([...selectedIds, res.data.id])
-                  }
+                  await onMutate()
                 })()
               }}
-              style={{ marginTop: 6 }}
+              onCreate={async (title) => {
+                const res = await window.api.tag.create({ title })
+                if (!res.ok) return { ok: false, error: res.error }
+                const list = await window.api.tag.list()
+                if (list.ok) setAllTags(list.data)
+                return { ok: true, tag: res.data }
+              }}
+              onRefresh={async () => {
+                const list = await window.api.tag.list()
+                if (list.ok) setAllTags(list.data)
+              }}
+              persistError={tagsError}
             />
-
-            {tagCreateError ? (
-              <div className="error" style={{ margin: '10px 0 0' }}>
-                <div className="error-code">{tagCreateError.code}</div>
-                <div>{tagCreateError.message}</div>
-              </div>
-            ) : null}
-
-            {tagsError ? (
-              <div className="error" style={{ margin: '10px 0 0' }}>
-                <div className="error-code">{tagsError.code}</div>
-                <div>{tagsError.message}</div>
-              </div>
-            ) : null}
-
-            {tagPersistError ? (
-              <div className="error" style={{ margin: '10px 0 0' }}>
-                <div className="error-code">{tagPersistError.code}</div>
-                <div>{tagPersistError.message}</div>
-              </div>
-            ) : null}
-
-            <div className="tag-grid" style={{ marginTop: 8 }}>
-              {allTags.map((tag) => {
-                const selectedIds = areaTags.map((t) => t.id)
-                const checked = selectedIds.includes(tag.id)
-                return (
-                  <Checkbox
-                    key={tag.id}
-                    className="tag-checkbox"
-                    style={{ display: 'flex', gap: 6, alignItems: 'center' }}
-                    checked={checked}
-                    onCheckedChange={(nextChecked) => {
-                      const current = areaTags.map((t) => t.id)
-                      const next = nextChecked
-                        ? current.includes(tag.id)
-                          ? current
-                          : [...current, tag.id]
-                        : current.filter((id) => id !== tag.id)
-
-                      void (async () => {
-                        setTagPersistError(null)
-                        const res = await window.api.area.setTags(areaId, next)
-                        if (!res.ok) {
-                          setTagPersistError(res.error)
-                          return
-                        }
-                        await onMutate()
-                      })()
-                    }}
-                  >
-                    <span>{tag.title}</span>
-                    <span
-                      className="tag-swatch"
-                      style={{ marginLeft: 'auto', background: tag.color ?? 'transparent' }}
-                      aria-hidden="true"
-                    />
-                  </Checkbox>
-                )
-              })}
-            </div>
           </>
         )}
       </div>

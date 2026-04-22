@@ -10,7 +10,7 @@ import type { Tag } from '../../../shared/schemas/tag'
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useAppEvents } from '../../app/AppEventsContext'
-import { Checkbox } from '../../components/Checkbox'
+import { TagPicker } from '../tags/TagPicker'
 import { formatLocalDate, parseLocalDate } from '../../lib/dates'
 import { getLocalToday } from '../../lib/use-local-today'
 import { useTaskSelection } from './TaskSelectionContext'
@@ -57,7 +57,6 @@ export function useTaskContextMenu({
   const [actionError, setActionError] = useState<AppError | null>(null)
   const [selectedTagIds, setSelectedTagIds] = useState<string[] | null>(null)
   const [tags, setTags] = useState<Tag[]>([])
-  const [tagsLoading, setTagsLoading] = useState(false)
   const [tagsError, setTagsError] = useState<AppError | null>(null)
 
   const closeMenu = useCallback((opts?: { restoreFocus?: boolean }) => {
@@ -66,7 +65,6 @@ export function useTaskContextMenu({
     setActionError(null)
     setSelectedTagIds(null)
     setTags([])
-    setTagsLoading(false)
     setTagsError(null)
 
     if (!current || !opts?.restoreFocus) return
@@ -93,7 +91,6 @@ export function useTaskContextMenu({
       setActionError(null)
       setSelectedTagIds(null)
       setTags([])
-      setTagsLoading(false)
       setTagsError(null)
       setMenuState({
         task,
@@ -144,7 +141,6 @@ export function useTaskContextMenu({
     if (!menuState || menuState.view !== 'tags') return
 
     let cancelled = false
-    setTagsLoading(true)
     setTagsError(null)
 
     void (async () => {
@@ -156,18 +152,15 @@ export function useTaskContextMenu({
 
       if (!detailRes.ok) {
         setTagsError(detailRes.error)
-        setTagsLoading(false)
         return
       }
       if (!tagsRes.ok) {
         setTagsError(tagsRes.error)
-        setTagsLoading(false)
         return
       }
 
       setSelectedTagIds(detailRes.data.tag_ids)
       setTags(tagsRes.data)
-      setTagsLoading(false)
     })()
 
     return () => {
@@ -412,43 +405,29 @@ export function useTaskContextMenu({
               ) : null}
 
               {menuState.view === 'tags' ? (
-                <>
-                  {tagsLoading ? <div className="nav-muted" style={{ marginTop: 8 }}>{t('common.loading')}</div> : null}
-                  {tagsError ? (
-                    <div className="error" style={{ margin: '10px 0 0' }}>
-                      <div className="error-code">{tagsError.code}</div>
-                      <div>{tagsError.message}</div>
-                    </div>
-                  ) : null}
-                  {selectedTagIds !== null ? (
-                    <div className="tag-grid" style={{ marginTop: 8 }}>
-                      {tags.map((tag) => {
-                        const checked = selectedTagIds.includes(tag.id)
-                        return (
-                          <Checkbox
-                            key={tag.id}
-                            className="tag-checkbox"
-                            style={{ display: 'flex', gap: 6, alignItems: 'center' }}
-                            checked={checked}
-                            onCheckedChange={(nextChecked) => {
-                              const next = nextChecked
-                                ? Array.from(new Set([...selectedTagIds, tag.id]))
-                                : selectedTagIds.filter((id) => id !== tag.id)
-                              void persistTagIds(next)
-                            }}
-                          >
-                            <span>{tag.title}</span>
-                            <span
-                              className="tag-swatch"
-                              style={{ marginLeft: 'auto', background: tag.color ?? 'transparent' }}
-                              aria-hidden="true"
-                            />
-                          </Checkbox>
-                        )
-                      })}
-                    </div>
-                  ) : null}
-                </>
+                <TagPicker
+                  tags={tags}
+                  selectedTagIds={selectedTagIds ?? []}
+                  onToggle={(tagId, selected) => {
+                    const current = selectedTagIds ?? []
+                    const next = selected
+                      ? Array.from(new Set([...current, tagId]))
+                      : current.filter((id) => id !== tagId)
+                    void persistTagIds(next)
+                  }}
+                  onCreate={async (title) => {
+                    const res = await window.api.tag.create({ title })
+                    if (!res.ok) return { ok: false, error: res.error }
+                    const list = await window.api.tag.list()
+                    if (list.ok) setTags(list.data)
+                    return { ok: true, tag: res.data }
+                  }}
+                  onRefresh={async () => {
+                    const list = await window.api.tag.list()
+                    if (list.ok) setTags(list.data)
+                  }}
+                  persistError={tagsError}
+                />
               ) : null}
             </>
           )}
@@ -475,7 +454,6 @@ export function useTaskContextMenu({
     t,
     tags,
     tagsError,
-    tagsLoading,
   ])
 
   return {

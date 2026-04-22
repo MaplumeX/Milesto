@@ -8,8 +8,8 @@ import type { Area } from '../../shared/schemas/area'
 import type { Project } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
 
-import { Checkbox } from '../components/Checkbox'
 import { formatLocalDate, parseLocalDate } from '../lib/dates'
+import { TagPicker } from '../features/tags/TagPicker'
 
 type SidebarAreaContextMenuView = 'root' | 'tags'
 type SidebarProjectContextMenuView = 'root' | 'plan' | 'move' | 'due' | 'tags'
@@ -54,10 +54,6 @@ function getProjectMenuWidth(view: SidebarProjectContextMenuView): number {
   return 236
 }
 
-function normalizeTagTitle(title: string): string {
-  return title.trim().replace(/\s+/g, ' ').toLowerCase()
-}
-
 export function useSidebarAreaContextMenu({
   currentPathname,
   onAfterMutation,
@@ -75,11 +71,7 @@ export function useSidebarAreaContextMenu({
   const [areaTags, setAreaTags] = useState<Tag[]>([])
   const [allTags, setAllTags] = useState<Tag[]>([])
   const [tagsError, setTagsError] = useState<AppError | null>(null)
-  const [tagCreateTitle, setTagCreateTitle] = useState('')
-  const [tagCreateError, setTagCreateError] = useState<AppError | null>(null)
-  const [tagPersistError, setTagPersistError] = useState<AppError | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
-  const tagsInputRef = useRef<HTMLInputElement | null>(null)
 
   const closeMenu = useCallback((opts?: { restoreFocus?: boolean }) => {
     const current = menuState
@@ -88,9 +80,6 @@ export function useSidebarAreaContextMenu({
     setAreaTags([])
     setAllTags([])
     setTagsError(null)
-    setTagCreateTitle('')
-    setTagCreateError(null)
-    setTagPersistError(null)
 
     if (!current || !opts?.restoreFocus) return
 
@@ -105,9 +94,6 @@ export function useSidebarAreaContextMenu({
       setAreaTags([])
       setAllTags([])
       setTagsError(null)
-      setTagCreateTitle('')
-      setTagCreateError(null)
-      setTagPersistError(null)
       setMenuState({
         area,
         anchorX,
@@ -183,18 +169,11 @@ export function useSidebarAreaContextMenu({
     }
   }, [menuState])
 
-  useEffect(() => {
-    if (menuState?.view !== 'tags') return
-    tagsInputRef.current?.focus()
-  }, [menuState])
-
   const persistAreaTags = useCallback(async (nextIds: string[]) => {
     if (!menuState) return false
 
-    setTagPersistError(null)
     const res = await window.api.area.setTags(menuState.area.id, nextIds)
     if (!res.ok) {
-      setTagPersistError(res.error)
       return false
     }
 
@@ -243,13 +222,7 @@ export function useSidebarAreaContextMenu({
               <button
                 type="button"
                 className="task-inline-popover-item"
-                onClick={() => {
-                  setTagCreateError(null)
-                  setTagsError(null)
-                  setTagPersistError(null)
-                  setTagCreateTitle('')
-                  setMenuState((current) => (current ? { ...current, view: 'tags' } : current))
-                }}
+                onClick={() => setMenuState((current) => (current ? { ...current, view: 'tags' } : current))}
               >
                 {t('taskEditor.tagsLabel')}
               </button>
@@ -285,116 +258,36 @@ export function useSidebarAreaContextMenu({
                 <button
                   type="button"
                   className="button button-ghost"
-                  onClick={() => {
-                    setTagCreateError(null)
-                    setTagsError(null)
-                    setTagPersistError(null)
-                    setMenuState((current) => (current ? { ...current, view: 'root' } : current))
-                  }}
+                  onClick={() => setMenuState((current) => (current ? { ...current, view: 'root' } : current))}
                 >
                   {t('common.back')}
                 </button>
                 <div className="task-inline-popover-title">{t('taskEditor.tagsLabel')}</div>
               </div>
 
-              <input
-                ref={tagsInputRef}
-                className="input"
-                placeholder={t('taskEditor.newTagPlaceholder')}
-                value={tagCreateTitle}
-                onChange={(event) => {
-                  setTagCreateTitle(event.target.value)
-                  if (tagCreateError) setTagCreateError(null)
+              <TagPicker
+                tags={allTags}
+                selectedTagIds={areaTags.map((t) => t.id)}
+                onToggle={(tagId, selected) => {
+                  const current = areaTags.map((t) => t.id)
+                  const next = selected
+                    ? [...current, tagId]
+                    : current.filter((id) => id !== tagId)
+                  void persistAreaTags(next)
                 }}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter') return
-                  if (event.nativeEvent.isComposing) return
-                  event.preventDefault()
-                  event.stopPropagation()
-
-                  const title = tagCreateTitle.trim()
-                  if (!title) return
-
-                  const normalized = normalizeTagTitle(title)
-                  const existing = allTags.find((tag) => normalizeTagTitle(tag.title) === normalized)
-                  const selectedIds = areaTags.map((tag) => tag.id)
-
-                  if (existing) {
-                    if (!selectedIds.includes(existing.id)) {
-                      void persistAreaTags([...selectedIds, existing.id])
-                    }
-                    setTagCreateTitle('')
-                    setTagCreateError(null)
-                    return
-                  }
-
-                  void (async () => {
-                    setTagCreateError(null)
-                    const res = await window.api.tag.create({ title })
-                    if (!res.ok) {
-                      setTagCreateError(res.error)
-                      return
-                    }
-
-                    setTagCreateTitle('')
-                    const tagsRes = await window.api.tag.list()
-                    if (tagsRes.ok) setAllTags(tagsRes.data)
-
-                    if (!selectedIds.includes(res.data.id)) {
-                      await persistAreaTags([...selectedIds, res.data.id])
-                    }
-                  })()
+                onCreate={async (title) => {
+                  const res = await window.api.tag.create({ title })
+                  if (!res.ok) return { ok: false, error: res.error }
+                  const list = await window.api.tag.list()
+                  if (list.ok) setAllTags(list.data)
+                  return { ok: true, tag: res.data }
                 }}
-                style={{ marginTop: 6 }}
+                onRefresh={async () => {
+                  const list = await window.api.tag.list()
+                  if (list.ok) setAllTags(list.data)
+                }}
+                persistError={tagsError}
               />
-
-              {tagCreateError ? (
-                <div className="error" style={{ margin: '10px 0 0' }}>
-                  <div className="error-code">{tagCreateError.code}</div>
-                  <div>{tagCreateError.message}</div>
-                </div>
-              ) : null}
-
-              {tagsError ? (
-                <div className="error" style={{ margin: '10px 0 0' }}>
-                  <div className="error-code">{tagsError.code}</div>
-                  <div>{tagsError.message}</div>
-                </div>
-              ) : null}
-
-              {tagPersistError ? (
-                <div className="error" style={{ margin: '10px 0 0' }}>
-                  <div className="error-code">{tagPersistError.code}</div>
-                  <div>{tagPersistError.message}</div>
-                </div>
-              ) : null}
-
-              <div className="tag-grid" style={{ marginTop: 8 }}>
-                {allTags.map((tag) => {
-                  const selectedIds = areaTags.map((entry) => entry.id)
-                  const checked = selectedIds.includes(tag.id)
-                  return (
-                    <Checkbox
-                      key={tag.id}
-                      className="tag-checkbox"
-                      style={{ display: 'flex', gap: 6, alignItems: 'center' }}
-                      checked={checked}
-                      onCheckedChange={(nextChecked) => {
-                        const currentIds = areaTags.map((entry) => entry.id)
-                        const nextIds = nextChecked
-                          ? currentIds.includes(tag.id)
-                            ? currentIds
-                            : [...currentIds, tag.id]
-                          : currentIds.filter((id) => id !== tag.id)
-
-                        void persistAreaTags(nextIds)
-                      }}
-                    >
-                      <span>{tag.title}</span>
-                    </Checkbox>
-                  )
-                })}
-              </div>
             </>
           )}
 
@@ -420,9 +313,6 @@ export function useSidebarAreaContextMenu({
     onRename,
     persistAreaTags,
     t,
-    tagCreateError,
-    tagCreateTitle,
-    tagPersistError,
     tagsError,
   ])
 
@@ -450,11 +340,7 @@ export function useSidebarProjectContextMenu({
   const [projectTags, setProjectTags] = useState<Tag[]>([])
   const [allTags, setAllTags] = useState<Tag[]>([])
   const [tagsError, setTagsError] = useState<AppError | null>(null)
-  const [tagCreateTitle, setTagCreateTitle] = useState('')
-  const [tagCreateError, setTagCreateError] = useState<AppError | null>(null)
-  const [tagPersistError, setTagPersistError] = useState<AppError | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
-  const tagsInputRef = useRef<HTMLInputElement | null>(null)
   const today = formatLocalDate(new Date())
 
   const closeMenu = useCallback((opts?: { restoreFocus?: boolean }) => {
@@ -464,9 +350,6 @@ export function useSidebarProjectContextMenu({
     setProjectTags([])
     setAllTags([])
     setTagsError(null)
-    setTagCreateTitle('')
-    setTagCreateError(null)
-    setTagPersistError(null)
 
     if (!current || !opts?.restoreFocus) return
 
@@ -481,9 +364,6 @@ export function useSidebarProjectContextMenu({
       setProjectTags([])
       setAllTags([])
       setTagsError(null)
-      setTagCreateTitle('')
-      setTagCreateError(null)
-      setTagPersistError(null)
       setMenuState({
         project,
         anchorX,
@@ -559,11 +439,6 @@ export function useSidebarProjectContextMenu({
     }
   }, [menuState])
 
-  useEffect(() => {
-    if (menuState?.view !== 'tags') return
-    tagsInputRef.current?.focus()
-  }, [menuState])
-
   const persistProjectUpdate = useCallback(async (patch: Partial<Project>) => {
     if (!menuState) return false
 
@@ -585,10 +460,8 @@ export function useSidebarProjectContextMenu({
   const persistProjectTags = useCallback(async (nextIds: string[]) => {
     if (!menuState) return false
 
-    setTagPersistError(null)
     const res = await window.api.project.setTags(menuState.project.id, nextIds)
     if (!res.ok) {
-      setTagPersistError(res.error)
       return false
     }
 
@@ -648,13 +521,7 @@ export function useSidebarProjectContextMenu({
               <button
                 type="button"
                 className="task-inline-popover-item"
-                onClick={() => {
-                  setTagCreateError(null)
-                  setTagsError(null)
-                  setTagPersistError(null)
-                  setTagCreateTitle('')
-                  setMenuState((current) => (current ? { ...current, view: 'tags' } : current))
-                }}
+                onClick={() => setMenuState((current) => (current ? { ...current, view: 'tags' } : current))}
               >
                 {t('taskEditor.tagsLabel')}
               </button>
@@ -814,116 +681,36 @@ export function useSidebarProjectContextMenu({
                 <button
                   type="button"
                   className="button button-ghost"
-                  onClick={() => {
-                    setTagCreateError(null)
-                    setTagsError(null)
-                    setTagPersistError(null)
-                    setMenuState((current) => (current ? { ...current, view: 'root' } : current))
-                  }}
+                  onClick={() => setMenuState((current) => (current ? { ...current, view: 'root' } : current))}
                 >
                   {t('common.back')}
                 </button>
                 <div className="task-inline-popover-title">{t('taskEditor.tagsLabel')}</div>
               </div>
 
-              <input
-                ref={tagsInputRef}
-                className="input"
-                placeholder={t('taskEditor.newTagPlaceholder')}
-                value={tagCreateTitle}
-                onChange={(event) => {
-                  setTagCreateTitle(event.target.value)
-                  if (tagCreateError) setTagCreateError(null)
+              <TagPicker
+                tags={allTags}
+                selectedTagIds={projectTags.map((t) => t.id)}
+                onToggle={(tagId, selected) => {
+                  const current = projectTags.map((t) => t.id)
+                  const next = selected
+                    ? [...current, tagId]
+                    : current.filter((id) => id !== tagId)
+                  void persistProjectTags(next)
                 }}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter') return
-                  if (event.nativeEvent.isComposing) return
-                  event.preventDefault()
-                  event.stopPropagation()
-
-                  const title = tagCreateTitle.trim()
-                  if (!title) return
-
-                  const normalized = normalizeTagTitle(title)
-                  const existing = allTags.find((tag) => normalizeTagTitle(tag.title) === normalized)
-                  const selectedIds = projectTags.map((tag) => tag.id)
-
-                  if (existing) {
-                    if (!selectedIds.includes(existing.id)) {
-                      void persistProjectTags([...selectedIds, existing.id])
-                    }
-                    setTagCreateTitle('')
-                    setTagCreateError(null)
-                    return
-                  }
-
-                  void (async () => {
-                    setTagCreateError(null)
-                    const res = await window.api.tag.create({ title })
-                    if (!res.ok) {
-                      setTagCreateError(res.error)
-                      return
-                    }
-
-                    setTagCreateTitle('')
-                    const tagsRes = await window.api.tag.list()
-                    if (tagsRes.ok) setAllTags(tagsRes.data)
-
-                    if (!selectedIds.includes(res.data.id)) {
-                      await persistProjectTags([...selectedIds, res.data.id])
-                    }
-                  })()
+                onCreate={async (title) => {
+                  const res = await window.api.tag.create({ title })
+                  if (!res.ok) return { ok: false, error: res.error }
+                  const list = await window.api.tag.list()
+                  if (list.ok) setAllTags(list.data)
+                  return { ok: true, tag: res.data }
                 }}
-                style={{ marginTop: 6 }}
+                onRefresh={async () => {
+                  const list = await window.api.tag.list()
+                  if (list.ok) setAllTags(list.data)
+                }}
+                persistError={tagsError}
               />
-
-              {tagCreateError ? (
-                <div className="error" style={{ margin: '10px 0 0' }}>
-                  <div className="error-code">{tagCreateError.code}</div>
-                  <div>{tagCreateError.message}</div>
-                </div>
-              ) : null}
-
-              {tagsError ? (
-                <div className="error" style={{ margin: '10px 0 0' }}>
-                  <div className="error-code">{tagsError.code}</div>
-                  <div>{tagsError.message}</div>
-                </div>
-              ) : null}
-
-              {tagPersistError ? (
-                <div className="error" style={{ margin: '10px 0 0' }}>
-                  <div className="error-code">{tagPersistError.code}</div>
-                  <div>{tagPersistError.message}</div>
-                </div>
-              ) : null}
-
-              <div className="tag-grid" style={{ marginTop: 8 }}>
-                {allTags.map((tag) => {
-                  const selectedIds = projectTags.map((entry) => entry.id)
-                  const checked = selectedIds.includes(tag.id)
-                  return (
-                    <Checkbox
-                      key={tag.id}
-                      className="tag-checkbox"
-                      style={{ display: 'flex', gap: 6, alignItems: 'center' }}
-                      checked={checked}
-                      onCheckedChange={(nextChecked) => {
-                        const currentIds = projectTags.map((entry) => entry.id)
-                        const nextIds = nextChecked
-                          ? currentIds.includes(tag.id)
-                            ? currentIds
-                            : [...currentIds, tag.id]
-                          : currentIds.filter((id) => id !== tag.id)
-
-                        void persistProjectTags(nextIds)
-                      }}
-                    >
-                      <span>{tag.title}</span>
-                    </Checkbox>
-                  )
-                })}
-              </div>
             </>
           ) : (
             <>
@@ -1044,9 +831,6 @@ export function useSidebarProjectContextMenu({
     persistProjectUpdate,
     projectTags,
     t,
-    tagCreateError,
-    tagCreateTitle,
-    tagPersistError,
     tagsError,
     today,
   ])

@@ -13,7 +13,6 @@ import type { Project, ProjectSection } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
 import type { TaskListItem } from '../../shared/schemas/task-list'
 import { useAppEvents } from '../app/AppEventsContext'
-import { Checkbox } from '../components/Checkbox'
 import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
 import { AnimatedTaskSlot } from '../features/tasks/AnimatedTaskSlot'
 import { ProjectGroupedList } from '../features/tasks/ProjectGroupedList'
@@ -27,6 +26,7 @@ import { buildProjectDoneTaskRows } from '../features/tasks/project-done-task-ro
 import { useTaskContextMenu } from '../features/tasks/use-task-context-menu'
 import { useOptimisticTaskTitles } from '../features/tasks/use-optimistic-task-titles'
 import { CalendarIcon, ClockIcon } from '../features/tasks/task-metadata-icons'
+import { TagPicker } from '../features/tags/TagPicker'
 import { formatLocalDate, formatMonthDay, parseLocalDate } from '../lib/dates'
 import { getEntityScopeFromSearch } from '../lib/entity-scope'
 
@@ -997,8 +997,6 @@ const ProjectMenu = forwardRef(function ProjectMenu(
 
   const lastRootFocusRef = useRef<RootKey>('complete')
   const backButtonRef = useRef<HTMLButtonElement | null>(null)
-  const tagsInputRef = useRef<HTMLInputElement | null>(null)
-
   const completeBtnRef = useRef<HTMLButtonElement | null>(null)
   const planBtnRef = useRef<HTMLButtonElement | null>(null)
   const dueBtnRef = useRef<HTMLButtonElement | null>(null)
@@ -1008,8 +1006,6 @@ const ProjectMenu = forwardRef(function ProjectMenu(
 
   const [allTags, setAllTags] = useState<Tag[]>([])
   const [tagsError, setTagsError] = useState<AppError | null>(null)
-  const [tagCreateTitle, setTagCreateTitle] = useState('')
-  const [tagCreateError, setTagCreateError] = useState<AppError | null>(null)
 
   const today = formatLocalDate(new Date())
 
@@ -1039,10 +1035,6 @@ const ProjectMenu = forwardRef(function ProjectMenu(
 
   useLayoutEffect(() => {
     if (view === 'root') return
-    if (view === 'tags') {
-      tagsInputRef.current?.focus()
-      return
-    }
     backButtonRef.current?.focus()
   }, [view])
 
@@ -1059,10 +1051,6 @@ const ProjectMenu = forwardRef(function ProjectMenu(
       setAllTags(res.data)
     })()
   }, [view])
-
-  function normalizeTagTitle(title: string): string {
-    return title.trim().replace(/\s+/g, ' ').toLowerCase()
-  }
   const rect = anchorEl.getBoundingClientRect()
   const maxWidth = 320
   const left = Math.min(Math.max(12, rect.left), window.innerWidth - maxWidth - 12)
@@ -1189,12 +1177,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                 ref={tagsBtnRef}
                 type="button"
                 className="task-inline-popover-item"
-                onClick={() => {
-                  setTagCreateError(null)
-                  setTagsError(null)
-                  setTagCreateTitle('')
-                  goSubview('tags', 'tags')
-                }}
+                onClick={() => goSubview('tags', 'tags')}
               >
                 {t('taskEditor.tagsLabel')}
               </button>
@@ -1446,122 +1429,38 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                 </select>
               </div>
             ) : (
-              <>
-                <input
-                  ref={tagsInputRef}
-                  className="input"
-                  placeholder={t('taskEditor.newTagPlaceholder')}
-                  value={tagCreateTitle}
-                  onChange={(e) => {
-                    setTagCreateTitle(e.target.value)
-                    if (tagCreateError) setTagCreateError(null)
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key !== 'Enter') return
-                    e.preventDefault()
-                    e.stopPropagation()
+              <TagPicker
+                tags={allTags}
+                selectedTagIds={projectTags.map((t) => t.id)}
+                onToggle={(tagId, selected) => {
+                  const current = projectTags.map((t) => t.id)
+                  const next = selected
+                    ? [...current, tagId]
+                    : current.filter((id) => id !== tagId)
 
-                    const title = tagCreateTitle.trim()
-                    if (!title) return
-
-                    const normalized = normalizeTagTitle(title)
-                    const existing = allTags.find((t) => normalizeTagTitle(t.title) === normalized)
-
-                    const selectedIds = projectTags.map((t) => t.id)
-                    const persist = async (nextIds: string[]) => {
-                      onError(null)
-                      const res = await window.api.project.setTags(project.id, nextIds, scope)
-                      if (!res.ok) {
-                        onError(res.error)
-                        return false
-                      }
-                      await onMutate()
-                      return true
-                    }
-
-                    if (existing) {
-                      if (!selectedIds.includes(existing.id)) {
-                        void persist([...selectedIds, existing.id])
-                      }
-                      setTagCreateTitle('')
-                      setTagCreateError(null)
+                  void (async () => {
+                    onError(null)
+                    const res = await window.api.project.setTags(project.id, next, scope)
+                    if (!res.ok) {
+                      onError(res.error)
                       return
                     }
-
-                    void (async () => {
-                      setTagCreateError(null)
-                      const res = await window.api.tag.create({ title })
-                      if (!res.ok) {
-                        setTagCreateError(res.error)
-                        return
-                      }
-
-                      setTagCreateTitle('')
-                      const list = await window.api.tag.list()
-                      if (list.ok) setAllTags(list.data)
-
-                      if (!selectedIds.includes(res.data.id)) {
-                        await persist([...selectedIds, res.data.id])
-                      }
-                    })()
-                  }}
-                  style={{ marginTop: 6 }}
-                />
-
-                {tagCreateError ? (
-                  <div className="error" style={{ margin: '10px 0 0' }}>
-                    <div className="error-code">{tagCreateError.code}</div>
-                    <div>{tagCreateError.message}</div>
-                  </div>
-                ) : null}
-
-                {tagsError ? (
-                  <div className="error" style={{ margin: '10px 0 0' }}>
-                    <div className="error-code">{tagsError.code}</div>
-                    <div>{tagsError.message}</div>
-                  </div>
-                ) : null}
-
-                <div className="tag-grid" style={{ marginTop: 8 }}>
-                  {allTags.map((tag) => {
-                    const selectedIds = projectTags.map((t) => t.id)
-                    const checked = selectedIds.includes(tag.id)
-                    return (
-                      <Checkbox
-                        key={tag.id}
-                        className="tag-checkbox"
-                        style={{ display: 'flex', gap: 6, alignItems: 'center' }}
-                        checked={checked}
-                        onCheckedChange={(nextChecked) => {
-                          const current = projectTags.map((t) => t.id)
-                          const next = nextChecked
-                            ? current.includes(tag.id)
-                              ? current
-                              : [...current, tag.id]
-                            : current.filter((id) => id !== tag.id)
-
-                          void (async () => {
-                            onError(null)
-                            const res = await window.api.project.setTags(project.id, next, scope)
-                            if (!res.ok) {
-                              onError(res.error)
-                              return
-                            }
-                            await onMutate()
-                          })()
-                        }}
-                      >
-                        <span>{tag.title}</span>
-                        <span
-                          className="tag-swatch"
-                          style={{ marginLeft: 'auto', background: tag.color ?? 'transparent' }}
-                          aria-hidden="true"
-                        />
-                      </Checkbox>
-                    )
-                  })}
-                </div>
-              </>
+                    await onMutate()
+                  })()
+                }}
+                onCreate={async (title) => {
+                  const res = await window.api.tag.create({ title })
+                  if (!res.ok) return { ok: false, error: res.error }
+                  const list = await window.api.tag.list()
+                  if (list.ok) setAllTags(list.data)
+                  return { ok: true, tag: res.data }
+                }}
+                onRefresh={async () => {
+                  const list = await window.api.tag.list()
+                  if (list.ok) setAllTags(list.data)
+                }}
+                persistError={tagsError}
+              />
             )}
           </>
         )}
