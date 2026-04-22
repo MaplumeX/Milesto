@@ -65,23 +65,10 @@ def get_check_context(repo_root: Path) -> list[dict]:
     """Get check context entries."""
     adapter = get_cli_adapter_auto(repo_root)
 
-    entries = [
+    return [
         {"file": adapter.get_trellis_command_path("finish-work"), "reason": "Finish work checklist"},
         {"file": adapter.get_trellis_command_path("check"), "reason": "Code quality check spec"},
     ]
-
-    return entries
-
-
-def get_debug_context(repo_root: Path) -> list[dict]:
-    """Get debug context entries."""
-    adapter = get_cli_adapter_auto(repo_root)
-
-    entries: list[dict] = [
-        {"file": adapter.get_trellis_command_path("check"), "reason": "Code quality check spec"},
-    ]
-
-    return entries
 
 
 def _write_jsonl(path: Path, entries: list[dict]) -> None:
@@ -174,13 +161,6 @@ def cmd_init_context(args: argparse.Namespace) -> int:
     check_file = target_dir / "check.jsonl"
     _write_jsonl(check_file, check_entries)
     print(f"  {colored('✓', Colors.GREEN)} {len(check_entries)} entries")
-
-    # debug.jsonl
-    print(colored("Creating debug.jsonl...", Colors.CYAN))
-    debug_entries = get_debug_context(repo_root)
-    debug_file = target_dir / "debug.jsonl"
-    _write_jsonl(debug_file, debug_entries)
-    print(f"  {colored('✓', Colors.GREEN)} {len(debug_entries)} entries")
 
     # Update task.json dev_type and package
     task_json_path = target_dir / FILE_TASK_JSON
@@ -299,7 +279,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
     print()
 
     total_errors = 0
-    for jsonl_name in ["implement.jsonl", "check.jsonl", "debug.jsonl"]:
+    for jsonl_name in ["implement.jsonl", "check.jsonl"]:
         jsonl_file = target_dir / jsonl_name
         errors = _validate_jsonl(jsonl_file, repo_root)
         total_errors += errors
@@ -377,7 +357,7 @@ def cmd_list_context(args: argparse.Namespace) -> int:
     print(colored("=== Context Files ===", Colors.BLUE))
     print()
 
-    for jsonl_name in ["implement.jsonl", "check.jsonl", "debug.jsonl"]:
+    for jsonl_name in ["implement.jsonl", "check.jsonl"]:
         jsonl_file = target_dir / jsonl_name
         if not jsonl_file.is_file():
             continue

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Task Management Script for Multi-Agent Pipeline.
+Task Management Script.
 
 Usage:
     python3 task.py create "<title>" [--slug <name>] [--assignee <dev>] [--priority P0|P1|P2|P3] [--parent <dir>] [--package <pkg>]
@@ -14,7 +14,6 @@ Usage:
     python3 task.py set-branch <dir> <branch>   # Set git branch
     python3 task.py set-base-branch <dir> <branch>  # Set PR target branch
     python3 task.py set-scope <dir> <scope>     # Set scope for PR title
-    python3 task.py create-pr [dir] [--dry-run] # Create PR from task
     python3 task.py archive <task-name>         # Archive completed task
     python3 task.py list                        # List active tasks
     python3 task.py list-archive [month]        # List archived tasks
@@ -237,32 +236,12 @@ def cmd_list_archive(args: argparse.Namespace) -> int:
 
 
 # =============================================================================
-# Command: create-pr (delegates to multi-agent script)
-# =============================================================================
-
-def cmd_create_pr(args: argparse.Namespace) -> int:
-    """Create PR from task - delegates to multi_agent/create_pr.py."""
-    import subprocess
-    script_dir = Path(__file__).parent
-    create_pr_script = script_dir / "multi_agent" / "create_pr.py"
-
-    cmd = [sys.executable, str(create_pr_script)]
-    if args.dir:
-        cmd.append(args.dir)
-    if args.dry_run:
-        cmd.append("--dry-run")
-
-    result = subprocess.run(cmd)
-    return result.returncode
-
-
-# =============================================================================
 # Help
 # =============================================================================
 
 def show_usage() -> None:
     """Show usage help."""
-    print("""Task Management Script for Multi-Agent Pipeline
+    print("""Task Management Script
 
 Usage:
   python3 task.py create <title>                     Create new task directory
@@ -275,9 +254,9 @@ Usage:
   python3 task.py list-context <dir>                 List jsonl entries
   python3 task.py start <dir>                        Set as current task
   python3 task.py finish                             Clear current task
-  python3 task.py set-branch <dir> <branch>          Set git branch for multi-agent
+  python3 task.py set-branch <dir> <branch>          Set git branch
+  python3 task.py set-base-branch <dir> <branch>     Set PR target branch
   python3 task.py set-scope <dir> <scope>            Set scope for PR title
-  python3 task.py create-pr [dir] [--dry-run]        Create PR from task
   python3 task.py archive <task-name>                Archive completed task
   python3 task.py add-subtask <parent> <child>       Link child task to parent
   python3 task.py remove-subtask <parent> <child>    Unlink child from parent
@@ -303,8 +282,6 @@ Examples:
   python3 task.py add-context <dir> implement .trellis/spec/cli/backend/auth.md "Auth guidelines"
   python3 task.py set-branch <dir> task/add-login
   python3 task.py start .trellis/tasks/01-21-add-login
-  python3 task.py create-pr                          # Uses current task
-  python3 task.py create-pr <dir> --dry-run          # Preview without changes
   python3 task.py finish
   python3 task.py archive add-login
   python3 task.py add-subtask parent-task child-task  # Link existing tasks
@@ -322,7 +299,7 @@ Examples:
 def main() -> int:
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Task Management Script for Multi-Agent Pipeline",
+        description="Task Management Script",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest="command", help="Commands")
@@ -346,7 +323,7 @@ def main() -> int:
     # add-context
     p_add = subparsers.add_parser("add-context", help="Add context entry")
     p_add.add_argument("dir", help="Task directory")
-    p_add.add_argument("file", help="JSONL file (implement|check|debug)")
+    p_add.add_argument("file", help="JSONL file (implement|check)")
     p_add.add_argument("path", help="File path to add")
     p_add.add_argument("reason", nargs="?", help="Reason for adding")
 
@@ -379,11 +356,6 @@ def main() -> int:
     p_scope = subparsers.add_parser("set-scope", help="Set scope")
     p_scope.add_argument("dir", help="Task directory")
     p_scope.add_argument("scope", help="Scope name")
-
-    # create-pr
-    p_pr = subparsers.add_parser("create-pr", help="Create PR")
-    p_pr.add_argument("dir", nargs="?", help="Task directory")
-    p_pr.add_argument("--dry-run", action="store_true", help="Dry run mode")
 
     # archive
     p_archive = subparsers.add_parser("archive", help="Archive task")
@@ -426,7 +398,6 @@ def main() -> int:
         "set-branch": cmd_set_branch,
         "set-base-branch": cmd_set_base_branch,
         "set-scope": cmd_set_scope,
-        "create-pr": cmd_create_pr,
         "archive": cmd_archive,
         "add-subtask": cmd_add_subtask,
         "remove-subtask": cmd_remove_subtask,

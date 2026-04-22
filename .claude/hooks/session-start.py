@@ -25,11 +25,20 @@ if sys.platform == "win32":
         sys.stdout = _io.TextIOWrapper(sys.stdout.detach(), encoding="utf-8", errors="replace")  # type: ignore[union-attr]
 
 
+
 def should_skip_injection() -> bool:
-    return (
-        os.environ.get("CLAUDE_NON_INTERACTIVE") == "1"
-        or os.environ.get("OPENCODE_NON_INTERACTIVE") == "1"
-    )
+    """Check if any platform's non-interactive flag is set."""
+    non_interactive_vars = [
+        "CLAUDE_NON_INTERACTIVE",
+        "QODER_NON_INTERACTIVE",
+        "CODEBUDDY_NON_INTERACTIVE",
+        "FACTORY_NON_INTERACTIVE",
+        "CURSOR_NON_INTERACTIVE",
+        "GEMINI_NON_INTERACTIVE",
+        "KIRO_NON_INTERACTIVE",
+        "COPILOT_NON_INTERACTIVE",
+    ]
+    return any(os.environ.get(var) == "1" for var in non_interactive_vars)
 
 
 def read_file(path: Path, fallback: str = "") -> str:
@@ -95,19 +104,33 @@ def _resolve_task_dir(trellis_dir: Path, task_ref: str) -> Path:
 
 
 def _get_task_status(trellis_dir: Path) -> str:
-    """Check current task status and return structured status string."""
+    """Check current task status and return structured status string with explicit next action.
+
+    Returns a block with three fields:
+    - Status: current state
+    - Task: task identifier (when applicable)
+    - Next-Action: explicit skill/command/tool call the AI should invoke
+    """
     current_task_file = trellis_dir / ".current-task"
-    if not current_task_file.is_file():
-        return "Status: NO ACTIVE TASK\nNext: Describe what you want to work on"
+
+    # Case 1: No active task — waiting for user to describe intent
+    if not current_task_file.is_file() or not current_task_file.read_text(encoding="utf-8").strip():
+        return (
+            "Status: NO ACTIVE TASK\n"
+            "Next-Action: After the user describes their intent, load skill `trellis-brainstorm` "
+            "to clarify requirements and create a task via `python3 ./.trellis/scripts/task.py create`."
+        )
 
     task_ref = _normalize_task_ref(current_task_file.read_text(encoding="utf-8").strip())
-    if not task_ref:
-        return "Status: NO ACTIVE TASK\nNext: Describe what you want to work on"
 
-    # Resolve task directory
+    # Case 2: Stale pointer — task dir was deleted
     task_dir = _resolve_task_dir(trellis_dir, task_ref)
     if not task_dir.is_dir():
-        return f"Status: STALE POINTER\nTask: {task_ref}\nNext: Task directory not found. Run: python3 ./.trellis/scripts/task.py finish"
+        return (
+            f"Status: STALE POINTER\nTask: {task_ref}\n"
+            f"Next-Action: Run `python3 ./.trellis/scripts/task.py finish` to clear the stale pointer, "
+            "then ask the user what to work on next."
+        )
 
     # Read task.json
     task_json_path = task_dir / "task.json"
@@ -121,26 +144,31 @@ def _get_task_status(trellis_dir: Path) -> str:
     task_title = task_data.get("title", task_ref)
     task_status = task_data.get("status", "unknown")
 
+    # Case 3: Task completed — time to archive
     if task_status == "completed":
-        return f"Status: COMPLETED\nTask: {task_title}\nNext: Archive with `python3 ./.trellis/scripts/task.py archive {task_dir.name}` or start a new task"
-
-    # Check if context is configured (jsonl files exist and non-empty)
-    has_context = False
-    for jsonl_name in ("implement.jsonl", "check.jsonl", "spec.jsonl"):
-        jsonl_path = task_dir / jsonl_name
-        if jsonl_path.is_file() and jsonl_path.stat().st_size > 0:
-            has_context = True
-            break
+        return (
+            f"Status: COMPLETED\nTask: {task_title}\n"
+            f"Next-Action: Load skill `trellis-update-spec` to capture learnings, "
+            f"then archive with `python3 ./.trellis/scripts/task.py archive {task_dir.name}`."
+        )
 
     has_prd = (task_dir / "prd.md").is_file()
 
+    # Case 4: No PRD — still in Plan phase
     if not has_prd:
-        return f"Status: NOT READY\nTask: {task_title}\nMissing: prd.md not created\nNext: Write PRD, then research → init-context → start"
+        return (
+            f"Status: PLANNING\nTask: {task_title}\n"
+            "Next-Action: Load skill `trellis-brainstorm` to clarify requirements with the user "
+            "and produce prd.md in the task directory."
+        )
 
-    if not has_context:
-        return f"Status: NOT READY\nTask: {task_title}\nMissing: Context not configured (no jsonl files)\nNext: Complete Phase 2 (research → init-context → start) before implementing"
-
-    return f"Status: READY\nTask: {task_title}\nNext: Continue with implement or check"
+    # Case 5: PRD ready — enter Execute phase
+    return (
+        f"Status: READY\nTask: {task_title}\n"
+        "Next-Action: Load skill `trellis-before-dev` to read relevant specs, "
+        "then spawn `implement` sub-agent via the Task tool. "
+        "After implementation, spawn `check` sub-agent for quality verification."
+    )
 
 
 def _load_trellis_config(trellis_dir: Path) -> tuple:
@@ -288,37 +316,97 @@ def _resolve_spec_scope(
     return None  # Unknown scope type: full scan
 
 
-def _build_workflow_toc(workflow_path: Path) -> str:
-    """Build a compact section index for workflow.md (lazy-load the full file on demand).
+def _extract_range(content: str, start_header: str, end_header: str) -> str:
+    """Extract lines starting at `## start_header` up to (but excluding) `## end_header`.
 
-    Replaces full-file injection to keep additionalContext payload small.
-    The full file is accessible via: Read tool on .trellis/workflow.md
+    Both parameters are full header lines WITHOUT the `## ` prefix (e.g. "Phase Index").
+    Returns empty string if start header is not found.
+    End header missing → extracts to end of file.
+    """
+    lines = content.splitlines()
+    start: int | None = None
+    end: int = len(lines)
+    start_match = f"## {start_header}"
+    end_match = f"## {end_header}"
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if start is None and stripped == start_match:
+            start = i
+            continue
+        if start is not None and stripped == end_match:
+            end = i
+            break
+    if start is None:
+        return ""
+    return "\n".join(lines[start:end]).rstrip()
+
+
+def _build_workflow_overview(workflow_path: Path) -> str:
+    """Inject the workflow guide for the session.
+
+    Contents:
+      1. Section index (all `## ` headings — navigation)
+      2. Phase Index section (rules, skill routing table, anti-rationalization table)
+      3. Phase 1/2/3 step-level details (the actual how-to for each step)
+
+    The meta sections (Core Principles / Trellis System / Workflow State
+    Breadcrumbs) are NOT injected — Core Principles is short prose the AI can
+    Read on demand; Trellis System lists reference commands duplicated in
+    step bodies; Breadcrumbs are consumed by the UserPromptSubmit hook.
+
+    Total budget: Phase Index ~2 KB + Phase 1/2/3 ~7 KB = ~9 KB.
     """
     content = read_file(workflow_path)
     if not content:
         return "No workflow.md found"
 
-    toc_lines = [
+    out_lines = [
         "# Development Workflow — Section Index",
         "Full guide: .trellis/workflow.md  (read on demand)",
         "",
+        "## Table of Contents",
     ]
     for line in content.splitlines():
         if line.startswith("## "):
-            toc_lines.append(line)
+            out_lines.append(line)
+    out_lines += ["", "---", ""]
 
-    toc_lines += [
-        "",
-        "To read a section: use the Read tool on .trellis/workflow.md",
-    ]
-    return "\n".join(toc_lines)
+    # Extract Phase Index through the end of Phase 3 (before Breadcrumbs).
+    # Since sections appear in order Phase Index → Phase 1 → Phase 2 → Phase 3
+    # → Workflow State Breadcrumbs, a single range grab captures all four.
+    phases = _extract_range(
+        content, "Phase Index", "Workflow State Breadcrumbs"
+    )
+    if phases:
+        out_lines.append(phases)
+
+    return "\n".join(out_lines).rstrip()
 
 
 def main():
     if should_skip_injection():
         sys.exit(0)
 
-    project_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR", ".")).resolve()
+    # Try platform-specific env vars, fallback to cwd
+    project_dir_env_vars = [
+        "CLAUDE_PROJECT_DIR",
+        "QODER_PROJECT_DIR",
+        "CODEBUDDY_PROJECT_DIR",
+        "FACTORY_PROJECT_DIR",
+        "CURSOR_PROJECT_DIR",
+        "GEMINI_PROJECT_DIR",
+        "KIRO_PROJECT_DIR",
+        "COPILOT_PROJECT_DIR",
+    ]
+    project_dir = None
+    for var in project_dir_env_vars:
+        val = os.environ.get(var)
+        if val:
+            project_dir = Path(val).resolve()
+            break
+    if project_dir is None:
+        project_dir = Path(".").resolve()
+
     trellis_dir = project_dir / ".trellis"
 
     # Load config for scope filtering and legacy detection
@@ -345,34 +433,43 @@ Read and follow all instructions below carefully.
     output.write("\n</current-state>\n\n")
 
     output.write("<workflow>\n")
-    output.write(_build_workflow_toc(trellis_dir / "workflow.md"))
+    output.write(_build_workflow_overview(trellis_dir / "workflow.md"))
     output.write("\n</workflow>\n\n")
 
     output.write("<guidelines>\n")
-    output.write("**Note**: The guidelines below are index files — they list available guideline documents and their locations.\n")
-    output.write("During actual development, you MUST read the specific guideline files listed in each index's Pre-Development Checklist.\n\n")
+    output.write(
+        "Project spec indexes are listed by path below. Each index contains a "
+        "**Pre-Development Checklist** listing the specific guideline files to "
+        "read before coding.\n\n"
+        "- If you're spawning an implement/check sub-agent, context is injected "
+        "automatically via `{task}/implement.jsonl` / `check.jsonl`. You do NOT "
+        "need to read these indexes yourself.\n"
+        "- If you're editing code directly in the main session, Read the relevant "
+        "index(es) on-demand and follow their Pre-Dev Checklist.\n\n"
+    )
 
+    # guides/ is cross-package thinking — always include inline (small, broadly useful)
+    guides_index = trellis_dir / "spec" / "guides" / "index.md"
+    if guides_index.is_file():
+        output.write("## guides (inlined — cross-package thinking guides)\n")
+        output.write(read_file(guides_index))
+        output.write("\n\n")
+
+    # Other spec indexes — paths only (main agent reads on demand;
+    # sub-agents get their specific specs via jsonl injection)
+    paths: list[str] = []
     spec_dir = trellis_dir / "spec"
     if spec_dir.is_dir():
         for sub in sorted(spec_dir.iterdir()):
             if not sub.is_dir() or sub.name.startswith("."):
                 continue
-
-            # Always include guides/ regardless of scope
             if sub.name == "guides":
-                index_file = sub / "index.md"
-                if index_file.is_file():
-                    output.write(f"## {sub.name}\n")
-                    output.write(read_file(index_file))
-                    output.write("\n\n")
-                continue
+                continue  # already inlined above
 
             index_file = sub / "index.md"
             if index_file.is_file():
                 # Flat spec dir (single-repo layer like spec/backend/)
-                output.write(f"## {sub.name}\n")
-                output.write(read_file(index_file))
-                output.write("\n\n")
+                paths.append(f".trellis/spec/{sub.name}/index.md")
             else:
                 # Nested package dirs (monorepo: spec/<pkg>/<layer>/index.md)
                 # Apply scope filter
@@ -383,10 +480,20 @@ Read and follow all instructions below carefully.
                         continue
                     nested_index = nested / "index.md"
                     if nested_index.is_file():
-                        output.write(f"## {sub.name}/{nested.name}\n")
-                        output.write(read_file(nested_index))
-                        output.write("\n\n")
+                        paths.append(
+                            f".trellis/spec/{sub.name}/{nested.name}/index.md"
+                        )
 
+    if paths:
+        output.write("## Available spec indexes (read on demand)\n")
+        for p in paths:
+            output.write(f"- {p}\n")
+        output.write("\n")
+
+    output.write(
+        "Discover more via: "
+        "`python3 ./.trellis/scripts/get_context.py --mode packages`\n"
+    )
     output.write("</guidelines>\n\n")
 
     # Check task status and inject structured tag

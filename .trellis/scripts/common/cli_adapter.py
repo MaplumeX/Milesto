@@ -363,7 +363,7 @@ class CLIAdapter:
             )
         elif self.platform == "droid":
             raise ValueError(
-                "Factory Droid CLI agent run is not yet integrated with Trellis multi-agent."
+                "Factory Droid CLI agent run is not yet supported."
             )
 
         else:  # claude
@@ -427,7 +427,7 @@ class CLIAdapter:
             )
         elif self.platform == "droid":
             raise ValueError(
-                "Factory Droid CLI resume is not yet integrated with Trellis multi-agent."
+                "Factory Droid CLI resume is not yet supported."
             )
         else:
             return ["claude", "--resume", session_id]

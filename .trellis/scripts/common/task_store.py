@@ -161,15 +161,6 @@ def cmd_create(args: argparse.Namespace) -> int:
         "branch": None,
         "base_branch": current_branch,
         "worktree_path": None,
-        "current_phase": 0,
-        "next_action": [
-            {"phase": 1, "action": "brainstorm"},
-            {"phase": 2, "action": "research"},
-            {"phase": 3, "action": "implement"},
-            {"phase": 4, "action": "check"},
-            {"phase": 5, "action": "update-spec"},
-            {"phase": 6, "action": "record-session"},
-        ],
         "commit": None,
         "pr_url": None,
         "subtasks": [],
@@ -464,9 +455,6 @@ def cmd_set_branch(args: argparse.Namespace) -> int:
     write_json(task_json, data)
 
     print(colored(f"✓ Branch set to: {branch}", Colors.GREEN))
-    print()
-    print(colored("Now you can start the multi-agent pipeline:", Colors.BLUE))
-    print(f"  python3 ./.trellis/scripts/multi_agent/start.py {args.dir}")
     return 0
 
 
