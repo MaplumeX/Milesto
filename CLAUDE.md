@@ -4,129 +4,172 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Milesto is a cross-platform desktop task management app built with Electron + React + TypeScript. It targets macOS, Windows, and Linux. Data is stored locally in SQLite via `better-sqlite3` running in a `worker_threads` DB Worker.
+Milesto is an open-source, local-first desktop task manager inspired by Things 3, built with Electron + React + TypeScript. All data is stored in a local SQLite database. The app supports full GTD workflows: Inbox, Today, Upcoming, Anytime, Someday, Projects (with Sections), Areas, Tags, Checklists, Logbook, Trash, and full-text search.
 
-## Commands
-
-Package manager: **npm** (uses `package-lock.json`)
+## Common Commands
 
 ```bash
-npm ci                    # Install dependencies
-npm run dev               # Dev mode (Vite + Electron)
-npm run build             # Typecheck + Vite build + electron-builder package
-npm run lint              # ESLint (ts,tsx, zero warnings)
-npm run preview           # Preview renderer build only
-npx tsc -p tsconfig.json  # Typecheck only (noEmit)
-```
+# Install dependencies
+npm ci
 
-No test runner is configured yet. When Vitest is added:
-```bash
-npx vitest run                          # All tests (CI)
-npx vitest run path/to/file.test.ts     # Single file
-npx vitest run -t "test name"           # Single test by name
+# Development (auto-rebuilds better-sqlite3 native module on first run)
+npm run dev
+
+# Full build (typecheck + bundle + package)
+npm run build
+
+# Lint (zero warnings policy)
+npm run lint
+
+# Run tests
+npm run test           # Unit + renderer component tests (happy-dom, no Electron UI)
+npm run test:db        # DB Worker action tests (requires Electron runtime)
+npm run test:watch     # Watch mode for fast tests
+npm run test:db:watch  # Watch mode for DB tests
+
+# Run single test file
+npx vitest run tests/unit/path/to/test.test.ts -c vitest.config.ts
 ```
 
 ## Architecture
 
-### Four-layer Electron architecture
+### Four-Layer Electron Stack (Hard Isolation)
 
 ```
-electron/main.ts          → Main process: window lifecycle, IPC gateway, DB Worker management
-electron/preload.ts       → Preload: contextBridge exposes window.api.* (business-level APIs)
-src/                      → Renderer: React UI (only calls window.api.*)
-electron/workers/db/      → DB Worker: sole SQLite access via worker_threads
+Renderer (React)          — Only calls window.api.*
+    ↓
+Preload (contextBridge)   — Exposes business-level APIs only
+    ↓
+Main Process              — Window lifecycle, IPC gateway, Zod validation
+    ↓
+DB Worker (worker_threads) — Sole SQLite access, serialized requests
 ```
 
-**Hard boundaries** — do not cross these:
-- Renderer must never use `ipcRenderer` directly; only `window.api.*`
-- Preload must not expose raw `ipcRenderer`, arbitrary SQL, or filesystem access
-- DB access is exclusively in the DB Worker — never in Main or Renderer
-- IPC uses only `ipcMain.handle` / `ipcRenderer.invoke` (request-response)
+**Critical constraints:**
+- `contextIsolation: true`, `nodeIntegration: false`
+- No raw `ipcRenderer` or arbitrary SQL exposed to the renderer
+- All IPC payloads are validated with Zod schemas at the main process boundary
+- All DB writes are transactional
 
-### Source layout
+### IPC & API Contract
+
+- The preload script (`electron/preload.ts`) maps `window.api.*` methods to IPC channels
+- The main process (`electron/main.ts`) registers handlers that validate payloads and forward DB requests to the worker
+- DB handlers (`electron/workers/db/actions/`) receive parsed payloads and return raw data
+- All IPC calls return a `Result<T>`: `{ ok: true, data: T } | { ok: false, error: AppError }`
+- Always check `res.ok` before accessing `res.data`
+
+### Data Refresh Pattern
+
+Cross-view mutations use a revision counter instead of a global state manager:
+
+- `AppEventsContext` provides `revision: number` and `bumpRevision(): void`
+- Pages listen to `revision` changes in `useEffect` and re-fetch data
+- The sidebar refreshes on every revision bump to stay synchronized
+
+### DB Worker
+
+- Entry: `electron/workers/db/db-worker.ts`
+- Client: `electron/workers/db/db-worker-client.ts` (promisified `postMessage` with 30s timeout)
+- Dispatch: `electron/workers/db/db-dispatch.ts` (routes action names to handlers)
+- Handlers: `electron/workers/db/actions/*.ts` (task, project, area, tag, checklist, sidebar, trash, sync, settings, data-transfer)
+- Database: SQLite via `better-sqlite3`, WAL mode, foreign keys enabled
+- Migrations: inline in `db-bootstrap.ts`, driven by `user_version` pragma (currently v7)
+
+### Project Structure
 
 ```
 electron/
-  main.ts                  # Main process entry
-  preload.ts               # Preload script
-  ipc/                     # IPC channel definitions
+  main.ts                 # Main process: IPC gateway, sync service, theme, locale
+  preload.ts              # contextBridge — sole Renderer ↔ Main API surface
   workers/db/
-    db-worker.ts           # Worker entry
-    db-worker-client.ts    # Client for Main → Worker communication
-    actions/               # Business actions (task, project, area, tag, checklist, sidebar, settings, data-transfer)
+    db-worker.ts          # Worker thread entry
+    db-worker-client.ts   # Promise-based worker communication
+    db-dispatch.ts        # Action router
+    db-handlers.ts        # Aggregates all action modules
+    db-bootstrap.ts       # DB init + migrations
+    actions/              # Business logic per domain
+  sync/                   # S3-based sync (HLC/CRDT), credentials store
+  theme/                  # Window background color per theme
 
 src/
-  main.tsx                 # Renderer entry
-  App.tsx                  # Root component (HashRouter)
+  App.tsx                 # Root: providers + router
   app/
-    AppRouter.tsx           # Route definitions
-    AppShell.tsx            # Main layout (sidebar + content, drag-and-drop hub)
-    AppEventsContext.tsx     # Global event bus (Context API)
-  pages/                    # Route pages (Inbox, Today, Upcoming, Anytime, Someday, Logbook, Project, Area, Search, Settings)
-  features/tasks/           # Task domain (TaskEditorPaper, TaskList, TaskRow, grouped lists, selection context, dnd)
-  lib/                      # Utilities (dates)
-  i18n/                     # i18next config
+    AppRouter.tsx         # react-router-dom routes
+    AppShell.tsx          # Sidebar (dnd-kit areas/projects) + content layout
+    AppEventsContext.tsx  # Revision counter + optimistic task titles
+    TaskSelectionContext.tsx  # Selected/open task state, editor handle registry
+    ContentScrollContext.tsx  # Content scroll ref sharing
+  pages/                  # Route pages (Today, Inbox, Upcoming, Project, Area, ...)
+  features/               # Domain features
+    tasks/                # TaskList, TaskRow, TaskEditorPaper, inline editing, DnD
+    projects/             # ProjectPage, sections, progress controls
+    tags/                 # Tag picker, tag management
+    settings/             # Settings dialog (general, sync, data)
+    sync/                 # Sync UI
+    logbook/              # Completed tasks view
+    trash/                # Deleted items view
+  components/             # Shared UI (minimal — mostly feature-local)
+  lib/                    # Utilities (dates, entity-scope, local today hook)
+  i18n/                   # i18next config + translation keys
+  types/                  # Additional TypeScript types
 
-shared/                     # Shared between Main + Renderer
-  window-api.ts             # WindowApi type (the contract for window.api.*)
-  result.ts                 # Result<T> type
-  app-error.ts              # AppError structure (code/message/details)
-  db-worker-protocol.ts     # Worker message protocol
-  schemas/                  # Zod schemas (task, project, area, tag, checklist, sidebar, search, data-transfer, etc.)
-  i18n/                     # Locale definitions and translations
+shared/
+  window-api.ts           # window.api TypeScript contract (source of truth)
+  schemas/                # Zod schemas — sole source of truth for data models
+  result.ts               # Result<T>, ok(), err()
+  app-error.ts            # Structured AppError type
+  db-worker-protocol.ts   # Worker message schemas
+  task-list-ids.ts        # Constants for list position scopes
+  i18n/                   # Locale, translation helpers (shared between main/renderer)
+
+tests/
+  unit/                   # Pure logic tests (no DOM)
+  renderer/               # Component tests (happy-dom)
+  db/                     # DB action tests (Electron runtime)
+  setup/                  # Test setup files
 ```
 
-### Key patterns
+### Routing
 
-- **State management**: Context API (`AppEventsContext`, `TaskSelectionContext`). Tech framework recommends zustand for future growth.
-- **Routing**: HashRouter with `AppShell` layout wrapping all pages. Default route redirects `/` → `/today`.
-- **Window API**: `window.api` organized by domain — `app.*`, `data.*`, `settings.*`, `task.*`, `project.*`, `area.*`, `sidebar.*`, `tag.*`, `checklist.*`.
-- **Data models**: Zod schemas in `shared/schemas/` define all data structures and are the source of truth for IPC validation.
-- **Drag-and-drop**: `@dnd-kit/core` + `@dnd-kit/sortable` with custom drop animation.
-- **Virtual scrolling**: `@tanstack/react-virtual` for task lists (required for 10k task target).
-- **i18n**: `i18next` + `react-i18next`.
+Routes are defined in `src/app/AppRouter.tsx`:
+- `/inbox`, `/today`, `/upcoming`, `/anytime`, `/someday`
+- `/logbook`, `/trash`
+- `/search`
+- `/projects/:projectId`, `/areas/:areaId`
 
-## Source of Truth Documents
+Project pages support a `?scope=trash` query param for viewing deleted tasks.
 
-Read these before making significant changes:
+### Key Frontend Patterns
 
-1. **`docs/redlines.md`** — Hard MUST NOT rules (highest priority). Security, IPC boundaries, DB constraints, privacy, performance red lines.
-2. **`docs/standards.md`** — Engineering standards: naming, error handling, architecture boundaries, PR expectations.
-3. **`docs/ui.md`** — UI/UX rules: shadcn/ui + Tailwind, minimal design, keyboard-first, virtual scrolling, accessibility.
-4. **`docs/tech-framework.md`** — Target architecture, recommended tooling, IPC/DB Worker protocol, performance targets.
+- **Task lists**: Virtualized with `@tanstack/react-virtual` inside `TaskList.tsx`
+- **Drag & drop**: `@dnd-kit` for task reordering in lists and area/project reordering in sidebar
+- **Animations**: `framer-motion` for UI transitions; reduced motion is respected (`usePrefersReducedMotion`)
+- **Optimistic titles**: Inline title edits are optimistically rendered via `AppEventsContext` and acked when the server response arrives
+- **Task editor**: Opens as an overlay (not a route). `TaskSelectionContext` manages selection vs. open state. `OpenEditorHandle` allows the shell to flush pending changes before switching tasks.
+- **Styling**: Tailwind CSS + shadcn/ui primitives. CSS custom properties for theme tokens (light/dark).
+- **i18n**: `i18next` + `react-i18next`. Translation keys are referenced via `t('key')`. Shared locale helpers in `shared/i18n/`.
 
-## Critical Rules (from redlines.md)
+### Schemas
 
-- `contextIsolation: true`, `nodeIntegration: false` — always
-- No `@electron/remote`
-- CSP enabled, `unsafe-eval` disabled
-- All DB writes must be transactional; import failures must rollback
-- Core IDs must be UUID (no auto-increment)
-- `deleted_at` (soft delete) and `updated_at` (reliable change tracking) required on core entities
-- No telemetry/analytics by default
-- Performance: search < 200ms at 10k tasks, cold start < 1s, virtual scrolling mandatory for lists
+`shared/schemas/*.ts` contain Zod schemas that are the single source of truth for all data shapes. Both the renderer and main process import types from these schemas. When adding a new field or entity, update the schema first, then the DB action, then the preload API, then the UI.
 
-## Code Style
+### Testing
 
-- TypeScript `strict: true` with `noUnusedLocals` and `noUnusedParameters`
-- 2-space indent, single quotes, follow existing file style
-- Avoid `any`; use `unknown` + runtime validation for untrusted data
-- Variables/functions: `camelCase`; types/classes/components: `PascalCase`
-- Booleans: `is`/`has`/`can`/`should` prefix
-- Event handlers: `handleXxx`
-- Directories: `kebab-case/`; React components: `PascalCase.tsx`; other modules: `kebab-case.ts`
-- Import order: Node/Electron built-ins → third-party → internal → relative → styles
-- Prefer `import type { ... }` for type-only imports
-- TS extension imports allowed (`.ts` suffix) — follow surrounding code convention
+- Fast tests use `happy-dom` environment; DB tests need the Electron runtime (`ELECTRON_RUN_AS_NODE=1`)
+- Self-test mode: set `MILESTO_SELF_TEST=1` to run in-memory tests with isolated user data
+- The project has a zero-warnings ESLint policy
 
-## IPC & DB Worker Conventions
+### Build & Native Dependencies
 
-- IPC channels: domain-scoped (`db:*`, `settings:*`, `app:*`)
-- DB Worker actions: `domain.verb` format (`task.create`, `project.list`)
-- All IPC payloads validated with Zod schemas
-- Errors: `AppError { code, message, details? }` — UI uses only `code`/`message`
-- Error codes: `SCOPE_CODE` format (`DB_TIMEOUT`, `VALIDATION_FAILED`)
+- `better-sqlite3` is a native module that must match the Electron runtime ABI
+- `scripts/ensure-electron-native-deps.mjs` probes and rebuilds automatically during `predev` / `prebuild`
+- Vite config externalizes `better-sqlite3` for the main process bundle
+- Output packages: DMG (macOS), NSIS (Windows), AppImage (Linux) in `release/<version>/`
 
-## OpenSpec Workflow
+### TypeScript Configuration
 
-This project uses the OpenSpec artifact workflow for structured changes. Configuration in `openspec/config.yaml`. Specs live in `openspec/specs/`, changes in `openspec/changes/`.
+- Strict mode enabled, `noUnusedLocals: true`, `noUnusedParameters: true`
+- `moduleResolution: bundler`, `allowImportingTsExtensions: true`
+- 2-space indentation, single quotes
+- Includes: `src`, `electron`, `shared`

@@ -1,160 +1,228 @@
-# Milesto Agent Guide (AGENTS.md)
+# Milesto — Agent Guide
 
-This file is for agentic coding tools working in this repository.
-When in doubt, follow the repo's existing written rules first.
+Milesto is an open-source, local-first desktop task manager inspired by Things 3. It is a cross-platform Electron app for personal GTD-style task management. All data stays in a local SQLite database — no account or cloud service is required.
 
-## Source of Truth (Read These First)
+## Technology Stack
 
-- `docs/redlines.md` - hard MUST NOT rules (security, IPC boundaries, DB constraints, privacy)
-- `docs/standards.md` - engineering standards (naming, error handling, PR expectations)
-- `docs/ui.md` - UI/UX design rules and interaction guidelines (renderer)
-- `docs/tech-framework.md` - target architecture and recommended tooling
+| Layer | Technology |
+|-------|-----------|
+| Framework | Electron 30 |
+| UI | React 18 + TypeScript 5 |
+| Bundler | Vite 5 + `vite-plugin-electron` |
+| Database | SQLite via `better-sqlite3` (runs inside `worker_threads`) |
+| Styling | Hand-written CSS with semantic CSS custom properties (no Tailwind config file in repo) |
+| Animation | Framer Motion |
+| Drag & Drop | `@dnd-kit` |
+| Virtual Scrolling | `@tanstack/react-virtual` |
+| Validation | Zod |
+| i18n | i18next (English + Simplified Chinese) |
+| Testing | Vitest + `@testing-library/react` + happy-dom |
 
-Cursor/Copilot rules:
-- No `.cursor/rules/` or `.cursorrules` found.
-- No `.github/copilot-instructions.md` found.
+## Project Structure
 
-## Repository Layout
+```
+electron/
+  main.ts                 # Main process entry (window lifecycle, IPC gateway, sync, CSP)
+  preload.ts              # Preload script — exposes business-level `window.api` only
+  workers/db/
+    db-worker.ts          # DB Worker entry (worker_threads)
+    db-bootstrap.ts       # SQLite DB initialization & migrations
+    db-dispatch.ts        # Route DB worker requests to action handlers
+    db-handlers.ts        # Registry of all DB action handlers
+    db-worker-client.ts   # Main-process client to send requests to the DB worker
+    actions/              # Business logic (task, project, area, tag, checklist, trash, settings, sidebar, sync, data-transfer)
+  sync/                   # S3-based sync service (main-process side)
+  theme/                  # Window background color helpers
 
-- `electron/` - Electron main + preload
-- `src/` - Renderer (React)
-- `shared/` - shared code/types (currently minimal)
-- `tests/` - tests (currently empty)
-- `docs/` - specs and standards
+src/
+  main.tsx                # Renderer bootstrap (i18n init, self-test registration)
+  App.tsx                 # Root component (HashRouter + i18n)
+  app/
+    AppRouter.tsx         # Route definitions
+    AppShell.tsx          # Sidebar + content layout
+    AppEventsContext.tsx  # Global mutation event bus for cache invalidation
+    selfTest.ts           # In-app self-test entrypoint
+  pages/                  # Route pages (Today, Inbox, Upcoming, Anytime, Someday, Logbook, Trash, Search, Project, Area, Settings)
+  features/               # Domain features
+    tasks/                # Task lists, rows, editors, DnD, tag filters
+    projects/             # Project progress controls
+    settings/             # Settings dialog panels
+    tags/                 # Tag picker
+    logbook/              # Logbook grouping & labels
+    trash/                # Trash list
+  components/             # Shared UI components (very small — mostly custom CSS)
+  lib/                    # Shared renderer utilities (dates, entity-scope, local-today)
+  i18n/                   # i18next configuration & initialization
+  index.css               # Global styles + semantic design tokens (light/dark via prefers-color-scheme)
 
-## Commands (Repo Root)
+shared/
+  window-api.ts           # TypeScript contract for `window.api`
+  schemas/                # Zod schemas — source of truth for all data models & IPC payloads
+  result.ts               # `Result<T>` type (`Ok<T>` | `Err`) + helper functions
+  app-error.ts            # Structured `AppError` type with Zod schema
+  db-worker-protocol.ts   # Message protocol between Main and DB Worker
+  task-list-ids.ts        # Well-known list ID constants
+  i18n/                   # Locale definitions, message catalogs, translation helpers
 
-Package manager:
-- Use `npm` (root has `package-lock.json`).
+tests/
+  unit/                   # Fast pure-logic tests (no DOM)
+  renderer/               # Component tests (happy-dom)
+  db/                     # DB action tests (node environment, `forks` pool, real SQLite)
+  setup/fast.ts           # Vitest setup: mocks `react-i18next` and injects `window.api`
+  renderer/window-api-mock.ts  # Default typed mock of `window.api`
 
-Install:
-- `npm ci`
+scripts/
+  ensure-electron-native-deps.mjs   # Auto-rebuilds better-sqlite3 for Electron ABI
+  run-vitest-with-electron.mjs      # Runs vitest under Electron as Node (`ELECTRON_RUN_AS_NODE=1`)
+  electron-tooling.mjs              # Helpers to resolve Electron binary paths
+```
 
-Dev:
-- `npm run dev`
+## Architecture
 
-Build (typecheck + bundle + package):
-- `npm run build`
+The app enforces a strict four-layer Electron architecture with hard isolation boundaries:
 
-Preview (renderer build only):
-- `npm run preview`
+```
+┌─────────────────────────────────────────────┐
+│  Renderer (React)                           │
+│  Only calls window.api.*                     │
+├─────────────────────────────────────────────┤
+│  Preload (contextBridge)                    │
+│  Exposes business-level APIs only            │
+├─────────────────────────────────────────────┤
+│  Main Process                               │
+│  Window lifecycle, IPC gateway, validation   │
+├─────────────────────────────────────────────┤
+│  DB Worker (worker_threads)                 │
+│  Sole SQLite access, serialized requests     │
+└─────────────────────────────────────────────┘
+```
 
-Typecheck (explicit):
-- `npx tsc -p tsconfig.json`
-  - Note: `tsconfig.json` sets `noEmit: true`, so this is typecheck-only.
+**Critical constraints:**
+- `contextIsolation: true`, `nodeIntegration: false`
+- No raw `ipcRenderer` or arbitrary SQL exposed to the renderer
+- Every IPC payload is validated with Zod on both sides
+- Every DB write is transactional
+- The preload script is the only bridge; all APIs are typed in `shared/window-api.ts`
 
-Lint:
-- `npm run lint`
-  - Current status: fails because no ESLint config file exists yet (`.eslintrc.*` or
-    `eslint.config.*`).
-  - If you need lint to be green, add an ESLint config (and ignore non-source directories as needed).
+## Build & Development Commands
 
-## Tests
+Prerequisites: Node.js 20 / 22 / 23 / 24 / 25 (20 LTS or 22 LTS recommended), npm.
 
-Root test runner is not set up yet (no `test` scripts, `tests/` is empty).
+```bash
+# Install dependencies
+npm ci
 
-If/when Vitest is added (recommended by `docs/tech-framework.md` / `docs/standards.md`):
-- Run all tests (watch): `npx vitest`
-- Run all tests (CI): `npx vitest run`
-- Run a single file: `npx vitest run path/to/file.test.ts`
-- Run a single test name: `npx vitest run -t "should do X"`
+# Development (auto-rebuilds native deps on first run)
+npm run dev
 
-If/when Playwright E2E is added:
-- Run all E2E tests: `npx playwright test`
-- Run a single spec: `npx playwright test tests/e2e/foo.spec.ts`
-- Run a single test name: `npx playwright test -g "window should open"`
+# Production build: typecheck + bundle + package
+npm run build
+```
 
-## Code Style (Practical Defaults)
+Output artifacts are written to `release/<version>/`:
+- macOS DMG: `Milesto-Mac-<version>-Installer.dmg`
+- Windows NSIS: `Milesto-Windows-<version>-Setup.exe`
+- Linux AppImage: `Milesto-Linux-<version>.AppImage`
 
-The repo currently has no formatter config (Prettier/Biome not checked in). Use local file
-style and keep diffs focused.
+## Testing Commands
 
-- Formatting: 2-space indent; prefer single quotes; avoid semicolons if the file already does.
-- Avoid drive-by formatting: don't reformat unrelated files/blocks in the same PR.
-- Keep imports stable and grouped:
-  - Node/Electron built-ins first (use the `node:` prefix where applicable)
-  - Third-party packages
-  - Internal modules
-  - Relative imports
-  - Styles/assets last
-- Prefer `import type { ... }` for type-only imports when it improves clarity.
-- TS extension imports are allowed (`tsconfig.json` has `allowImportingTsExtensions: true`).
-  Prefer whatever the surrounding code uses (do not churn it).
+```bash
+# Unit + renderer component tests (happy-dom, no Electron runtime needed)
+npm run test
+npm run test:watch
 
-## TypeScript Rules
+# DB Worker action tests (Node environment, forks pool, real SQLite)
+npm run test:db
+npm run test:db:watch
+```
 
-- TS is `strict: true` (`tsconfig.json`). Do not weaken types to "make it work".
-- `noUnusedLocals` / `noUnusedParameters` are enabled: remove unused code or wire it up.
-- Avoid `any`. For untrusted data, use `unknown` and validate at runtime.
+**Test architecture:**
+- Fast tests (`tests/unit/`, `tests/renderer/`) use `happy-dom` and run in a standard Node process. `tests/setup/fast.ts` mocks `react-i18next` and injects a typed `window.api` mock.
+- DB tests (`tests/db/`) run in Vitest's `forks` pool with `environment: 'node'` and a 30s timeout. They test real SQLite logic via the DB worker action layer.
+- All tests are executed through `scripts/run-vitest-with-electron.mjs`, which launches Vitest under `ELECTRON_RUN_AS_NODE=1` so that native module resolution matches the Electron runtime.
 
-## Naming Conventions (From `docs/standards.md`)
+## Code Style & Linting
 
-- Variables/functions: `camelCase`
-- Types/classes/enums/components: `PascalCase`
-- Booleans: prefix with `is` / `has` / `can` / `should`
-- Event handlers: `handleXxx` (e.g. `handleSubmit`)
+```bash
+npm run lint          # ESLint with zero-warnings policy
+```
 
-Files/directories:
-- Directories: `kebab-case/`
-- React components: `PascalCase.tsx`
-- Non-component modules (utils/domain/schema): `kebab-case.ts`
-- Tests: `*.test.ts(x)` (keep names aligned with the source file)
+**Style rules:**
+- TypeScript strict mode (`strict: true`)
+- `noUnusedLocals: true` and `noUnusedParameters: true`
+- 2-space indentation
+- Single quotes
+- No semicolons enforced by formatter convention (observed in existing code)
+- Unused variables/parameters are compile-time errors
 
-## Architecture & Boundary Rules (Hard)
+ESLint config: `.eslintrc.cjs` — extends `eslint:recommended`, `@typescript-eslint/recommended`, `plugin:react-hooks/recommended`. Ignores `dist/`, `dist-electron/`, `release/`, `node_modules/`.
 
-Milesto is designed as Electron Main / Preload / Renderer, plus a DB Worker.
-Do not cross these boundaries.
+## Security Guidelines
 
-- Renderer must not use `ipcRenderer` directly.
-  - Renderer should call `window.api.*` (business-level APIs exposed by Preload).
-- Preload must not expose dangerous primitives.
-  - Do not expose raw `ipcRenderer`, arbitrary SQL execution, or arbitrary filesystem access.
-- IPC shape:
-  - Use request/response only: `ipcMain.handle` / `ipcRenderer.invoke`.
-  - Channels should be domain-scoped (e.g. `db:*`, `settings:*`, `app:*`).
-  - Validate sender/window in main before servicing requests.
-  - Schema-validate all IPC payloads and return values (docs recommend `zod`).
+- **Never expose `ipcRenderer` directly** in the preload script. Only expose business-level APIs.
+- **Validate all IPC payloads** with Zod schemas on both the renderer (before send) and main (on receive) sides.
+- **CSP** is installed programmatically in `main.ts` via `session.defaultSession.webRequest.onHeadersReceived`. It disables `unsafe-eval` and restricts sources to `self`.
+- **Trusted sender check**: Every IPC handler verifies the sender frame URL starts with an allowed prefix (dev server or `dist/` file URL).
+- **Native modules**: `better-sqlite3` is externalized in Vite's Rollup config and rebuilt for the target Electron ABI via `scripts/ensure-electron-native-deps.mjs`.
 
-Electron security baseline:
-- Ensure `contextIsolation: true` and `nodeIntegration: false`.
-- Do not use `@electron/remote`.
-- Enforce CSP and at least disable `unsafe-eval`.
+## Key Development Conventions
 
-Database rules:
-- No SQLite access in Main/Renderer.
-- DB access must run in a dedicated `worker_threads` DB Worker.
-- No generic `query(sql)` escape hatch.
-- All writes must be transactional; import/bulk writes must roll back on failure.
+### Result<T> Pattern
+All cross-boundary APIs (DB worker → main, main → renderer via `window.api`) return `Result<T>`:
 
-## Error Handling & Logging
+```ts
+import type { Result } from '../shared/result'
+// Result<T> = { ok: true; data: T } | { ok: false; error: AppError }
+```
 
-- Cross-boundary failures should use a stable structured error:
-  - `AppError = { code: string, message: string, details?: unknown }`
-- UI must only rely on `code` / `message`.
-- `details` is for local logs/debugging only (never show raw details to users).
-- Never log secrets, credentials, or personal data. Redact aggressively.
+Always check `res.ok` before accessing `res.data`. Never throw raw errors across IPC boundaries.
 
-## Current State Notes (WIP)
+### Zod Schemas as Source of Truth
+All data models, IPC payloads, and DB return values are defined as Zod schemas in `shared/schemas/`. TypeScript types are inferred from schemas:
 
-- Root ESLint is installed but has no config file yet, so `npm run lint` fails.
-- Current Electron preload/renderer code looks like starter boilerplate and may violate
-  `docs/redlines.md` (notably around IPC exposure). When touching those areas, refactor
-  towards the documented `window.api` boundary.
-<!-- TRELLIS:START -->
-# Trellis Instructions
+```ts
+import { TaskSchema } from '../shared/schemas/task'
+import type { Task } from '../shared/schemas/task'
+```
 
-These instructions are for AI assistants working in this project.
+### DB Worker Protocol
+Main process communicates with the DB worker via structured messages (`shared/db-worker-protocol.ts`):
+- Request: `{ id, type: 'db', action: string, payload: unknown }`
+- Response: `{ id, ok: true, data: unknown } | { id, ok: false, error: AppError }`
 
-Use the `/trellis:start` command when starting a new session to:
-- Initialize your developer identity
-- Understand current project context
-- Read relevant guidelines
+### i18n
+- Supported locales: `en`, `zh-CN`
+- Message catalogs live in `shared/i18n/messages.ts`
+- In dev mode, `initI18n` throws if message catalogs are out of sync (missing keys between languages)
+- Tests mock `react-i18next` so `t('key')` returns `'key'`
 
-Use `@/.trellis/` to learn:
-- Development workflow (`workflow.md`)
-- Project structure guidelines (`spec/`)
-- Developer workspace (`workspace/`)
+### Self-Tests
+The app supports an in-app self-test mode triggered by `?selfTest=1`. This is used for CI smoke tests. The main process runs registered self-test functions in the renderer and exits with code `0` or `1`.
 
-Keep this managed block so 'trellis update' can refresh the instructions.
+### Styling
+- No Tailwind CSS configuration file exists in the repo. Styles are hand-written in `src/index.css` using semantic CSS custom properties.
+- Design tokens are defined under `:root` and overridden inside `@media (prefers-color-scheme: dark)`.
+- The app supports Light, Dark, and System theme modes via `nativeTheme.themeSource`.
 
-<!-- TRELLIS:END -->
+## Adding New Features
+
+1. **Data model**: Add Zod schemas to `shared/schemas/` and export from `shared/schemas/index.ts`.
+2. **DB actions**: Add handlers in `electron/workers/db/actions/` and register them in `electron/workers/db/db-handlers.ts`.
+3. **IPC wiring**: Add the channel handler in `electron/main.ts` using `handleDb()` or `ipcMain.handle()`, and expose it in `electron/preload.ts` under `window.api`.
+4. **Renderer types**: Update `shared/window-api.ts` with the new method signature.
+5. **UI**: Build pages in `src/pages/` and reusable features in `src/features/`.
+6. **Tests**: Add unit/renderer tests in `tests/` and DB tests in `tests/db/`.
+7. **i18n**: Add translation keys to both `messagesEn` and `messagesZhCN` in `shared/i18n/messages.ts`.
+
+## Important Files for Agents
+
+| File | Purpose |
+|------|---------|
+| `shared/window-api.ts` | Contract between preload and renderer |
+| `shared/schemas/` | Source of truth for all data shapes |
+| `shared/result.ts` | Result type used across all boundaries |
+| `electron/preload.ts` | The only bridge to the main process |
+| `electron/main.ts` | All IPC handlers and window security |
+| `electron/workers/db/db-handlers.ts` | Registry of all DB operations |
+| `src/index.css` | All global styles and design tokens |
+| `tests/setup/fast.ts` | Test environment setup and mocks |
