@@ -2032,13 +2032,13 @@ body {
 }
 
 .task-inline-popover-body {
-  padding: 6px;
+  padding: 8px 10px;
 }
 
 .task-inline-popover-title {
   font-weight: 650;
-  font-size: 11px;
-  padding: 4px 8px 2px;
+  font-size: 12px;
+  padding: 2px 8px 6px;
   color: var(--muted);
 }
 
@@ -2097,11 +2097,11 @@ body {
 }
 
 .task-inline-popover-calendar .task-inline-popover-body {
-  padding: 6px;
+  padding: 8px 10px;
 }
 
 .task-inline-popover-calendar .task-inline-popover-title {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .task-inline-popover-calendar .rdp-root {
@@ -2131,20 +2131,39 @@ body {
 }
 
 .task-inline-popover-calendar .row {
-  gap: 4px;
-  margin-top: 6px;
+  gap: 6px;
+  margin-top: 10px;
   flex-wrap: wrap;
 }
 
 .task-inline-popover-calendar .button {
-  padding: 4px 6px;
-  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 999px;
   font-size: 11px;
+  font-weight: 550;
+  background: var(--wash);
+  border: 0;
+  color: var(--text);
 }
 
-.task-inline-popover-calendar .rdp-selected {
+.task-inline-popover-calendar .button:hover {
+  background: var(--wash-strong);
+}
+
+.task-inline-popover-calendar .rdp-selected .rdp-day_button {
   font-weight: 650;
   font-size: inherit;
+  background: var(--text);
+  color: var(--bg);
+  border-color: transparent;
+}
+
+.task-inline-popover-calendar .rdp-selected .rdp-day_button:hover:not(:disabled) {
+  background: var(--text);
+  color: var(--bg);
 }
 
 .task-inline-popover-calendar .rdp-day_button:hover:not(:disabled) {

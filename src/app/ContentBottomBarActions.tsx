@@ -11,6 +11,7 @@ import type { TaskUpdateInput } from '../../shared/schemas/task'
 import { TaskMovePopoverContent } from '../features/tasks/TaskMovePopoverContent'
 import { formatLocalDate } from '../lib/dates'
 import { getLocalToday } from '../lib/use-local-today'
+import { CircleXIcon, SunIcon, TodayIcon } from '../features/tasks/task-metadata-icons'
 import { BottomBarActionButton } from './BottomBarActionButton'
 
 const UI_OPEN_SEARCH_PANEL_EVENT = 'milesto:ui.openSearchPanel'
@@ -208,10 +209,6 @@ export function ContentBottomBarActions({
         }}
       >
         <div className="task-inline-popover-body">
-          <div className="task-inline-popover-title">
-            {activePopover.kind === 'schedule' ? t('common.schedule') : t('common.move')}
-          </div>
-
           {activePopover.kind === 'schedule' ? (
             <>
               {actionError ? (
@@ -241,6 +238,7 @@ export function ContentBottomBarActions({
                   className="button button-ghost"
                   onClick={() => void updateSelectedTask({ is_someday: true, scheduled_at: null, is_inbox: false })}
                 >
+                  <SunIcon />
                   {t('nav.someday')}
                 </button>
                 <button
@@ -250,6 +248,7 @@ export function ContentBottomBarActions({
                     void updateSelectedTask({ is_someday: false, scheduled_at: getLocalToday(), is_inbox: false })
                   }
                 >
+                  <TodayIcon />
                   {t('nav.today')}
                 </button>
                 <button
@@ -257,6 +256,7 @@ export function ContentBottomBarActions({
                   className="button button-ghost"
                   onClick={() => void updateSelectedTask({ is_someday: false, scheduled_at: null })}
                 >
+                  <CircleXIcon />
                   {t('common.none')}
                 </button>
               </div>

@@ -20,7 +20,7 @@ import { formatLocalDate, parseLocalDate } from '../../lib/dates'
 import { buildProjectPath } from '../../lib/entity-scope'
 import { getLocalToday } from '../../lib/use-local-today'
 import { getTaskSchedulePreviewLabel, getTaskTagPreview } from './task-metadata'
-import { CalendarIcon, ChevronDownIcon, ClockIcon, TagIcon } from './task-metadata-icons'
+import { CalendarIcon, ChevronDownIcon, CircleXIcon, ClockIcon, SunIcon, TagIcon, TodayIcon } from './task-metadata-icons'
 import { TaskEditorProjectActions } from './TaskEditorProjectActions'
 import { TagPicker } from '../tags/TagPicker'
 
@@ -1122,8 +1122,7 @@ export const TaskEditorPaper = forwardRef<
               </div>
             ) : activePicker.kind === 'schedule' ? (
               <div className="task-inline-popover-body">
-                <div className="task-inline-popover-title">{t('taskEditor.popoverScheduleTitle')}</div>
-                <div className="task-inline-calendar" style={{ marginTop: 8 }}>
+                <div className="task-inline-calendar">
                   <DayPicker
                     mode="single"
                     selected={!draft.is_someday && draft.scheduled_at ? parseLocalDate(draft.scheduled_at) ?? undefined : undefined}
@@ -1157,6 +1156,7 @@ export const TaskEditorPaper = forwardRef<
                       closeActivePicker({ restoreFocus: true })
                     }}
                   >
+                    <SunIcon />
                     {t('nav.someday')}
                   </button>
                   <button
@@ -1169,6 +1169,7 @@ export const TaskEditorPaper = forwardRef<
                       closeActivePicker({ restoreFocus: true })
                     }}
                   >
+                    <TodayIcon />
                     {t('nav.today')}
                   </button>
                   <button
@@ -1181,14 +1182,14 @@ export const TaskEditorPaper = forwardRef<
                       closeActivePicker({ restoreFocus: true })
                     }}
                   >
+                    <CircleXIcon />
                     {t('common.clear')}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="task-inline-popover-body">
-                <div className="task-inline-popover-title">{t('taskEditor.popoverDueTitle')}</div>
-                <div className="task-inline-calendar" style={{ marginTop: 8 }}>
+                <div className="task-inline-calendar">
                   <DayPicker
                     mode="single"
                     selected={draft.due_at ? parseLocalDate(draft.due_at) ?? undefined : undefined}
@@ -1215,6 +1216,7 @@ export const TaskEditorPaper = forwardRef<
                       closeActivePicker({ restoreFocus: true })
                     }}
                   >
+                    <CircleXIcon />
                     {t('common.clear')}
                   </button>
                 </div>
