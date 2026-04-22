@@ -71,3 +71,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: 重构标签编辑器：统一为 TagPicker 组件
+
+**Date**: 2026-04-22
+**Task**: 重构标签编辑器：统一为 TagPicker 组件
+**Branch**: `master`
+
+### Summary
+
+将分散在 TaskEditorPaper、ProjectPage、AreaPage、sidebar context menu、task context menu 中的 5 处标签编辑实现统一替换为 TagPicker 组件，支持搜索、创建、键盘导航。仅保留 select 模式，移除 manage 模式（rename/delete/color）。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `eebbe03` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
