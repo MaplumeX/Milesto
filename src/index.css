@@ -9,7 +9,6 @@
   --muted: #5F6E82;
   --border: rgba(52, 74, 103, 0.12);
   --shadow: rgba(37, 54, 82, 0.1);
-  --focus: rgba(79, 121, 192, 0.28);
 
   /* Derived tokens (used to migrate away from hardcoded rgba values). */
   --sidebar-bg: #EEF2F6;
@@ -84,7 +83,6 @@ body {
     --muted: #B4AB9D;
     --border: rgba(241, 233, 219, 0.08);
     --shadow: rgba(0, 0, 0, 0.35);
-    --focus: rgba(190, 210, 255, 0.38);
 
     --sidebar-bg: #181A1D;
     --content-bg: #222528;
@@ -144,6 +142,11 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+*:focus,
+*:focus-visible {
+  outline: none;
 }
 
 .app-shell {
@@ -404,18 +407,12 @@ body {
 }
 
 .nav-area-header:hover .nav-area-collapse,
-.nav-area-collapse:focus-visible,
 .nav-area-row.is-active + .nav-area-collapse {
   color: var(--text);
 }
 
 .nav-area-collapse:hover {
   background: var(--wash);
-}
-
-.nav-area-collapse:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
 }
 
 .nav-area-collapse-icon {
@@ -492,11 +489,6 @@ body {
   background: var(--wash);
 }
 
-.create-toggle-item:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
-}
-
 .create-toggle-item:disabled {
   cursor: not-allowed;
   opacity: 0.5;
@@ -531,9 +523,7 @@ body {
 }
 
 .sidebar-bottom .nav-item:hover,
-.sidebar-bottom .nav-item:focus-visible,
-.sidebar-bottom > .button:hover,
-.sidebar-bottom > .button:focus-visible {
+.sidebar-bottom > .button:hover {
   border-color: var(--border);
   background: var(--glass);
   box-shadow: 0 1px 0 var(--shadow);
@@ -630,8 +620,7 @@ body {
   flex: 0 0 auto;
 }
 
-.content-bottom-action-button:hover,
-.content-bottom-action-button:focus-visible {
+.content-bottom-action-button:hover {
   color: var(--text);
 }
 
@@ -674,8 +663,7 @@ body {
   transform: translate(-50%, 0);
 }
 
-.content-bottom-bar .button:hover,
-.content-bottom-bar .button:focus-visible {
+.content-bottom-bar .button:hover {
   border-color: var(--border);
   background: var(--glass);
   box-shadow: 0 1px 0 var(--shadow);
@@ -875,11 +863,6 @@ body {
   transform: scale(1);
 }
 
-.checkbox-input:focus-visible + .checkbox-control {
-  border-color: var(--text);
-  box-shadow: 0 0 0 3px var(--focus);
-}
-
 .checkbox-input:not(:disabled):active + .checkbox-control {
   transform: scale(0.94);
 }
@@ -1009,7 +992,7 @@ body {
 .tag-picker-create.is-active {
   background: var(--wash-strong);
   color: var(--text);
-  border-color: var(--focus);
+  border-color: color-mix(in srgb, var(--ppc-color) 35%, transparent);
 }
 
 .tag-picker-create:disabled {
@@ -1508,10 +1491,6 @@ body {
   outline: none;
 }
 
-.page-title-input:focus-visible {
-  outline: none;
-}
-
 .page-title-input::placeholder {
   color: var(--muted);
 }
@@ -1531,10 +1510,6 @@ body {
   box-shadow: 0 1px 0 var(--shadow);
 }
 
-.input:focus {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
 
 .button {
   border: 1px solid var(--border);
@@ -1548,14 +1523,6 @@ body {
   background: var(--wash);
 }
 
-.button:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
-.button:focus {
-  background: var(--wash);
-}
 
 .button:disabled {
   cursor: not-allowed;
@@ -1605,10 +1572,6 @@ body {
   background: transparent;
 }
 
-.task-scroll:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
 
 .task-row {
   display: flex;
@@ -1997,7 +1960,7 @@ body {
 }
 
 .task-inline-chip--primary {
-  --task-inline-chip-border: color-mix(in srgb, var(--focus) 48%, transparent);
+  --task-inline-chip-border: color-mix(in srgb, var(--ppc-color) 35%, transparent);
 }
 
 .task-inline-chip--plan {
@@ -2025,13 +1988,8 @@ body {
 
 .task-inline-chip-button:hover {
   --task-inline-chip-bg: color-mix(in srgb, var(--wash) 70%, var(--glass-strong));
-  --task-inline-chip-border: color-mix(in srgb, var(--focus) 42%, var(--border));
+  --task-inline-chip-border: color-mix(in srgb, var(--ppc-color) 35%, var(--border));
   --task-inline-chip-text: var(--text);
-}
-
-.task-inline-chip-button:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
 }
 
 .task-inline-chip--summary {
@@ -2084,10 +2042,6 @@ body {
   color: var(--accent-strong);
 }
 
-.task-inline-popover-item:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
-}
 
 .task-inline-popover-tags .task-inline-popover-body {
   padding: 8px;
@@ -2172,10 +2126,6 @@ body {
   background: var(--wash);
 }
 
-.task-inline-popover-calendar .rdp-day_button:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
 
 .task-inline-action-bar-right {
   display: flex;
@@ -2204,12 +2154,6 @@ body {
 
 .task-inline-project-button:hover {
   color: var(--text);
-}
-
-.task-inline-project-button:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 4px;
-  border-radius: 6px;
 }
 
 .task-row.is-done .task-title-text {
@@ -2351,11 +2295,6 @@ body {
 
 .project-progress-control.is-cancelled::before {
   background: transparent;
-}
-
-.project-progress-control:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
 }
 
 button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cancelled) {
@@ -2613,12 +2552,6 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 
 .settings-dialog-tab:hover {
   color: var(--text);
-}
-
-.settings-dialog-tab:focus-visible,
-.settings-dialog-close:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
 }
 
 .settings-dialog-tab[aria-selected='true'] {
