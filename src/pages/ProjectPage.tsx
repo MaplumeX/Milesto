@@ -886,11 +886,6 @@ function ProjectMetaRow({
           {visibleTags.map((tag) => (
             <div key={tag.id} className="task-inline-chip task-inline-chip--secondary">
               <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
-                <span
-                  className="tag-swatch"
-                  style={{ background: tag.color ?? 'transparent' }}
-                  aria-hidden="true"
-                />
                 {tag.title}
               </span>
               <button
