@@ -16,7 +16,7 @@ import json
 import sys
 from pathlib import Path
 
-from .cli_adapter import get_cli_adapter_auto
+from .cli_adapter import get_cli_adapter, get_cli_adapter_auto
 from .config import (
     get_packages,
     is_monorepo,
@@ -61,9 +61,23 @@ def get_implement_frontend(package: str | None = None) -> list[dict]:
     ]
 
 
-def get_check_context(repo_root: Path) -> list[dict]:
-    """Get check context entries."""
-    adapter = get_cli_adapter_auto(repo_root)
+def get_check_context(repo_root: Path, platform: str | None = None) -> list[dict]:
+    """Get check context entries.
+
+    Args:
+        repo_root: Project root directory.
+        platform: Explicit platform override (e.g. "codex", "kiro"). When
+            provided, skip filesystem auto-detection and use this platform
+            directly. Caller (e.g. `cmd_init_context`) passes the
+            `--platform` CLI argument, which itself is substituted from
+            `{{CLI_FLAG}}` in skill/command templates rendered per platform.
+            Falls back to `get_cli_adapter_auto` when omitted (CLI-direct
+            users).
+    """
+    if platform:
+        adapter = get_cli_adapter(platform)
+    else:
+        adapter = get_cli_adapter_auto(repo_root)
 
     return [
         {"file": adapter.get_trellis_command_path("finish-work"), "reason": "Finish work checklist"},
@@ -156,8 +170,9 @@ def cmd_init_context(args: argparse.Namespace) -> int:
     print(f"  {colored('✓', Colors.GREEN)} {len(implement_entries)} entries")
 
     # check.jsonl
+    platform: str | None = getattr(args, "platform", None)
     print(colored("Creating check.jsonl...", Colors.CYAN))
-    check_entries = get_check_context(repo_root)
+    check_entries = get_check_context(repo_root, platform=platform)
     check_file = target_dir / "check.jsonl"
     _write_jsonl(check_file, check_entries)
     print(f"  {colored('✓', Colors.GREEN)} {len(check_entries)} entries")

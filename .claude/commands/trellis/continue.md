@@ -39,7 +39,7 @@ Phase rules (full detail in `.trellis/workflow.md`):
 Once you know which step to resume at:
 
 ```bash
-python3 ./.trellis/scripts/get_context.py --mode phase --step <X.X> --platform {{CLI_FLAG}}
+python3 ./.trellis/scripts/get_context.py --mode phase --step <X.X> --platform claude
 ```
 
 Follow the loaded instructions. After each `[required]` step completes, move to the next.

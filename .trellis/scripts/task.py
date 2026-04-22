@@ -319,6 +319,13 @@ def main() -> int:
     p_init.add_argument("dir", help="Task directory")
     p_init.add_argument("type", help="Dev type: backend|frontend|fullstack|test|docs")
     p_init.add_argument("--package", help="Package name for monorepo projects")
+    p_init.add_argument(
+        "--platform",
+        help="Explicit platform (claude|codex|kiro|cursor|...). "
+             "Overrides auto-detection. Skills/commands pass this via "
+             "{{CLI_FLAG}} substitution so jsonl paths match the invoking "
+             "platform instead of filesystem guesswork.",
+    )
 
     # add-context
     p_add = subparsers.add_parser("add-context", help="Add context entry")
