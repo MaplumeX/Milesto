@@ -293,12 +293,6 @@ export function UpcomingGroupedList({
         </ul>
       </div>
 
-      {visibleTasks.length === 0 ? <div className="nav-muted">{t('upcoming.empty')}</div> : null}
-
-      <div className="nav-muted" style={{ marginTop: 10 }}>
-        {t('upcoming.showingAfter', { date: today })}
-      </div>
-
       {menuNode}
     </div>
   )
