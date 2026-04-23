@@ -182,5 +182,6 @@ export type WindowApi = {
     configure(config: SyncConfig): Promise<Result<void>>
     disconnect(): Promise<Result<void>>
     onStateChange(callback: (state: SyncState) => void): () => void
+    onDataChanged(callback: () => void): () => void
   }
 }

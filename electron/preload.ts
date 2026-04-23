@@ -158,6 +158,11 @@ const api: WindowApi = {
       ipcRenderer.on('sync:stateChanged', handler)
       return () => ipcRenderer.removeListener('sync:stateChanged', handler)
     },
+    onDataChanged: (callback) => {
+      const handler = () => callback()
+      ipcRenderer.on('sync:dataChanged', handler)
+      return () => ipcRenderer.removeListener('sync:dataChanged', handler)
+    },
   },
 }
 

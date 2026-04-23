@@ -909,6 +909,12 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     }
   }
 
+  function broadcastSyncDataChanged() {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('sync:dataChanged')
+    }
+  }
+
   ipcMain.handle('sync:getState', async (event) => {
     const senderErr = ensureTrustedSender(event)
     if (senderErr) return SyncStateResultSchema.parse(err(senderErr))
@@ -934,6 +940,7 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
       syncEngine = new SyncEngine({
         dbWorker,
         onStateChange: broadcastSyncState,
+        onDataChanged: broadcastSyncDataChanged,
       })
     }
 
@@ -973,6 +980,7 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
         syncEngine = new SyncEngine({
           dbWorker,
           onStateChange: broadcastSyncState,
+          onDataChanged: broadcastSyncDataChanged,
         })
         await syncEngine.configure({
           serverUrl: state.server_url,

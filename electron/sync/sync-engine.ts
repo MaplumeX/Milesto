@@ -6,6 +6,7 @@ import { SyncCrypto } from './sync-crypto.js'
 interface SyncEngineOptions {
   dbWorker: DbWorkerClient
   onStateChange?: (state: SyncState) => void
+  onDataChanged?: () => void
 }
 
 const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 15000, 30000, 60000]
@@ -13,6 +14,7 @@ const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 15000, 30000, 60000]
 export class SyncEngine {
   private readonly dbWorker: DbWorkerClient
   private readonly onStateChange?: (state: SyncState) => void
+  private readonly onDataChanged?: () => void
 
   private config: SyncConfig | null = null
   private crypto: SyncCrypto | null = null
@@ -36,6 +38,7 @@ export class SyncEngine {
   constructor(options: SyncEngineOptions) {
     this.dbWorker = options.dbWorker
     this.onStateChange = options.onStateChange
+    this.onDataChanged = options.onDataChanged
   }
 
   getState(): SyncState {
@@ -158,14 +161,17 @@ export class SyncEngine {
       const decryptedPayload = this.crypto.decrypt(entity.payload)
       const parsed = JSON.parse(decryptedPayload) as Record<string, unknown>
 
-      // Apply to local DB based on entity type
-      await this.dbWorker.request('sync.applyRemote', {
+      const res = await this.dbWorker.request('sync.applyRemote', {
         entity_type: entity.entityType,
         entity_id: entity.entityId,
         updated_at: entity.updatedAt,
         deleted_at: entity.deletedAt,
         payload: parsed,
       })
+
+      if (res.ok && (res.data as { applied: boolean }).applied) {
+        this.onDataChanged?.()
+      }
     } catch (err) {
       console.error('[sync] Failed to apply remote entity:', err)
     }
@@ -176,28 +182,39 @@ export class SyncEngine {
 
     this.updateState({ status: 'syncing' })
 
+    let appliedAny = false
     try {
       for (const entity of entities) {
         const decryptedPayload = this.crypto.decrypt(entity.payload)
         const parsed = JSON.parse(decryptedPayload) as Record<string, unknown>
 
-        await this.dbWorker.request('sync.applyRemote', {
+        const res = await this.dbWorker.request('sync.applyRemote', {
           entity_type: entity.entityType,
           entity_id: entity.entityId,
           updated_at: entity.updatedAt,
           deleted_at: entity.deletedAt,
           payload: parsed,
         })
+
+        if (res.ok && (res.data as { applied: boolean }).applied) {
+          appliedAny = true
+        }
       }
 
       if (hasMore) {
         // Fetch next page
         void this.fetchNextPage()
       } else {
+        const now = new Date().toISOString()
         this.updateState({
           status: 'connected',
-          lastSyncAt: new Date().toISOString(),
+          lastSyncAt: now,
         })
+        // Persist lastSyncAt so push queries don't return already-synced items
+        await this.dbWorker.request('sync.setLastSyncAt', { last_sync_at: now })
+        if (appliedAny) {
+          this.onDataChanged?.()
+        }
       }
     } catch (err) {
       this.handleError(`Sync failed: ${(err as Error).message}`)
@@ -326,7 +343,7 @@ export class SyncEngine {
     this.clearSyncInterval()
     this.syncInterval = setInterval(() => {
       if (this.state.status === 'connected' && !this.isSyncing) {
-        void this.pushLocalChanges()
+        void this.performSync()
       }
     }, 5000)
   }

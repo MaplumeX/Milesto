@@ -133,5 +133,15 @@ export function createWindowApiMock(): WindowApi {
       update: vi.fn<WindowApi['checklist']['update']>(async () => err(unimplementedError)),
       delete: vi.fn<WindowApi['checklist']['delete']>(async () => err(unimplementedError)),
     },
+
+    sync: {
+      getState: vi.fn<WindowApi['sync']['getState']>(async () =>
+        ok({ status: 'disabled', lastSyncAt: null, lastError: null, pendingCount: 0 })
+      ),
+      configure: vi.fn<WindowApi['sync']['configure']>(async () => ok(undefined)),
+      disconnect: vi.fn<WindowApi['sync']['disconnect']>(async () => ok(undefined)),
+      onStateChange: vi.fn<WindowApi['sync']['onStateChange']>(() => () => {}),
+      onDataChanged: vi.fn<WindowApi['sync']['onDataChanged']>(() => () => {}),
+    },
   }
 }

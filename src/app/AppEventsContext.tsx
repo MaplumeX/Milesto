@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
 type OptimisticTaskTitle = {
   title: string
@@ -46,6 +46,13 @@ export function AppEventsProvider({ children }: { children: React.ReactNode }) {
       return next
     })
   }, [])
+
+  useEffect(() => {
+    const unsubscribe = window.api.sync.onDataChanged(() => {
+      bumpRevision()
+    })
+    return unsubscribe
+  }, [bumpRevision])
 
   const value = useMemo(
     () => ({
