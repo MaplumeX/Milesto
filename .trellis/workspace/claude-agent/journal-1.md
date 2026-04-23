@@ -137,3 +137,37 @@ Removed cloud sync UI, IPC, main-process runtime, DB sync metadata, AWS dependen
 ### Next Steps
 
 - None - task complete
+
+
+## Session 5: 实现云端实时同步 + 自部署服务端
+
+**Date**: 2026-04-23
+**Task**: 实现云端实时同步 + 自部署服务端
+**Branch**: `master`
+
+### Summary
+
+完成 Milesto 云端实时同步功能：客户端同步引擎（WebSocket + E2EE + LWW）、同步设置 UI、服务端独立仓库（Node.js + SQLite + Docker）。客户端新增 25 个测试，服务端 11 个集成测试，全部通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `454d8ff` | (see git log) |
+| `b0db4f0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
