@@ -5,7 +5,6 @@ Task Management Script.
 
 Usage:
     python3 task.py create "<title>" [--slug <name>] [--assignee <dev>] [--priority P0|P1|P2|P3] [--parent <dir>] [--package <pkg>]
-    python3 task.py init-context <dir> <type> [--package <pkg>]  # Initialize jsonl files
     python3 task.py add-context <dir> <file> <path> [reason] # Add jsonl entry
     python3 task.py validate <dir>              # Validate jsonl files
     python3 task.py list-context <dir>          # List jsonl entries
@@ -25,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 
 from common.log import Colors, colored
 from common.paths import (
@@ -39,6 +37,7 @@ from common.paths import (
     set_current_task,
     clear_current_task,
 )
+from common.io import read_json, write_json
 from common.task_utils import resolve_task_dir, run_task_hooks
 from common.tasks import iter_active_tasks, children_progress
 
@@ -53,7 +52,6 @@ from common.task_store import (
     cmd_remove_subtask,
 )
 from common.task_context import (
-    cmd_init_context,
     cmd_add_context,
     cmd_validate,
     cmd_list_context,
@@ -89,10 +87,18 @@ def cmd_start(args: argparse.Namespace) -> int:
 
     if set_current_task(task_dir, repo_root):
         print(colored(f"✓ Current task set to: {task_dir}", Colors.GREEN))
+
+        task_json_path = full_path / FILE_TASK_JSON
+        if task_json_path.is_file():
+            data = read_json(task_json_path)
+            if data and data.get("status") == "planning":
+                data["status"] = "in_progress"
+                if write_json(task_json_path, data):
+                    print(colored("✓ Status: planning → in_progress", Colors.GREEN))
+
         print()
         print(colored("The hook will now inject context from this task's jsonl files.", Colors.BLUE))
 
-        task_json_path = full_path / FILE_TASK_JSON
         run_task_hooks("after_start", task_json_path, repo_root)
         return 0
     else:
@@ -102,6 +108,7 @@ def cmd_start(args: argparse.Namespace) -> int:
 
 def cmd_finish(args: argparse.Namespace) -> int:
     """Clear current task."""
+    _ = args  # signature required by argparse dispatcher
     repo_root = get_repo_root()
     current = get_current_task(repo_root)
 
@@ -247,8 +254,6 @@ Usage:
   python3 task.py create <title>                     Create new task directory
   python3 task.py create <title> --package <pkg>     Create task for a specific package
   python3 task.py create <title> --parent <dir>      Create task as child of parent
-  python3 task.py init-context <dir> <dev_type>      Initialize jsonl files
-  python3 task.py init-context <dir> <type> --package <pkg>  With explicit package
   python3 task.py add-context <dir> <jsonl> <path> [reason]  Add entry to jsonl
   python3 task.py validate <dir>                     Validate jsonl files
   python3 task.py list-context <dir>                 List jsonl entries
@@ -263,9 +268,6 @@ Usage:
   python3 task.py list [--mine] [--status <status>]  List tasks
   python3 task.py list-archive [YYYY-MM]             List archived tasks
 
-Arguments:
-  dev_type: backend | frontend | fullstack | test | docs
-
 Monorepo options:
   --package <pkg>      Package name (validated against config.yaml packages)
 
@@ -277,8 +279,6 @@ Examples:
   python3 task.py create "Add login feature" --slug add-login
   python3 task.py create "Add login feature" --slug add-login --package cli
   python3 task.py create "Child task" --slug child --parent .trellis/tasks/01-21-parent
-  python3 task.py init-context .trellis/tasks/01-21-add-login backend
-  python3 task.py init-context .trellis/tasks/01-21-add-login backend --package cli
   python3 task.py add-context <dir> implement .trellis/spec/cli/backend/auth.md "Auth guidelines"
   python3 task.py set-branch <dir> task/add-login
   python3 task.py start .trellis/tasks/01-21-add-login
@@ -298,6 +298,36 @@ Examples:
 
 def main() -> int:
     """CLI entry point."""
+    # Deprecation guard: `init-context` was removed in v0.5.0-beta.12.
+    # Detect early so argparse doesn't mask the real reason with a generic
+    # "invalid choice" error.
+    if len(sys.argv) >= 2 and sys.argv[1] == "init-context":
+        print(
+            colored(
+                "Error: `task.py init-context` was removed in v0.5.0-beta.12.",
+                Colors.RED,
+            ),
+            file=sys.stderr,
+        )
+        print(
+            "implement.jsonl / check.jsonl are now seeded on `task.py create` for",
+            file=sys.stderr,
+        )
+        print(
+            "sub-agent-capable platforms and curated by the AI during Phase 1.3.",
+            file=sys.stderr,
+        )
+        print("See .trellis/workflow.md Phase 1.3 or run:", file=sys.stderr)
+        print(
+            "  python3 ./.trellis/scripts/get_context.py --mode phase --step 1.3",
+            file=sys.stderr,
+        )
+        print(
+            "Use `task.py add-context <dir> implement|check <path> <reason>` to append entries.",
+            file=sys.stderr,
+        )
+        return 2
+
     parser = argparse.ArgumentParser(
         description="Task Management Script",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -313,19 +343,6 @@ def main() -> int:
     p_create.add_argument("--description", "-d", help="Task description")
     p_create.add_argument("--parent", help="Parent task directory (establishes subtask link)")
     p_create.add_argument("--package", help="Package name for monorepo projects")
-
-    # init-context
-    p_init = subparsers.add_parser("init-context", help="Initialize context files")
-    p_init.add_argument("dir", help="Task directory")
-    p_init.add_argument("type", help="Dev type: backend|frontend|fullstack|test|docs")
-    p_init.add_argument("--package", help="Package name for monorepo projects")
-    p_init.add_argument(
-        "--platform",
-        help="Explicit platform (claude|codex|kiro|cursor|...). "
-             "Overrides auto-detection. Skills/commands pass this via "
-             "{{CLI_FLAG}} substitution so jsonl paths match the invoking "
-             "platform instead of filesystem guesswork.",
-    )
 
     # add-context
     p_add = subparsers.add_parser("add-context", help="Add context entry")
@@ -396,7 +413,6 @@ def main() -> int:
 
     commands = {
         "create": cmd_create,
-        "init-context": cmd_init_context,
         "add-context": cmd_add_context,
         "validate": cmd_validate,
         "list-context": cmd_list_context,
