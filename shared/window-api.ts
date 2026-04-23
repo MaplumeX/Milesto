@@ -25,6 +25,7 @@ import type { TaskCountProjectsProgressResult, TaskCountResult, TaskListItem } f
 import type { TaskSearchResultItem } from './schemas/search'
 import type { TaskDetail } from './schemas/task-detail'
 import type { ThemePreference, ThemeState } from './schemas/theme'
+import type { SyncConfig, SyncState } from './schemas/sync'
 import type { AreaDetail } from './schemas/area-detail'
 import type {
   TrashEmptyResult,
@@ -174,5 +175,12 @@ export type WindowApi = {
     create(input: ChecklistItemCreateInput): Promise<Result<ChecklistItem>>
     update(input: ChecklistItemUpdateInput): Promise<Result<ChecklistItem>>
     delete(id: string, scope?: EntityScope): Promise<Result<{ deleted: boolean }>>
+  }
+
+  sync: {
+    getState(): Promise<Result<SyncState>>
+    configure(config: SyncConfig): Promise<Result<void>>
+    disconnect(): Promise<Result<void>>
+    onStateChange(callback: (state: SyncState) => void): () => void
   }
 }

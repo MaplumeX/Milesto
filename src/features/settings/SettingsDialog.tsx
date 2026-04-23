@@ -1,8 +1,9 @@
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 
 import { GeneralSettingsPanel } from './GeneralSettingsPanel'
+import { SyncSettingsPanel } from './SyncSettingsPanel'
 
 const FOCUSABLE_SELECTOR = [
   'button:not([disabled])',
@@ -34,6 +35,7 @@ export function SettingsDialog({
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const titleId = useId()
+  const [activeTab, setActiveTab] = useState<'general' | 'sync'>('general')
 
   useEffect(() => {
     if (!isOpen) return
@@ -137,9 +139,26 @@ export function SettingsDialog({
           </button>
         </div>
 
+        <div className="settings-dialog-tabs">
+          <button
+            type="button"
+            className={`settings-dialog-tab ${activeTab === 'general' ? 'settings-dialog-tab--active' : ''}`}
+            onClick={() => setActiveTab('general')}
+          >
+            {t('settings.generalTab')}
+          </button>
+          <button
+            type="button"
+            className={`settings-dialog-tab ${activeTab === 'sync' ? 'settings-dialog-tab--active' : ''}`}
+            onClick={() => setActiveTab('sync')}
+          >
+            {t('settings.syncTab')}
+          </button>
+        </div>
+
         <div className="settings-dialog-body">
           <div className="settings-dialog-panel">
-            <GeneralSettingsPanel />
+            {activeTab === 'general' ? <GeneralSettingsPanel /> : <SyncSettingsPanel />}
           </div>
         </div>
       </div>

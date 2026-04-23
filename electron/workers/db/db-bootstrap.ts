@@ -396,4 +396,19 @@ function migrate(db: Database.Database) {
     `)
     db.pragma('user_version = 8')
   }
+
+  if (userVersion < 9) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS sync_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+
+      INSERT OR IGNORE INTO sync_state (key, value) VALUES ('last_sync_at', '');
+      INSERT OR IGNORE INTO sync_state (key, value) VALUES ('sync_enabled', 'false');
+      INSERT OR IGNORE INTO sync_state (key, value) VALUES ('server_url', '');
+      INSERT OR IGNORE INTO sync_state (key, value) VALUES ('sync_token', '');
+    `)
+    db.pragma('user_version = 9')
+  }
 }

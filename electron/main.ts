@@ -9,6 +9,8 @@ import type { AppError } from '../shared/app-error'
 import { err, ok, resultSchema } from '../shared/result'
 
 import { DbWorkerClient } from './workers/db/db-worker-client'
+import { SyncEngine } from './sync/sync-engine'
+import type { SyncState } from '../shared/schemas/sync'
 
 import { LocaleSchema, getSupportedLocales, normalizeLocale, type Locale } from '../shared/i18n/locale'
 import { translate } from '../shared/i18n/translate'
@@ -884,6 +886,102 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   handleDb('db:checklist.create', 'checklist.create', ChecklistItemCreateInputSchema, ChecklistItemSchema)
   handleDb('db:checklist.update', 'checklist.update', ChecklistItemUpdateInputSchema, ChecklistItemSchema)
   handleDb('db:checklist.delete', 'checklist.delete', ChecklistItemDeleteInputSchema, z.object({ deleted: z.boolean() }))
+
+  // Sync IPC handlers
+  const SyncConfigSchema = z.object({
+    serverUrl: z.string().url(),
+    token: z.string().min(1),
+    enabled: z.boolean(),
+  })
+  const SyncStateSchema = z.object({
+    status: z.enum(['disabled', 'connecting', 'connected', 'syncing', 'error', 'offline']),
+    lastSyncAt: z.string().datetime().nullable(),
+    lastError: z.string().nullable(),
+    pendingCount: z.number().int().min(0),
+  })
+  const SyncStateResultSchema = resultSchema(SyncStateSchema)
+
+  let syncEngine: SyncEngine | null = null
+
+  function broadcastSyncState(state: SyncState) {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('sync:stateChanged', state)
+    }
+  }
+
+  ipcMain.handle('sync:getState', async (event) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return SyncStateResultSchema.parse(err(senderErr))
+    return SyncStateResultSchema.parse(ok(syncEngine?.getState() ?? { status: 'disabled', lastSyncAt: null, lastError: null, pendingCount: 0 }))
+  })
+
+  ipcMain.handle('sync:configure', async (event, payload) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return ResultVoidSchema.parse(err(senderErr))
+
+    const parsed = SyncConfigSchema.safeParse(payload)
+    if (!parsed.success) {
+      return ResultVoidSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid sync config.',
+          details: { issues: parsed.error.issues },
+        })
+      )
+    }
+
+    if (!syncEngine) {
+      syncEngine = new SyncEngine({
+        dbWorker,
+        onStateChange: broadcastSyncState,
+      })
+    }
+
+    await syncEngine.configure(parsed.data)
+
+    await dbWorker.request('sync.setConfig', {
+      server_url: parsed.data.serverUrl,
+      sync_token: parsed.data.token,
+      sync_enabled: parsed.data.enabled,
+    })
+
+    return ResultVoidSchema.parse(ok(undefined))
+  })
+
+  ipcMain.handle('sync:disconnect', async (event) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return ResultVoidSchema.parse(err(senderErr))
+
+    if (syncEngine) {
+      await syncEngine.disconnect()
+    }
+
+    await dbWorker.request('sync.setConfig', {
+      server_url: '',
+      sync_token: '',
+      sync_enabled: false,
+    })
+
+    return ResultVoidSchema.parse(ok(undefined))
+  })
+
+  void (async () => {
+    const configRes = await dbWorker.request('sync.getState', {})
+    if (configRes.ok) {
+      const state = configRes.data as Record<string, string>
+      if (state.sync_enabled === 'true' && state.server_url && state.sync_token) {
+        syncEngine = new SyncEngine({
+          dbWorker,
+          onStateChange: broadcastSyncState,
+        })
+        await syncEngine.configure({
+          serverUrl: state.server_url,
+          token: state.sync_token,
+          enabled: true,
+        })
+      }
+    }
+  })()
 }
 
 // Quit when all windows are closed, except on macOS. There, it's common

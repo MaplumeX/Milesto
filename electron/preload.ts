@@ -148,6 +148,17 @@ const api: WindowApi = {
     update: (input) => invoke('db:checklist.update', input),
     delete: (id, scope) => invoke('db:checklist.delete', { id, scope }),
   },
+
+  sync: {
+    getState: () => invoke('sync:getState'),
+    configure: (config) => invoke('sync:configure', config),
+    disconnect: () => invoke('sync:disconnect'),
+    onStateChange: (callback) => {
+      const handler = (_event: unknown, state: unknown) => callback(state as import('../shared/schemas/sync').SyncState)
+      ipcRenderer.on('sync:stateChanged', handler)
+      return () => ipcRenderer.removeListener('sync:stateChanged', handler)
+    },
+  },
 }
 
 contextBridge.exposeInMainWorld('api', api)
