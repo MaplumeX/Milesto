@@ -14,25 +14,17 @@ Opening Settings MUST NOT navigate away from the current route or replace the cu
 - **THEN** the system opens a centered modal Settings dialog
 - **AND** the current underlying route remains unchanged
 
-### Requirement: Settings dialog organizes content into General and Sync tabs
-The Settings dialog MUST render a fixed top area containing a title, a close control, and exactly two tabs:
+### Requirement: Settings dialog organizes content as a single general settings surface
+The Settings dialog MUST render a fixed top area containing a title and a close control.
 
-- `General`
-- `Sync`
+The dialog body MUST present the general settings content directly, without a separate Sync tab or sync-specific controls.
 
-The `General` tab MUST contain non-sync settings, including language, theme, data transfer actions, and about information.
+The general settings content MUST include language, theme, data transfer actions, and about information.
 
-The `Sync` tab MUST contain the single-user S3 sync configuration, sync status, and sync control actions.
-
-#### Scenario: General tab shows non-sync settings
+#### Scenario: Dialog shows general settings directly
 - **WHEN** the user opens the Settings dialog
-- **THEN** the dialog shows a `General` tab and a `Sync` tab
-- **AND** the `General` tab contains language, theme, data transfer, and about sections
-
-#### Scenario: Sync tab isolates sync controls
-- **WHEN** the user switches to the `Sync` tab
-- **THEN** the dialog shows sync status and sync configuration content
-- **AND** non-sync settings are not shown in the active Sync panel
+- **THEN** the dialog shows language, theme, data transfer, and about sections directly
+- **AND** the dialog does not render a `Sync` tab or any sync configuration content
 
 ### Requirement: Settings dialog behaves as a standard modal surface
 When the Settings dialog is open, the system MUST lock background interaction and keep keyboard focus within the dialog.
@@ -56,4 +48,3 @@ When the dialog closes, the system MUST restore focus to the control that opened
 - **WHEN** the Settings dialog is open
 - **THEN** the user cannot interact with the underlying sidebar or page content
 - **AND** keyboard tab order remains trapped inside the dialog
-

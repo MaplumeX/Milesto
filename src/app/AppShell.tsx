@@ -30,7 +30,7 @@ import { ContentScrollProvider } from './ContentScrollContext'
 import { SidebarNavItem } from './SidebarNavItem'
 import { type OpenEditorHandle, TaskSelectionProvider } from '../features/tasks/TaskSelectionContext'
 import { ProjectProgressIndicator } from '../features/projects/ProjectProgressControl'
-import { SettingsDialog, type SettingsTabId } from '../features/settings/SettingsDialog'
+import { SettingsDialog } from '../features/settings/SettingsDialog'
 import { SearchPanel } from './SearchPanel'
 import { ContentBottomBarActions } from './ContentBottomBarActions'
 import { BottomBarActionButton } from './BottomBarActionButton'
@@ -188,7 +188,6 @@ export function AppShell() {
   const [openTaskId, setOpenTaskId] = useState<string | null>(null)
   const [createPopover, setCreatePopover] = useState<CreatePopover>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [settingsActiveTab, setSettingsActiveTab] = useState<SettingsTabId>('general')
   const createPopoverRef = useRef<CreatePopover>(createPopover)
   const settingsTriggerRef = useRef<HTMLButtonElement | null>(null)
   useEffect(() => {
@@ -289,8 +288,7 @@ export function AppShell() {
     }, 0)
   }, [])
 
-  const openSettingsDialog = useCallback((tab: SettingsTabId = 'general') => {
-    setSettingsActiveTab(tab)
+  const openSettingsDialog = useCallback(() => {
     setIsSettingsOpen(true)
   }, [])
 
@@ -1654,7 +1652,7 @@ export function AppShell() {
             data-settings-trigger="true"
             onClick={() => {
               closeCreatePopover({ restoreFocus: false })
-              openSettingsDialog('general')
+              openSettingsDialog()
             }}
           >
             {t('nav.settings')}
@@ -1745,9 +1743,7 @@ export function AppShell() {
         <SearchPanel />
         <SettingsDialog
           isOpen={isSettingsOpen}
-          activeTab={settingsActiveTab}
           onClose={() => closeSettingsDialog({ restoreFocus: true })}
-          onTabChange={setSettingsActiveTab}
         />
       </div>
       </ContentScrollProvider>

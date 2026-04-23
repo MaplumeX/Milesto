@@ -305,15 +305,15 @@ describe('task context menu', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'taskEditor.tagsLabel' }))
 
-    const homeCheckbox = await screen.findByRole('checkbox', { name: 'Home' })
-    fireEvent.click(homeCheckbox)
+    const homeOption = await screen.findByRole('button', { name: 'Home' })
+    fireEvent.click(homeOption)
 
     await waitFor(() => {
       expect(api.task.getDetail).toHaveBeenCalledWith('t1', 'active')
       expect(api.tag.list).toHaveBeenCalledTimes(1)
       expect(api.task.setTags).toHaveBeenCalledWith('t1', ['tag-1', 'tag-2'], 'active')
     })
-    expect(screen.getByRole('checkbox', { name: 'Home' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Home' })).toBeInTheDocument()
   })
 
   it('completes open tasks immediately from the menu root and closes on success', async () => {

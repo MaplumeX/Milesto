@@ -361,88 +361,6 @@ function migrate(db: Database.Database) {
       `)
     }
 
-    stmts.push(`
-      CREATE TABLE IF NOT EXISTS sync_device_state (
-        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-        device_id TEXT NOT NULL UNIQUE,
-        device_name TEXT NOT NULL,
-        sync_enabled INTEGER NOT NULL DEFAULT 0,
-        last_local_hlc TEXT,
-        last_successful_sync_at TEXT,
-        last_attempted_sync_at TEXT,
-        last_error_code TEXT,
-        last_error_message TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        CHECK (sync_enabled IN (0, 1))
-      );
-
-      CREATE TABLE IF NOT EXISTS sync_outbox_batches (
-        batch_id TEXT PRIMARY KEY,
-        device_id TEXT NOT NULL,
-        sequence_number INTEGER NOT NULL UNIQUE,
-        version TEXT NOT NULL,
-        batch_json TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        retry_count INTEGER NOT NULL DEFAULT 0,
-        last_error_code TEXT,
-        last_error_message TEXT,
-        uploaded_at TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        CHECK (status IN ('pending', 'uploaded'))
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_sync_outbox_status_sequence
-      ON sync_outbox_batches(status, sequence_number);
-
-      CREATE TABLE IF NOT EXISTS sync_remote_cursors (
-        source_device_id TEXT PRIMARY KEY,
-        last_applied_sequence INTEGER NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS sync_field_versions (
-        entity_type TEXT NOT NULL,
-        entity_id TEXT NOT NULL,
-        field_name TEXT NOT NULL,
-        version TEXT NOT NULL,
-        device_id TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        PRIMARY KEY (entity_type, entity_id, field_name)
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_sync_field_versions_entity
-      ON sync_field_versions(entity_type, entity_id);
-
-      CREATE TABLE IF NOT EXISTS sync_list_versions (
-        list_scope TEXT PRIMARY KEY,
-        version TEXT NOT NULL,
-        device_id TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS sync_conflict_events (
-        id TEXT PRIMARY KEY,
-        scope TEXT NOT NULL,
-        source_device_id TEXT NOT NULL,
-        incoming_version TEXT NOT NULL,
-        winning_version TEXT NOT NULL,
-        code TEXT NOT NULL,
-        message TEXT NOT NULL,
-        created_at TEXT NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_sync_conflict_events_created_at
-      ON sync_conflict_events(created_at DESC);
-
-      CREATE TABLE IF NOT EXISTS sync_credentials (
-        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-        encrypted_blob TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-    `)
-
     db.exec(stmts.join('\n'))
     db.pragma('user_version = 6')
   }
@@ -462,5 +380,20 @@ function migrate(db: Database.Database) {
 
     if (stmts.length > 0) db.exec(stmts.join('\n'))
     db.pragma('user_version = 7')
+  }
+
+  if (userVersion < 8) {
+    db.exec(`
+      DELETE FROM app_settings WHERE key = 'sync.config';
+
+      DROP TABLE IF EXISTS sync_credentials;
+      DROP TABLE IF EXISTS sync_conflict_events;
+      DROP TABLE IF EXISTS sync_list_versions;
+      DROP TABLE IF EXISTS sync_field_versions;
+      DROP TABLE IF EXISTS sync_remote_cursors;
+      DROP TABLE IF EXISTS sync_outbox_batches;
+      DROP TABLE IF EXISTS sync_device_state;
+    `)
+    db.pragma('user_version = 8')
   }
 }

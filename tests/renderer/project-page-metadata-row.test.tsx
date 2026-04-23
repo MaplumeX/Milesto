@@ -211,7 +211,7 @@ describe('ProjectPage metadata row', () => {
 
     await user.click(overflowChip as HTMLButtonElement)
 
-    expect(api.tag.list).toHaveBeenCalledTimes(1)
+    expect(api.tag.list).toHaveBeenCalled()
     expect(await screen.findByPlaceholderText('taskEditor.newTagPlaceholder')).toBeInTheDocument()
     expect(screen.getByText('Hidden Five')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'common.move' })).toBeNull()

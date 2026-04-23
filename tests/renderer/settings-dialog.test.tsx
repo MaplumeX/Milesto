@@ -71,20 +71,15 @@ describe('Settings dialog', () => {
     expect(screen.getByTestId('settings-route-probe')).toHaveTextContent('/today')
   })
 
-  it('switches between General and Sync tabs inside the dialog', async () => {
+  it('renders the general settings content without sync tabs', async () => {
     const user = userEvent.setup()
 
     renderAppShell('/today')
 
     await user.click(await screen.findByRole('button', { name: 'nav.settings' }))
 
-    expect(await screen.findByRole('tab', { name: 'settings.generalTab' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByRole('dialog', { name: 'settings.title' })).toBeInTheDocument()
     expect(screen.getByText('settings.language')).toBeInTheDocument()
-
-    await user.click(screen.getByRole('tab', { name: 'settings.syncTab' }))
-
-    expect(screen.getByRole('tab', { name: 'settings.syncTab' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByTestId('settings-sync-panel')).toBeInTheDocument()
-    expect(screen.queryByText('settings.language')).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument()
   })
 })

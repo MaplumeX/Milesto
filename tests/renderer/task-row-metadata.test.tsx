@@ -49,9 +49,9 @@ describe('TaskRow metadata preview', () => {
 
     const items = Array.from(cluster?.querySelectorAll<HTMLElement>('[data-task-row-meta-kind]') ?? [])
     expect(items.map((item) => item.dataset.taskRowMetaKind)).toEqual(['schedule', 'due', 'tags'])
-    expect(items[0]?.textContent).toContain('taskEditor.scheduledPrefix')
+    expect(items[0]?.getAttribute('title')).toContain('taskEditor.scheduledPrefix')
     expect(items[0]?.textContent).toContain('2026-03-26')
-    expect(items[1]?.textContent).toContain('taskEditor.duePrefix')
+    expect(items[1]?.getAttribute('title')).toContain('taskEditor.duePrefix')
     expect(items[1]?.textContent).toContain('2026-03-28')
     expect(items[2]?.textContent).toContain('Urgent')
     expect(items[2]?.textContent).toContain('Home')

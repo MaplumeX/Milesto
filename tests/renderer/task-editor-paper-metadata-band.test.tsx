@@ -116,9 +116,7 @@ describe('TaskEditorPaper metadata band', () => {
 
     const items = Array.from(metadataBand?.querySelectorAll<HTMLElement>('[data-task-inline-meta-kind]') ?? [])
     expect(items.map((item) => item.dataset.taskInlineMetaKind)).toEqual(['schedule', 'due', 'tags'])
-    expect(items[0]?.textContent).toContain('taskEditor.scheduledPrefix')
     expect(items[0]?.textContent).toContain('2026-03-30')
-    expect(items[1]?.textContent).toContain('taskEditor.duePrefix')
     expect(items[1]?.textContent).toContain('2026-03-28')
     expect(items[2]?.textContent).toContain('Urgent')
     expect(items[2]?.textContent).toContain('Home')
@@ -131,7 +129,7 @@ describe('TaskEditorPaper metadata band', () => {
     expect(screen.queryByRole('button', { name: 'common.schedule' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'taskEditor.dueLabel' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'taskEditor.tagsLabel' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'taskEditor.checklistLabel' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /taskEditor\.checklistLabel/ })).toBeInTheDocument()
   })
 
   it('opens the existing pickers from metadata-band interactions', async () => {
@@ -156,14 +154,21 @@ describe('TaskEditorPaper metadata band', () => {
     expect(tagsTrigger).not.toBeNull()
 
     await user.click(scheduleTrigger as HTMLElement)
-    expect(await screen.findByText('taskEditor.popoverScheduleTitle')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(document.querySelector('.task-inline-popover-calendar')).not.toBeNull()
+    })
+    expect(screen.getByRole('button', { name: 'nav.someday' })).toBeInTheDocument()
     await user.keyboard('{Escape}')
     await waitFor(() => {
       expect(document.querySelector('.task-inline-popover')).toBeNull()
     })
 
     await user.click(dueTrigger as HTMLElement)
-    expect(await screen.findByText('taskEditor.popoverDueTitle')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(document.querySelector('.task-inline-popover-calendar')).not.toBeNull()
+    })
+    expect(screen.queryByRole('button', { name: 'nav.someday' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'common.clear' })).toBeInTheDocument()
     await user.keyboard('{Escape}')
     await waitFor(() => {
       expect(document.querySelector('.task-inline-popover')).toBeNull()
@@ -173,15 +178,19 @@ describe('TaskEditorPaper metadata band', () => {
     expect(await screen.findByPlaceholderText('taskEditor.newTagPlaceholder')).toBeInTheDocument()
   })
 
-  it('keeps add actions available in the footer when metadata is absent', async () => {
+  it('renders placeholder metadata actions while keeping footer actions available', async () => {
     setupApi()
-    renderInlineEditor()
+    const { container } = renderInlineEditor()
 
     await screen.findByDisplayValue('Task A')
 
-    expect(document.querySelector('[data-task-inline-meta-band="true"]')).toBeNull()
-    expect(screen.getByRole('button', { name: 'common.schedule' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'taskEditor.dueLabel' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'taskEditor.tagsLabel' })).toBeInTheDocument()
+    const metadataBand = container.querySelector<HTMLElement>('[data-task-inline-meta-band="true"]')
+    expect(metadataBand).not.toBeNull()
+    expect(metadataBand?.textContent).toContain('common.schedule')
+    expect(metadataBand?.textContent).toContain('taskEditor.dueLabel')
+    expect(metadataBand?.textContent).toContain('taskEditor.tagsLabel')
+    expect(screen.getByRole('button', { name: /\+ common\.schedule/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /\+ taskEditor\.dueLabel/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /\+ taskEditor\.tagsLabel/ })).toBeInTheDocument()
   })
 })

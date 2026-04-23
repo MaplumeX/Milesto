@@ -1,10 +1,8 @@
-import type Database from 'better-sqlite3'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { buildDbHandlers } from '../../electron/workers/db/db-handlers'
 import { dispatchDbRequest } from '../../electron/workers/db/db-dispatch'
 import type { DbActionHandler } from '../../electron/workers/db/actions/db-actions'
-import type { SyncBatch } from '../../shared/schemas/sync'
 import { taskListIdProject } from '../../shared/task-list-ids'
 import { createTestDb } from './db-test-helper'
 
@@ -21,23 +19,6 @@ function run<T>(handlers: Record<string, DbActionHandler>, action: string, paylo
   }) as Res<T>
 }
 
-function readLatestBatch(db: Database.Database): SyncBatch {
-  const row = db
-    .prepare(
-      `SELECT batch_json
-       FROM sync_outbox_batches
-       ORDER BY sequence_number DESC
-       LIMIT 1`
-    )
-    .get() as { batch_json: string } | undefined
-
-  if (!row) {
-    throw new Error('expected sync_outbox_batches row')
-  }
-
-  return JSON.parse(row.batch_json) as SyncBatch
-}
-
 describe('project.section.move', () => {
   let cleanup: (() => Promise<void>) | null = null
 
@@ -46,7 +27,7 @@ describe('project.section.move', () => {
     cleanup = null
   })
 
-  it('moves a section to another open project, migrates task ordering, and records sync mutations', async () => {
+  it('moves a section to another open project and migrates task ordering', async () => {
     const testDb = await createTestDb()
     cleanup = testDb.cleanup
 
@@ -152,11 +133,12 @@ describe('project.section.move', () => {
          ORDER BY id ASC`
       )
       .all(movedSection.data.id) as Array<{ id: string; project_id: string; section_id: string | null }>
-    expect(movedTaskRows).toEqual([
+    const expectedMovedTaskRows = [
       { id: task1.data.id, project_id: targetProject.data.id, section_id: movedSection.data.id },
       { id: task2.data.id, project_id: targetProject.data.id, section_id: movedSection.data.id },
       { id: task3.data.id, project_id: targetProject.data.id, section_id: movedSection.data.id },
-    ])
+    ].sort((left, right) => left.id.localeCompare(right.id))
+    expect(movedTaskRows).toEqual(expectedMovedTaskRows)
 
     const sourceListRows = db
       .prepare(
@@ -181,70 +163,6 @@ describe('project.section.move', () => {
       { task_id: task3.data.id, rank: 3000 },
     ])
 
-    const batch = readLatestBatch(db)
-    expect(batch.operations).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          kind: 'entity.put',
-          entity_type: 'project_section',
-          changed_fields: expect.arrayContaining(['project_id', 'position', 'updated_at']),
-          entity: expect.objectContaining({
-            id: movedSection.data.id,
-            project_id: targetProject.data.id,
-          }),
-        }),
-        expect.objectContaining({
-          kind: 'entity.put',
-          entity_type: 'task',
-          changed_fields: expect.arrayContaining(['project_id', 'updated_at']),
-          entity: expect.objectContaining({
-            id: task1.data.id,
-            project_id: targetProject.data.id,
-            section_id: movedSection.data.id,
-          }),
-        }),
-        expect.objectContaining({
-          kind: 'entity.put',
-          entity_type: 'task',
-          changed_fields: expect.arrayContaining(['project_id', 'updated_at']),
-          entity: expect.objectContaining({
-            id: task2.data.id,
-            project_id: targetProject.data.id,
-            section_id: movedSection.data.id,
-          }),
-        }),
-        expect.objectContaining({
-          kind: 'entity.put',
-          entity_type: 'task',
-          changed_fields: expect.arrayContaining(['project_id', 'updated_at']),
-          entity: expect.objectContaining({
-            id: task3.data.id,
-            project_id: targetProject.data.id,
-            section_id: movedSection.data.id,
-          }),
-        }),
-        expect.objectContaining({
-          kind: 'list.put',
-          list_scope: `project-sections:${sourceProject.data.id}`,
-          ordered_ids: [sourceA.data.id, sourceC.data.id],
-        }),
-        expect.objectContaining({
-          kind: 'list.put',
-          list_scope: `project-sections:${targetProject.data.id}`,
-          ordered_ids: [targetA.data.id, targetB.data.id, movedSection.data.id],
-        }),
-        expect.objectContaining({
-          kind: 'list.put',
-          list_scope: `task-list:${sourceListId}`,
-          ordered_ids: [],
-        }),
-        expect.objectContaining({
-          kind: 'list.put',
-          list_scope: `task-list:${targetListId}`,
-          ordered_ids: [task2.data.id, task1.data.id, task3.data.id],
-        }),
-      ])
-    )
   })
 
   it('treats moving into the current project as a no-op', async () => {
@@ -265,10 +183,6 @@ describe('project.section.move', () => {
     expect(section.ok).toBe(true)
     if (!section.ok) return
 
-    const outboxCountBefore = db
-      .prepare('SELECT COUNT(1) AS count FROM sync_outbox_batches')
-      .get() as { count: number }
-
     const result = run<{ moved: boolean }>(handlers, 'project.section.move', {
       id: section.data.id,
       target_project_id: project.data.id,
@@ -283,11 +197,6 @@ describe('project.section.move', () => {
       )
       .get(section.data.id) as { project_id: string; position: number } | undefined
     expect(row).toEqual({ project_id: project.data.id, position: 1000 })
-
-    const outboxCountAfter = db
-      .prepare('SELECT COUNT(1) AS count FROM sync_outbox_batches')
-      .get() as { count: number }
-    expect(outboxCountAfter.count).toBe(outboxCountBefore.count)
   })
 
   it('rejects closed target projects', async () => {

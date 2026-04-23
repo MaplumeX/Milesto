@@ -3,7 +3,6 @@ import { vi } from 'vitest'
 import { err, ok } from '../../shared/result'
 import type { AppError } from '../../shared/app-error'
 import type { WindowApi } from '../../shared/window-api'
-import type { SyncCredentials, SyncState } from '../../shared/schemas/sync'
 
 const unimplementedError: AppError = {
   code: 'TEST_UNIMPLEMENTED',
@@ -11,21 +10,6 @@ const unimplementedError: AppError = {
 }
 
 export function createWindowApiMock(): WindowApi {
-  const syncState: SyncState = {
-    enabled: false,
-    mode: 'disabled',
-    device_id: 'test-device',
-    device_name: 'Test Device',
-    config: null,
-    has_stored_credentials: false,
-    pending_outbox_count: 0,
-    last_successful_sync_at: null,
-    last_attempted_sync_at: null,
-    last_error: null,
-  }
-
-  const syncCredentialsErrorResult = err<SyncCredentials>(unimplementedError)
-
   return {
     app: {
       getVersion: vi.fn<WindowApi['app']['getVersion']>(async () => ok('0.0.0')),
@@ -57,16 +41,6 @@ export function createWindowApiMock(): WindowApi {
       setThemePreference: vi.fn<WindowApi['settings']['setThemePreference']>(
         async (preference) => ok({ preference, effectiveTheme: preference === 'dark' ? 'dark' : 'light' })
       ),
-    },
-
-    sync: {
-      getState: vi.fn<WindowApi['sync']['getState']>(async () => ok(syncState)),
-      getCredentials: vi.fn<WindowApi['sync']['getCredentials']>(async () => syncCredentialsErrorResult),
-      testConnection: vi.fn<WindowApi['sync']['testConnection']>(async () => ok({ reachable: true })),
-      saveConfiguration: vi.fn<WindowApi['sync']['saveConfiguration']>(async () => ok(syncState)),
-      enable: vi.fn<WindowApi['sync']['enable']>(async () => ok(syncState)),
-      disable: vi.fn<WindowApi['sync']['disable']>(async () => ok(syncState)),
-      syncNow: vi.fn<WindowApi['sync']['syncNow']>(async () => ok(syncState)),
     },
 
     trash: {

@@ -1,9 +1,8 @@
-import { useEffect, useId, useMemo, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 
 import { GeneralSettingsPanel } from './GeneralSettingsPanel'
-import { SyncSettingsPanel } from './SyncSettingsPanel'
 
 const FOCUSABLE_SELECTOR = [
   'button:not([disabled])',
@@ -13,8 +12,6 @@ const FOCUSABLE_SELECTOR = [
   'textarea:not([disabled])',
   '[tabindex]:not([tabindex="-1"])',
 ].join(', ')
-
-export type SettingsTabId = 'general' | 'sync'
 
 function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
   if (!container) return []
@@ -28,30 +25,15 @@ function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
 
 export function SettingsDialog({
   isOpen,
-  activeTab,
   onClose,
-  onTabChange,
 }: {
   isOpen: boolean
-  activeTab: SettingsTabId
   onClose: () => void
-  onTabChange: (tab: SettingsTabId) => void
 }) {
   const { t } = useTranslation()
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const titleId = useId()
-  const generalTabId = useId()
-  const syncTabId = useId()
-
-  const tabs = useMemo(
-    () =>
-      [
-        { id: 'general' as const, label: t('settings.generalTab'), tabId: generalTabId },
-        { id: 'sync' as const, label: t('settings.syncTab'), tabId: syncTabId },
-      ] satisfies Array<{ id: SettingsTabId; label: string; tabId: string }>,
-    [generalTabId, syncTabId, t]
-  )
 
   useEffect(() => {
     if (!isOpen) return
@@ -141,27 +123,6 @@ export function SettingsDialog({
             <h2 id={titleId} className="settings-dialog-title">
               {t('settings.title')}
             </h2>
-
-            <div className="settings-dialog-tablist" role="tablist" aria-label={t('settings.title')}>
-              {tabs.map((tab) => {
-                const isSelected = tab.id === activeTab
-                return (
-                  <button
-                    key={tab.id}
-                    id={tab.tabId}
-                    type="button"
-                    role="tab"
-                    className="settings-dialog-tab"
-                    aria-selected={isSelected}
-                    aria-controls={`settings-panel-${tab.id}`}
-                    tabIndex={isSelected ? 0 : -1}
-                    onClick={() => onTabChange(tab.id)}
-                  >
-                    {tab.label}
-                  </button>
-                )
-              })}
-            </div>
           </div>
 
           <button
@@ -177,27 +138,9 @@ export function SettingsDialog({
         </div>
 
         <div className="settings-dialog-body">
-          {activeTab === 'general' ? (
-            <div
-              id="settings-panel-general"
-              className="settings-dialog-panel"
-              role="tabpanel"
-              aria-labelledby={generalTabId}
-            >
-              <GeneralSettingsPanel />
-            </div>
-          ) : null}
-
-          {activeTab === 'sync' ? (
-            <div
-              id="settings-panel-sync"
-              className="settings-dialog-panel"
-              role="tabpanel"
-              aria-labelledby={syncTabId}
-            >
-              <SyncSettingsPanel />
-            </div>
-          ) : null}
+          <div className="settings-dialog-panel">
+            <GeneralSettingsPanel />
+          </div>
         </div>
       </div>
     </div>,

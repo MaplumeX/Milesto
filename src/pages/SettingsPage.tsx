@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next'
 
 import { GeneralSettingsPanel } from '../features/settings/GeneralSettingsPanel'
-import { SyncSettingsPanel } from '../features/settings/SyncSettingsPanel'
 
 export function SettingsPage() {
   const { t } = useTranslation()
@@ -14,7 +13,6 @@ export function SettingsPage() {
 
       <div className="settings-page-stack">
         <GeneralSettingsPanel />
-        <SyncSettingsPanel />
       </div>
     </div>
   )

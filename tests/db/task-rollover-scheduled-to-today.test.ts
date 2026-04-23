@@ -130,7 +130,7 @@ describe('task.rolloverScheduledToToday', () => {
     expect(pastRow2.updated_at).toBe(pastRow1.updated_at)
   })
 
-  it('records rollover mutations into a new sync outbox batch', async () => {
+  it('updates the scheduled date when rollover runs', async () => {
     const testDb = await createTestDb()
     cleanup = testDb.cleanup
 
@@ -145,11 +145,7 @@ describe('task.rolloverScheduledToToday', () => {
     })
     expect(created.ok).toBe(true)
     if (!created.ok) return
-
-    const beforeCount = db
-      .prepare('SELECT COUNT(1) AS count FROM sync_outbox_batches')
-      .get() as { count: number }
-    expect(beforeCount.count).toBe(1)
+    const taskId = (created.data as { id: string }).id
 
     const rolled = dispatchDbRequest(handlers, {
       id: '2',
@@ -159,41 +155,13 @@ describe('task.rolloverScheduledToToday', () => {
     })
     expect(rolled.ok).toBe(true)
 
-    const afterCount = db
-      .prepare('SELECT COUNT(1) AS count FROM sync_outbox_batches')
-      .get() as { count: number }
-    expect(afterCount.count).toBe(2)
-
-    const latestBatchRow = db
+    const row = db
       .prepare(
-        `SELECT batch_json
-         FROM sync_outbox_batches
-         ORDER BY sequence_number DESC
-         LIMIT 1`
+        `SELECT scheduled_at
+         FROM tasks
+         WHERE id = ?`
       )
-      .get() as { batch_json: string }
-
-    const latestBatch = JSON.parse(latestBatchRow.batch_json) as {
-      operations: Array<{
-        kind: string
-        entity_type?: string
-        changed_fields?: string[]
-        entity?: { id?: string; scheduled_at?: string | null }
-      }>
-    }
-
-    expect(latestBatch.operations).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          kind: 'entity.put',
-          entity_type: 'task',
-          changed_fields: expect.arrayContaining(['scheduled_at', 'updated_at']),
-          entity: expect.objectContaining({
-            id: (created.data as { id: string }).id,
-            scheduled_at: '2026-02-15',
-          }),
-        }),
-      ])
-    )
+      .get(taskId) as { scheduled_at: string | null } | undefined
+    expect(row).toEqual({ scheduled_at: '2026-02-15' })
   })
 })

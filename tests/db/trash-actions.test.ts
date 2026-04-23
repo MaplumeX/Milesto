@@ -1,4 +1,3 @@
-import type Database from 'better-sqlite3'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { buildDbHandlers } from '../../electron/workers/db/db-handlers'
@@ -7,7 +6,6 @@ import { dispatchDbRequest } from '../../electron/workers/db/db-dispatch'
 import { createTestDb } from './db-test-helper'
 
 import type { DbWorkerRequest } from '../../shared/db-worker-protocol'
-import type { SyncBatch } from '../../shared/schemas/sync'
 
 type Ok<T> = { ok: true; data: T }
 type Err = { ok: false; error: { code: string; message: string; details?: unknown } }
@@ -37,23 +35,6 @@ function run<T>(handlers: Record<string, DbActionHandler>, action: string, paylo
     action,
     payload,
   } satisfies DbWorkerRequest) as Res<T>
-}
-
-function readLatestBatch(db: Database.Database): SyncBatch {
-  const row = db
-    .prepare(
-      `SELECT batch_json
-       FROM sync_outbox_batches
-       ORDER BY sequence_number DESC
-       LIMIT 1`
-    )
-    .get() as { batch_json: string } | undefined
-
-  if (!row) {
-    throw new Error('expected sync_outbox_batches row')
-  }
-
-  return JSON.parse(row.batch_json) as SyncBatch
 }
 
 describe('trash DB contract', () => {
@@ -360,7 +341,7 @@ describe('trash DB contract', () => {
     })
   })
 
-  it('permanently removes roots and records purged_at in sync metadata', async () => {
+  it('permanently removes roots and records purged_at', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-16T14:00:00.000Z'))
 
@@ -428,30 +409,6 @@ describe('trash DB contract', () => {
 
     expect(purgedTaskRow.deleted_at).toBe('2026-03-16T14:05:00.000Z')
     expect(purgedTaskRow.purged_at).toBe('2026-03-16T14:10:00.000Z')
-
-    const latestBatch = readLatestBatch(db)
-    expect(latestBatch.operations).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          kind: 'entity.put',
-          entity_type: 'task',
-          changed_fields: expect.arrayContaining(['purged_at', 'updated_at']),
-          entity: expect.objectContaining({
-            id: purgedTask.data.id,
-            purged_at: '2026-03-16T14:10:00.000Z',
-          }),
-        }),
-      ])
-    )
-
-    const purgedVersionRow = db
-      .prepare(
-        `SELECT version
-         FROM sync_field_versions
-         WHERE entity_type = 'task' AND entity_id = ? AND field_name = 'purged_at'`
-      )
-      .get(purgedTask.data.id) as { version: string } | undefined
-    expect(purgedVersionRow?.version).toEqual(expect.any(String))
 
     const restoreAfterPurge = run<{ restored: boolean }>(handlers, 'trash.restoreTask', {
       id: purgedTask.data.id,
