@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 3
-- **Last Active**: 2026-04-22
+- **Total Sessions**: 4
+- **Last Active**: 2026-04-23
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~106 | Active |
+| `journal-1.md` | ~139 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 4 | 2026-04-23 | Remove cloud sync support | `071354c` | `master` |
 | 3 | 2026-04-22 | 重构标签编辑器：统一为 TagPicker 组件 | `eebbe03` | `master` |
 | 2 | 2026-04-22 | 标签筛选功能实现 | `42559ac` | `master` |
 | 1 | 2026-04-18 | 任务元数据 UI 重设计（方案 A - 紧凑图标化） | `01576a2` | `master` |

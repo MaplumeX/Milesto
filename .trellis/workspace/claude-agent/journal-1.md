@@ -104,3 +104,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: Remove cloud sync support
+
+**Date**: 2026-04-23
+**Task**: Remove cloud sync support
+**Branch**: `master`
+
+### Summary
+
+Removed cloud sync UI, IPC, main-process runtime, DB sync metadata, AWS dependency, and related tests/specs.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `071354c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
