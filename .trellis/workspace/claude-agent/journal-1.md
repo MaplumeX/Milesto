@@ -171,3 +171,51 @@ Removed cloud sync UI, IPC, main-process runtime, DB sync metadata, AWS dependen
 ### Next Steps
 
 - None - task complete
+
+---
+
+## Session 2: 服务端 SQLite → PostgreSQL 升级
+
+**Date**: 2026-04-23
+**Task**: 服务端 SQLite → PostgreSQL 升级
+**Branch**: `master` (milesto-server)
+
+### Summary
+
+将 Milesto 同步服务端数据库从 SQLite (better-sqlite3) 迁移至 PostgreSQL (pg 驱动)。所有 DB 操作从同步 API 改为异步 Pool.query。修复了 WebSocket async 异常处理、非原子 LWW upsert 竞态、shutdown 顺序等问题。Docker Compose 新增 postgres 服务及健康检查依赖。
+
+### Main Changes
+
+- `src/db.ts`: 重写为 `pg.Pool` 异步 API；原子化 LWW upsert (`ON CONFLICT DO UPDATE WHERE`)
+- `src/server.ts`: `handlePush`/`handleFetch` 异步化；WebSocket message handler 增加 try-catch
+- `src/index.ts`: `async main()`；健康检查错误处理；优雅关闭顺序
+- `src/config.ts`: `DATA_DIR` → `DATABASE_URL`
+- `src/server.test.ts`: 适配 PostgreSQL 异步查询
+- `docker-compose.yml`: 新增 postgres 服务，带健康检查依赖
+- `Dockerfile`: 移除 SQLite 构建依赖
+- `package.json`: 替换依赖 (`better-sqlite3` → `pg`)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a2635b5` | feat(db): migrate from SQLite to PostgreSQL |
+
+### Testing
+
+- [OK] TypeScript `tsc --noEmit` 通过
+- [OK] 11/11 集成测试通过（需 PostgreSQL 实例）
+
+### Spec Updates
+
+- 新增 `.trellis/spec/server/` 层
+  - `error-handling.md`: WebSocket async 异常处理、原子 upsert、优雅关闭
+  - `sync-protocol.md`: WebSocket 消息契约文档
+
+### Status
+
+[OK] **Completed** — 任务已归档至 `.trellis/tasks/archive/2026-04/04-23-sync-upgrade`
+
+### Next Steps
+
+- 在 `milesto-server` 目录运行 `docker compose up -d` 启动 PostgreSQL + 服务端
