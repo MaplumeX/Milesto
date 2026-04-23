@@ -411,4 +411,20 @@ function migrate(db: Database.Database) {
     `)
     db.pragma('user_version = 9')
   }
+
+  // Defensive: some dev environments may have an inconsistent schema
+  // where user_version >= 9 but sync_state is missing.
+  if (!hasTable('sync_state')) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS sync_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+
+      INSERT OR IGNORE INTO sync_state (key, value) VALUES ('last_sync_at', '');
+      INSERT OR IGNORE INTO sync_state (key, value) VALUES ('sync_enabled', 'false');
+      INSERT OR IGNORE INTO sync_state (key, value) VALUES ('server_url', '');
+      INSERT OR IGNORE INTO sync_state (key, value) VALUES ('sync_token', '');
+    `)
+  }
 }

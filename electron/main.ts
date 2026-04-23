@@ -915,10 +915,33 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     }
   }
 
+  const SyncConfigResultSchema = resultSchema(
+    z.object({
+      serverUrl: z.string(),
+      token: z.string(),
+      enabled: z.boolean(),
+    })
+  )
+
   ipcMain.handle('sync:getState', async (event) => {
     const senderErr = ensureTrustedSender(event)
     if (senderErr) return SyncStateResultSchema.parse(err(senderErr))
     return SyncStateResultSchema.parse(ok(syncEngine?.getState() ?? { status: 'disabled', lastSyncAt: null, lastError: null, pendingCount: 0 }))
+  })
+
+  ipcMain.handle('sync:getConfig', async (event) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return SyncConfigResultSchema.parse(err(senderErr))
+
+    const res = await dbWorker.request('sync.getConfig', {})
+    if (!res.ok) return SyncConfigResultSchema.parse(err(res.error))
+
+    const data = res.data as { server_url: string; sync_token: string; sync_enabled: boolean }
+    return SyncConfigResultSchema.parse(ok({
+      serverUrl: data.server_url,
+      token: data.sync_token,
+      enabled: data.sync_enabled,
+    }))
   })
 
   ipcMain.handle('sync:configure', async (event, payload) => {

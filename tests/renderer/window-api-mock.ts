@@ -138,6 +138,9 @@ export function createWindowApiMock(): WindowApi {
       getState: vi.fn<WindowApi['sync']['getState']>(async () =>
         ok({ status: 'disabled', lastSyncAt: null, lastError: null, pendingCount: 0 })
       ),
+      getConfig: vi.fn<WindowApi['sync']['getConfig']>(async () =>
+        ok({ serverUrl: '', token: '', enabled: false })
+      ),
       configure: vi.fn<WindowApi['sync']['configure']>(async () => ok(undefined)),
       disconnect: vi.fn<WindowApi['sync']['disconnect']>(async () => ok(undefined)),
       onStateChange: vi.fn<WindowApi['sync']['onStateChange']>(() => () => {}),

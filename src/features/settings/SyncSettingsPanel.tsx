@@ -19,9 +19,15 @@ export function SyncSettingsPanel() {
 
   useEffect(() => {
     void (async () => {
-      const res = await window.api.sync.getState()
-      if (res.ok) {
-        setSyncState(res.data)
+      const stateRes = await window.api.sync.getState()
+      if (stateRes.ok) {
+        setSyncState(stateRes.data)
+      }
+
+      const configRes = await window.api.sync.getConfig()
+      if (configRes.ok && configRes.data.enabled) {
+        setServerUrl(configRes.data.serverUrl)
+        setToken(configRes.data.token)
       }
     })()
 

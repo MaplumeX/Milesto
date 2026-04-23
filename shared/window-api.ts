@@ -179,6 +179,7 @@ export type WindowApi = {
 
   sync: {
     getState(): Promise<Result<SyncState>>
+    getConfig(): Promise<Result<{ serverUrl: string; token: string; enabled: boolean }>>
     configure(config: SyncConfig): Promise<Result<void>>
     disconnect(): Promise<Result<void>>
     onStateChange(callback: (state: SyncState) => void): () => void

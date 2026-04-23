@@ -9,6 +9,21 @@ export function createSyncActions(db: Database.Database): Record<string, DbActio
       return { ok: true, data: state }
     },
 
+    'sync.getConfig': () => {
+      const row = db.prepare(
+        `SELECT key, value FROM sync_state WHERE key IN ('server_url', 'sync_token', 'sync_enabled')`
+      ).all() as Array<{ key: string; value: string }>
+      const map = Object.fromEntries(row.map((r) => [r.key, r.value]))
+      return {
+        ok: true,
+        data: {
+          server_url: map.server_url || '',
+          sync_token: map.sync_token || '',
+          sync_enabled: map.sync_enabled === 'true',
+        },
+      }
+    },
+
     'sync.setConfig': (payload) => {
       const { server_url, sync_token, sync_enabled } = payload as {
         server_url: string

@@ -151,6 +151,7 @@ const api: WindowApi = {
 
   sync: {
     getState: () => invoke('sync:getState'),
+    getConfig: () => invoke('sync:getConfig'),
     configure: (config) => invoke('sync:configure', config),
     disconnect: () => invoke('sync:disconnect'),
     onStateChange: (callback) => {
