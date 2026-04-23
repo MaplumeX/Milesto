@@ -18,7 +18,7 @@ export default defineConfig({
           build: {
             rollupOptions: {
               // Native modules must be externalized (built/rebuilt per target OS).
-              external: ['better-sqlite3'],
+              external: ['better-sqlite3', 'ws'],
               output: {
                 entryFileNames: '[name].js',
               },
