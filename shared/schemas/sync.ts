@@ -1,5 +1,14 @@
 import { z } from 'zod'
 
+function isHttpBaseUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 export const SyncStatusSchema = z.enum([
   'disabled',
   'connecting',
@@ -20,8 +29,12 @@ export const SyncStateSchema = z.object({
 
 export type SyncState = z.infer<typeof SyncStateSchema>
 
+export const SyncServerUrlSchema = z.string().trim().url().refine(isHttpBaseUrl, {
+  message: 'Sync server URL must use http:// or https://.',
+})
+
 export const SyncConfigSchema = z.object({
-  serverUrl: z.string().url(),
+  serverUrl: SyncServerUrlSchema,
   token: z.string().min(1),
   enabled: z.boolean(),
 })

@@ -2,6 +2,17 @@
 
 Client-server sync protocol over WebSocket. Server is transport-only; all payloads are E2EE encrypted by the client.
 
+## Configuration URL
+
+Milesto stores the sync server address as an HTTP(S) base URL, not as a direct WebSocket URL:
+
+```
+http://host:port   -> ws://host:port/sync
+https://host:port  -> wss://host:port/sync
+```
+
+The client converts the configured base URL to the WebSocket URL immediately before opening the connection. The WebSocket endpoint is `/sync`. Reverse-proxy base paths are preserved, so `https://example.com/milesto` connects to `wss://example.com/milesto/sync`.
+
 ## Connection Flow
 
 ```

@@ -10,7 +10,7 @@ import { err, ok, resultSchema } from '../shared/result'
 
 import { DbWorkerClient } from './workers/db/db-worker-client'
 import { SyncEngine } from './sync/sync-engine'
-import type { SyncState } from '../shared/schemas/sync'
+import { SyncConfigSchema, SyncStateSchema, type SyncState } from '../shared/schemas/sync'
 
 import { LocaleSchema, getSupportedLocales, normalizeLocale, type Locale } from '../shared/i18n/locale'
 import { translate } from '../shared/i18n/translate'
@@ -888,17 +888,6 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   handleDb('db:checklist.delete', 'checklist.delete', ChecklistItemDeleteInputSchema, z.object({ deleted: z.boolean() }))
 
   // Sync IPC handlers
-  const SyncConfigSchema = z.object({
-    serverUrl: z.string().url(),
-    token: z.string().min(1),
-    enabled: z.boolean(),
-  })
-  const SyncStateSchema = z.object({
-    status: z.enum(['disabled', 'connecting', 'connected', 'syncing', 'error', 'offline']),
-    lastSyncAt: z.string().datetime().nullable(),
-    lastError: z.string().nullable(),
-    pendingCount: z.number().int().min(0),
-  })
   const SyncStateResultSchema = resultSchema(SyncStateSchema)
 
   let syncEngine: SyncEngine | null = null

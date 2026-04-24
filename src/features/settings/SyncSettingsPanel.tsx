@@ -140,7 +140,7 @@ export function SyncSettingsPanel() {
               id="sync-server-url"
               type="url"
               className="input"
-              placeholder="wss://your-server.com"
+              placeholder="https://your-server.com"
               value={serverUrl}
               disabled={isConnected || isLoading}
               onChange={(e) => setServerUrl(e.target.value)}

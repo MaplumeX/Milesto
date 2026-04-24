@@ -2,6 +2,7 @@ import WebSocket from 'ws'
 import type { SyncConfig, SyncEntity, SyncState } from '../../shared/schemas/sync'
 import type { DbWorkerClient } from '../workers/db/db-worker-client'
 import { SyncCrypto } from './sync-crypto.js'
+import { toSyncWebSocketUrl } from './sync-url.js'
 
 interface SyncEngineOptions {
   dbWorker: DbWorkerClient
@@ -82,7 +83,7 @@ export class SyncEngine {
     this.clearReconnectTimer()
 
     try {
-      this.ws = new WebSocket(this.config.serverUrl)
+      this.ws = new WebSocket(toSyncWebSocketUrl(this.config.serverUrl))
     } catch (err) {
       this.handleError(`Failed to create WebSocket: ${(err as Error).message}`)
       this.scheduleReconnect()

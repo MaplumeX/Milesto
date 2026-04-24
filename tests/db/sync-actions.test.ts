@@ -41,13 +41,13 @@ describe('sync-actions DB contract', () => {
     const handlers = buildDbHandlers(db)
 
     ok(run(handlers, 'sync.setConfig', {
-      server_url: 'ws://localhost:8787',
+      server_url: 'https://sync.example.com',
       sync_token: 'my-secret-token',
       sync_enabled: true,
     }))
 
     const state = ok(run<Record<string, string>>(handlers, 'sync.getState', {}))
-    expect(state.server_url).toBe('ws://localhost:8787')
+    expect(state.server_url).toBe('https://sync.example.com')
     expect(state.sync_token).toBe('my-secret-token')
     expect(state.sync_enabled).toBe('true')
 
