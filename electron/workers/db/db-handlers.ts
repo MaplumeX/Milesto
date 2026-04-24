@@ -12,6 +12,7 @@ import { createSidebarActions } from './actions/sidebar-actions'
 import { createSettingsActions } from './actions/settings-actions'
 import { createTrashActions } from './actions/trash-actions'
 import { createSyncActions } from './actions/sync-actions'
+import { createViewActions } from './actions/view-actions'
 import type { DbActionHandler } from './actions/db-actions'
 
 export function buildDbHandlers(db: Database.Database): Record<string, DbActionHandler> {
@@ -19,6 +20,7 @@ export function buildDbHandlers(db: Database.Database): Record<string, DbActionH
     ...createDbActions(db),
     ...createSettingsActions(db),
     ...createTaskActions(db),
+    ...createViewActions(db),
     ...createProjectActions(db),
     ...createAreaActions(db),
     ...createTagActions(db),

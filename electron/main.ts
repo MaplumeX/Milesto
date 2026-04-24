@@ -90,6 +90,12 @@ import {
   TrashPurgeResultSchema,
   TrashRestoreResultSchema,
   TrashRootIdInputSchema,
+  ViewListAnytimeInputSchema,
+  ViewListItemSchema,
+  ViewListSomedayInputSchema,
+  ViewListTodayInputSchema,
+  ViewListUpcomingInputSchema,
+  ViewReorderBatchInputSchema,
   ThemePreferenceSchema,
   ThemeStateSchema,
   type EffectiveTheme,
@@ -830,6 +836,12 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   )
   handleDb('db:task.reorderBatch', 'task.reorderBatch', TaskReorderBatchInputSchema, z.object({ reordered: z.boolean() }))
   handleDb('db:task.setTags', 'task.setTags', TaskSetTagsInputSchema, z.object({ updated: z.boolean() }))
+
+  handleDb('db:view.listAnytime', 'view.listAnytime', ViewListAnytimeInputSchema, z.array(ViewListItemSchema))
+  handleDb('db:view.listSomeday', 'view.listSomeday', ViewListSomedayInputSchema, z.array(ViewListItemSchema))
+  handleDb('db:view.listToday', 'view.listToday', ViewListTodayInputSchema, z.array(ViewListItemSchema))
+  handleDb('db:view.listUpcoming', 'view.listUpcoming', ViewListUpcomingInputSchema, z.array(ViewListItemSchema))
+  handleDb('db:view.reorderBatch', 'view.reorderBatch', ViewReorderBatchInputSchema, z.object({ reordered: z.boolean() }))
 
   handleDb('db:project.create', 'project.create', ProjectCreateInputSchema, ProjectSchema)
   handleDb('db:project.get', 'project.get', ProjectIdInputSchema, ProjectSchema)

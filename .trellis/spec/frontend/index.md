@@ -21,6 +21,7 @@ Update these files when the implementation patterns change.
 | [State Management](./state-management.md) | Local state, global state, server state | Project-specific |
 | [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | Project-specific |
 | [Type Safety](./type-safety.md) | Type patterns, validation | Project-specific |
+| [Mixed View List Contracts](./mixed-view-list-contracts.md) | Cross-layer contracts for task/project mixed planning views | Project-specific |
 
 ---
 

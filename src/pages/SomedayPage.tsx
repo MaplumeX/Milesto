@@ -2,35 +2,36 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
-import type { TaskListItem } from '../../shared/schemas/task-list'
+import type { ViewListItem } from '../../shared/schemas/view-list'
 import { TASK_LIST_ID_SOMEDAY } from '../../shared/task-list-ids'
-import { TaskList } from '../features/tasks/TaskList'
 import { TagFilter } from '../features/tasks/TagFilter'
-import { useTaskTagFilter } from '../features/tasks/use-task-tag-filter'
+import { ViewList } from '../features/view-list/ViewList'
+import { useViewTagFilter } from '../features/view-list/use-view-tag-filter'
+import { useViewProjectCompletion } from '../features/view-list/use-view-project-completion'
 import { useAppEvents } from '../app/AppEventsContext'
 
 export function SomedayPage() {
   const { t } = useTranslation()
   const { revision } = useAppEvents()
-  const [tasks, setTasks] = useState<TaskListItem[]>([])
+  const [items, setItems] = useState<ViewListItem[]>([])
   const [error, setError] = useState<AppError | null>(null)
 
   const {
     availableTags,
     selectedTagIds,
     setSelectedTagIds,
-    filteredTasks,
+    filteredItems,
     hasFilter,
-  } = useTaskTagFilter(tasks)
+  } = useViewTagFilter(items)
 
   const refresh = useCallback(async () => {
-    const res = await window.api.task.listSomeday()
+    const res = await window.api.view.listSomeday()
     if (!res.ok) {
       setError(res.error)
       return
     }
     setError(null)
-    setTasks(res.data)
+    setItems(res.data)
   }, [])
 
   useEffect(() => {
@@ -38,13 +39,15 @@ export function SomedayPage() {
     void refresh()
   }, [refresh, revision])
 
+  const completeProject = useViewProjectCompletion({ setError, refresh })
+
   return (
     <>
       {error ? <ErrorBanner error={error} /> : null}
-      <TaskList
+      <ViewList
         title={t('nav.someday')}
         listId={TASK_LIST_ID_SOMEDAY}
-        tasks={filteredTasks}
+        items={filteredItems}
         topContent={
           <TagFilter
             tags={availableTags}
@@ -54,7 +57,8 @@ export function SomedayPage() {
         }
         emptyState={hasFilter ? t('taskEditor.noTagsMatch') : undefined}
         onAfterReorder={refresh}
-        onToggleDone={async (taskId, done) => {
+        onCompleteProject={completeProject}
+        onToggleTaskDone={async (taskId, done) => {
           const updated = await window.api.task.toggleDone(taskId, done)
           if (!updated.ok) throw new Error(`${updated.error.code}: ${updated.error.message}`)
           await refresh()

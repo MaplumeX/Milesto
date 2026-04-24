@@ -1,4 +1,5 @@
-// Centralized list-id strings used for per-view ordering (list_positions).
+// Centralized list-id strings used for persisted view ordering.
+// These IDs are shared by list_positions and view_positions.
 // Keep these stable: they are persisted in the DB.
 
 export const TASK_LIST_ID_INBOX = 'inbox' as const

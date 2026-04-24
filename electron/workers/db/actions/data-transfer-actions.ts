@@ -13,6 +13,7 @@ import {
   ProjectSectionSchema,
   TagSchema,
   TaskSchema,
+  ViewPositionSchema,
 } from '../../../../shared/schemas'
 
 const ChecklistDbRowSchema = ChecklistItemSchema.extend({
@@ -166,8 +167,24 @@ export function createDataTransferActions(db: Database.Database): Record<string,
              .all()
          )
 
+      const viewPositions = z
+        .array(ViewPositionSchema)
+        .parse(
+          db
+            .prepare(
+              `SELECT vp.list_id, vp.entity_type, vp.entity_id, vp.rank, vp.updated_at AS updated_at
+               FROM view_positions vp
+               LEFT JOIN tasks t
+                 ON vp.entity_type = 'task' AND t.id = vp.entity_id AND t.deleted_at IS NULL
+               LEFT JOIN projects p
+                 ON vp.entity_type = 'project' AND p.id = vp.entity_id AND p.deleted_at IS NULL
+               WHERE t.id IS NOT NULL OR p.id IS NOT NULL`
+            )
+            .all()
+        )
+
       const exportData = DataExportSchema.parse({
-        schema_version: 3,
+        schema_version: 4,
         app_version: parsed.data.app_version,
         exported_at: exportedAt,
         tasks,
@@ -180,6 +197,7 @@ export function createDataTransferActions(db: Database.Database): Record<string,
         area_tags: areaTags,
         checklist_items: checklistItems,
         list_positions: listPositions,
+        view_positions: viewPositions,
       })
 
       return { ok: true, data: exportData }
@@ -199,8 +217,9 @@ export function createDataTransferActions(db: Database.Database): Record<string,
       }
 
       const data = parsed.data.data
-      const projectTags = data.schema_version === 3 ? data.project_tags : []
-      const areaTags = data.schema_version === 3 ? data.area_tags : []
+      const projectTags = data.schema_version === 3 || data.schema_version === 4 ? data.project_tags : []
+      const areaTags = data.schema_version === 3 || data.schema_version === 4 ? data.area_tags : []
+      const viewPositions = data.schema_version === 4 ? data.view_positions : []
 
       const tx = db.transaction(() => {
         db.exec(`
@@ -209,6 +228,7 @@ export function createDataTransferActions(db: Database.Database): Record<string,
           DELETE FROM project_tags;
           DELETE FROM area_tags;
           DELETE FROM task_checklist_items;
+          DELETE FROM view_positions;
           DELETE FROM list_positions;
           DELETE FROM tasks;
           DELETE FROM project_sections;
@@ -330,6 +350,14 @@ export function createDataTransferActions(db: Database.Database): Record<string,
         )
         for (const pos of data.list_positions) {
           insertPos.run(pos)
+        }
+
+        const insertViewPos = db.prepare(
+          `INSERT INTO view_positions (list_id, entity_type, entity_id, rank, updated_at)
+           VALUES (@list_id, @entity_type, @entity_id, @rank, @updated_at)`
+        )
+        for (const pos of viewPositions) {
+          insertViewPos.run(pos)
         }
 
         return { ok: true as const, data: { imported: true } }

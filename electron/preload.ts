@@ -79,6 +79,18 @@ const api: WindowApi = {
       }),
   },
 
+  view: {
+    listAnytime: () => invoke('db:view.listAnytime', {}),
+    listSomeday: () => invoke('db:view.listSomeday', {}),
+    listToday: (date) => invoke('db:view.listToday', { date }),
+    listUpcoming: (fromDate) => invoke('db:view.listUpcoming', { from_date: fromDate }),
+    reorderBatch: (listId, orderedItems) =>
+      invoke('db:view.reorderBatch', {
+        list_id: listId,
+        ordered_items: orderedItems,
+      }),
+  },
+
   project: {
     create: (input) => invoke('db:project.create', input),
     get: (id, scope) => invoke('db:project.get', { id, scope }),

@@ -5,7 +5,7 @@ import { dispatchDbRequest } from '../../electron/workers/db/db-dispatch'
 import { createTestDb } from './db-test-helper'
 
 import type { DbWorkerRequest } from '../../shared/db-worker-protocol'
-import type { DataExportV2, DataExportV3 } from '../../shared/schemas/data-transfer'
+import type { DataExportV2, DataExportV3, DataExportV4 } from '../../shared/schemas/data-transfer'
 
 type Ok<T> = { ok: true; data: T }
 type Err = { ok: false; error: { code: string; message: string; details?: unknown } }
@@ -19,7 +19,7 @@ describe('Data transfer v3 (project/area tags)', () => {
     cleanup = null
   })
 
-  it('exports schema_version 3 with project_tags/area_tags and filters deleted tags', async () => {
+  it('exports schema_version 4 with project_tags/area_tags/view_positions and filters deleted tags', async () => {
     const testDb = await createTestDb()
     cleanup = testDb.cleanup
 
@@ -79,6 +79,17 @@ describe('Data transfer v3 (project/area tags)', () => {
     }) as Res<{ updated: boolean }>
     expect(setAreaTags.ok).toBe(true)
 
+    const reorderView = dispatchDbRequest(handlers, {
+      id: '6b',
+      type: 'db',
+      action: 'view.reorderBatch',
+      payload: {
+        list_id: 'anytime',
+        ordered_items: [{ kind: 'project', id: project.data.id }],
+      },
+    }) as Res<{ reordered: boolean }>
+    expect(reorderView.ok).toBe(true)
+
     // Soft-delete tag2; export should filter it and its relations.
     const deleteTag2 = dispatchDbRequest(handlers, {
       id: '7',
@@ -98,6 +109,7 @@ describe('Data transfer v3 (project/area tags)', () => {
       tags: Array<{ id: string }>
       project_tags: Array<{ project_id: string; tag_id: string; position: number }>
       area_tags: Array<{ area_id: string; tag_id: string; position: number }>
+      view_positions: Array<{ list_id: string; entity_type: string; entity_id: string; rank: number }>
     }>
 
     if (!exported.ok) {
@@ -106,9 +118,10 @@ describe('Data transfer v3 (project/area tags)', () => {
       )
     }
 
-    expect(exported.data.schema_version).toBe(3)
+    expect(exported.data.schema_version).toBe(4)
     expect(Array.isArray(exported.data.project_tags)).toBe(true)
     expect(Array.isArray(exported.data.area_tags)).toBe(true)
+    expect(Array.isArray(exported.data.view_positions)).toBe(true)
 
     // Deleted tag should not be exported.
     expect(exported.data.tags.some((t) => t.id === tag2.data.id)).toBe(false)
@@ -116,6 +129,9 @@ describe('Data transfer v3 (project/area tags)', () => {
     // Relations to deleted tag should be excluded; remaining relation keeps its original position.
     expect(exported.data.project_tags).toEqual([{ project_id: project.data.id, tag_id: tag1.data.id, position: 1000 }])
     expect(exported.data.area_tags).toEqual([{ area_id: area.data.id, tag_id: tag1.data.id, position: 2000 }])
+    expect(exported.data.view_positions).toMatchObject([
+      { list_id: 'anytime', entity_type: 'project', entity_id: project.data.id, rank: 1000 },
+    ])
   })
 
   it('imports v2 with empty project/area tag relations', async () => {
@@ -277,6 +293,70 @@ describe('Data transfer v3 (project/area tags)', () => {
 
     const relCount = db.prepare('SELECT COUNT(1) AS c FROM project_tags').get() as { c: number }
     expect(relCount.c).toBe(2)
+  })
+
+  it('imports v4 view positions', async () => {
+    const testDb = await createTestDb()
+    cleanup = testDb.cleanup
+
+    const { db } = testDb
+    const handlers = buildDbHandlers(db)
+
+    const v4: DataExportV4 = {
+      schema_version: 4,
+      app_version: 'test',
+      exported_at: '2026-01-01T00:00:00.000Z',
+      tasks: [],
+      projects: [
+        {
+          id: 'p1',
+          title: 'P1',
+          notes: '',
+          area_id: null,
+          status: 'open',
+          scheduled_at: null,
+          is_someday: false,
+          due_at: null,
+          created_at: '2026-01-01T00:00:00.000Z',
+          updated_at: '2026-01-01T00:00:00.000Z',
+          completed_at: null,
+          deleted_at: null,
+        },
+      ],
+      project_sections: [],
+      areas: [],
+      tags: [],
+      task_tags: [],
+      project_tags: [],
+      area_tags: [],
+      checklist_items: [],
+      list_positions: [],
+      view_positions: [
+        {
+          list_id: 'anytime',
+          entity_type: 'project',
+          entity_id: 'p1',
+          rank: 1000,
+          updated_at: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    }
+
+    const imported = dispatchDbRequest(handlers, {
+      id: '1',
+      type: 'db',
+      action: 'data.importOverwrite',
+      payload: { mode: 'overwrite', data: v4 },
+    }) as Res<{ imported: boolean }>
+    expect(imported.ok).toBe(true)
+
+    const rows = db
+      .prepare(
+        `SELECT list_id, entity_type, entity_id, rank
+         FROM view_positions`
+      )
+      .all() as Array<{ list_id: string; entity_type: string; entity_id: string; rank: number }>
+    expect(rows).toEqual([{ list_id: 'anytime', entity_type: 'project', entity_id: 'p1', rank: 1000 }])
   })
 
   it('import overwrite rolls back on v3 relation foreign key failure', async () => {

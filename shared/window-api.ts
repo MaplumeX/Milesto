@@ -41,6 +41,7 @@ import type {
   SidebarReorderProjectsInput,
   SidebarReorderResult,
 } from './schemas/sidebar'
+import type { ViewListItem, ViewReorderItem } from './schemas/view-list'
 
 export type OpenDialogResult = {
   canceled: boolean
@@ -116,6 +117,14 @@ export type WindowApi = {
 
     reorderBatch(listId: string, orderedTaskIds: string[]): Promise<Result<{ reordered: boolean }>>
     setTags(taskId: string, tagIds: string[], scope?: EntityScope): Promise<Result<{ updated: boolean }>>
+  }
+
+  view: {
+    listAnytime(): Promise<Result<ViewListItem[]>>
+    listSomeday(): Promise<Result<ViewListItem[]>>
+    listToday(date: string): Promise<Result<ViewListItem[]>>
+    listUpcoming(fromDate: string): Promise<Result<ViewListItem[]>>
+    reorderBatch(listId: string, orderedItems: ViewReorderItem[]): Promise<Result<{ reordered: boolean }>>
   }
 
   project: {

@@ -140,6 +140,16 @@ function migrate(db: Database.Database) {
         FOREIGN KEY (task_id) REFERENCES tasks(id)
       );
 
+      CREATE TABLE IF NOT EXISTS view_positions (
+        list_id TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        rank INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (list_id, entity_type, entity_id),
+        CHECK (entity_type IN ('task', 'project'))
+      );
+
       CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
       CREATE INDEX IF NOT EXISTS idx_tasks_is_inbox ON tasks(is_inbox);
       CREATE INDEX IF NOT EXISTS idx_tasks_is_someday ON tasks(is_someday);
@@ -150,6 +160,7 @@ function migrate(db: Database.Database) {
       CREATE INDEX IF NOT EXISTS idx_projects_area_id ON projects(area_id);
       CREATE INDEX IF NOT EXISTS idx_project_sections_project_id ON project_sections(project_id);
       CREATE INDEX IF NOT EXISTS idx_list_positions_list_rank ON list_positions(list_id, rank);
+      CREATE INDEX IF NOT EXISTS idx_view_positions_list_rank ON view_positions(list_id, rank);
 
       CREATE VIRTUAL TABLE IF NOT EXISTS tasks_fts USING fts5(
         title,
@@ -412,6 +423,28 @@ function migrate(db: Database.Database) {
     db.pragma('user_version = 9')
   }
 
+  if (userVersion < 10) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS view_positions (
+        list_id TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        rank INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (list_id, entity_type, entity_id),
+        CHECK (entity_type IN ('task', 'project'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_view_positions_list_rank ON view_positions(list_id, rank);
+
+      INSERT OR IGNORE INTO view_positions (list_id, entity_type, entity_id, rank, updated_at)
+      SELECT list_id, 'task', task_id, rank, updated_at
+      FROM list_positions
+      WHERE list_id IN ('today', 'anytime', 'someday');
+    `)
+    db.pragma('user_version = 10')
+  }
+
   // Defensive: some dev environments may have an inconsistent schema
   // where user_version >= 9 but sync_state is missing.
   if (!hasTable('sync_state')) {
@@ -425,6 +458,22 @@ function migrate(db: Database.Database) {
       INSERT OR IGNORE INTO sync_state (key, value) VALUES ('sync_enabled', 'false');
       INSERT OR IGNORE INTO sync_state (key, value) VALUES ('server_url', '');
       INSERT OR IGNORE INTO sync_state (key, value) VALUES ('sync_token', '');
+    `)
+  }
+
+  if (!hasTable('view_positions')) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS view_positions (
+        list_id TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        rank INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (list_id, entity_type, entity_id),
+        CHECK (entity_type IN ('task', 'project'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_view_positions_list_rank ON view_positions(list_id, rank);
     `)
   }
 }

@@ -1,0 +1,11 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend guideline index for renderer components and page integration"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Mixed list and project row component conventions"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "Filtering/data refresh hook conventions for list pages"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Local/page state ownership for mixed list interactions"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Shared schema and IPC contract typing"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Accessibility, virtualization, and renderer test expectations"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Feature spans DB, IPC, shared schemas, and renderer"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Reuse TaskList, row, tag, and project progress patterns where appropriate"}
+{"file": ".trellis/spec/server/sync-protocol.md", "reason": "View position persistence may need sync payload compatibility"}
+{"file": ".trellis/spec/frontend/mixed-view-list-contracts.md", "reason": "New cross-layer contract for mixed task/project planning lists"}

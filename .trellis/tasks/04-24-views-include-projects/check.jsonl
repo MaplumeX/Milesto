@@ -1,0 +1,7 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Verify shared schema and IPC contract typing"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Verify accessibility, virtualization, and renderer test coverage"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify DB-to-renderer data flow consistency"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Verify reuse and avoid duplicate list logic"}
+{"file": ".trellis/spec/server/sync-protocol.md", "reason": "Verify any sync payload changes remain transport-compatible"}
+{"file": ".trellis/spec/frontend/mixed-view-list-contracts.md", "reason": "Verify mixed view list API, DB, sync, import/export, and UI behavior"}

@@ -7,6 +7,7 @@ import { ListPositionSchema } from './list-position'
 import { ProjectSchema, ProjectSectionSchema } from './project'
 import { TagSchema } from './tag'
 import { TaskSchema } from './task'
+import { ViewPositionSchema } from './view-list'
 
 const TaskTagRelSchema = z.object({ task_id: z.string(), tag_id: z.string() })
 const ProjectTagRelSchema = z.object({
@@ -59,7 +60,30 @@ export const DataExportV3Schema = z.object({
 
 export type DataExportV3 = z.infer<typeof DataExportV3Schema>
 
-export const DataExportSchema = z.discriminatedUnion('schema_version', [DataExportV2Schema, DataExportV3Schema])
+export const DataExportV4Schema = z.object({
+  schema_version: z.literal(4),
+  app_version: z.string(),
+  exported_at: z.string().datetime(),
+  tasks: z.array(TaskSchema),
+  projects: z.array(ProjectTransferSchema),
+  project_sections: z.array(ProjectSectionSchema),
+  areas: z.array(AreaSchema),
+  tags: z.array(TagSchema),
+  task_tags: z.array(TaskTagRelSchema),
+  project_tags: z.array(ProjectTagRelSchema),
+  area_tags: z.array(AreaTagRelSchema),
+  checklist_items: z.array(ChecklistItemSchema),
+  list_positions: z.array(ListPositionSchema),
+  view_positions: z.array(ViewPositionSchema),
+})
+
+export type DataExportV4 = z.infer<typeof DataExportV4Schema>
+
+export const DataExportSchema = z.discriminatedUnion('schema_version', [
+  DataExportV2Schema,
+  DataExportV3Schema,
+  DataExportV4Schema,
+])
 
 export type DataExport = z.infer<typeof DataExportSchema>
 

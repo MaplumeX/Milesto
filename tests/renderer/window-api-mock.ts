@@ -80,6 +80,14 @@ export function createWindowApiMock(): WindowApi {
       setTags: vi.fn<WindowApi['task']['setTags']>(async () => ok({ updated: true })),
     },
 
+    view: {
+      listAnytime: vi.fn<WindowApi['view']['listAnytime']>(async () => ok([])),
+      listSomeday: vi.fn<WindowApi['view']['listSomeday']>(async () => ok([])),
+      listToday: vi.fn<WindowApi['view']['listToday']>(async () => ok([])),
+      listUpcoming: vi.fn<WindowApi['view']['listUpcoming']>(async () => ok([])),
+      reorderBatch: vi.fn<WindowApi['view']['reorderBatch']>(async () => ok({ reordered: true })),
+    },
+
     project: {
       create: vi.fn<WindowApi['project']['create']>(async () => err(unimplementedError)),
       get: vi.fn<WindowApi['project']['get']>(async () => err(unimplementedError)),

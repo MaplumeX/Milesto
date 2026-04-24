@@ -205,7 +205,7 @@ export const messagesEn = {
     checklistItemDoneAria: 'Checklist item done',
     checklistItemPlaceholder: 'Checklist item',
     newTagPlaceholder: 'New tag',
-    noTagsMatch: 'No tasks match the selected tags.',
+    noTagsMatch: 'No items match the selected tags.',
   },
   errors: {
     missingAreaId: 'Missing area id.',
@@ -424,7 +424,7 @@ export const messagesZhCN = {
     checklistItemDoneAria: '清单条目完成',
     checklistItemPlaceholder: '清单条目',
     newTagPlaceholder: '新建标签',
-    noTagsMatch: '没有任务匹配选中的标签。',
+    noTagsMatch: '没有条目匹配选中的标签。',
   },
   errors: {
     missingAreaId: '缺少领域 ID。',

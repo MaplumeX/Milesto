@@ -20,6 +20,7 @@ export function createDbActions(db: Database.Database): Record<string, DbActionH
           DELETE FROM project_tags;
           DELETE FROM area_tags;
           DELETE FROM task_checklist_items;
+          DELETE FROM view_positions;
           DELETE FROM list_positions;
           DELETE FROM tasks;
           DELETE FROM project_sections;

@@ -91,6 +91,14 @@ export function createSyncActions(db: Database.Database): Record<string, DbActio
         FROM list_positions WHERE updated_at > ?
       `).all(lastSyncAt) as Array<{ entity_type: string; entity_id: string; updated_at: string; deleted_at: string | null; payload: string }>
 
+      const viewPositions = db.prepare(`
+        SELECT 'view_position' as entity_type,
+          (list_id || ':' || entity_type || ':' || entity_id) as entity_id,
+          updated_at, NULL as deleted_at,
+          json_object('list_id', list_id, 'entity_type', entity_type, 'entity_id', entity_id, 'rank', rank) as payload
+        FROM view_positions WHERE updated_at > ?
+      `).all(lastSyncAt) as Array<{ entity_type: string; entity_id: string; updated_at: string; deleted_at: string | null; payload: string }>
+
       const taskTags = db.prepare(`
         SELECT 'task_tag' as entity_type,
           (task_id || ':' || tag_id) as entity_id,
@@ -121,6 +129,7 @@ export function createSyncActions(db: Database.Database): Record<string, DbActio
           ...tasks, ...projects, ...areas, ...tags,
           ...checklistItems, ...projectSections,
           ...listPositions.map((r) => ({ ...r, payload: JSON.parse(r.payload) as Record<string, unknown> })),
+          ...viewPositions.map((r) => ({ ...r, payload: JSON.parse(r.payload) as Record<string, unknown> })),
           ...taskTags.map((r) => ({ ...r, payload: JSON.parse(r.payload) as Record<string, unknown> })),
           ...projectTags.map((r) => ({ ...r, payload: JSON.parse(r.payload) as Record<string, unknown> })),
           ...areaTags.map((r) => ({ ...r, payload: JSON.parse(r.payload) as Record<string, unknown> })),
@@ -153,6 +162,8 @@ export function createSyncActions(db: Database.Database): Record<string, DbActio
             return applyRemoteProjectSection(db, entity_id, updated_at, deleted_at, entityPayload)
           case 'list_position':
             return applyRemoteListPosition(db, entity_id, updated_at, entityPayload)
+          case 'view_position':
+            return applyRemoteViewPosition(db, entity_id, updated_at, entityPayload)
           case 'task_tag':
             return applyRemoteTaskTag(db, entity_id, updated_at, deleted_at, entityPayload)
           case 'project_tag':
@@ -358,6 +369,35 @@ function applyRemoteListPosition(
       rank = excluded.rank, updated_at = excluded.updated_at
   `).run({
     list_id: listId, task_id: taskId, rank: payload.rank, updated_at: updatedAt,
+  })
+
+  return { applied: true }
+}
+
+function applyRemoteViewPosition(
+  db: Database.Database,
+  _compositeId: string,
+  updatedAt: string,
+  payload: Record<string, unknown>
+): { applied: boolean; reason?: string } {
+  const listId = payload.list_id as string
+  const entityType = payload.entity_type as string
+  const entityId = payload.entity_id as string
+  if (!listId || (entityType !== 'task' && entityType !== 'project') || !entityId) {
+    return { applied: false, reason: 'invalid_composite_id' }
+  }
+
+  db.prepare(`
+    INSERT INTO view_positions (list_id, entity_type, entity_id, rank, updated_at)
+    VALUES (:list_id, :entity_type, :entity_id, :rank, :updated_at)
+    ON CONFLICT(list_id, entity_type, entity_id) DO UPDATE SET
+      rank = excluded.rank, updated_at = excluded.updated_at
+  `).run({
+    list_id: listId,
+    entity_type: entityType,
+    entity_id: entityId,
+    rank: payload.rank,
+    updated_at: updatedAt,
   })
 
   return { applied: true }

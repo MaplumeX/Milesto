@@ -396,6 +396,42 @@ describe('sync-actions DB contract', () => {
     await cleanup()
   })
 
+  it('sync.applyRemote applies view_position entity', async () => {
+    const { db, cleanup } = await createTestDb()
+    const handlers = buildDbHandlers(db)
+
+    ok(run(handlers, 'project.create', {
+      title: 'Project',
+    }))
+    const project = db.prepare("SELECT id FROM projects WHERE title = 'Project'").get() as { id: string }
+
+    const res = ok(run<{ applied: boolean }>(handlers, 'sync.applyRemote', {
+      entity_type: 'view_position',
+      entity_id: `anytime:project:${project.id}`,
+      updated_at: '2024-01-15T10:00:00.000Z',
+      deleted_at: null,
+      payload: {
+        list_id: 'anytime',
+        entity_type: 'project',
+        entity_id: project.id,
+        rank: 1000,
+      },
+    }))
+
+    expect(res.applied).toBe(true)
+
+    const row = db
+      .prepare(
+        `SELECT list_id, entity_type, entity_id, rank
+         FROM view_positions
+         WHERE list_id = 'anytime'`
+      )
+      .get() as { list_id: string; entity_type: string; entity_id: string; rank: number } | undefined
+    expect(row).toEqual({ list_id: 'anytime', entity_type: 'project', entity_id: project.id, rank: 1000 })
+
+    await cleanup()
+  })
+
   it('sync.applyRemote rejects unknown entity type', async () => {
     const { db, cleanup } = await createTestDb()
     const handlers = buildDbHandlers(db)
