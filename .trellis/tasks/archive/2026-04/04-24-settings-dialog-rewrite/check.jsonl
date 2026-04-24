@@ -1,0 +1,4 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/tasks/04-24-settings-dialog-rewrite/prd.md", "reason": "Acceptance criteria and design decisions"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Quality standards and testing requirements"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Component and accessibility standards"}
