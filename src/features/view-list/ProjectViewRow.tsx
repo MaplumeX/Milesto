@@ -112,6 +112,9 @@ export function ProjectViewRow({
             }`}
           >
             {hasTitle ? project.title : t('project.untitled')}
+            <span className="project-open-count" aria-hidden="true">
+              {project.total_count - project.done_count}
+            </span>
           </span>
         </span>
       </button>
