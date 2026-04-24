@@ -252,3 +252,36 @@ Redesigned SettingsDialog to Things 3 minimal list style with simplified tabs, c
 ### Next Steps
 
 - None - task complete
+
+
+## Session 7: Mixed planning views show projects
+
+**Date**: 2026-04-24
+**Task**: Mixed planning views show projects
+**Branch**: `master`
+
+### Summary
+
+Implemented mixed task/project planning views with unified ordering, tag filtering, project row interactions, cross-layer schemas, DB persistence, sync/import-export support, tests, and specs.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2d15320` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
