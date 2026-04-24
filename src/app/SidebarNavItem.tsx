@@ -7,11 +7,13 @@ export function SidebarNavItem({
   label,
   iconKey,
   indent,
+  count,
 }: {
   to: string
   label: string
   iconKey?: SidebarNavIconKey
   indent?: boolean
+  count?: number
 }) {
   const iconDefinition = iconKey ? getSidebarNavIconDefinition(iconKey) : null
 
@@ -33,6 +35,9 @@ export function SidebarNavItem({
           </span>
         ) : null}
         <span className="nav-item-label">{label}</span>
+        {count !== undefined && count > 0 ? (
+          <span className="nav-item-count">{count}</span>
+        ) : null}
       </span>
     </NavLink>
   )

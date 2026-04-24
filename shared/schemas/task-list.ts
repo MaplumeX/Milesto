@@ -81,6 +81,11 @@ export const TaskCountProjectsProgressResultSchema = z.array(TaskProjectsProgres
 
 export type TaskCountProjectsProgressResult = z.infer<typeof TaskCountProjectsProgressResultSchema>
 
+export const TaskCountInboxInputSchema = z.object({})
+export const TaskCountTodayInputSchema = z.object({
+  date: LocalDateSchema,
+})
+
 export const TaskListProjectDoneInputSchema = z.object({
   project_id: IdSchema,
   scope: EntityScopeSchema.optional(),

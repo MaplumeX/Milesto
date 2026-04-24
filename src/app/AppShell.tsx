@@ -182,6 +182,7 @@ export function AppShell() {
   const [sidebarProjectProgress, setSidebarProjectProgress] = useState<
     Record<string, { done_count: number; total_count: number }>
   >({})
+  const [sidebarCounts, setSidebarCounts] = useState<{ inbox: number; today: number }>({ inbox: 0, today: 0 })
   const [collapsedAreaIds, setCollapsedAreaIds] = useState<string[]>([])
   const collapsedAreaIdsRef = useRef<string[]>(collapsedAreaIds)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
@@ -492,21 +493,28 @@ export function AppShell() {
     const projectIds = res.data.openProjects.map((p) => p.id)
     if (projectIds.length === 0) {
       setSidebarProjectProgress({})
-      return
+    } else {
+      const countsRes = await window.api.task.countProjectsProgress(projectIds)
+      if (!countsRes.ok) {
+        setSidebarProjectProgress({})
+        setSidebarError(`${countsRes.error.code}: ${countsRes.error.message}`)
+      } else {
+        const next: Record<string, { done_count: number; total_count: number }> = {}
+        for (const row of countsRes.data) {
+          next[row.project_id] = { done_count: row.done_count, total_count: row.total_count }
+        }
+        setSidebarProjectProgress(next)
+      }
     }
 
-    const countsRes = await window.api.task.countProjectsProgress(projectIds)
-    if (!countsRes.ok) {
-      setSidebarProjectProgress({})
-      setSidebarError(`${countsRes.error.code}: ${countsRes.error.message}`)
-      return
-    }
-
-    const next: Record<string, { done_count: number; total_count: number }> = {}
-    for (const row of countsRes.data) {
-      next[row.project_id] = { done_count: row.done_count, total_count: row.total_count }
-    }
-    setSidebarProjectProgress(next)
+    const [inboxRes, todayRes] = await Promise.all([
+      window.api.task.countInbox(),
+      window.api.task.countToday(formatLocalDate(new Date())),
+    ])
+    setSidebarCounts({
+      inbox: inboxRes.ok ? inboxRes.data.count : 0,
+      today: todayRes.ok ? todayRes.data.count : 0,
+    })
   }, [])
 
   useEffect(() => {
@@ -1534,8 +1542,8 @@ export function AppShell() {
         </div>
 
         <nav className="nav" aria-label={t('aria.mainNavigation')} onKeyDown={handleSidebarKeyDown}>
-          <SidebarNavItem to="/inbox" label={t('nav.inbox')} iconKey="inbox" />
-          <SidebarNavItem to="/today" label={t('nav.today')} iconKey="today" />
+          <SidebarNavItem to="/inbox" label={t('nav.inbox')} iconKey="inbox" count={sidebarCounts.inbox} />
+          <SidebarNavItem to="/today" label={t('nav.today')} iconKey="today" count={sidebarCounts.today} />
           <SidebarNavItem to="/upcoming" label={t('nav.upcoming')} iconKey="upcoming" />
           <SidebarNavItem to="/anytime" label={t('nav.anytime')} iconKey="anytime" />
           <SidebarNavItem to="/someday" label={t('nav.someday')} iconKey="someday" />

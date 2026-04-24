@@ -71,6 +71,8 @@ export function createWindowApiMock(): WindowApi {
       listProject: vi.fn<WindowApi['task']['listProject']>(async () => ok([])),
       countProjectDone: vi.fn<WindowApi['task']['countProjectDone']>(async () => ok({ count: 0 })),
       countProjectsProgress: vi.fn<WindowApi['task']['countProjectsProgress']>(async () => ok([])),
+      countInbox: vi.fn<WindowApi['task']['countInbox']>(async () => ok({ count: 0 })),
+      countToday: vi.fn<WindowApi['task']['countToday']>(async () => ok({ count: 0 })),
       listProjectDone: vi.fn<WindowApi['task']['listProjectDone']>(async () => ok([])),
       listArea: vi.fn<WindowApi['task']['listArea']>(async () => ok([])),
 

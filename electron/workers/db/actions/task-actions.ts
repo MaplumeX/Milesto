@@ -21,10 +21,12 @@ import {
 } from '../../../../shared/schemas/task-rollover'
 import {
   TaskListAnytimeInputSchema,
+  TaskCountInboxInputSchema,
   TaskCountProjectDoneInputSchema,
   TaskCountProjectsProgressInputSchema,
   TaskCountProjectsProgressResultSchema,
   TaskCountResultSchema,
+  TaskCountTodayInputSchema,
   TaskListInboxInputSchema,
   TaskListItemSchema,
   TaskListLogbookInputSchema,
@@ -1286,6 +1288,68 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
       })
 
       return { ok: true, data: TaskCountProjectsProgressResultSchema.parse(result) }
+    },
+
+    'task.countInbox': (payload) => {
+      const parsed = TaskCountInboxInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid task.countInbox payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const row = db
+        .prepare(
+          `SELECT COUNT(1) AS count
+           FROM tasks
+           WHERE deleted_at IS NULL
+             AND status = 'open'
+             AND is_inbox = 1`
+        )
+        .get() as { count: number }
+
+      return { ok: true, data: TaskCountResultSchema.parse({ count: row.count }) }
+    },
+
+    'task.countToday': (payload) => {
+      const parsed = TaskCountTodayInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid task.countToday payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const taskRow = db
+        .prepare(
+          `SELECT COUNT(1) AS count
+           FROM tasks
+           WHERE deleted_at IS NULL
+             AND status = 'open'
+             AND scheduled_at = @date`
+        )
+        .get({ date: parsed.data.date }) as { count: number }
+
+      const projectRow = db
+        .prepare(
+          `SELECT COUNT(1) AS count
+           FROM projects
+           WHERE deleted_at IS NULL
+             AND status = 'open'
+             AND scheduled_at = @date`
+        )
+        .get({ date: parsed.data.date }) as { count: number }
+
+      return { ok: true, data: TaskCountResultSchema.parse({ count: taskRow.count + projectRow.count }) }
     },
 
     'task.listProjectDone': (payload) => {

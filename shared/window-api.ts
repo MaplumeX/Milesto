@@ -110,6 +110,8 @@ export type WindowApi = {
     listProject(projectId: string, scope?: EntityScope): Promise<Result<TaskListItem[]>>
     countProjectDone(projectId: string, scope?: EntityScope): Promise<Result<TaskCountResult>>
     countProjectsProgress(projectIds: string[]): Promise<Result<TaskCountProjectsProgressResult>>
+    countInbox(): Promise<Result<TaskCountResult>>
+    countToday(date: string): Promise<Result<TaskCountResult>>
     listProjectDone(projectId: string, scope?: EntityScope): Promise<Result<TaskListItem[]>>
     listArea(areaId: string): Promise<Result<TaskListItem[]>>
 

@@ -57,6 +57,8 @@ const api: WindowApi = {
     countProjectDone: (projectId, scope) => invoke('db:task.countProjectDone', { project_id: projectId, scope }),
     countProjectsProgress: (projectIds) =>
       invoke('db:task.countProjectsProgress', { project_ids: projectIds }),
+    countInbox: () => invoke('db:task.countInbox', {}),
+    countToday: (date) => invoke('db:task.countToday', { date }),
     listProjectDone: (projectId, scope) => invoke('db:task.listProjectDone', { project_id: projectId, scope }),
     listArea: (areaId) => invoke('db:task.listArea', { area_id: areaId }),
 
