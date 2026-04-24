@@ -114,28 +114,28 @@ export function SyncSettingsPanel() {
         </div>
       ) : null}
 
-      <div className="settings-general-grid">
-        <section className="card">
-          <h3 className="card-title">{t('settings.syncStatus')}</h3>
-          <div className="settings-field settings-field-stack">
-            <div className="sync-status-row">
-              <span className={getStatusDotClass()} />
-              <span className="sync-status-text">{getStatusLabel(syncState.status)}</span>
-            </div>
-            {syncState.lastSyncAt ? (
-              <div className="mono sync-last-sync">
-                Last sync: {new Date(syncState.lastSyncAt).toLocaleString()}
-              </div>
-            ) : null}
+      <section className="settings-section">
+        <div className="settings-section-title">{t('settings.syncStatus')}</div>
+        <div className="settings-row settings-row-stack">
+          <div className="settings-row-label">
+            <span className={getStatusDotClass()} />
+            <span className="sync-status-text">{getStatusLabel(syncState.status)}</span>
           </div>
-        </section>
+          {syncState.lastSyncAt ? (
+            <div className="settings-row-description">
+              Last sync: {new Date(syncState.lastSyncAt).toLocaleString()}
+            </div>
+          ) : null}
+        </div>
+      </section>
 
-        <section className="card">
-          <h3 className="card-title">{t('settings.syncTab')}</h3>
-          <div className="settings-field settings-field-stack">
-            <label className="settings-label" htmlFor="sync-server-url">
-              {t('settings.syncServerUrl')}
-            </label>
+      <section className="settings-section">
+        <div className="settings-section-title">{t('settings.syncTab')}</div>
+        <div className="settings-row settings-row-stack">
+          <label className="settings-row-label" htmlFor="sync-server-url">
+            {t('settings.syncServerUrl')}
+          </label>
+          <div className="settings-row-inputs">
             <input
               id="sync-server-url"
               type="url"
@@ -145,10 +145,13 @@ export function SyncSettingsPanel() {
               disabled={isConnected || isLoading}
               onChange={(e) => setServerUrl(e.target.value)}
             />
-
-            <label className="settings-label" htmlFor="sync-token">
-              {t('settings.syncToken')}
-            </label>
+          </div>
+        </div>
+        <div className="settings-row settings-row-stack">
+          <label className="settings-row-label" htmlFor="sync-token">
+            {t('settings.syncToken')}
+          </label>
+          <div className="settings-row-inputs">
             <input
               id="sync-token"
               type="password"
@@ -158,31 +161,33 @@ export function SyncSettingsPanel() {
               disabled={isConnected || isLoading}
               onChange={(e) => setToken(e.target.value)}
             />
-
-            <div className="settings-actions">
-              {!isConnected ? (
-                <button
-                  type="button"
-                  className="button"
-                  disabled={!serverUrl.trim() || !token.trim() || isLoading}
-                  onClick={handleConnect}
-                >
-                  {isLoading ? t('common.loading') : t('settings.syncConnect')}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="button button-ghost"
-                  disabled={isLoading}
-                  onClick={handleDisconnect}
-                >
-                  {isLoading ? t('common.loading') : t('settings.syncDisconnect')}
-                </button>
-              )}
-            </div>
           </div>
-        </section>
-      </div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-label" />
+          <div className="settings-row-control">
+            {!isConnected ? (
+              <button
+                type="button"
+                className="button"
+                disabled={!serverUrl.trim() || !token.trim() || isLoading}
+                onClick={handleConnect}
+              >
+                {isLoading ? t('common.loading') : t('settings.syncConnect')}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="button button-ghost"
+                disabled={isLoading}
+                onClick={handleDisconnect}
+              >
+                {isLoading ? t('common.loading') : t('settings.syncDisconnect')}
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

@@ -68,10 +68,11 @@ export function GeneralSettingsPanel() {
         </div>
       ) : null}
 
-      <div className="settings-general-grid">
-        <section className="card">
-          <h3 className="card-title">{t('settings.language')}</h3>
-          <div className="settings-field">
+      <section className="settings-section">
+        <div className="settings-section-title">{t('settings.language')}</div>
+        <div className="settings-row">
+          <div className="settings-row-label">{t('settings.language')}</div>
+          <div className="settings-row-control">
             <select
               className="input"
               aria-label={t('settings.language')}
@@ -102,11 +103,21 @@ export function GeneralSettingsPanel() {
               ))}
             </select>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="card" data-settings-theme-card="true">
-          <h3 className="card-title">{t('settings.theme')}</h3>
-          <div className="settings-field settings-field-stack">
+      <section className="settings-section">
+        <div className="settings-section-title">{t('settings.theme')}</div>
+        <div className="settings-row">
+          <div className="settings-row-label">
+            {t('settings.theme')}
+            <div className="settings-row-description">
+              {t('settings.themeEffective', {
+                theme: effectiveTheme === 'dark' ? t('settings.themeDark') : t('settings.themeLight'),
+              })}
+            </div>
+          </div>
+          <div className="settings-row-control">
             <select
               className="input"
               aria-label={t('settings.theme')}
@@ -133,18 +144,15 @@ export function GeneralSettingsPanel() {
               <option value="light">{t('settings.themeLight')}</option>
               <option value="dark">{t('settings.themeDark')}</option>
             </select>
-
-            <div className="mono">
-              {t('settings.themeEffective', {
-                theme: effectiveTheme === 'dark' ? t('settings.themeDark') : t('settings.themeLight'),
-              })}
-            </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="card">
-          <h3 className="card-title">{t('settings.data')}</h3>
-          <div className="settings-actions">
+      <section className="settings-section">
+        <div className="settings-section-title">{t('settings.data')}</div>
+        <div className="settings-row">
+          <div className="settings-row-label">{t('settings.export')}</div>
+          <div className="settings-row-control">
             <button
               type="button"
               className="button"
@@ -162,7 +170,11 @@ export function GeneralSettingsPanel() {
             >
               {t('settings.export')}
             </button>
-
+          </div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-label">{t('settings.import')}</div>
+          <div className="settings-row-control">
             <button
               type="button"
               className="button"
@@ -178,7 +190,11 @@ export function GeneralSettingsPanel() {
             >
               {t('settings.import')}
             </button>
-
+          </div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-label">{t('settings.resetAllData')}</div>
+          <div className="settings-row-control">
             <button
               type="button"
               className="button button-ghost"
@@ -198,10 +214,14 @@ export function GeneralSettingsPanel() {
               {t('settings.resetAllData')}
             </button>
           </div>
+        </div>
 
-          {lastExportPath ? (
-            <div className="settings-inline-note">
-              <div className="mono">{lastExportPath}</div>
+        {lastExportPath ? (
+          <div className="settings-row">
+            <div className="settings-row-label">
+              <span className="mono">{lastExportPath}</span>
+            </div>
+            <div className="settings-row-control">
               <button
                 type="button"
                 className="button button-ghost"
@@ -212,25 +232,23 @@ export function GeneralSettingsPanel() {
                 {t('settings.showInFolder')}
               </button>
             </div>
-          ) : null}
-        </section>
-
-        <section className="card">
-          <h3 className="card-title">{t('settings.about')}</h3>
-
-          <div className="settings-meta-grid">
-            <div className="settings-meta-item">
-              <div className="settings-meta-label">{t('settings.version')}</div>
-              <div className="mono">{version}</div>
-            </div>
-
-            <div className="settings-meta-item">
-              <div className="settings-meta-label">{t('settings.userData')}</div>
-              <div className="mono">{userDataPath}</div>
-            </div>
           </div>
+        ) : null}
+      </section>
 
-          <div className="settings-actions">
+      <section className="settings-section">
+        <div className="settings-section-title">{t('settings.about')}</div>
+        <div className="settings-row">
+          <div className="settings-row-label">{t('settings.version')}</div>
+          <div className="settings-row-control mono">{version}</div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-label">{t('settings.userData')}</div>
+          <div className="settings-row-control mono">{userDataPath}</div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-label" />
+          <div className="settings-row-control">
             <button
               type="button"
               className="button button-ghost"
@@ -241,8 +259,8 @@ export function GeneralSettingsPanel() {
               {t('settings.openDataFolder')}
             </button>
           </div>
-        </section>
-      </div>
+        </div>
+      </section>
     </div>
   )
 }

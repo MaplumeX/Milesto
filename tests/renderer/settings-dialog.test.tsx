@@ -71,7 +71,7 @@ describe('Settings dialog', () => {
     expect(screen.getByTestId('settings-route-probe')).toHaveTextContent('/today')
   })
 
-  it('renders the general settings content without sync tabs', async () => {
+  it('renders the general settings content with tabs', async () => {
     const user = userEvent.setup()
 
     renderAppShell('/today')
@@ -79,7 +79,8 @@ describe('Settings dialog', () => {
     await user.click(await screen.findByRole('button', { name: 'nav.settings' }))
 
     expect(await screen.findByRole('dialog', { name: 'settings.title' })).toBeInTheDocument()
-    expect(screen.getByText('settings.language')).toBeInTheDocument()
-    expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'settings.generalTab' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'settings.syncTab' })).toBeInTheDocument()
+    expect(screen.getByLabelText('settings.language')).toBeInTheDocument()
   })
 })

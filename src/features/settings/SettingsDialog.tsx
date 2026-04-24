@@ -121,11 +121,9 @@ export function SettingsDialog({
         }}
       >
         <div className="settings-dialog-header">
-          <div className="settings-dialog-heading">
-            <h2 id={titleId} className="settings-dialog-title">
-              {t('settings.title')}
-            </h2>
-          </div>
+          <h2 id={titleId} className="settings-dialog-title">
+            {t('settings.title')}
+          </h2>
 
           <button
             ref={closeButtonRef}
@@ -139,9 +137,11 @@ export function SettingsDialog({
           </button>
         </div>
 
-        <div className="settings-dialog-tabs">
+        <div className="settings-dialog-tabs" role="tablist">
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'general'}
             className={`settings-dialog-tab ${activeTab === 'general' ? 'settings-dialog-tab--active' : ''}`}
             onClick={() => setActiveTab('general')}
           >
@@ -149,6 +149,8 @@ export function SettingsDialog({
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'sync'}
             className={`settings-dialog-tab ${activeTab === 'sync' ? 'settings-dialog-tab--active' : ''}`}
             onClick={() => setActiveTab('sync')}
           >
