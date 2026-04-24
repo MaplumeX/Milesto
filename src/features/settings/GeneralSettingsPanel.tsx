@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { useTranslation } from 'react-i18next'
 
+import { Select } from '../../components/Select'
 import type { AppError } from '../../../shared/app-error'
 import { LocaleSchema, type Locale } from '../../../shared/i18n/locale'
 import { ThemePreferenceSchema, type EffectiveTheme, type ThemePreference } from '../../../shared/schemas'
@@ -73,12 +74,12 @@ export function GeneralSettingsPanel() {
         <div className="settings-row">
           <div className="settings-row-label">{t('settings.language')}</div>
           <div className="settings-row-control">
-            <select
-              className="input"
+            <Select
               aria-label={t('settings.language')}
               value={locale}
-              onChange={(event) => {
-                const parsed = LocaleSchema.safeParse(event.target.value)
+              options={supportedLocales.map((value) => ({ value, label: getLocaleLabel(value) }))}
+              onValueChange={(value) => {
+                const parsed = LocaleSchema.safeParse(value)
                 if (!parsed.success) return
 
                 void (async () => {
@@ -95,13 +96,7 @@ export function GeneralSettingsPanel() {
                   await i18n.changeLanguage(res.data.locale)
                 })()
               }}
-            >
-              {supportedLocales.map((value) => (
-                <option key={value} value={value}>
-                  {getLocaleLabel(value)}
-                </option>
-              ))}
-            </select>
+            />
           </div>
         </div>
       </section>
@@ -118,13 +113,17 @@ export function GeneralSettingsPanel() {
             </div>
           </div>
           <div className="settings-row-control">
-            <select
-              className="input"
+            <Select
               aria-label={t('settings.theme')}
               value={themePreference}
-              data-settings-theme-select="true"
-              onChange={(event) => {
-                const parsed = ThemePreferenceSchema.safeParse(event.target.value)
+              data-testid="settings-theme-select"
+              options={[
+                { value: 'system', label: t('settings.themeSystem') },
+                { value: 'light', label: t('settings.themeLight') },
+                { value: 'dark', label: t('settings.themeDark') },
+              ]}
+              onValueChange={(value) => {
+                const parsed = ThemePreferenceSchema.safeParse(value)
                 if (!parsed.success) return
 
                 void (async () => {
@@ -139,11 +138,7 @@ export function GeneralSettingsPanel() {
                   setEffectiveTheme(res.data.effectiveTheme)
                 })()
               }}
-            >
-              <option value="system">{t('settings.themeSystem')}</option>
-              <option value="light">{t('settings.themeLight')}</option>
-              <option value="dark">{t('settings.themeDark')}</option>
-            </select>
+            />
           </div>
         </div>
       </section>

@@ -971,11 +971,17 @@ async function runSelfTest(): Promise<SelfTestResult> {
       )
 
       const themeSelect = await waitFor('Theme select (settings)', () =>
-        document.querySelector<HTMLSelectElement>('select[data-settings-theme-select="true"]')
+        document.querySelector<HTMLElement>('[data-testid="settings-theme-select"]')
       )
 
-      themeSelect.value = 'dark'
-      themeSelect.dispatchEvent(new Event('change', { bubbles: true }))
+      themeSelect.click()
+
+      const darkOption = await waitFor('Theme dark option', () => {
+        const items = document.querySelectorAll('[data-radix-collection-item]')
+        return Array.from(items).find((el) => el.textContent === 'Dark') ?? null
+      })
+
+      ;(darkOption as HTMLElement).click()
 
       await waitForThemeState('Theme suite: preference persisted (dark)', (s) => s.preference === 'dark')
 
@@ -1028,8 +1034,14 @@ async function runSelfTest(): Promise<SelfTestResult> {
         throw new Error(`Theme suite: dark palette applied mismatch: ${lastDarkPaletteSnapshot}`)
       }
 
-      themeSelect.value = 'system'
-      themeSelect.dispatchEvent(new Event('change', { bubbles: true }))
+      themeSelect.click()
+
+      const systemOption = await waitFor('Theme system option', () => {
+        const items = document.querySelectorAll('[data-radix-collection-item]')
+        return Array.from(items).find((el) => el.textContent === 'System') ?? null
+      })
+
+      ;(systemOption as HTMLElement).click()
       await waitForThemeState('Theme suite: preference persisted (system)', (s) => s.preference === 'system')
 
       settingsDialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
