@@ -6,7 +6,6 @@ import { InboxPage } from '../pages/InboxPage'
 import { LogbookPage } from '../pages/LogbookPage'
 import { AreaPage } from '../pages/AreaPage'
 import { ProjectPage } from '../pages/ProjectPage'
-import { SearchPage } from '../pages/SearchPage'
 import { SomedayPage } from '../pages/SomedayPage'
 import { TodayPage } from '../pages/TodayPage'
 import { TrashPage } from '../pages/TrashPage'
@@ -25,8 +24,6 @@ export function AppRouter() {
         <Route path="/someday" element={<SomedayPage />} />
         <Route path="/logbook" element={<LogbookPage />} />
         <Route path="/trash" element={<TrashPage />} />
-
-        <Route path="/search" element={<SearchPage />} />
 
         <Route path="/projects/:projectId" element={<ProjectPage />} />
         <Route path="/areas/:areaId" element={<AreaPage />} />

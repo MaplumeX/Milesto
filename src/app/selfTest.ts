@@ -142,36 +142,6 @@ async function runSearchSmokeTest(): Promise<SelfTestResult> {
       return v === upcomingRes.data.id ? true : null
     })
 
-    // SearchPage: prefix matching + includeLogbook behavior.
-    window.location.hash = '/search'
-    await waitFor('SearchPage route active (search smoke)', () =>
-      window.location.hash.includes('/search') ? true : null
-    )
-    const searchRow = await waitFor('SearchPage search row (search smoke)', () =>
-      document.querySelector<HTMLElement>('.task-create')
-    )
-    const searchInput = await waitFor('SearchPage input (search smoke)', () =>
-      searchRow.querySelector<HTMLInputElement>('input.input')
-    )
-    const includeLogbook = await waitFor('SearchPage includeLogbook checkbox (search smoke)', () =>
-      searchRow.querySelector<HTMLInputElement>('input[type="checkbox"]')
-    )
-
-    setNativeInputValue(searchInput, `${token} Inbo`)
-    await waitFor('SearchPage result: Inbox A (prefix, search smoke)', () =>
-      findButtonContainingText(document, `${token} Inbox A`)
-    )
-
-    setNativeInputValue(searchInput, `${token} Done`)
-    await sleep(350)
-    if (findButtonContainingText(document, `${token} Done A`)) {
-      throw new Error('Search smoke: expected done task excluded when includeLogbook=false')
-    }
-    includeLogbook.click()
-    await waitFor('SearchPage result: Done A (includeLogbook, search smoke)', () =>
-      findButtonContainingText(document, `${token} Done A`)
-    )
-
     // Sanity: ensure prefix query builder tolerates punctuation-only input via worker short-circuit.
     const punctRes = await window.api.task.search('---', { includeLogbook: true })
     if (!punctRes.ok) {
@@ -1325,8 +1295,6 @@ async function runSelfTest(): Promise<SelfTestResult> {
       )
     }
 
-    const projectDoneId = projectDoneRes.data.id
-
     // Inbox (virtualized TaskList)
     window.location.hash = '/inbox'
     let inboxListbox = await waitFor('Inbox listbox', () =>
@@ -1754,32 +1722,6 @@ async function runSelfTest(): Promise<SelfTestResult> {
         )
       }
     }
-
-    // SearchPage should still work and benefit from prefix matching.
-    window.location.hash = '/search'
-    await waitFor('SearchPage route active', () => (window.location.hash.includes('/search') ? true : null))
-    const searchCreateRow = await waitFor('SearchPage search row', () => document.querySelector<HTMLElement>('.task-create'))
-    const searchPageInput = await waitFor('SearchPage input', () =>
-      searchCreateRow.querySelector<HTMLInputElement>('input.input')
-    )
-    const includeLogbookCheckbox = await waitFor('SearchPage includeLogbook checkbox', () =>
-      searchCreateRow.querySelector<HTMLInputElement>('input[type="checkbox"]')
-    )
-
-    // Prefix query: "Inbo" should match "Inbox".
-    setNativeInputValue(searchPageInput, `${token} Inbo`)
-    await waitFor('SearchPage result: Inbox A (prefix match)', () =>
-      findButtonContainingText(document, `${token} Inbox A`)
-    )
-
-    // include_logbook should control whether done tasks are eligible.
-    setNativeInputValue(searchPageInput, `${token} Project Don`)
-    await sleep(400)
-    if (findTaskButton(projectDoneId)) {
-      throw new Error('SearchPage: expected done task excluded when includeLogbook=false')
-    }
-    includeLogbookCheckbox.click()
-    await waitFor('SearchPage result: Project Done (includeLogbook)', () => findTaskButton(projectDoneId))
 
     // Return to Inbox to continue the rest of the Inbox flows.
     window.location.hash = '/inbox'
@@ -3212,7 +3154,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
         window.api.sidebar.moveProject = originalMoveProject
       }
 
-      // Views where manual ordering is NOT supported: Logbook / Search.
+      // Views where manual ordering is NOT supported: Logbook.
       window.location.hash = '/logbook'
       await waitFor('Logbook title', () => {
         const h = document.querySelector<HTMLElement>('h1.page-title')
@@ -3223,21 +3165,6 @@ async function runSelfTest(): Promise<SelfTestResult> {
       )
       if (logbookListbox.querySelector('.task-title-button.is-dnd-activator')) {
         throw new Error('Logbook: drag-and-drop activator should not be present')
-      }
-
-      window.location.hash = '/search'
-      await waitFor('Search title', () => {
-        const h = document.querySelector<HTMLElement>('h1.page-title')
-        return h && (h.textContent ?? '').trim() === 'Search' ? true : null
-      })
-      const searchListbox = await waitFor('Search listbox', () =>
-        document.querySelector<HTMLElement>('div[role="listbox"][aria-label="Search results"]')
-      )
-      if (
-        searchListbox.querySelector('.task-title-button.is-dnd-activator') ||
-        document.querySelector('.task-title-button.is-dnd-activator')
-      ) {
-        throw new Error('Search: drag-and-drop activator should not be present')
       }
     } finally {
       window.confirm = prevConfirm
