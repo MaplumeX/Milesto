@@ -219,3 +219,36 @@ Removed cloud sync UI, IPC, main-process runtime, DB sync metadata, AWS dependen
 ### Next Steps
 
 - 在 `milesto-server` 目录运行 `docker compose up -d` 启动 PostgreSQL + 服务端
+
+
+## Session 6: Settings Dialog UI Redesign
+
+**Date**: 2026-04-24
+**Task**: Settings Dialog UI Redesign
+**Branch**: `master`
+
+### Summary
+
+Redesigned SettingsDialog to Things 3 minimal list style with simplified tabs, compact spacing, and no icons
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f808524` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
