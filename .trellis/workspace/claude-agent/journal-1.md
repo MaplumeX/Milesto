@@ -384,3 +384,36 @@ Implemented project section to project conversion with atomic DB migration, menu
 ### Next Steps
 
 - None - task complete
+
+
+## Session 11: Unify project list item rows
+
+**Date**: 2026-04-26
+**Task**: Unify project list item rows
+**Branch**: `master`
+
+### Summary
+
+Created ProjectRow component and useProjectContextMenu hook. Replaced ad-hoc project row implementations in ProjectViewRow, AreaPage, TrashList, and ViewList. Lint and typecheck pass.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `96f32ca` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
