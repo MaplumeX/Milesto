@@ -13,6 +13,10 @@ import type { TaskSelection } from '../../src/features/tasks/TaskSelectionContex
 import { TaskSelectionProvider } from '../../src/features/tasks/TaskSelectionContext'
 import { ProjectPage } from '../../src/pages/ProjectPage'
 
+function expectPopoverMenuItemIcon(button: HTMLElement) {
+  expect(button.querySelector('.task-inline-popover-item-icon svg')).not.toBeNull()
+}
+
 vi.mock('@tanstack/react-virtual', () => {
   return {
     useVirtualizer: (opts: { count: number; scrollMargin?: number }) => {
@@ -287,7 +291,11 @@ describe('ProjectPage completed list', () => {
     await screen.findByText('Project Alpha')
     await user.click(screen.getByRole('button', { name: '...' }))
 
-    const cancelButton = await screen.findByRole('button', { name: 'project.cancel' })
+    const menu = await screen.findByRole('dialog', { name: 'aria.projectActions' })
+    const cancelButton = within(menu).getByRole('button', { name: 'project.cancel' })
+    for (const button of within(menu).getAllByRole('button')) {
+      expectPopoverMenuItemIcon(button)
+    }
     await user.click(cancelButton)
 
     expect(confirmSpy).toHaveBeenCalledTimes(1)

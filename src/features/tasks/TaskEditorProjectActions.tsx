@@ -4,6 +4,8 @@ import type { Area } from '../../../shared/schemas/area'
 import type { Project } from '../../../shared/schemas/project'
 import type { TaskUpdateInput } from '../../../shared/schemas/task'
 
+import { PopoverMenuItem } from '../../components/PopoverMenuItem'
+import { MoveMenuIcon, OpenMenuIcon } from '../../components/popover-menu-icons'
 import { ProjectProgressIndicator } from '../projects/ProjectProgressControl'
 import { TaskMovePopoverContent } from './TaskMovePopoverContent'
 
@@ -58,20 +60,12 @@ export function TaskEditorProjectActions(props: TaskEditorProjectActionsProps) {
     return (
       <div className="task-inline-popover-body">
         <div className="task-inline-popover-title">{t('taskEditor.projectLabel')}</div>
-        <button
-          type="button"
-          className="task-inline-popover-item"
-          onClick={props.onOpenProject}
-        >
+        <PopoverMenuItem icon={<OpenMenuIcon />} onClick={props.onOpenProject}>
           {t('taskEditor.openProject')}
-        </button>
-        <button
-          type="button"
-          className="task-inline-popover-item"
-          onClick={props.onOpenMove}
-        >
+        </PopoverMenuItem>
+        <PopoverMenuItem icon={<MoveMenuIcon />} onClick={props.onOpenMove}>
           {t('taskEditor.changeProject')}
-        </button>
+        </PopoverMenuItem>
       </div>
     )
   }

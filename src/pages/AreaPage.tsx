@@ -13,6 +13,8 @@ import type { TaskListItem } from '../../shared/schemas/task-list'
 import { taskListIdArea } from '../../shared/task-list-ids'
 
 import { useAppEvents } from '../app/AppEventsContext'
+import { PopoverMenuItem } from '../components/PopoverMenuItem'
+import { DeleteMenuIcon, TagMenuIcon } from '../components/popover-menu-icons'
 import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
 import { TagPicker } from '../features/tags/TagPicker'
 import { TaskList } from '../features/tasks/TaskList'
@@ -614,13 +616,12 @@ const AreaMenu = forwardRef(function AreaMenu(
         {view === 'root' ? (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <button ref={tagsBtnRef} type="button" className="task-inline-popover-item" onClick={goTags}>
+              <PopoverMenuItem ref={tagsBtnRef} icon={<TagMenuIcon />} onClick={goTags}>
                 {t('taskEditor.tagsLabel')}
-              </button>
-              <button
+              </PopoverMenuItem>
+              <PopoverMenuItem
                 ref={deleteBtnRef}
-                type="button"
-                className="task-inline-popover-item"
+                icon={<DeleteMenuIcon />}
                 onClick={() => {
                   void (async () => {
                     onSetPageError(null)
@@ -641,7 +642,7 @@ const AreaMenu = forwardRef(function AreaMenu(
                 }}
               >
                 {t('common.delete')}
-              </button>
+              </PopoverMenuItem>
             </div>
           </>
         ) : (

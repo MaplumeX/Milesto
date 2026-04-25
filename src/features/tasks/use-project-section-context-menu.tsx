@@ -6,6 +6,9 @@ import type { AppError } from '../../../shared/app-error'
 import type { EntityScope } from '../../../shared/schemas/common'
 import type { Project, ProjectSection } from '../../../shared/schemas/project'
 
+import { PopoverMenuItem } from '../../components/PopoverMenuItem'
+import { DeleteMenuIcon, MoveMenuIcon } from '../../components/popover-menu-icons'
+
 type ProjectSectionContextMenuView = 'root' | 'move'
 
 type ProjectSectionContextMenuState = {
@@ -225,9 +228,8 @@ export function useProjectSectionContextMenu({
         <div className="task-inline-popover-body">
           {menuState.view === 'root' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              <PopoverMenuItem
+                icon={<MoveMenuIcon />}
                 onClick={() => {
                   setActionError(null)
                   setMoveTargetsError(null)
@@ -235,16 +237,15 @@ export function useProjectSectionContextMenu({
                 }}
               >
                 {t('common.move')}
-              </button>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              </PopoverMenuItem>
+              <PopoverMenuItem
+                icon={<DeleteMenuIcon />}
                 onClick={() => {
                   void handleDeleteSection()
                 }}
               >
                 {t('common.delete')}
-              </button>
+              </PopoverMenuItem>
             </div>
           ) : (
             <>
@@ -276,17 +277,16 @@ export function useProjectSectionContextMenu({
                   const isCurrent = project.id === menuState.section.project_id
                   const label = project.title.trim() ? project.title : t('project.untitled')
                   return (
-                    <button
+                    <PopoverMenuItem
                       key={project.id}
-                      type="button"
-                      className={`task-inline-popover-item${isCurrent ? ' is-selected' : ''}`}
+                      className={isCurrent ? 'is-selected' : ''}
                       aria-pressed={isCurrent}
                       onClick={() => {
                         void handleMoveSection(project.id)
                       }}
                     >
                       {label}
-                    </button>
+                    </PopoverMenuItem>
                   )
                 })}
               </div>

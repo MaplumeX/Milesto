@@ -141,6 +141,10 @@ function makeTag(id: string, title: string): Tag {
   }
 }
 
+function expectPopoverMenuItemIcon(button: HTMLElement) {
+  expect(button.querySelector('.task-inline-popover-item-icon svg')).not.toBeNull()
+}
+
 describe('task context menu', () => {
   afterEach(() => {
     cleanup()
@@ -152,11 +156,19 @@ describe('task context menu', () => {
     const titleButton = await screen.findByRole('button', { name: 'Task A' })
     fireEvent.contextMenu(titleButton, { clientX: 120, clientY: 80 })
 
-    expect(await screen.findByRole('button', { name: 'common.schedule' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'taskEditor.tagsLabel' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'taskEditor.dueLabel' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'taskEditor.markDone' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'task.cancel' })).toBeInTheDocument()
+    const scheduleButton = await screen.findByRole('button', { name: 'common.schedule' })
+    const rootButtons = [
+      scheduleButton,
+      screen.getByRole('button', { name: 'taskEditor.tagsLabel' }),
+      screen.getByRole('button', { name: 'taskEditor.dueLabel' }),
+      screen.getByRole('button', { name: 'taskEditor.markDone' }),
+      screen.getByRole('button', { name: 'task.cancel' }),
+    ]
+
+    for (const button of rootButtons) {
+      expect(button).toBeInTheDocument()
+      expectPopoverMenuItemIcon(button)
+    }
   })
 
   it('shows restore instead of complete for done tasks', async () => {

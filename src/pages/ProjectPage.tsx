@@ -13,6 +13,17 @@ import type { Project, ProjectSection } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
 import type { TaskListItem } from '../../shared/schemas/task-list'
 import { useAppEvents } from '../app/AppEventsContext'
+import { PopoverMenuItem } from '../components/PopoverMenuItem'
+import {
+  CancelMenuIcon,
+  DeleteMenuIcon,
+  DoneMenuIcon,
+  DueMenuIcon,
+  MoveMenuIcon,
+  RestoreMenuIcon,
+  ScheduleMenuIcon,
+  TagMenuIcon,
+} from '../components/popover-menu-icons'
 import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
 import { AnimatedTaskSlot } from '../features/tasks/AnimatedTaskSlot'
 import { ProjectGroupedList } from '../features/tasks/ProjectGroupedList'
@@ -1079,10 +1090,9 @@ const ProjectMenu = forwardRef(function ProjectMenu(
         {view === 'root' ? (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <button
+              <PopoverMenuItem
                 ref={completeBtnRef}
-                type="button"
-                className="task-inline-popover-item"
+                icon={isClosedProjectStatus(project.status) ? <RestoreMenuIcon /> : <DoneMenuIcon />}
                 onClick={() => {
                   void (async () => {
                     onError(null)
@@ -1111,12 +1121,11 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                 }}
               >
                 {isClosedProjectStatus(project.status) ? t('projectPage.reopen') : t('projectPage.markDone')}
-              </button>
+              </PopoverMenuItem>
 
               {project.status === 'open' ? (
-                <button
-                  type="button"
-                  className="task-inline-popover-item"
+                <PopoverMenuItem
+                  icon={<CancelMenuIcon />}
                   onClick={() => {
                     void (async () => {
                       onError(null)
@@ -1136,52 +1145,47 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                   }}
                 >
                   {t('project.cancel')}
-                </button>
+                </PopoverMenuItem>
               ) : null}
 
-              <button
+              <PopoverMenuItem
                 ref={planBtnRef}
-                type="button"
-                className="task-inline-popover-item"
+                icon={<ScheduleMenuIcon />}
                 onClick={() => goSubview('plan', 'plan')}
               >
                 {t('common.schedule')}
-              </button>
+              </PopoverMenuItem>
 
-              <button
+              <PopoverMenuItem
                 ref={dueBtnRef}
-                type="button"
-                className="task-inline-popover-item"
+                icon={<DueMenuIcon />}
                 onClick={() => goSubview('due', 'due')}
               >
                 {t('taskEditor.dueLabel')}
-              </button>
+              </PopoverMenuItem>
 
               {!isTrashScope ? (
-                <button
+                <PopoverMenuItem
                   ref={moveBtnRef}
-                  type="button"
-                  className="task-inline-popover-item"
+                  icon={<MoveMenuIcon />}
                   onClick={() => goSubview('move', 'move')}
                 >
                   {t('common.move')}
-                </button>
+                </PopoverMenuItem>
               ) : null}
 
-              <button
+              <PopoverMenuItem
                 ref={tagsBtnRef}
-                type="button"
-                className="task-inline-popover-item"
+                icon={<TagMenuIcon />}
                 onClick={() => goSubview('tags', 'tags')}
               >
                 {t('taskEditor.tagsLabel')}
-              </button>
+              </PopoverMenuItem>
 
               {!isTrashScope ? (
-                <button
+                <PopoverMenuItem
                   ref={deleteBtnRef}
-                  type="button"
-                  className="task-inline-popover-item"
+                  icon={<DeleteMenuIcon />}
                   onClick={() => {
                     void (async () => {
                       onError(null)
@@ -1202,7 +1206,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                   }}
                 >
                   {t('common.delete')}
-                </button>
+                </PopoverMenuItem>
               ) : null}
             </div>
           </>

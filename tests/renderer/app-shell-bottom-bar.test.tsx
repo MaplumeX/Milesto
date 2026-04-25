@@ -12,6 +12,10 @@ function LocationProbe() {
   return <div data-testid="bottom-bar-route-probe">{location.pathname}</div>
 }
 
+function expectPopoverMenuItemIcon(button: HTMLElement) {
+  expect(button.querySelector('.task-inline-popover-item-icon svg')).not.toBeNull()
+}
+
 function renderAppShell(
   initialEntry: string,
   model: {
@@ -130,9 +134,17 @@ describe('AppShell bottom bar', () => {
     if (!areaLink) return
     areaLink.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 120, clientY: 80 }))
 
-    expect(await screen.findByRole('button', { name: 'common.rename' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'taskEditor.tagsLabel' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'common.delete' })).toBeInTheDocument()
+    const renameButton = await screen.findByRole('button', { name: 'common.rename' })
+    const areaMenuButtons = [
+      renameButton,
+      screen.getByRole('button', { name: 'taskEditor.tagsLabel' }),
+      screen.getByRole('button', { name: 'common.delete' }),
+    ]
+
+    for (const button of areaMenuButtons) {
+      expect(button).toBeInTheDocument()
+      expectPopoverMenuItemIcon(button)
+    }
     expect(screen.getByTestId('bottom-bar-route-probe')).toHaveTextContent('/today')
   })
 
@@ -225,6 +237,9 @@ describe('AppShell bottom bar', () => {
     expect(within(menu).getByRole('button', { name: 'project.cancel' })).toBeInTheDocument()
     expect(within(menu).getByRole('button', { name: 'common.rename' })).toBeInTheDocument()
     expect(within(menu).getByRole('button', { name: 'common.delete' })).toBeInTheDocument()
+    for (const button of within(menu).getAllByRole('button')) {
+      expectPopoverMenuItemIcon(button)
+    }
     expect(screen.getByTestId('bottom-bar-route-probe')).toHaveTextContent('/today')
   })
 

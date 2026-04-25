@@ -9,6 +9,17 @@ import type { Project } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
 
 import { formatLocalDate, parseLocalDate } from '../lib/dates'
+import { PopoverMenuItem } from '../components/PopoverMenuItem'
+import {
+  CancelMenuIcon,
+  DeleteMenuIcon,
+  DoneMenuIcon,
+  DueMenuIcon,
+  MoveMenuIcon,
+  RenameMenuIcon,
+  ScheduleMenuIcon,
+  TagMenuIcon,
+} from '../components/popover-menu-icons'
 import { TagPicker } from '../features/tags/TagPicker'
 
 type SidebarAreaContextMenuView = 'root' | 'tags'
@@ -208,28 +219,25 @@ export function useSidebarAreaContextMenu({
         <div className="task-inline-popover-body">
           {menuState.view === 'root' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              <PopoverMenuItem
+                icon={<RenameMenuIcon />}
                 onClick={() => {
                   onRename(menuState.area)
                   closeMenu({ restoreFocus: false })
                 }}
               >
                 {t('common.rename')}
-              </button>
+              </PopoverMenuItem>
 
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              <PopoverMenuItem
+                icon={<TagMenuIcon />}
                 onClick={() => setMenuState((current) => (current ? { ...current, view: 'tags' } : current))}
               >
                 {t('taskEditor.tagsLabel')}
-              </button>
+              </PopoverMenuItem>
 
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              <PopoverMenuItem
+                icon={<DeleteMenuIcon />}
                 onClick={() => {
                   void (async () => {
                     setActionError(null)
@@ -250,7 +258,7 @@ export function useSidebarAreaContextMenu({
                 }}
               >
                 {t('common.delete')}
-              </button>
+              </PopoverMenuItem>
             </div>
           ) : (
             <>
@@ -504,37 +512,32 @@ export function useSidebarProjectContextMenu({
         <div className="task-inline-popover-body">
           {menuState.view === 'root' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              <PopoverMenuItem
+                icon={<ScheduleMenuIcon />}
                 onClick={() => setMenuState((current) => (current ? { ...current, view: 'plan' } : current))}
               >
                 {t('common.plan')}
-              </button>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              </PopoverMenuItem>
+              <PopoverMenuItem
+                icon={<MoveMenuIcon />}
                 onClick={() => setMenuState((current) => (current ? { ...current, view: 'move' } : current))}
               >
                 {t('common.move')}
-              </button>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              </PopoverMenuItem>
+              <PopoverMenuItem
+                icon={<TagMenuIcon />}
                 onClick={() => setMenuState((current) => (current ? { ...current, view: 'tags' } : current))}
               >
                 {t('taskEditor.tagsLabel')}
-              </button>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              </PopoverMenuItem>
+              <PopoverMenuItem
+                icon={<DueMenuIcon />}
                 onClick={() => setMenuState((current) => (current ? { ...current, view: 'due' } : current))}
               >
                 {t('taskEditor.dueLabel')}
-              </button>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              </PopoverMenuItem>
+              <PopoverMenuItem
+                icon={<DoneMenuIcon />}
                 onClick={() => {
                   void (async () => {
                     setActionError(null)
@@ -550,10 +553,9 @@ export function useSidebarProjectContextMenu({
                 }}
               >
                 {t('projectPage.markDone')}
-              </button>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              </PopoverMenuItem>
+              <PopoverMenuItem
+                icon={<CancelMenuIcon />}
                 onClick={() => {
                   void (async () => {
                     setActionError(null)
@@ -569,20 +571,18 @@ export function useSidebarProjectContextMenu({
                 }}
               >
                 {t('project.cancel')}
-              </button>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              </PopoverMenuItem>
+              <PopoverMenuItem
+                icon={<RenameMenuIcon />}
                 onClick={() => {
                   onRename(menuState.project)
                   closeMenu({ restoreFocus: false })
                 }}
               >
                 {t('common.rename')}
-              </button>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              </PopoverMenuItem>
+              <PopoverMenuItem
+                icon={<DeleteMenuIcon />}
                 onClick={() => {
                   void (async () => {
                     setActionError(null)
@@ -602,7 +602,7 @@ export function useSidebarProjectContextMenu({
                 }}
               >
                 {t('common.delete')}
-              </button>
+              </PopoverMenuItem>
             </div>
           ) : menuState.view === 'move' ? (
             <>
@@ -618,9 +618,8 @@ export function useSidebarProjectContextMenu({
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 8 }}>
-                <button
-                  type="button"
-                  className={`task-inline-popover-item${menuState.project.area_id === null ? ' is-selected' : ''}`}
+                <PopoverMenuItem
+                  className={menuState.project.area_id === null ? 'is-selected' : ''}
                   aria-pressed={menuState.project.area_id === null}
                   onClick={() => {
                     void (async () => {
@@ -641,15 +640,14 @@ export function useSidebarProjectContextMenu({
                   }}
                 >
                   {t('common.noneOption')}
-                </button>
+                </PopoverMenuItem>
 
                 {areas.map((area) => {
                   const isCurrent = area.id === menuState.project.area_id
                   return (
-                    <button
+                    <PopoverMenuItem
                       key={area.id}
-                      type="button"
-                      className={`task-inline-popover-item${isCurrent ? ' is-selected' : ''}`}
+                      className={isCurrent ? 'is-selected' : ''}
                       aria-pressed={isCurrent}
                       onClick={() => {
                         void (async () => {
@@ -670,7 +668,7 @@ export function useSidebarProjectContextMenu({
                       }}
                     >
                       {area.title.trim() ? area.title : t('area.untitled')}
-                    </button>
+                    </PopoverMenuItem>
                   )
                 })}
               </div>

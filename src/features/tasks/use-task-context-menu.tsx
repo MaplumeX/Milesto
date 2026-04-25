@@ -10,6 +10,16 @@ import type { Tag } from '../../../shared/schemas/tag'
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useAppEvents } from '../../app/AppEventsContext'
+import { PopoverMenuItem } from '../../components/PopoverMenuItem'
+import {
+  BackMenuIcon,
+  CancelMenuIcon,
+  DoneMenuIcon,
+  DueMenuIcon,
+  RestoreMenuIcon,
+  ScheduleMenuIcon,
+  TagMenuIcon,
+} from '../../components/popover-menu-icons'
 import { TagPicker } from '../tags/TagPicker'
 import { formatLocalDate, parseLocalDate } from '../../lib/dates'
 import { getLocalToday } from '../../lib/use-local-today'
@@ -270,30 +280,26 @@ export function useTaskContextMenu({
         <div className="task-inline-popover-body">
           {menuState.view === 'root' ? (
             <>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              <PopoverMenuItem
+                icon={<ScheduleMenuIcon />}
                 onClick={() => setMenuState((current) => (current ? { ...current, view: 'schedule' } : current))}
               >
                 {t('common.schedule')}
-              </button>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              </PopoverMenuItem>
+              <PopoverMenuItem
+                icon={<TagMenuIcon />}
                 onClick={() => setMenuState((current) => (current ? { ...current, view: 'tags' } : current))}
               >
                 {t('taskEditor.tagsLabel')}
-              </button>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              </PopoverMenuItem>
+              <PopoverMenuItem
+                icon={<DueMenuIcon />}
                 onClick={() => setMenuState((current) => (current ? { ...current, view: 'due' } : current))}
               >
                 {t('taskEditor.dueLabel')}
-              </button>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              </PopoverMenuItem>
+              <PopoverMenuItem
+                icon={isClosed ? <RestoreMenuIcon /> : <DoneMenuIcon />}
                 onClick={() => {
                   if (isClosed) {
                     void persistTaskRestore()
@@ -304,27 +310,25 @@ export function useTaskContextMenu({
                 }}
               >
                 {isClosed ? t('task.restore') : t('taskEditor.markDone')}
-              </button>
+              </PopoverMenuItem>
               {!isClosed ? (
-                <button
-                  type="button"
-                  className="task-inline-popover-item"
+                <PopoverMenuItem
+                  icon={<CancelMenuIcon />}
                   onClick={() => void persistTaskCancel()}
                 >
                   {t('task.cancel')}
-                </button>
+                </PopoverMenuItem>
               ) : null}
             </>
           ) : (
             <>
               <div className="task-inline-popover-title">{menuState.view === 'schedule' ? t('taskEditor.popoverScheduleTitle') : menuState.view === 'due' ? t('taskEditor.popoverDueTitle') : t('taskEditor.tagsLabel')}</div>
-              <button
-                type="button"
-                className="task-inline-popover-item"
+              <PopoverMenuItem
+                icon={<BackMenuIcon />}
                 onClick={() => setMenuState((current) => (current ? { ...current, view: 'root' } : current))}
               >
                 {t('common.back')}
-              </button>
+              </PopoverMenuItem>
 
               {menuState.view === 'schedule' ? (
                 <>

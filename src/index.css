@@ -2137,9 +2137,10 @@ body {
   color: var(--muted);
 }
 
-/* Clean menu-item style for popover root lists (Things 3-like) */
 .task-inline-popover-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   width: 100%;
   border: 0;
   border-radius: 6px;
@@ -2153,12 +2154,38 @@ body {
   cursor: pointer;
 }
 
+.task-inline-popover-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.task-inline-popover-item-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .task-inline-popover-item:hover {
   background: var(--wash);
 }
 
+.task-inline-popover-item:hover .task-inline-popover-item-icon {
+  color: var(--text);
+}
+
 .task-inline-popover-item.is-selected {
   background: color-mix(in srgb, var(--accent) 12%, var(--paper));
+  color: var(--accent-strong);
+}
+
+.task-inline-popover-item.is-selected .task-inline-popover-item-icon {
   color: var(--accent-strong);
 }
 
