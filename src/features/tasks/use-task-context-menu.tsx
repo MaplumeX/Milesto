@@ -16,6 +16,7 @@ import {
   BackMenuIcon,
   CancelMenuIcon,
   ConvertMenuIcon,
+  DeleteMenuIcon,
   DoneMenuIcon,
   DueMenuIcon,
   RestoreMenuIcon,
@@ -233,6 +234,21 @@ export function useTaskContextMenu({
     closeMenu({ restoreFocus: true })
   }, [bumpRevision, closeMenu, menuState])
 
+  const persistTaskDelete = useCallback(async () => {
+    if (!menuState) return
+    const confirmed = confirm(t('task.deleteConfirm'))
+    if (!confirmed) return
+
+    const res = await window.api.task.delete(menuState.task.id)
+    if (!res.ok) {
+      setActionError(res.error)
+      return
+    }
+
+    bumpRevision()
+    closeMenu({ restoreFocus: false })
+  }, [bumpRevision, closeMenu, menuState, t])
+
   const persistTaskConvertToProject = useCallback(async () => {
     if (!menuState) return
     if (menuState.scope === 'trash' || isClosedTaskStatus(menuState.task.status)) return
@@ -343,6 +359,14 @@ export function useTaskContextMenu({
                   onClick={() => void persistTaskCancel()}
                 >
                   {t('task.cancel')}
+                </PopoverMenuItem>
+              ) : null}
+              {menuState.scope !== 'trash' ? (
+                <PopoverMenuItem
+                  icon={<DeleteMenuIcon />}
+                  onClick={() => void persistTaskDelete()}
+                >
+                  {t('common.delete')}
                 </PopoverMenuItem>
               ) : null}
             </>
@@ -478,6 +502,7 @@ export function useTaskContextMenu({
     persistTagIds,
     persistTaskCancel,
     persistTaskConvertToProject,
+    persistTaskDelete,
     persistTaskRestore,
     persistTaskToggleDone,
     persistTaskUpdate,
