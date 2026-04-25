@@ -110,7 +110,8 @@ describe('TaskEditorPaper metadata band', () => {
     await screen.findByText(/Urgent/)
 
     const titleInput = screen.getByDisplayValue('Task A')
-    const notes = screen.getByPlaceholderText('task.notesPlaceholder')
+    const notes = container.querySelector<HTMLElement>('#task-notes')
+    expect(notes).not.toBeNull()
     const metadataBand = container.querySelector<HTMLElement>('[data-task-inline-meta-band="true"]')
     expect(metadataBand).not.toBeNull()
 
@@ -122,9 +123,9 @@ describe('TaskEditorPaper metadata band', () => {
     expect(items[2]?.textContent).toContain('Home')
     expect(items[2]?.textContent).toContain('+1')
 
-    expect(Boolean(titleInput.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
-    expect(Boolean(notes.compareDocumentPosition(metadataBand as Node) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
-    expect(getComputedStyle(notes).minHeight).toBe('48px')
+    expect(Boolean(titleInput.compareDocumentPosition(notes as Node) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
+    expect(Boolean((notes as Node).compareDocumentPosition(metadataBand as Node) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
+    expect(getComputedStyle(notes as Element).minHeight).toBe('48px')
 
     expect(screen.queryByRole('button', { name: 'common.schedule' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'taskEditor.dueLabel' })).toBeNull()

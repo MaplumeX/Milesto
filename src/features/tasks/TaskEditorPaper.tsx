@@ -16,6 +16,7 @@ import type { Task, TaskUpdateInput } from '../../../shared/schemas/task'
 
 import { useAppEvents } from '../../app/AppEventsContext'
 import { Checkbox } from '../../components/Checkbox'
+import { MarkdownNotes } from '../../components/MarkdownNotes'
 import { formatLocalDate, parseLocalDate } from '../../lib/dates'
 import { buildProjectPath } from '../../lib/entity-scope'
 import { getLocalToday } from '../../lib/use-local-today'
@@ -1340,14 +1341,14 @@ export const TaskEditorPaper = forwardRef<
                 </div>
               ) : null}
 
-              <textarea
+              <MarkdownNotes
                 id="task-notes"
-                ref={notesInputRef}
+                textareaRef={notesInputRef}
                 className="task-inline-notes"
                 style={{ minHeight: `${TASK_INLINE_NOTES_MIN_HEIGHT_PX}px` }}
                 value={draft.notes}
-                onChange={(e) => {
-                  const next = { ...draft, notes: e.target.value }
+                onChange={(nextNotes) => {
+                  const next = { ...draft, notes: nextNotes }
                   setDraft(next)
                   scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
                 }}
@@ -1561,13 +1562,13 @@ export const TaskEditorPaper = forwardRef<
           <label className="label" htmlFor="task-notes">
             {t('taskEditor.notesLabel')}
           </label>
-          <textarea
+          <MarkdownNotes
             id="task-notes"
             className="input"
             rows={8}
             value={draft.notes}
-            onChange={(e) => {
-              const next = { ...draft, notes: e.target.value }
+            onChange={(nextNotes) => {
+              const next = { ...draft, notes: nextNotes }
               setDraft(next)
               scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
             }}

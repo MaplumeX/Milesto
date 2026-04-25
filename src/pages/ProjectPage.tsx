@@ -38,6 +38,7 @@ import { useTaskContextMenu } from '../features/tasks/use-task-context-menu'
 import { useOptimisticTaskTitles } from '../features/tasks/use-optimistic-task-titles'
 import { CalendarIcon, ClockIcon } from '../features/tasks/task-metadata-icons'
 import { TagPicker } from '../features/tags/TagPicker'
+import { MarkdownNotes } from '../components/MarkdownNotes'
 import { formatLocalDate, formatMonthDay, parseLocalDate } from '../lib/dates'
 import { getEntityScopeFromSearch } from '../lib/entity-scope'
 
@@ -583,8 +584,9 @@ export function ProjectPage() {
         ) : null}
 
         <div className="project-notes" style={{ marginTop: 12 }}>
-          <ProjectNotes
+          <MarkdownNotes
             textareaRef={notesRef}
+            className="task-inline-notes project-notes-textarea"
             value={notesDraft}
             onChange={(next) => {
               setNotesDraft(next)
@@ -621,6 +623,7 @@ export function ProjectPage() {
                 setProject(res.data)
               })()
             }}
+            placeholder={t('projectPage.notesPlaceholder')}
           />
         </div>
 
@@ -929,39 +932,6 @@ function ProjectMetaRow({
         </div>
       ) : null}
     </div>
-  )
-}
-
-function ProjectNotes({
-  textareaRef,
-  value,
-  onChange,
-  onBlur,
-}: {
-  textareaRef: RefObject<HTMLTextAreaElement>
-  value: string
-  onChange: (next: string) => void
-  onBlur: () => void
-}) {
-  const { t } = useTranslation()
-
-  useLayoutEffect(() => {
-    void value
-    const el = textareaRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${el.scrollHeight}px`
-  }, [textareaRef, value])
-
-  return (
-    <textarea
-      ref={textareaRef}
-      className="task-inline-notes project-notes-textarea"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onBlur={onBlur}
-      placeholder={t('projectPage.notesPlaceholder')}
-    />
   )
 }
 

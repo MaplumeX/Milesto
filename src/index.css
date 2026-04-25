@@ -2948,3 +2948,85 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
     z-index: 20;
   }
 }
+
+/* Markdown rendered notes */
+.markdown-body {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.markdown-body p {
+  margin: 0 0 6px;
+}
+
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0 0 6px;
+  padding-left: 18px;
+}
+
+.markdown-body li {
+  margin: 0 0 2px;
+}
+
+.markdown-body li:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body strong {
+  font-weight: 650;
+}
+
+.markdown-body em {
+  font-style: italic;
+}
+
+.markdown-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--wash);
+}
+
+.markdown-body pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 11px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--wash);
+  overflow: auto;
+  margin: 0 0 6px;
+}
+
+.markdown-body pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.markdown-body a {
+  color: var(--ppc-color);
+  text-decoration: underline;
+}
+
+.markdown-body a:hover {
+  text-decoration: none;
+}
+
+.markdown-body blockquote {
+  margin: 0 0 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+  color: var(--muted);
+}
+
+.markdown-body hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 8px 0;
+}
