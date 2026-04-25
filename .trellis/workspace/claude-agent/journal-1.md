@@ -318,3 +318,36 @@ Implemented task-to-project conversion via a typed cross-layer API, DB transacti
 ### Next Steps
 
 - None - task complete
+
+
+## Session 9: Convert project sections to projects
+
+**Date**: 2026-04-25
+**Task**: Convert project sections to projects
+**Branch**: `master`
+
+### Summary
+
+Implemented project section to project conversion with atomic DB migration, menu action, IPC registration regression coverage, tests, and spec contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c328732` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

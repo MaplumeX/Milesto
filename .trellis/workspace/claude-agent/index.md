@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 8
+- **Total Sessions**: 9
 - **Last Active**: 2026-04-25
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~320 | Active |
+| `journal-1.md` | ~353 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 9 | 2026-04-25 | Convert project sections to projects | `c328732` | `master` |
 | 8 | 2026-04-25 | Task to Project Conversion | `3d3bd60` | `master` |
 | 7 | 2026-04-24 | Mixed planning views show projects | `2d15320` | `master` |
 | 6 | 2026-04-24 | Settings Dialog UI Redesign | `f808524` | `master` |
