@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 7
-- **Last Active**: 2026-04-24
+- **Total Sessions**: 8
+- **Last Active**: 2026-04-25
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~287 | Active |
+| `journal-1.md` | ~320 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 8 | 2026-04-25 | Task to Project Conversion | `3d3bd60` | `master` |
 | 7 | 2026-04-24 | Mixed planning views show projects | `2d15320` | `master` |
 | 6 | 2026-04-24 | Settings Dialog UI Redesign | `f808524` | `master` |
 | 5 | 2026-04-23 | 实现云端实时同步 + 自部署服务端 | `454d8ff`, `b0db4f0` | `master` |

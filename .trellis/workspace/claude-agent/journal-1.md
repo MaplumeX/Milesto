@@ -285,3 +285,36 @@ Implemented mixed task/project planning views with unified ordering, tag filteri
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: Task to Project Conversion
+
+**Date**: 2026-04-25
+**Task**: Task to Project Conversion
+**Branch**: `master`
+
+### Summary
+
+Implemented task-to-project conversion via a typed cross-layer API, DB transaction, right-click menu entry, and focused DB/renderer tests.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3d3bd60` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
