@@ -351,3 +351,36 @@ Implemented project section to project conversion with atomic DB migration, menu
 ### Next Steps
 
 - None - task complete
+
+
+## Session 10: 让备注支持 Markdown
+
+**Date**: 2026-04-25
+**Task**: 让备注支持 Markdown
+**Branch**: `master`
+
+### Summary
+
+为 Task 和 Project 的 notes 添加 Markdown 渲染支持。采用 Render-on-Blur 模式：聚焦时显示 textarea 编辑，失焦后渲染为格式化 HTML。使用 react-markdown 库，基础 Markdown 语法（bold, italic, lists, links, code blocks）。新增 MarkdownNotes 共享组件、.markdown-body CSS 样式、8 个组件测试。Lint 和测试全部通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9d586db` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
