@@ -15,7 +15,8 @@ import { taskListIdArea } from '../../shared/task-list-ids'
 import { useAppEvents } from '../app/AppEventsContext'
 import { PopoverMenuItem } from '../components/PopoverMenuItem'
 import { DeleteMenuIcon, TagMenuIcon } from '../components/popover-menu-icons'
-import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
+import { ProjectRow, type ProjectRowProject } from '../features/projects/ProjectRow'
+import { useProjectContextMenu } from '../features/projects/use-project-context-menu'
 import { TagPicker } from '../features/tags/TagPicker'
 import { TaskList } from '../features/tasks/TaskList'
 import { TagFilter } from '../features/tasks/TagFilter'
@@ -37,6 +38,7 @@ export function AreaPage() {
   const [error, setError] = useState<AppError | null>(null)
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const { openProjectContextMenu, menuNode: projectMenuNode } = useProjectContextMenu()
 
   const {
     availableTags,
@@ -245,6 +247,72 @@ export function AreaPage() {
     )
   }, [projects, projectUntitled])
 
+  const handleCompleteProject = useCallback(
+    async (project: ProjectRowProject) => {
+      const p = projects.find((proj) => proj.id === project.id)
+      if (!p) return
+      const counts = projectProgress[project.id]
+      if (!counts) return
+
+      if (isClosedProjectStatus(p.status)) {
+        const res = await window.api.project.update({ id: p.id, status: 'open' })
+        if (!res.ok) {
+          setError(res.error)
+          return
+        }
+        await mutateAndRefresh()
+        return
+      }
+
+      const openCount = Math.max(0, counts.total_count - counts.done_count)
+      const confirmed = confirm(t('project.completeConfirm', { count: openCount }))
+      if (!confirmed) return
+
+      const res = await window.api.project.complete(p.id)
+      if (!res.ok) {
+        setError(res.error)
+        return
+      }
+      await mutateAndRefresh()
+    },
+    [projects, projectProgress, mutateAndRefresh, t]
+  )
+
+  const handleProjectContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>, project: Project) => {
+      event.preventDefault()
+      event.stopPropagation()
+      setSelectedProjectId(project.id)
+
+      const eventTarget = event.target
+      const restoreFocusEl =
+        eventTarget instanceof HTMLElement
+          ? eventTarget.closest<HTMLElement>('[data-project-focus-target="true"]') ??
+            event.currentTarget.querySelector<HTMLElement>('[data-project-focus-target="true"]') ??
+            event.currentTarget
+          : event.currentTarget.querySelector<HTMLElement>('[data-project-focus-target="true"]') ??
+            event.currentTarget
+
+      void openProjectContextMenu({
+        project: {
+          id: project.id,
+          title: project.title,
+          status: project.status,
+          done_count: projectProgress[project.id]?.done_count ?? 0,
+          total_count: projectProgress[project.id]?.total_count ?? 0,
+          area_id: project.area_id,
+          scheduled_at: project.scheduled_at,
+          due_at: project.due_at,
+          is_someday: project.is_someday,
+        },
+        anchorX: event.clientX,
+        anchorY: event.clientY,
+        restoreFocusEl,
+      })
+    },
+    [openProjectContextMenu, projectProgress]
+  )
+
   const projectsTopContent =
     sortedProjects.length > 0 ? (
       <div data-area-projects="true">
@@ -255,65 +323,19 @@ export function AreaPage() {
               className={`task-row${selectedProjectId === p.id ? ' is-selected' : ''}`}
               data-area-project-row="true"
             >
-              <ProjectProgressControl
-                status={p.status}
-                doneCount={projectProgress[p.id]?.done_count ?? 0}
-                totalCount={projectProgress[p.id]?.total_count ?? 0}
-                size="list"
-                disabled={!projectProgress[p.id]}
-                onActivate={async () => {
-                  if (!area) return
-                  const counts = projectProgress[p.id]
-                  if (!counts) return
-
-                  if (isClosedProjectStatus(p.status)) {
-                    const res = await window.api.project.update({ id: p.id, status: 'open' })
-                    if (!res.ok) {
-                      setError(res.error)
-                      return
-                    }
-                    await mutateAndRefresh()
-                    return
-                  }
-
-                  const openCount = Math.max(0, counts.total_count - counts.done_count)
-                  const confirmed = confirm(t('project.completeConfirm', { count: openCount }))
-                  if (!confirmed) return
-
-                  const res = await window.api.project.complete(p.id)
-                  if (!res.ok) {
-                    setError(res.error)
-                    return
-                  }
-                  await mutateAndRefresh()
+              <ProjectRow
+                project={{
+                  id: p.id,
+                  title: p.title,
+                  status: p.status,
+                  done_count: projectProgress[p.id]?.done_count ?? 0,
+                  total_count: projectProgress[p.id]?.total_count ?? 0,
                 }}
+                onSelect={(projectId) => setSelectedProjectId(projectId)}
+                onOpen={(projectId) => navigate(`/projects/${projectId}`)}
+                onComplete={handleCompleteProject}
+                onContextMenu={(event) => handleProjectContextMenu(event, p)}
               />
-
-              <button
-                type="button"
-                className="task-title task-title-button"
-                data-area-project-id={p.id}
-                onClick={() => {
-                  setSelectedProjectId(p.id)
-                }}
-                onDoubleClick={() => {
-                  navigate(`/projects/${p.id}`)
-                }}
-                onKeyDown={(e) => {
-                  if (e.key !== 'Enter') return
-                  e.preventDefault()
-                  setSelectedProjectId(p.id)
-                  navigate(`/projects/${p.id}`)
-                }}
-              >
-                <span
-                  className={`task-title-text${p.title.trim() ? '' : ' task-title-placeholder'}${
-                    p.status === 'cancelled' ? ' is-cancelled' : ''
-                  }`}
-                >
-                  {p.title.trim() ? p.title : t('project.untitled')}
-                </span>
-              </button>
             </li>
           ))}
         </ul>
@@ -491,6 +513,7 @@ export function AreaPage() {
           await refresh()
         }}
       />
+      {projectMenuNode}
     </>
   )
 }

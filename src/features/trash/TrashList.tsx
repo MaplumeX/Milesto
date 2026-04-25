@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { TrashEntry } from '../../../shared/schemas/trash'
-import { ProjectProgressIndicator } from '../projects/ProjectProgressControl'
+import { ProjectRow } from '../projects/ProjectRow'
 import { AnimatedTaskSlot } from '../tasks/AnimatedTaskSlot'
 import { TaskRow } from '../tasks/TaskRow'
 import { TaskInlineEditorRow } from '../tasks/TaskInlineEditorRow'
@@ -135,29 +135,27 @@ export function TrashList({
                   prefersReducedMotion={prefersReducedMotion}
                 />
               ) : (
-                <>
-                  <ProjectProgressIndicator status="open" doneCount={0} totalCount={entry.open_task_count} size="list" />
-                  <button
-                    ref={(node) => {
-                      if (node) {
-                        entryButtonRefs.current.set(entry.id, node)
-                        return
-                      }
-                      entryButtonRefs.current.delete(entry.id)
-                    }}
-                    type="button"
-                    className="task-title task-title-button"
-                    onClick={() => onSelectEntry(entry.id)}
-                    onDoubleClick={() => {
-                      void onOpenProject(entry.id)
-                    }}
-                    data-trash-entry-button="true"
-                  >
-                    <span className={entry.title.trim() ? undefined : 'task-title-placeholder'}>
-                      {entry.title.trim() ? entry.title : t('project.untitled')}
-                    </span>
-                  </button>
-                </>
+                <ProjectRow
+                  project={{
+                    id: entry.id,
+                    title: entry.title,
+                    status: 'open',
+                    done_count: 0,
+                    total_count: entry.open_task_count,
+                  }}
+                  showOpenCount={false}
+                  titleActivatorRef={(node) => {
+                    if (node) {
+                      entryButtonRefs.current.set(entry.id, node)
+                      return
+                    }
+                    entryButtonRefs.current.delete(entry.id)
+                  }}
+                  onSelect={onSelectEntry}
+                  onOpen={(projectId) => {
+                    void onOpenProject(projectId)
+                  }}
+                />
               )}
             </li>
           )

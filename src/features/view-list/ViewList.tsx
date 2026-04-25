@@ -40,6 +40,7 @@ import { TaskRow } from '../tasks/TaskRow'
 import { useOptimisticTaskTitles } from '../tasks/use-optimistic-task-titles'
 import { useTaskContextMenu } from '../tasks/use-task-context-menu'
 import { useTaskSelection } from '../tasks/TaskSelectionContext'
+import { useProjectContextMenu } from '../projects/use-project-context-menu'
 import { ProjectViewRow } from './ProjectViewRow'
 
 function itemKey(item: Pick<ViewListItem, 'kind' | 'id'>): string {
@@ -60,6 +61,7 @@ function SortableViewRow({
   onToggleTaskDone,
   onCompleteProject,
   onTaskContextMenu,
+  onProjectContextMenu,
   onSelectForDrag,
 }: {
   item: ViewListItem
@@ -71,6 +73,7 @@ function SortableViewRow({
   onToggleTaskDone?: (taskId: string, done: boolean) => void
   onCompleteProject?: (project: ViewListProjectItem) => void
   onTaskContextMenu?: MouseEventHandler<HTMLDivElement>
+  onProjectContextMenu?: MouseEventHandler<HTMLDivElement>
   onSelectForDrag?: (item: ViewListItem) => void
 }) {
   const key = itemKey(item)
@@ -102,6 +105,7 @@ function SortableViewRow({
         onSelect={onSelectProject}
         onOpen={onOpenProject}
         onComplete={onCompleteProject}
+        onContextMenu={onProjectContextMenu}
       />
     )
   }
@@ -155,6 +159,7 @@ export function ViewList({
     [prefersReducedMotion]
   )
   const { openTaskContextMenu, menuNode } = useTaskContextMenu({ scope: 'active' })
+  const { openProjectContextMenu, menuNode: projectMenuNode } = useProjectContextMenu()
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [activeItemKey, setActiveItemKey] = useState<string | null>(null)
@@ -504,6 +509,31 @@ export function ViewList({
     [openTaskContextMenu, selectItem]
   )
 
+  const handleProjectContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>, project: ViewListProjectItem) => {
+      event.preventDefault()
+      event.stopPropagation()
+      selectItem(project)
+
+      const eventTarget = event.target
+      const restoreFocusEl =
+        eventTarget instanceof HTMLElement
+          ? eventTarget.closest<HTMLElement>('[data-project-focus-target="true"]') ??
+            event.currentTarget.querySelector<HTMLElement>('[data-project-focus-target="true"]') ??
+            event.currentTarget
+          : event.currentTarget.querySelector<HTMLElement>('[data-project-focus-target="true"]') ??
+            event.currentTarget
+
+      void openProjectContextMenu({
+        project,
+        anchorX: event.clientX,
+        anchorY: event.clientY,
+        restoreFocusEl,
+      })
+    },
+    [openProjectContextMenu, selectItem]
+  )
+
   return (
     <div className="page">
       <div ref={preListRef}>
@@ -690,6 +720,7 @@ export function ViewList({
                           onCompleteProject={(project) => {
                             if (onCompleteProject) void onCompleteProject(project)
                           }}
+                          onProjectContextMenu={(event) => handleProjectContextMenu(event, item)}
                           onSelectForDrag={selectItem}
                         />
                       ) : (
@@ -700,6 +731,7 @@ export function ViewList({
                           onComplete={(project) => {
                             if (onCompleteProject) void onCompleteProject(project)
                           }}
+                          onContextMenu={(event) => handleProjectContextMenu(event, item)}
                         />
                       )}
                     </li>
@@ -729,6 +761,7 @@ export function ViewList({
       </DndContext>
 
       {menuNode}
+      {projectMenuNode}
     </div>
   )
 }
