@@ -14,6 +14,8 @@ import {
   ProjectDeleteInputSchema,
   ProjectIdInputSchema,
   ProjectSchema,
+  ProjectSectionConvertToProjectInputSchema,
+  ProjectSectionConvertToProjectResultSchema,
   ProjectSectionCreateInputSchema,
   ProjectSectionDeleteInputSchema,
   ProjectSectionListInputSchema,
@@ -1234,6 +1236,216 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
           data: ProjectSectionMoveResultSchema.parse({
             moved: true,
             section: movedSection,
+          }),
+        }
+      })
+
+      return tx()
+    },
+
+    'project.section.convertToProject': (payload) => {
+      const parsed = ProjectSectionConvertToProjectInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid project.section.convertToProject payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const convertedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        const sectionRow = db
+          .prepare(
+            `SELECT id, project_id, title, position, created_at, updated_at, deleted_at, purged_at
+             FROM project_sections
+             WHERE id = @id
+               AND deleted_at IS NULL
+               AND purged_at IS NULL
+             LIMIT 1`
+          )
+          .get({ id: parsed.data.id })
+
+        if (!sectionRow) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Project section not found.',
+              details: { id: parsed.data.id },
+            },
+          }
+        }
+
+        const sourceSection = ProjectSectionSchema.parse(sectionRow)
+        const parentProjectRow = db
+          .prepare(
+            `SELECT id, title, notes, area_id, status, position, scheduled_at, is_someday, due_at,
+                    created_at, updated_at, completed_at, deleted_at, purged_at
+             FROM projects
+             WHERE id = @id
+               AND deleted_at IS NULL
+               AND purged_at IS NULL
+             LIMIT 1`
+          )
+          .get({ id: sourceSection.project_id })
+
+        if (!parentProjectRow) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Parent project not found.',
+              details: { id: sourceSection.project_id },
+            },
+          }
+        }
+
+        const parentProject = ProjectSchema.parse(parentProjectRow)
+        const projectId = uuidv7()
+        const project = ProjectSchema.parse({
+          id: projectId,
+          title: sourceSection.title,
+          notes: '',
+          area_id: parentProject.area_id,
+          status: 'open',
+          position: null,
+          scheduled_at: parentProject.is_someday ? null : parentProject.scheduled_at,
+          is_someday: parentProject.is_someday,
+          due_at: parentProject.due_at,
+          created_at: convertedAt,
+          updated_at: convertedAt,
+          completed_at: null,
+          deleted_at: null,
+          purged_at: null,
+        })
+
+        const sourceSectionIds = listActiveSectionIds(db, sourceSection.project_id)
+        const nextSourceSectionIds = sourceSectionIds.filter((sectionId) => sectionId !== sourceSection.id)
+        const movedTaskIds = listSectionTaskIdsInDisplayOrder(db, sourceSection.project_id, sourceSection.id)
+        const sourceListId = taskListIdProject(sourceSection.project_id, sourceSection.id)
+        const targetListId = taskListIdProject(project.id, null)
+
+        db.prepare(
+          `INSERT INTO projects (
+             id, title, notes, area_id, status, scheduled_at, is_someday, due_at,
+             created_at, updated_at, completed_at, deleted_at
+           ) VALUES (
+             @id, @title, @notes, @area_id, 'open', @scheduled_at, @is_someday, @due_at,
+             @created_at, @updated_at, NULL, NULL
+           )`
+        ).run({
+          id: project.id,
+          title: project.title,
+          notes: project.notes,
+          area_id: project.area_id,
+          scheduled_at: project.scheduled_at,
+          is_someday: project.is_someday ? 1 : 0,
+          due_at: project.due_at,
+          created_at: convertedAt,
+          updated_at: convertedAt,
+        })
+
+        db.prepare(
+          `UPDATE tasks
+           SET project_id = @project_id,
+               section_id = NULL,
+               area_id = NULL,
+               is_inbox = 0,
+               updated_at = @updated_at
+           WHERE section_id = @section_id
+             AND purged_at IS NULL`
+        ).run({
+          project_id: project.id,
+          section_id: sourceSection.id,
+          updated_at: convertedAt,
+        })
+
+        replaceTaskListOrder(db, sourceListId, [], convertedAt)
+        replaceTaskListOrder(db, targetListId, movedTaskIds, convertedAt)
+
+        db.prepare(
+          `UPDATE project_sections
+           SET deleted_at = @deleted_at,
+               purged_at = @purged_at,
+               updated_at = @updated_at
+           WHERE id = @id
+             AND deleted_at IS NULL
+             AND purged_at IS NULL`
+        ).run({
+          id: sourceSection.id,
+          deleted_at: convertedAt,
+          purged_at: convertedAt,
+          updated_at: convertedAt,
+        })
+
+        compactActiveSectionPositions(db, sourceSection.project_id, nextSourceSectionIds, convertedAt)
+
+        const movedTaskRows =
+          movedTaskIds.length === 0
+            ? []
+            : db
+                .prepare(
+                  `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id,
+                          scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at, purged_at
+                   FROM tasks
+                   WHERE id IN (${movedTaskIds.map(() => '?').join(', ')})`
+                )
+                .all(...movedTaskIds)
+        const deletedSectionRow = db
+          .prepare(
+            `SELECT id, project_id, title, position, created_at, updated_at, deleted_at, purged_at
+             FROM project_sections
+             WHERE id = @id
+             LIMIT 1`
+          )
+          .get({ id: sourceSection.id })
+
+        const sync = createLocalSyncRecorder(db, convertedAt)
+        sync.recordEntity(
+          'project',
+          project,
+          [
+            'title',
+            'notes',
+            'area_id',
+            'status',
+            'position',
+            'scheduled_at',
+            'is_someday',
+            'due_at',
+            'created_at',
+            'updated_at',
+            'completed_at',
+            'deleted_at',
+          ]
+        )
+        for (const row of movedTaskRows) {
+          sync.recordEntity(
+            'task',
+            TaskSchema.parse(row),
+            ['project_id', 'section_id', 'area_id', 'is_inbox', 'updated_at']
+          )
+        }
+        sync.recordEntity(
+          'project_section',
+          ProjectSectionSchema.parse(deletedSectionRow),
+          ['deleted_at', 'purged_at', 'updated_at']
+        )
+        sync.recordList(`project-sections:${sourceSection.project_id}`, nextSourceSectionIds, convertedAt)
+        sync.recordList(`task-list:${sourceListId}`, [], convertedAt)
+        sync.recordList(`task-list:${targetListId}`, movedTaskIds, convertedAt)
+        sync.finalize()
+
+        return {
+          ok: true as const,
+          data: ProjectSectionConvertToProjectResultSchema.parse({
+            project,
+            tasks_moved: movedTaskIds.length,
           }),
         }
       })

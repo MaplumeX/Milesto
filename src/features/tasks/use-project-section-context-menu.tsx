@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../../shared/app-error'
 import type { EntityScope } from '../../../shared/schemas/common'
 import type { Project, ProjectSection } from '../../../shared/schemas/project'
 
+import { useAppEvents } from '../../app/AppEventsContext'
 import { PopoverMenuItem } from '../../components/PopoverMenuItem'
-import { DeleteMenuIcon, MoveMenuIcon } from '../../components/popover-menu-icons'
+import { ConvertMenuIcon, DeleteMenuIcon, MoveMenuIcon } from '../../components/popover-menu-icons'
 
 type ProjectSectionContextMenuView = 'root' | 'move'
 
@@ -46,6 +48,8 @@ export function useProjectSectionContextMenu({
   onSectionRemoved?: (sectionId: string) => void
 }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const { bumpRevision } = useAppEvents()
   const [menuState, setMenuState] = useState<ProjectSectionContextMenuState | null>(null)
   const [actionError, setActionError] = useState<AppError | null>(null)
   const [moveTargets, setMoveTargets] = useState<Project[]>([])
@@ -197,6 +201,24 @@ export function useProjectSectionContextMenu({
     closeMenu({ restoreFocus: false })
   }, [closeMenu, menuState, onMutate, onSectionRemoved])
 
+  const handleConvertSectionToProject = useCallback(async () => {
+    if (!menuState) return
+    if (menuState.scope === 'trash') return
+
+    setActionError(null)
+    const res = await window.api.project.convertSectionToProject(menuState.section.id)
+    if (!res.ok) {
+      setActionError(res.error)
+      return
+    }
+
+    bumpRevision()
+    onSectionRemoved?.(menuState.section.id)
+    await onMutate()
+    closeMenu({ restoreFocus: false })
+    navigate(`/projects/${res.data.project.id}`)
+  }, [bumpRevision, closeMenu, menuState, navigate, onMutate, onSectionRemoved])
+
   const menuNode = useMemo(() => {
     if (!menuState) return null
 
@@ -210,6 +232,7 @@ export function useProjectSectionContextMenu({
       Math.max(viewportPadding, menuState.anchorY),
       window.innerHeight - viewportPadding
     )
+    const canConvertToProject = menuState.scope !== 'trash'
 
     return createPortal(
       <div
@@ -238,6 +261,16 @@ export function useProjectSectionContextMenu({
               >
                 {t('common.move')}
               </PopoverMenuItem>
+              {canConvertToProject ? (
+                <PopoverMenuItem
+                  icon={<ConvertMenuIcon />}
+                  onClick={() => {
+                    void handleConvertSectionToProject()
+                  }}
+                >
+                  {t('section.convertToProject')}
+                </PopoverMenuItem>
+              ) : null}
               <PopoverMenuItem
                 icon={<DeleteMenuIcon />}
                 onClick={() => {
@@ -303,7 +336,17 @@ export function useProjectSectionContextMenu({
       </div>,
       document.body
     )
-  }, [actionError, handleDeleteSection, handleMoveSection, menuState, moveTargets, moveTargetsError, moveTargetsLoading, t])
+  }, [
+    actionError,
+    handleConvertSectionToProject,
+    handleDeleteSection,
+    handleMoveSection,
+    menuState,
+    moveTargets,
+    moveTargetsError,
+    moveTargetsLoading,
+    t,
+  ])
 
   return { openProjectSectionContextMenu, closeMenu, menuNode }
 }

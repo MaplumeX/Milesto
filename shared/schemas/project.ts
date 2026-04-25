@@ -181,6 +181,19 @@ export const ProjectSectionMoveResultSchema = z.object({
 
 export type ProjectSectionMoveResult = z.infer<typeof ProjectSectionMoveResultSchema>
 
+export const ProjectSectionConvertToProjectInputSchema = z.object({
+  id: IdSchema,
+})
+
+export type ProjectSectionConvertToProjectInput = z.infer<typeof ProjectSectionConvertToProjectInputSchema>
+
+export const ProjectSectionConvertToProjectResultSchema = z.object({
+  project: ProjectSchema,
+  tasks_moved: z.number().int().nonnegative(),
+})
+
+export type ProjectSectionConvertToProjectResult = z.infer<typeof ProjectSectionConvertToProjectResultSchema>
+
 export const ProjectSectionReorderBatchInputSchema = z.object({
   project_id: IdSchema,
   ordered_section_ids: z.array(IdSchema),

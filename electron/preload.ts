@@ -120,6 +120,7 @@ const api: WindowApi = {
     deleteSection: (id) => invoke('db:project.section.delete', { id }),
     moveSection: (id, targetProjectId) =>
       invoke('db:project.section.move', { id, target_project_id: targetProjectId }),
+    convertSectionToProject: (id) => invoke('db:project.section.convertToProject', { id }),
     reorderSections: (projectId, orderedSectionIds, scope) =>
       invoke('db:project.section.reorderBatch', {
         project_id: projectId,

@@ -28,6 +28,8 @@ import {
   ProjectIdInputSchema,
   ProjectSetTagsInputSchema,
   ProjectSchema,
+  ProjectSectionConvertToProjectInputSchema,
+  ProjectSectionConvertToProjectResultSchema,
   ProjectSectionCreateInputSchema,
   ProjectSectionDeleteInputSchema,
   ProjectSectionListInputSchema,
@@ -876,6 +878,12 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   handleDb('db:project.section.rename', 'project.section.rename', ProjectSectionRenameInputSchema, ProjectSectionSchema)
   handleDb('db:project.section.delete', 'project.section.delete', ProjectSectionDeleteInputSchema, z.object({ deleted: z.boolean(), moved_to_section_id: z.string().nullable() }))
   handleDb('db:project.section.move', 'project.section.move', ProjectSectionMoveInputSchema, ProjectSectionMoveResultSchema)
+  handleDb(
+    'db:project.section.convertToProject',
+    'project.section.convertToProject',
+    ProjectSectionConvertToProjectInputSchema,
+    ProjectSectionConvertToProjectResultSchema
+  )
   handleDb(
     'db:project.section.reorderBatch',
     'project.section.reorderBatch',

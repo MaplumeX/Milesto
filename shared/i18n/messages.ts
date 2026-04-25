@@ -152,6 +152,7 @@ export const messagesEn = {
   section: {
     untitled: 'New section',
     deleteConfirm: 'Delete this section? Tasks in it will be moved before the section is deleted.',
+    convertToProject: 'Convert to Project',
   },
   task: {
     untitled: 'New task',
@@ -372,6 +373,7 @@ export const messagesZhCN = {
   section: {
     untitled: '新建分组',
     deleteConfirm: '删除此分组？其中的任务会先被重新归位，再删除分组。',
+    convertToProject: '转化为项目',
   },
   task: {
     untitled: '新建任务',

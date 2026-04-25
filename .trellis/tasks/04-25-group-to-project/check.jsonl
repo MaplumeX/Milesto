@@ -1,0 +1,12 @@
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Quality check must verify schema/API/DB/renderer/test data flow remains consistent."}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Quality check should catch avoidable duplication or inconsistent local patterns."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend convention index for final review."}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Review context-menu UI change against component conventions."}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "Review custom hook changes in section context menu."}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Review mutation refresh and navigation behavior."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Review typed shared schema, preload, WindowApi, and test mock contract."}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Review lint/type/test quality expectations."}
+{"file": ".trellis/spec/frontend/mixed-view-list-contracts.md", "reason": "Review list-position and task/project planning view implications."}
+{"file": ".trellis/spec/frontend/project-section-conversion.md", "reason": "Review the new section-to-project conversion contract against implementation and tests."}
+{"file": ".trellis/spec/server/error-handling.md", "reason": "Review DB action error behavior."}
+{"file": ".trellis/spec/server/sync-protocol.md", "reason": "Review sync record/list semantics for conversion."}

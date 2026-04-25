@@ -1,0 +1,12 @@
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Feature spans DB worker, shared schemas, preload/window API, renderer context menu, and tests."}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Implementation should reuse existing task-to-project and section move/delete patterns instead of duplicating incompatible logic."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Entry point for Milesto frontend conventions."}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Renderer menu action must follow existing component and composition conventions."}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "Section context menu is implemented as a custom hook."}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Successful conversion refreshes app revision state and navigates to the new project."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Cross-process contract requires typed WindowApi and Zod schema updates."}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Implementation should match project quality rules and testing expectations."}
+{"file": ".trellis/spec/frontend/mixed-view-list-contracts.md", "reason": "Conversion touches task/project list positions and mixed planning view consistency."}
+{"file": ".trellis/spec/frontend/project-section-conversion.md", "reason": "New cross-layer contract for the section-to-project conversion behavior implemented by this task."}
+{"file": ".trellis/spec/server/error-handling.md", "reason": "DB action should return typed Result errors consistently across layers."}
+{"file": ".trellis/spec/server/sync-protocol.md", "reason": "Conversion records local sync entity/list changes that must preserve sync contract semantics."}
