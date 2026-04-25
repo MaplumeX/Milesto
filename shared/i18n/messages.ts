@@ -162,6 +162,8 @@ export const messagesEn = {
     restore: 'Restore',
     convertToProject: 'Convert to Project',
     deleteConfirm: 'Delete task?',
+    removeFromProject: 'Remove from Project',
+    removeFromArea: 'Remove from Area',
   },
   upcoming: {
     nextWeek: 'Next Week',
@@ -383,6 +385,8 @@ export const messagesZhCN = {
     restore: '恢复',
     convertToProject: '转化为项目',
     deleteConfirm: '删除任务？',
+    removeFromProject: '移出项目',
+    removeFromArea: '移出领域',
   },
   upcoming: {
     nextWeek: '下周',

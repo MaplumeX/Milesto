@@ -19,6 +19,7 @@ import {
   DeleteMenuIcon,
   DoneMenuIcon,
   DueMenuIcon,
+  MoveMenuIcon,
   RestoreMenuIcon,
   ScheduleMenuIcon,
   TagMenuIcon,
@@ -249,6 +250,39 @@ export function useTaskContextMenu({
     closeMenu({ restoreFocus: false })
   }, [bumpRevision, closeMenu, menuState, t])
 
+  const persistTaskRemoveFromProject = useCallback(async () => {
+    if (!menuState) return
+    const res = await window.api.task.update({
+      id: menuState.task.id,
+      project_id: null,
+      section_id: null,
+      scope: menuState.scope,
+    })
+    if (!res.ok) {
+      setActionError(res.error)
+      return
+    }
+
+    bumpRevision()
+    closeMenu({ restoreFocus: false })
+  }, [bumpRevision, closeMenu, menuState])
+
+  const persistTaskRemoveFromArea = useCallback(async () => {
+    if (!menuState) return
+    const res = await window.api.task.update({
+      id: menuState.task.id,
+      area_id: null,
+      scope: menuState.scope,
+    })
+    if (!res.ok) {
+      setActionError(res.error)
+      return
+    }
+
+    bumpRevision()
+    closeMenu({ restoreFocus: false })
+  }, [bumpRevision, closeMenu, menuState])
+
   const persistTaskConvertToProject = useCallback(async () => {
     if (!menuState) return
     if (menuState.scope === 'trash' || isClosedTaskStatus(menuState.task.status)) return
@@ -338,6 +372,22 @@ export function useTaskContextMenu({
                   onClick={() => void persistTaskConvertToProject()}
                 >
                   {t('task.convertToProject')}
+                </PopoverMenuItem>
+              ) : null}
+              {menuState.task.project_id !== null && menuState.scope !== 'trash' ? (
+                <PopoverMenuItem
+                  icon={<MoveMenuIcon />}
+                  onClick={() => void persistTaskRemoveFromProject()}
+                >
+                  {t('task.removeFromProject')}
+                </PopoverMenuItem>
+              ) : null}
+              {menuState.task.area_id !== null && menuState.scope !== 'trash' ? (
+                <PopoverMenuItem
+                  icon={<MoveMenuIcon />}
+                  onClick={() => void persistTaskRemoveFromArea()}
+                >
+                  {t('task.removeFromArea')}
                 </PopoverMenuItem>
               ) : null}
               <PopoverMenuItem
@@ -503,6 +553,8 @@ export function useTaskContextMenu({
     persistTaskCancel,
     persistTaskConvertToProject,
     persistTaskDelete,
+    persistTaskRemoveFromArea,
+    persistTaskRemoveFromProject,
     persistTaskRestore,
     persistTaskToggleDone,
     persistTaskUpdate,
