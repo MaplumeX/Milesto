@@ -41,6 +41,17 @@ export function CancelMenuIcon() {
   )
 }
 
+export function ConvertMenuIcon() {
+  return (
+    <PopoverMenuIcon>
+      <path d="M5 7h6v6H5z" />
+      <path d="M13 11h6v6h-6z" />
+      <path d="m11 10 2 2" />
+      <path d="m13 9v3h-3" />
+    </PopoverMenuIcon>
+  )
+}
+
 export function DeleteMenuIcon() {
   return (
     <PopoverMenuIcon>

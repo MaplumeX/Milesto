@@ -41,6 +41,8 @@ import {
   TagSchema,
   TagUpdateInputSchema,
   TaskCreateInputSchema,
+  TaskConvertToProjectInputSchema,
+  TaskConvertToProjectResultSchema,
   TaskDeleteInputSchema,
   TaskCancelInputSchema,
   TaskReorderBatchInputSchema,
@@ -787,6 +789,12 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   handleDb('db:task.cancel', 'task.cancel', TaskCancelInputSchema, TaskSchema)
   handleDb('db:task.restore', 'task.restore', TaskRestoreInputSchema, TaskSchema)
   handleDb('db:task.delete', 'task.delete', TaskDeleteInputSchema, z.object({ deleted: z.boolean() }))
+  handleDb(
+    'db:task.convertToProject',
+    'task.convertToProject',
+    TaskConvertToProjectInputSchema,
+    TaskConvertToProjectResultSchema
+  )
   handleDb('db:task.getDetail', 'task.getDetail', TaskIdInputSchema, TaskDetailSchema)
 
   handleDb('db:task.listInbox', 'task.listInbox', TaskListInboxInputSchema, z.array(TaskListItemSchema))

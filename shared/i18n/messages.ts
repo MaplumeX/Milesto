@@ -159,6 +159,7 @@ export const messagesEn = {
     notesPlaceholder: 'Notes',
     cancel: 'Cancel',
     restore: 'Restore',
+    convertToProject: 'Convert to Project',
     deleteConfirm: 'Delete task?',
   },
   upcoming: {
@@ -378,6 +379,7 @@ export const messagesZhCN = {
     notesPlaceholder: '备注',
     cancel: '取消',
     restore: '恢复',
+    convertToProject: '转化为项目',
     deleteConfirm: '删除任务？',
   },
   upcoming: {

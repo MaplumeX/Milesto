@@ -20,7 +20,7 @@ import type {
 } from './schemas/project'
 import type { ProjectDetail } from './schemas/project-detail'
 import type { Tag, TagCreateInput, TagUpdateInput } from './schemas/tag'
-import type { Task, TaskCreateInput, TaskUpdateInput } from './schemas/task'
+import type { Task, TaskConvertToProjectResult, TaskCreateInput, TaskUpdateInput } from './schemas/task'
 import type { TaskCountProjectsProgressResult, TaskCountResult, TaskListItem } from './schemas/task-list'
 import type { TaskSearchResultItem } from './schemas/search'
 import type { TaskDetail } from './schemas/task-detail'
@@ -98,6 +98,7 @@ export type WindowApi = {
     cancel(id: string, scope?: EntityScope): Promise<Result<Task>>
     restore(id: string, scope?: EntityScope): Promise<Result<Task>>
     delete(id: string): Promise<Result<{ deleted: boolean }>>
+    convertToProject(id: string): Promise<Result<TaskConvertToProjectResult>>
 
     getDetail(id: string, scope?: EntityScope): Promise<Result<TaskDetail>>
 

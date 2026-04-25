@@ -59,6 +59,7 @@ export function createWindowApiMock(): WindowApi {
       cancel: vi.fn<WindowApi['task']['cancel']>(async () => err(unimplementedError)),
       restore: vi.fn<WindowApi['task']['restore']>(async () => err(unimplementedError)),
       delete: vi.fn<WindowApi['task']['delete']>(async () => err(unimplementedError)),
+      convertToProject: vi.fn<WindowApi['task']['convertToProject']>(async () => err(unimplementedError)),
 
       getDetail: vi.fn<WindowApi['task']['getDetail']>(async () => err(unimplementedError)),
 

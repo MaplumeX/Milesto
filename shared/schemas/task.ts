@@ -8,6 +8,7 @@ import {
   LocalDateSchema,
   TaskStatusSchema,
 } from './common'
+import { ProjectSchema } from './project'
 
 export const TaskSchema = z.object({
   id: IdSchema,
@@ -109,3 +110,16 @@ export const TaskDeleteInputSchema = z.object({
 })
 
 export type TaskDeleteInput = z.infer<typeof TaskDeleteInputSchema>
+
+export const TaskConvertToProjectInputSchema = z.object({
+  id: IdSchema,
+})
+
+export type TaskConvertToProjectInput = z.infer<typeof TaskConvertToProjectInputSchema>
+
+export const TaskConvertToProjectResultSchema = z.object({
+  project: ProjectSchema,
+  tasks_created: z.number().int().nonnegative(),
+})
+
+export type TaskConvertToProjectResult = z.infer<typeof TaskConvertToProjectResultSchema>

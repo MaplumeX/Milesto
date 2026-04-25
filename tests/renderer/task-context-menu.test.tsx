@@ -1,10 +1,12 @@
 import { useMemo, useRef, useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { HashRouter } from 'react-router-dom'
 
 import { ok } from '../../shared/result'
 import type { WindowApi } from '../../shared/window-api'
 import type { EntityScope } from '../../shared/schemas/common'
+import type { Project } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
 import type { TaskDetail } from '../../shared/schemas/task-detail'
 import type { Task } from '../../shared/schemas/task'
@@ -79,20 +81,22 @@ function TaskListHarness({
   )
 
   return (
-    <AppEventsProvider>
-      <TaskSelectionProvider value={selection}>
-        <ContentScrollProvider scrollRef={contentScrollRef}>
-          <div ref={contentScrollRef} className="content-scroll">
-            <TaskList
-              title="Tasks"
-              tasks={tasks}
-              scope={scope}
-              onToggleDone={async () => {}}
-            />
-          </div>
-        </ContentScrollProvider>
-      </TaskSelectionProvider>
-    </AppEventsProvider>
+    <HashRouter>
+      <AppEventsProvider>
+        <TaskSelectionProvider value={selection}>
+          <ContentScrollProvider scrollRef={contentScrollRef}>
+            <div ref={contentScrollRef} className="content-scroll">
+              <TaskList
+                title="Tasks"
+                tasks={tasks}
+                scope={scope}
+                onToggleDone={async () => {}}
+              />
+            </div>
+          </ContentScrollProvider>
+        </TaskSelectionProvider>
+      </AppEventsProvider>
+    </HashRouter>
   )
 }
 
@@ -141,6 +145,25 @@ function makeTag(id: string, title: string): Tag {
   }
 }
 
+function makeProject(overrides?: Partial<Project>): Project {
+  return {
+    id: 'p1',
+    title: 'Task A',
+    notes: '',
+    area_id: null,
+    status: 'open',
+    position: null,
+    scheduled_at: null,
+    is_someday: false,
+    due_at: null,
+    created_at: '2026-03-17T00:00:00.000Z',
+    updated_at: '2026-03-17T00:00:00.000Z',
+    completed_at: null,
+    deleted_at: null,
+    ...overrides,
+  }
+}
+
 function expectPopoverMenuItemIcon(button: HTMLElement) {
   expect(button.querySelector('.task-inline-popover-item-icon svg')).not.toBeNull()
 }
@@ -148,6 +171,7 @@ function expectPopoverMenuItemIcon(button: HTMLElement) {
 describe('task context menu', () => {
   afterEach(() => {
     cleanup()
+    window.location.hash = ''
   })
 
   it('opens a root context menu with schedule, tags, due, complete, and cancel actions for open tasks', async () => {
@@ -161,6 +185,7 @@ describe('task context menu', () => {
       scheduleButton,
       screen.getByRole('button', { name: 'taskEditor.tagsLabel' }),
       screen.getByRole('button', { name: 'taskEditor.dueLabel' }),
+      screen.getByRole('button', { name: 'task.convertToProject' }),
       screen.getByRole('button', { name: 'taskEditor.markDone' }),
       screen.getByRole('button', { name: 'task.cancel' }),
     ]
@@ -180,6 +205,7 @@ describe('task context menu', () => {
     expect(await screen.findByRole('button', { name: 'task.restore' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'taskEditor.markDone' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'task.cancel' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'task.convertToProject' })).toBeNull()
   })
 
   it('shows restore instead of complete for cancelled tasks', async () => {
@@ -195,6 +221,7 @@ describe('task context menu', () => {
     expect(await screen.findByRole('button', { name: 'task.restore' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'taskEditor.markDone' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'task.cancel' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'task.convertToProject' })).toBeNull()
   })
 
   it('closes the context menu on Escape', async () => {
@@ -375,6 +402,28 @@ describe('task context menu', () => {
       expect(
         (api.task as typeof api.task & { cancel: ReturnType<typeof vi.fn> }).cancel
       ).toHaveBeenCalledWith('t1', 'active')
+    })
+    expect(screen.queryByRole('button', { name: 'common.schedule' })).toBeNull()
+  })
+
+  it('converts an open task to a project from the menu root and navigates to the project', async () => {
+    const api = getApi()
+    api.task.convertToProject = vi.fn<WindowApi['task']['convertToProject']>(async (id) =>
+      ok({
+        project: makeProject({ id: `project-from-${id}` }),
+        tasks_created: 0,
+      })
+    )
+
+    render(<TaskListHarness tasks={[makeTask()]} />)
+
+    const titleButton = await screen.findByRole('button', { name: 'Task A' })
+    fireEvent.contextMenu(titleButton, { clientX: 120, clientY: 80 })
+    fireEvent.click(await screen.findByRole('button', { name: 'task.convertToProject' }))
+
+    await waitFor(() => {
+      expect(api.task.convertToProject).toHaveBeenCalledWith('t1')
+      expect(window.location.hash).toBe('#/projects/project-from-t1')
     })
     expect(screen.queryByRole('button', { name: 'common.schedule' })).toBeNull()
   })

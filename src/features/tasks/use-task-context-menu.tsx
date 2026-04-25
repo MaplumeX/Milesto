@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { DayPicker } from 'react-day-picker'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../../shared/app-error'
@@ -14,6 +15,7 @@ import { PopoverMenuItem } from '../../components/PopoverMenuItem'
 import {
   BackMenuIcon,
   CancelMenuIcon,
+  ConvertMenuIcon,
   DoneMenuIcon,
   DueMenuIcon,
   RestoreMenuIcon,
@@ -58,6 +60,7 @@ export function useTaskContextMenu({
   enabled?: boolean
 }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { bumpRevision } = useAppEvents()
   const { requestCloseTask, selectTask } = useTaskSelection()
 
@@ -230,6 +233,20 @@ export function useTaskContextMenu({
     closeMenu({ restoreFocus: true })
   }, [bumpRevision, closeMenu, menuState])
 
+  const persistTaskConvertToProject = useCallback(async () => {
+    if (!menuState) return
+    if (menuState.scope === 'trash' || isClosedTaskStatus(menuState.task.status)) return
+    const res = await window.api.task.convertToProject(menuState.task.id)
+    if (!res.ok) {
+      setActionError(res.error)
+      return
+    }
+
+    bumpRevision()
+    closeMenu({ restoreFocus: false })
+    navigate(`/projects/${res.data.project.id}`)
+  }, [bumpRevision, closeMenu, menuState, navigate])
+
   const persistTagIds = useCallback(async (nextTagIds: string[]) => {
     if (!menuState || selectedTagIds === null) return
 
@@ -262,6 +279,7 @@ export function useTaskContextMenu({
     const isCalendar = menuState.view === 'schedule' || menuState.view === 'due'
     const isTags = menuState.view === 'tags'
     const isClosed = isClosedTaskStatus(menuState.task.status)
+    const canConvertToProject = !isClosed && menuState.scope !== 'trash'
     const today = getLocalToday()
 
     return createPortal(
@@ -298,6 +316,14 @@ export function useTaskContextMenu({
               >
                 {t('taskEditor.dueLabel')}
               </PopoverMenuItem>
+              {canConvertToProject ? (
+                <PopoverMenuItem
+                  icon={<ConvertMenuIcon />}
+                  onClick={() => void persistTaskConvertToProject()}
+                >
+                  {t('task.convertToProject')}
+                </PopoverMenuItem>
+              ) : null}
               <PopoverMenuItem
                 icon={isClosed ? <RestoreMenuIcon /> : <DoneMenuIcon />}
                 onClick={() => {
@@ -451,6 +477,7 @@ export function useTaskContextMenu({
     menuState,
     persistTagIds,
     persistTaskCancel,
+    persistTaskConvertToProject,
     persistTaskRestore,
     persistTaskToggleDone,
     persistTaskUpdate,

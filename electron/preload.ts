@@ -44,6 +44,7 @@ const api: WindowApi = {
     cancel: (id, scope) => invoke('db:task.cancel', { id, scope }),
     restore: (id, scope) => invoke('db:task.restore', { id, scope }),
     delete: (id) => invoke('db:task.delete', { id }),
+    convertToProject: (id) => invoke('db:task.convertToProject', { id }),
 
     getDetail: (id, scope) => invoke('db:task.getDetail', { id, scope }),
 

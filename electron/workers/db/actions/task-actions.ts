@@ -8,6 +8,8 @@ import { nowIso, uuidv7 } from './utils'
 
 import {
   TaskCancelInputSchema,
+  TaskConvertToProjectInputSchema,
+  TaskConvertToProjectResultSchema,
   TaskCreateInputSchema,
   TaskDeleteInputSchema,
   TaskRestoreInputSchema,
@@ -15,6 +17,7 @@ import {
   TaskToggleDoneInputSchema,
   TaskUpdateInputSchema,
 } from '../../../../shared/schemas/task'
+import { ProjectSchema } from '../../../../shared/schemas/project'
 import {
   TaskRolloverScheduledToTodayInputSchema,
   TaskRolloverScheduledToTodayResultSchema,
@@ -46,6 +49,7 @@ import {
   TASK_LIST_ID_SOMEDAY,
   TASK_LIST_ID_TODAY,
   taskListIdArea,
+  taskListIdProject,
 } from '../../../../shared/task-list-ids'
 
 const TagIdRowSchema = z.object({ id: z.string() })
@@ -778,6 +782,319 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         sync.finalize()
 
         return { ok: true as const, data: { deleted: true } }
+      })
+
+      return tx()
+    },
+
+    'task.convertToProject': (payload) => {
+      const parsed = TaskConvertToProjectInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid task.convertToProject payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const convertedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        const sourceRow = db
+          .prepare(
+            `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id,
+                    scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at, purged_at
+             FROM tasks
+             WHERE id = ?
+               AND deleted_at IS NULL
+               AND purged_at IS NULL
+             LIMIT 1`
+          )
+          .get(parsed.data.id)
+
+        if (!sourceRow) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Task not found.',
+              details: { id: parsed.data.id },
+            },
+          }
+        }
+
+        const sourceTask = TaskSchema.parse(sourceRow)
+        if (sourceTask.status !== 'open') {
+          return {
+            ok: false as const,
+            error: {
+              code: 'INVALID_STATE_TRANSITION',
+              message: 'Only open tasks can be converted to projects.',
+              details: { id: sourceTask.id, status: sourceTask.status },
+            },
+          }
+        }
+
+        const parentProject = sourceTask.project_id
+          ? (db
+              .prepare(
+                `SELECT id, area_id
+                 FROM projects
+                 WHERE id = ?
+                   AND deleted_at IS NULL
+                   AND purged_at IS NULL
+                 LIMIT 1`
+              )
+              .get(sourceTask.project_id) as { id: string; area_id: string | null } | undefined)
+          : null
+
+        if (sourceTask.project_id && !parentProject) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Parent project not found.',
+              details: { id: sourceTask.project_id },
+            },
+          }
+        }
+
+        const projectId = uuidv7()
+        const projectAreaId = parentProject ? parentProject.area_id : sourceTask.area_id
+        const project = ProjectSchema.parse({
+          id: projectId,
+          title: sourceTask.title,
+          notes: sourceTask.notes,
+          area_id: projectAreaId,
+          status: 'open',
+          position: null,
+          scheduled_at: sourceTask.is_someday ? null : sourceTask.scheduled_at,
+          is_someday: sourceTask.is_someday,
+          due_at: sourceTask.due_at,
+          created_at: convertedAt,
+          updated_at: convertedAt,
+          completed_at: null,
+          deleted_at: null,
+          purged_at: null,
+        })
+
+        const checklistRows = db
+          .prepare(
+            `SELECT id, task_id, title, done, position, created_at, updated_at, deleted_at
+             FROM task_checklist_items
+             WHERE task_id = ?
+               AND deleted_at IS NULL
+             ORDER BY position ASC, created_at ASC, id ASC`
+          )
+          .all(sourceTask.id) as unknown[]
+        const checklistItems = z.array(ChecklistDbRowSchema).parse(checklistRows)
+
+        const tagRows = db
+          .prepare(
+            `SELECT tt.tag_id
+             FROM task_tags tt
+             JOIN tags tag ON tag.id = tt.tag_id AND tag.deleted_at IS NULL
+             WHERE tt.task_id = ?
+               AND tt.deleted_at IS NULL
+             ORDER BY tt.created_at ASC, tt.rowid ASC`
+          )
+          .all(sourceTask.id) as Array<{ tag_id: string }>
+
+        const sync = createLocalSyncRecorder(db, convertedAt)
+
+        db.prepare(
+          `INSERT INTO projects (
+             id, title, notes, area_id, status, scheduled_at, is_someday, due_at,
+             created_at, updated_at, completed_at, deleted_at
+           ) VALUES (
+             @id, @title, @notes, @area_id, 'open', @scheduled_at, @is_someday, @due_at,
+             @created_at, @updated_at, NULL, NULL
+           )`
+        ).run({
+          id: project.id,
+          title: project.title,
+          notes: project.notes,
+          area_id: project.area_id,
+          scheduled_at: project.scheduled_at,
+          is_someday: project.is_someday ? 1 : 0,
+          due_at: project.due_at,
+          created_at: convertedAt,
+          updated_at: convertedAt,
+        })
+
+        const insertProjectTag = db.prepare(
+          `INSERT INTO project_tags (project_id, tag_id, position, created_at, updated_at, deleted_at)
+           VALUES (@project_id, @tag_id, @position, @created_at, @updated_at, NULL)`
+        )
+        for (let index = 0; index < tagRows.length; index++) {
+          insertProjectTag.run({
+            project_id: project.id,
+            tag_id: tagRows[index]!.tag_id,
+            position: (index + 1) * 1000,
+            created_at: convertedAt,
+            updated_at: convertedAt,
+          })
+        }
+
+        const insertChildTask = db.prepare(
+          `INSERT INTO tasks (
+             id, title, notes, status, is_inbox, is_someday,
+             project_id, section_id, area_id,
+             scheduled_at, due_at,
+             created_at, updated_at, completed_at, deleted_at
+           ) VALUES (
+             @id, @title, '', @status, 0, 0,
+             @project_id, NULL, NULL,
+             NULL, NULL,
+             @created_at, @updated_at, @completed_at, NULL
+           )`
+        )
+        const insertListPosition = db.prepare(
+          `INSERT INTO list_positions (list_id, task_id, rank, updated_at)
+           VALUES (@list_id, @task_id, @rank, @updated_at)`
+        )
+        const childListId = taskListIdProject(project.id, null)
+        const childTasks: Array<z.infer<typeof TaskSchema>> = []
+        let deletedChecklistItems: Array<z.infer<typeof ChecklistItemSchema>> = []
+
+        for (let index = 0; index < checklistItems.length; index++) {
+          const item = checklistItems[index]!
+          const childTaskId = uuidv7()
+          const isDone = item.done
+          insertChildTask.run({
+            id: childTaskId,
+            title: item.title,
+            status: isDone ? 'done' : 'open',
+            project_id: project.id,
+            created_at: convertedAt,
+            updated_at: convertedAt,
+            completed_at: isDone ? convertedAt : null,
+          })
+          insertListPosition.run({
+            list_id: childListId,
+            task_id: childTaskId,
+            rank: (index + 1) * 1000,
+            updated_at: convertedAt,
+          })
+
+          const childRow = db
+            .prepare(
+              `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id,
+                      scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+               FROM tasks
+               WHERE id = ?
+               LIMIT 1`
+            )
+            .get(childTaskId)
+          childTasks.push(TaskSchema.parse(childRow))
+        }
+
+        if (checklistItems.length > 0) {
+          db.prepare(
+            `UPDATE task_checklist_items
+             SET deleted_at = @deleted_at,
+                 updated_at = @updated_at
+             WHERE task_id = @task_id
+               AND deleted_at IS NULL`
+          ).run({
+            task_id: sourceTask.id,
+            deleted_at: convertedAt,
+            updated_at: convertedAt,
+          })
+
+          const deletedChecklistRows = db
+            .prepare(
+              `SELECT id, task_id, title, done, position, created_at, updated_at, deleted_at
+               FROM task_checklist_items
+               WHERE task_id = ?
+                 AND deleted_at = ?
+               ORDER BY position ASC, created_at ASC, id ASC`
+            )
+            .all(sourceTask.id, convertedAt) as unknown[]
+          deletedChecklistItems = z.array(ChecklistDbRowSchema).parse(deletedChecklistRows)
+        }
+
+        db.prepare(
+          `UPDATE tasks
+           SET deleted_at = @deleted_at,
+               purged_at = @purged_at,
+               updated_at = @updated_at
+           WHERE id = @id
+             AND deleted_at IS NULL
+             AND purged_at IS NULL`
+        ).run({
+          id: sourceTask.id,
+          deleted_at: convertedAt,
+          purged_at: convertedAt,
+          updated_at: convertedAt,
+        })
+
+        const purgedSourceRow = db
+          .prepare(
+            `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id,
+                    scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at, purged_at
+             FROM tasks
+             WHERE id = ?
+             LIMIT 1`
+          )
+          .get(sourceTask.id)
+
+        sync.recordEntity(
+          'project',
+          project,
+          [
+            'title',
+            'notes',
+            'area_id',
+            'status',
+            'position',
+            'scheduled_at',
+            'is_someday',
+            'due_at',
+            'created_at',
+            'updated_at',
+            'completed_at',
+            'deleted_at',
+          ]
+        )
+        for (const childTask of childTasks) {
+          sync.recordEntity(
+            'task',
+            childTask,
+            [
+              'title',
+              'notes',
+              'status',
+              'is_inbox',
+              'is_someday',
+              'project_id',
+              'section_id',
+              'area_id',
+              'scheduled_at',
+              'due_at',
+              'created_at',
+              'updated_at',
+              'completed_at',
+              'deleted_at',
+            ]
+          )
+        }
+        for (const checklistItem of deletedChecklistItems) {
+          sync.recordEntity('checklist_item', checklistItem, ['deleted_at', 'updated_at'])
+        }
+        sync.recordEntity('task', TaskSchema.parse(purgedSourceRow), ['deleted_at', 'purged_at', 'updated_at'])
+        sync.finalize()
+
+        return {
+          ok: true as const,
+          data: TaskConvertToProjectResultSchema.parse({
+            project,
+            tasks_created: checklistItems.length,
+          }),
+        }
       })
 
       return tx()
