@@ -471,7 +471,8 @@ Research belongs in `{task_dir}/research/*.md`, written by `trellis-research` su
 
 [workflow-state:in_progress]
 Flow: trellis-implement → trellis-check → trellis-update-spec → finish
-Check conversation history + git status to determine current step; do NOT skip trellis-check.
+Next required action: inspect conversation history + git status, then execute the next uncompleted step in that sequence.
+For agent-capable platforms, do NOT edit code in the main session; dispatch `trellis-implement` for implementation and dispatch `trellis-check` before reporting completion.
 [/workflow-state:in_progress]
 
 [workflow-state:completed]
