@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 13
+- **Total Sessions**: 14
 - **Last Active**: 2026-04-26
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~486 | Active |
+| `journal-1.md` | ~519 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 14 | 2026-04-26 | Enhance search: area/project/task search with scope filter | `6356630` | `master` |
 | 13 | 2026-04-26 | Add settings font size slider | `b10ca8d` | `master` |
 | 12 | 2026-04-26 | 分组溢出菜单（存档/恢复） | `ba0c676`, `7decb6b` | `master` |
 | 11 | 2026-04-26 | Unify project list item rows | `96f32ca` | `master` |

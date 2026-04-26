@@ -484,3 +484,36 @@ Added a Settings font size slider with seven discrete steps, persistent app_sett
 ### Next Steps
 
 - None - task complete
+
+
+## Session 14: Enhance search: area/project/task search with scope filter
+
+**Date**: 2026-04-26
+**Task**: Enhance search: area/project/task search with scope filter
+**Branch**: `master`
+
+### Summary
+
+Extended search to support Area and Project results alongside Tasks. Added scope filter (inbox/today/upcoming/anytime/someday/logbook/trash/anywhere) to SearchPanel. Added 'Continue Search' entry that navigates to new /search page. Task search uses existing FTS5; project/area search use LIKE queries. Updated i18n, window-api mocks, and spec checklist.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6356630` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
