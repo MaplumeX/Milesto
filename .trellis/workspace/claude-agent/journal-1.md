@@ -451,3 +451,36 @@ Created ProjectRow component and useProjectContextMenu hook. Replaced ad-hoc pro
 ### Next Steps
 
 - None - task complete
+
+
+## Session 13: Add settings font size slider
+
+**Date**: 2026-04-26
+**Task**: Add settings font size slider
+**Branch**: `master`
+
+### Summary
+
+Added a Settings font size slider with seven discrete steps, persistent app_settings storage, startup restore, immediate renderer application, i18n, tests, and updated cross-layer type-safety spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b10ca8d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
