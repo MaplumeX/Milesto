@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 11
+- **Total Sessions**: 12
 - **Last Active**: 2026-04-26
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~419 | Active |
+| `journal-1.md` | ~453 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 12 | 2026-04-26 | 分组溢出菜单（存档/恢复） | `ba0c676`, `7decb6b` | `master` |
 | 11 | 2026-04-26 | Unify project list item rows | `96f32ca` | `master` |
 | 10 | 2026-04-25 | 让备注支持 Markdown | `9d586db` | `master` |
 | 9 | 2026-04-25 | Convert project sections to projects | `c328732` | `master` |

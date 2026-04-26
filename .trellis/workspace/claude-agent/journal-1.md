@@ -417,3 +417,37 @@ Created ProjectRow component and useProjectContextMenu hook. Replaced ad-hoc pro
 ### Next Steps
 
 - None - task complete
+
+
+## Session 12: 分组溢出菜单（存档/恢复）
+
+**Date**: 2026-04-26
+**Task**: 分组溢出菜单（存档/恢复）
+**Branch**: `master`
+
+### Summary
+
+为项目分组添加头部溢出菜单，支持存档及恢复功能；存档后分组与已完成任务一同显示在已完成区域
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ba0c676` | (see git log) |
+| `7decb6b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
