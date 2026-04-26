@@ -6,7 +6,7 @@ import fs from 'node:fs/promises'
 import { z } from 'zod'
 
 import type { AppError } from '../shared/app-error'
-import { err, ok, resultSchema } from '../shared/result'
+import { err, ok, resultSchema, type Result } from '../shared/result'
 
 import { DbWorkerClient } from './workers/db/db-worker-client'
 import { SyncEngine } from './sync/sync-engine'
@@ -106,9 +106,13 @@ import {
   ViewListTodayInputSchema,
   ViewListUpcomingInputSchema,
   ViewReorderBatchInputSchema,
+  DEFAULT_FONT_SIZE_STEP,
+  FontSizeStateSchema,
+  FontSizeStepSchema,
   ThemePreferenceSchema,
   ThemeStateSchema,
   type EffectiveTheme,
+  type FontSizeStep,
   type ThemePreference,
 } from '../shared/schemas'
 import { getWindowBackgroundColor } from './theme/window-background'
@@ -231,12 +235,20 @@ const SetSidebarStatePayloadSchema = z.object({ state: z.unknown() })
 
 const ThemeStateResultSchema = resultSchema(ThemeStateSchema)
 const SetThemePreferencePayloadSchema = z.object({ preference: z.unknown() })
+const FontSizeStateResultSchema = resultSchema(FontSizeStateSchema)
+const SetFontSizeStepPayloadSchema = z.object({ step: z.unknown() }).superRefine((payload, ctx) => {
+  if (!Object.prototype.hasOwnProperty.call(payload, 'step')) {
+    ctx.addIssue({ code: 'custom', path: ['step'], message: 'Required' })
+  }
+})
 
 const DbLocaleRowSchema = z.object({ locale: z.string().nullable() })
 const DbSetLocaleResultSchema = z.object({ locale: z.string() })
 
 const DbThemePreferenceRowSchema = z.object({ preference: z.string().nullable() })
 const DbSetThemePreferenceResultSchema = z.object({ preference: z.string() })
+const DbFontSizeStepRowSchema = z.object({ step: z.number().nullable() })
+const DbSetFontSizeStepResultSchema = z.object({ step: z.number() })
 
 const DbSidebarStateSchema = SidebarStateSchema
 
@@ -289,6 +301,34 @@ async function resolveThemeState(dbWorker: DbWorkerClient): Promise<{ preference
   // Self-test mode stays deterministic for `system`, but explicit dark should still render dark.
   applyThemeSource(preference)
   return { preference, effectiveTheme: resolveEffectiveThemeForApp(preference) }
+}
+
+async function loadFontSizeStep(dbWorker: DbWorkerClient): Promise<Result<FontSizeStep>> {
+  const persistedRes = await dbWorker.request('settings.getFontSizeStep', {})
+  if (!persistedRes.ok) return err(persistedRes.error)
+
+  const parsed = DbFontSizeStepRowSchema.safeParse(persistedRes.data)
+  if (!parsed.success) {
+    return err({
+      code: 'DB_INVALID_RETURN',
+      message: 'Invalid DB return value.',
+      details: { issues: parsed.error.issues, action: 'settings.getFontSizeStep' },
+    })
+  }
+
+  const persisted = parsed.data.step
+  if (persisted === null) return ok(DEFAULT_FONT_SIZE_STEP)
+
+  const allowlisted = FontSizeStepSchema.safeParse(persisted)
+  if (!allowlisted.success) {
+    return err({
+      code: 'DB_INVALID_RETURN',
+      message: 'Invalid DB return value.',
+      details: { issues: allowlisted.error.issues, action: 'settings.getFontSizeStep' },
+    })
+  }
+
+  return ok(allowlisted.data)
 }
 
 function createWindow(opts?: { backgroundColor?: string }) {
@@ -779,6 +819,70 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     }
 
     return ThemeStateResultSchema.parse(ok(state))
+  })
+
+  ipcMain.handle('settings:getFontSizeState', async (event) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return FontSizeStateResultSchema.parse(err(senderErr))
+
+    const stepRes = await loadFontSizeStep(dbWorker)
+    if (!stepRes.ok) return FontSizeStateResultSchema.parse(err(stepRes.error))
+
+    return FontSizeStateResultSchema.parse(ok({ step: stepRes.data }))
+  })
+
+  ipcMain.handle('settings:setFontSizeStep', async (event, payload) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return FontSizeStateResultSchema.parse(err(senderErr))
+
+    const parsedPayload = SetFontSizeStepPayloadSchema.safeParse(payload)
+    if (!parsedPayload.success) {
+      return FontSizeStateResultSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid payload.',
+          details: { issues: parsedPayload.error.issues },
+        })
+      )
+    }
+
+    const stepParsed = FontSizeStepSchema.safeParse(parsedPayload.data.step)
+    if (!stepParsed.success) {
+      return FontSizeStateResultSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid font size step.',
+          details: { issues: stepParsed.error.issues },
+        })
+      )
+    }
+
+    const res = await dbWorker.request('settings.setFontSizeStep', { step: stepParsed.data })
+    if (!res.ok) return FontSizeStateResultSchema.parse(err(res.error))
+
+    const parsedData = DbSetFontSizeStepResultSchema.safeParse(res.data)
+    if (!parsedData.success) {
+      return FontSizeStateResultSchema.parse(
+        err({
+          code: 'DB_INVALID_RETURN',
+          message: 'Invalid DB return value.',
+          details: { issues: parsedData.error.issues, action: 'settings.setFontSizeStep' },
+        })
+      )
+    }
+
+    const dbStepParsed = FontSizeStepSchema.safeParse(parsedData.data.step)
+    if (!dbStepParsed.success) {
+      return FontSizeStateResultSchema.parse(
+        err({
+          code: 'DB_INVALID_RETURN',
+          message: 'Invalid DB return value.',
+          details: { issues: dbStepParsed.error.issues, action: 'settings.setFontSizeStep' },
+        })
+      )
+    }
+
+    return FontSizeStateResultSchema.parse(ok({ step: dbStepParsed.data }))
   })
 
   // DB IPC (Renderer -> Main -> DB Worker)

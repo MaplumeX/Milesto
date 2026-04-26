@@ -1,16 +1,46 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { useTranslation } from 'react-i18next'
 
 import { Select } from '../../components/Select'
 import type { AppError } from '../../../shared/app-error'
 import { LocaleSchema, type Locale } from '../../../shared/i18n/locale'
-import { ThemePreferenceSchema, type EffectiveTheme, type ThemePreference } from '../../../shared/schemas'
+import {
+  DEFAULT_FONT_SIZE_STEP,
+  FONT_SIZE_STEP_MAX,
+  FONT_SIZE_STEP_MIN,
+  FontSizeStepSchema,
+  ThemePreferenceSchema,
+  type EffectiveTheme,
+  type FontSizeStep,
+  type ThemePreference,
+} from '../../../shared/schemas'
 
 import i18n from '../../i18n/i18n'
+import { applyAppFontSize } from '../../app/app-font-size'
+
+function getFontSizeStepLabel(t: (key: string) => string, step: FontSizeStep): string {
+  switch (step) {
+    case -3:
+      return t('settings.fontSizeVerySmall')
+    case -2:
+      return t('settings.fontSizeSmall')
+    case -1:
+      return t('settings.fontSizeSlightlySmall')
+    case 0:
+      return t('settings.fontSizeDefault')
+    case 1:
+      return t('settings.fontSizeSlightlyLarge')
+    case 2:
+      return t('settings.fontSizeLarge')
+    case 3:
+      return t('settings.fontSizeVeryLarge')
+  }
+}
 
 export function GeneralSettingsPanel() {
   const { t } = useTranslation()
+  const fontSizeRequestIdRef = useRef(0)
   const [version, setVersion] = useState<string>('')
   const [userDataPath, setUserDataPath] = useState<string>('')
   const [error, setError] = useState<AppError | null>(null)
@@ -19,14 +49,16 @@ export function GeneralSettingsPanel() {
   const [supportedLocales, setSupportedLocales] = useState<Locale[]>(['en', 'zh-CN'])
   const [themePreference, setThemePreference] = useState<ThemePreference>('system')
   const [effectiveTheme, setEffectiveTheme] = useState<EffectiveTheme>('light')
+  const [fontSizeStep, setFontSizeStep] = useState<FontSizeStep>(DEFAULT_FONT_SIZE_STEP)
 
   useEffect(() => {
     void (async () => {
-      const [verRes, pathRes, localeRes, themeRes] = await Promise.all([
+      const [verRes, pathRes, localeRes, themeRes, fontSizeRes] = await Promise.all([
         window.api.app.getVersion(),
         window.api.app.getUserDataPath(),
         window.api.settings.getLocaleState(),
         window.api.settings.getThemeState(),
+        window.api.settings.getFontSizeState(),
       ])
 
       if (!verRes.ok) {
@@ -45,6 +77,10 @@ export function GeneralSettingsPanel() {
         setError(themeRes.error)
         return
       }
+      if (!fontSizeRes.ok) {
+        setError(fontSizeRes.error)
+        return
+      }
 
       setError(null)
       setVersion(verRes.data)
@@ -53,6 +89,8 @@ export function GeneralSettingsPanel() {
       setSupportedLocales(localeRes.data.supportedLocales)
       setThemePreference(themeRes.data.preference)
       setEffectiveTheme(themeRes.data.effectiveTheme)
+      setFontSizeStep(fontSizeRes.data.step)
+      applyAppFontSize(fontSizeRes.data.step)
     })()
   }, [])
 
@@ -139,6 +177,58 @@ export function GeneralSettingsPanel() {
                 })()
               }}
             />
+          </div>
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <div className="settings-section-title">{t('settings.appearance')}</div>
+        <div className="settings-row">
+          <div className="settings-row-label">{t('settings.fontSize')}</div>
+          <div className="settings-row-control settings-font-size-control">
+            <span className="settings-font-size-bound">{t('settings.fontSizeEndpointSmall')}</span>
+            <div className="settings-font-size-slider-wrap">
+              <input
+                type="range"
+                aria-label={t('settings.fontSize')}
+                aria-valuetext={getFontSizeStepLabel(t, fontSizeStep)}
+                min={FONT_SIZE_STEP_MIN}
+                max={FONT_SIZE_STEP_MAX}
+                step={1}
+                value={fontSizeStep}
+                className="settings-font-size-slider"
+                data-testid="settings-font-size-slider"
+                onChange={(event) => {
+                  const parsed = FontSizeStepSchema.safeParse(Number(event.currentTarget.value))
+                  if (!parsed.success) return
+                  const nextStep = parsed.data
+                  const requestId = fontSizeRequestIdRef.current + 1
+                  fontSizeRequestIdRef.current = requestId
+
+                  setFontSizeStep(nextStep)
+                  applyAppFontSize(nextStep)
+
+                  void (async () => {
+                    const res = await window.api.settings.setFontSizeStep(nextStep)
+                    if (requestId !== fontSizeRequestIdRef.current) return
+
+                    if (!res.ok) {
+                      setError(res.error)
+                      return
+                    }
+
+                    setError(null)
+                    setFontSizeStep(res.data.step)
+                    applyAppFontSize(res.data.step)
+                  })()
+                }}
+              />
+              <div className="settings-font-size-default-marker" aria-hidden="true">
+                <span className="settings-font-size-default-tick" />
+                <span className="settings-font-size-default-label">{t('settings.fontSizeDefaultMarker')}</span>
+              </div>
+            </div>
+            <span className="settings-font-size-bound">{t('settings.fontSizeEndpointLarge')}</span>
           </div>
         </div>
       </section>

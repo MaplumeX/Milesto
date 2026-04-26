@@ -6,6 +6,7 @@ import './index.css'
 
 import type { Locale } from '../shared/i18n/locale'
 import { initI18n } from './i18n/i18n'
+import { applyAppFontSize } from './app/app-font-size'
 
 async function bootstrap() {
   const url = new URL(window.location.href)
@@ -18,10 +19,14 @@ async function bootstrap() {
 
   let locale: Locale = 'en'
   try {
-    const res = await window.api.settings.getLocaleState()
-    if (res.ok) locale = res.data.locale
+    const [localeRes, fontSizeRes] = await Promise.all([
+      window.api.settings.getLocaleState(),
+      window.api.settings.getFontSizeState(),
+    ])
+    if (localeRes.ok) locale = localeRes.data.locale
+    if (fontSizeRes.ok) applyAppFontSize(fontSizeRes.data.step)
   } catch {
-    // Fallback to English.
+    // Fallback to English and the stylesheet root font size.
   }
 
   document.documentElement.lang = locale

@@ -41,6 +41,8 @@ export function createWindowApiMock(): WindowApi {
       setThemePreference: vi.fn<WindowApi['settings']['setThemePreference']>(
         async (preference) => ok({ preference, effectiveTheme: preference === 'dark' ? 'dark' : 'light' })
       ),
+      getFontSizeState: vi.fn<WindowApi['settings']['getFontSizeState']>(async () => ok({ step: 0 })),
+      setFontSizeStep: vi.fn<WindowApi['settings']['setFontSizeStep']>(async (step) => ok({ step })),
     },
 
     trash: {

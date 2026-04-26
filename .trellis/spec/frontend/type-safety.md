@@ -98,3 +98,72 @@ export function toAppError(error: unknown, fallback: AppError): AppError {
   return fallback
 }
 ```
+
+## Scenario: App Font Size Preference Contract
+
+### 1. Scope / Trigger
+
+- Trigger: font size preference crosses renderer UI, preload, main IPC, DB worker, and document root styling.
+- Use this pattern for small app-wide preferences that are persisted in `app_settings` and consumed by renderer code.
+
+### 2. Signatures
+
+- Shared schema: `FontSizeStepSchema`, `FontSizeStateSchema`, `FontSizeStep`, `FontSizeState`.
+- Renderer API: `window.api.settings.getFontSizeState(): Promise<Result<FontSizeState>>`.
+- Renderer API: `window.api.settings.setFontSizeStep(step: FontSizeStep): Promise<Result<FontSizeState>>`.
+- Preload IPC: `settings:getFontSizeState` with no payload.
+- Preload IPC: `settings:setFontSizeStep` with `{ step }`.
+- DB worker actions: `settings.getFontSizeStep` and `settings.setFontSizeStep`.
+- Storage key: `app_settings.key = 'fontSize.step'`, stored as a stringified allowed slider step.
+
+### 3. Contracts
+
+- Allowed values are the shared slider-step union only: `-3 | -2 | -1 | 0 | 1 | 2 | 3`.
+- Default is `0`, preserving the CSS `:root { font-size: 12px; }` baseline.
+- Step-to-scale mapping is internal; the Settings UI must show natural labels/cues instead of raw percentages.
+- The Settings UI must not show the current step in a row description under `Font size`; keep current-step text to accessibility metadata such as `aria-valuetext`.
+- The Settings slider must mark the default step visibly on or near the control and use plain endpoint labels such as `Small` / `Large`, not comparative size wording.
+- DB get returns `{ step: FontSizeStep | null }`; `null` means unset or invalid persisted data.
+- Main IPC get returns `{ step: FontSizeStep }`, converting missing or invalid DB values to `0`.
+- Renderer startup calls `getFontSizeState()` before rendering and applies the value to `document.documentElement.style.fontSize`.
+- Renderer setting changes call `setFontSizeStep()` and apply the returned value immediately.
+
+### 4. Validation & Error Matrix
+
+- Invalid IPC payload shape -> `VALIDATION_FAILED` with message `Invalid payload.`.
+- Unsupported step in main IPC -> `VALIDATION_FAILED` with message `Invalid font size step.`.
+- Unsupported step in DB action -> `VALIDATION_FAILED` with message `Invalid font size step.`.
+- Invalid DB return shape -> `DB_INVALID_RETURN`.
+- Invalid persisted `app_settings` value -> DB get returns `{ step: null }`; main falls back to `0`.
+
+### 5. Good/Base/Bad Cases
+
+- Good: user moves slider to the largest step; DB stores `'3'`; main returns `{ step: 3 }`; renderer applies the mapped root font size.
+- Base: no stored value; DB returns `{ step: null }`; main returns `{ step: 0 }`; renderer applies `12px`.
+- Bad: DB contains `'500'`; DB returns `{ step: null }`; main returns `{ step: 0 }`.
+
+### 6. Tests Required
+
+- Shared/unit: slider-step-to-root-font-size mapping and DOM application.
+- Renderer: Settings > General renders the slider and changing it calls `setFontSizeStep` and updates the root element.
+- DB: allowed slider step persists, unsupported step is rejected, invalid persisted value reads as unset.
+- Type-check: `WindowApi` mock must implement the new settings methods.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+await window.api.settings.setFontSizeStep(Number(value) as FontSizeStep)
+document.documentElement.style.fontSize = `${Number(value)}%`
+```
+
+#### Correct
+
+```ts
+const parsed = FontSizeStepSchema.safeParse(Number(value))
+if (!parsed.success) return
+
+const res = await window.api.settings.setFontSizeStep(parsed.data)
+if (res.ok) applyAppFontSize(res.data.step)
+```

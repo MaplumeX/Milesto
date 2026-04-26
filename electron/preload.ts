@@ -28,6 +28,8 @@ const api: WindowApi = {
     setSidebarState: (state) => invoke('settings:setSidebarState', { state }),
     getThemeState: () => invoke('settings:getThemeState'),
     setThemePreference: (preference) => invoke('settings:setThemePreference', { preference }),
+    getFontSizeState: () => invoke('settings:getFontSizeState'),
+    setFontSizeStep: (step) => invoke('settings:setFontSizeStep', { step }),
   },
   trash: {
     list: () => invoke('db:trash.list', {}),

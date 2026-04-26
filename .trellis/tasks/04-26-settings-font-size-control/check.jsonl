@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend guideline index for verifying changed settings UI."}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Verify component structure and UI behavior follow local patterns."}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Verify async preference state handling and immediate UI updates."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Verify schema, IPC, and shared type validation are complete."}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Verify quality bar, tests, lint, and maintainability."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify renderer-to-DB preference flow is complete and consistent."}

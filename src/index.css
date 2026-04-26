@@ -2831,6 +2831,58 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
   flex: 0 0 auto;
 }
 
+.settings-font-size-control {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 220px) auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.settings-font-size-bound {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  line-height: 24px;
+}
+
+.settings-font-size-slider-wrap {
+  position: relative;
+  min-width: 160px;
+  padding-bottom: 18px;
+}
+
+.settings-font-size-slider {
+  display: block;
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.settings-font-size-default-marker {
+  position: absolute;
+  left: 50%;
+  top: 21px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.settings-font-size-default-tick {
+  width: 1px;
+  height: 6px;
+  background: var(--muted);
+  opacity: 0.75;
+}
+
+.settings-font-size-default-label {
+  white-space: nowrap;
+}
+
 .settings-row-description {
   font-size: 11px;
   color: var(--muted);
@@ -2967,6 +3019,13 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
   }
   .settings-row-control {
     align-self: flex-start;
+  }
+  .settings-font-size-control {
+    width: 100%;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .settings-font-size-slider-wrap {
+    min-width: 0;
   }
   .settings-inline-note {
     flex-direction: column;

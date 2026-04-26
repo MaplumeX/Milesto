@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 
 import type { TaskListItem } from '../../shared/schemas/task-list'
 import { AppEventsProvider } from '../../src/app/AppEventsContext'
@@ -44,17 +45,19 @@ function UpcomingGroupedListHarness({ tasks }: { tasks: TaskListItem[] }) {
 
   return (
     <AppEventsProvider>
-      <TaskSelectionProvider value={selection}>
-        <ContentScrollProvider scrollRef={contentScrollRef}>
-          <div ref={contentScrollRef} className="content-scroll">
-            <UpcomingGroupedList
-              tasks={tasks}
-              today="2026-03-17"
-              onToggleDone={async () => {}}
-            />
-          </div>
-        </ContentScrollProvider>
-      </TaskSelectionProvider>
+      <MemoryRouter>
+        <TaskSelectionProvider value={selection}>
+          <ContentScrollProvider scrollRef={contentScrollRef}>
+            <div ref={contentScrollRef} className="content-scroll">
+              <UpcomingGroupedList
+                tasks={tasks}
+                today="2026-03-17"
+                onToggleDone={async () => {}}
+              />
+            </div>
+          </ContentScrollProvider>
+        </TaskSelectionProvider>
+      </MemoryRouter>
     </AppEventsProvider>
   )
 }

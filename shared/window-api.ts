@@ -28,6 +28,7 @@ import type { TaskCountProjectsProgressResult, TaskCountResult, TaskListItem } f
 import type { TaskSearchResultItem } from './schemas/search'
 import type { TaskDetail } from './schemas/task-detail'
 import type { ThemePreference, ThemeState } from './schemas/theme'
+import type { FontSizeState, FontSizeStep } from './schemas/font-size'
 import type { SyncConfig, SyncState } from './schemas/sync'
 import type { AreaDetail } from './schemas/area-detail'
 import type {
@@ -83,6 +84,9 @@ export type WindowApi = {
 
     getThemeState(): Promise<Result<ThemeState>>
     setThemePreference(preference: ThemePreference): Promise<Result<ThemeState>>
+
+    getFontSizeState(): Promise<Result<FontSizeState>>
+    setFontSizeStep(step: FontSizeStep): Promise<Result<FontSizeState>>
   }
 
   trash: {

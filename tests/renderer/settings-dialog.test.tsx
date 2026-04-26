@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 
@@ -46,8 +46,22 @@ function renderAppShell(initialEntry = '/today') {
   )
 }
 
+function installPointerCapturePolyfill() {
+  const prototype = HTMLElement.prototype as HTMLElement['__proto__'] & {
+    hasPointerCapture?: (pointerId: number) => boolean
+    setPointerCapture?: (pointerId: number) => void
+    releasePointerCapture?: (pointerId: number) => void
+  }
+
+  prototype.hasPointerCapture ??= () => false
+  prototype.setPointerCapture ??= () => {}
+  prototype.releasePointerCapture ??= () => {}
+}
+
 describe('Settings dialog', () => {
   afterEach(() => {
+    document.documentElement.removeAttribute('style')
+    delete document.documentElement.dataset.fontSizeStep
     cleanup()
   })
 
@@ -82,5 +96,33 @@ describe('Settings dialog', () => {
     expect(screen.getByRole('tab', { name: 'settings.generalTab' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'settings.syncTab' })).toBeInTheDocument()
     expect(screen.getByLabelText('settings.language')).toBeInTheDocument()
+    expect(screen.getByLabelText('settings.fontSize')).toBeInTheDocument()
+    expect(screen.getByTestId('settings-font-size-slider')).toHaveValue('0')
+    expect(screen.getByText('settings.fontSizeEndpointSmall')).toBeInTheDocument()
+    expect(screen.getByText('settings.fontSizeEndpointLarge')).toBeInTheDocument()
+    expect(screen.getByText('settings.fontSizeDefaultMarker')).toBeInTheDocument()
+    expect(screen.queryByText('100%')).not.toBeInTheDocument()
+
+    const fontSizeRow = screen.getByTestId('settings-font-size-slider').closest('.settings-row')
+    expect(fontSizeRow?.querySelector('.settings-row-label .settings-row-description')).toBeNull()
+  })
+
+  it('persists font size changes and applies them to the root element immediately', async () => {
+    installPointerCapturePolyfill()
+
+    const user = userEvent.setup()
+    const api = (window as unknown as { api: WindowApi }).api
+
+    renderAppShell('/today')
+
+    await user.click(await screen.findByRole('button', { name: 'nav.settings' }))
+
+    fireEvent.change(await screen.findByTestId('settings-font-size-slider'), { target: { value: '3' } })
+
+    await waitFor(() => {
+      expect(api.settings.setFontSizeStep).toHaveBeenCalledWith(3)
+      expect(document.documentElement).toHaveStyle({ fontSize: '15.12px' })
+      expect(document.documentElement.dataset.fontSizeStep).toBe('3')
+    })
   })
 })

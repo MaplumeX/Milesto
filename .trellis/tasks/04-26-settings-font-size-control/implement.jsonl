@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend guideline index for settings UI and renderer work."}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Component composition and UI implementation conventions for Settings panel changes."}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Renderer state and async settings-loading conventions."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Shared schema and validation patterns for new preference types."}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Quality bar and forbidden patterns for implementation."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Preference crosses renderer, preload, main IPC, DB worker, and CSS application."}
