@@ -54,6 +54,7 @@ Every change should preserve four things:
 - State ownership: is state local by default and promoted only when justified?
 - Types: are shared contracts imported from `shared/` instead of redefined?
 - Tests: is the change covered at the right layer?
+- Mocks: when adding or changing a `window.api` method, did `tests/renderer/window-api-mock.ts` get updated?
 
 ---
 

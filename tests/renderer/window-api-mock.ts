@@ -104,6 +104,7 @@ export function createWindowApiMock(): WindowApi {
       listOpen: vi.fn<WindowApi['project']['listOpen']>(async () => ok([])),
       listDone: vi.fn<WindowApi['project']['listDone']>(async () => ok([])),
       listOpenByArea: vi.fn<WindowApi['project']['listOpenByArea']>(async () => ok([])),
+      search: vi.fn<WindowApi['project']['search']>(async () => ok([])),
 
       setTags: vi.fn<WindowApi['project']['setTags']>(async () => ok({ updated: true })),
 
@@ -123,6 +124,7 @@ export function createWindowApiMock(): WindowApi {
       update: vi.fn<WindowApi['area']['update']>(async () => err(unimplementedError)),
       list: vi.fn<WindowApi['area']['list']>(async () => ok([])),
       delete: vi.fn<WindowApi['area']['delete']>(async () => err(unimplementedError)),
+      search: vi.fn<WindowApi['area']['search']>(async () => ok([])),
 
       setTags: vi.fn<WindowApi['area']['setTags']>(async () => ok({ updated: true })),
     },

@@ -69,6 +69,8 @@ const api: WindowApi = {
       invoke('db:task.search', {
         query,
         include_logbook: options?.includeLogbook ?? false,
+        scope: options?.scope,
+        date: options?.date,
       }),
 
     reorderBatch: (listId, orderedTaskIds) =>
@@ -107,6 +109,7 @@ const api: WindowApi = {
     listOpen: () => invoke('db:project.listOpen', {}),
     listDone: () => invoke('db:project.listDone', {}),
     listOpenByArea: (areaId) => invoke('db:project.listOpenByArea', { area_id: areaId }),
+    search: (query) => invoke('db:project.search', { query }),
 
     setTags: (projectId, tagIds, scope) =>
       invoke('db:project.setTags', {
@@ -140,6 +143,7 @@ const api: WindowApi = {
     update: (input) => invoke('db:area.update', input),
     list: () => invoke('db:area.list', {}),
     delete: (id) => invoke('db:area.delete', { id }),
+    search: (query) => invoke('db:area.search', { query }),
 
     setTags: (areaId, tagIds) =>
       invoke('db:area.setTags', {

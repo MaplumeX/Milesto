@@ -58,6 +58,8 @@ import {
   TaskSchema,
   TaskSearchInputSchema,
   TaskSearchResultItemSchema,
+  ProjectSearchResultItemSchema,
+  AreaSearchResultItemSchema,
   TaskSetTagsInputSchema,
   TaskToggleDoneInputSchema,
   TaskUpdateInputSchema,
@@ -958,6 +960,9 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   )
   handleDb('db:task.reorderBatch', 'task.reorderBatch', TaskReorderBatchInputSchema, z.object({ reordered: z.boolean() }))
   handleDb('db:task.setTags', 'task.setTags', TaskSetTagsInputSchema, z.object({ updated: z.boolean() }))
+
+  handleDb('db:project.search', 'project.search', z.object({ query: z.string().min(1) }), z.array(ProjectSearchResultItemSchema))
+  handleDb('db:area.search', 'area.search', z.object({ query: z.string().min(1) }), z.array(AreaSearchResultItemSchema))
 
   handleDb('db:view.listAnytime', 'view.listAnytime', ViewListAnytimeInputSchema, z.array(ViewListItemSchema))
   handleDb('db:view.listSomeday', 'view.listSomeday', ViewListSomedayInputSchema, z.array(ViewListItemSchema))

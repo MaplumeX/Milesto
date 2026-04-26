@@ -36,6 +36,7 @@ import { ProjectDetailSchema } from '../../../../shared/schemas/project-detail'
 import { ProjectSetTagsInputSchema } from '../../../../shared/schemas/project-set-tags'
 import { TagSchema } from '../../../../shared/schemas/tag'
 import { TaskSchema } from '../../../../shared/schemas/task'
+import { ProjectSearchResultItemSchema } from '../../../../shared/schemas/search'
 import type { EntityScope } from '../../../../shared/schemas/common'
 import { taskListIdProject } from '../../../../shared/task-list-ids'
 
@@ -1943,6 +1944,47 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
       })
 
       return tx()
+    },
+
+    'project.search': (payload) => {
+      const parsed = z.object({ query: z.string().min(1) }).safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid project.search payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const likeQuery = `%${parsed.data.query.replace(/[%_]/g, '\\$&')}%`
+
+      try {
+        const rows = db
+          .prepare(
+            `SELECT id, title, status, area_id
+             FROM projects
+             WHERE deleted_at IS NULL
+               AND (title LIKE @query OR notes LIKE @query)
+             ORDER BY title COLLATE NOCASE ASC
+             LIMIT 50`
+          )
+          .all({ query: likeQuery })
+
+        const items = z.array(ProjectSearchResultItemSchema).parse(rows)
+        return { ok: true, data: items }
+      } catch (e) {
+        return {
+          ok: false,
+          error: {
+            code: 'SEARCH_FAILED',
+            message: 'Project search failed.',
+            details: { error: String(e) },
+          },
+        }
+      }
     },
   }
 }

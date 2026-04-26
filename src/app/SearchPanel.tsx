@@ -4,13 +4,34 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { isClosedTaskStatus } from '../../shared/schemas/common'
-import type { TaskSearchResultItem } from '../../shared/schemas/search'
+import type {
+  TaskSearchResultItem,
+  ProjectSearchResultItem,
+  AreaSearchResultItem,
+  TaskSearchScope,
+} from '../../shared/schemas/search'
 
 import { getLocalToday, useLocalToday } from '../lib/use-local-today'
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 import { useOptimisticTaskTitles } from '../features/tasks/use-optimistic-task-titles'
 
 const UI_OPEN_SEARCH_PANEL_EVENT = 'milesto:ui.openSearchPanel'
+
+const SCOPES: TaskSearchScope[] = [
+  'anywhere',
+  'inbox',
+  'today',
+  'upcoming',
+  'anytime',
+  'someday',
+  'logbook',
+  'trash',
+]
+
+type SearchResultItem =
+  | { kind: 'task'; data: TaskSearchResultItem }
+  | { kind: 'project'; data: ProjectSearchResultItem }
+  | { kind: 'area'; data: AreaSearchResultItem }
 
 export function SearchPanel() {
   const { t } = useTranslation()
@@ -20,25 +41,44 @@ export function SearchPanel() {
 
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<TaskSearchResultItem[]>([])
-  const resultsWithOptimisticTitles = useOptimisticTaskTitles(results)
+  const [scope, setScope] = useState<TaskSearchScope>('anywhere')
+  const [taskResults, setTaskResults] = useState<TaskSearchResultItem[]>([])
+  const [projectResults, setProjectResults] = useState<ProjectSearchResultItem[]>([])
+  const [areaResults, setAreaResults] = useState<AreaSearchResultItem[]>([])
   const [highlight, setHighlight] = useState(0)
 
   const today = useLocalToday()
 
-  function getTaskHint(item: TaskSearchResultItem): string {
-    if (item.is_someday) return t('nav.someday')
-    if (item.scheduled_at) return item.scheduled_at === today ? t('nav.today') : item.scheduled_at
-    if (item.is_inbox) return t('nav.inbox')
-    if (item.project_id) return t('shell.project')
-    return t('nav.anytime')
-  }
+  const resultsWithOptimisticTitles = useOptimisticTaskTitles(taskResults)
+
+  const allResults: SearchResultItem[] = [
+    ...resultsWithOptimisticTitles.map((r) => ({ kind: 'task' as const, data: r })),
+    ...projectResults.map((r) => ({ kind: 'project' as const, data: r })),
+    ...areaResults.map((r) => ({ kind: 'area' as const, data: r })),
+  ]
 
   function close() {
     setIsOpen(false)
     setQuery('')
-    setResults([])
+    setScope('anywhere')
+    setTaskResults([])
+    setProjectResults([])
+    setAreaResults([])
     setHighlight(0)
+  }
+
+  function jumpToResult(item: SearchResultItem) {
+    if (item.kind === 'task') {
+      jumpToTask(item.data)
+      return
+    }
+    if (item.kind === 'project') {
+      navigate(`/projects/${item.data.id}`)
+      close()
+      return
+    }
+    navigate(`/areas/${item.data.id}`)
+    close()
   }
 
   function jumpToTask(item: TaskSearchResultItem) {
@@ -90,6 +130,13 @@ export function SearchPanel() {
     tick()
   }
 
+  function handleContinueSearch() {
+    const q = query.trim()
+    if (!q) return
+    navigate(`/search?q=${encodeURIComponent(q)}&scope=${scope}`)
+    close()
+  }
+
   useEffect(() => {
     function onOpen() {
       setIsOpen(true)
@@ -116,28 +163,88 @@ export function SearchPanel() {
 
     const q = query.trim()
     if (!q) {
-      setResults([])
+      setTaskResults([])
+      setProjectResults([])
+      setAreaResults([])
       setHighlight(0)
       return
     }
 
     const handle = window.setTimeout(() => {
       void (async () => {
-        const res = await window.api.task.search(q, { includeLogbook: false })
-        if (!res.ok) {
-          setResults([])
-          setHighlight(0)
-          return
+        const options: { includeLogbook?: boolean; scope?: TaskSearchScope; date?: string } =
+          { includeLogbook: false }
+        if (scope !== 'anywhere') {
+          options.scope = scope
+          if (scope === 'today' || scope === 'upcoming') {
+            options.date = today
+          }
         }
-        setResults(res.data)
+
+        const [taskRes, projectRes, areaRes] = await Promise.all([
+          window.api.task.search(q, options),
+          window.api.project.search(q),
+          window.api.area.search(q),
+        ])
+
+        if (!taskRes.ok) {
+          setTaskResults([])
+        } else {
+          setTaskResults(taskRes.data)
+        }
+
+        if (!projectRes.ok) {
+          setProjectResults([])
+        } else {
+          setProjectResults(projectRes.data)
+        }
+
+        if (!areaRes.ok) {
+          setAreaResults([])
+        } else {
+          setAreaResults(areaRes.data)
+        }
+
         setHighlight(0)
       })()
     }, 120)
 
     return () => window.clearTimeout(handle)
-  }, [isOpen, query])
+  }, [isOpen, query, scope, today])
+
+  function getResultLabel(item: SearchResultItem): string {
+    if (item.kind === 'task') {
+      return item.data.title.trim() ? item.data.title : t('task.untitled')
+    }
+    if (item.kind === 'project') {
+      return item.data.title.trim() ? item.data.title : t('project.untitled')
+    }
+    return item.data.title.trim() ? item.data.title : t('area.untitled')
+  }
+
+  function getResultHint(item: SearchResultItem): string {
+    if (item.kind === 'task') {
+      const data = item.data
+      if (data.snippet) return data.snippet
+      if (data.is_someday) return t('nav.someday')
+      if (data.scheduled_at) return data.scheduled_at === today ? t('nav.today') : data.scheduled_at
+      if (data.is_inbox) return t('nav.inbox')
+      if (data.project_id) return t('shell.project')
+      return t('nav.anytime')
+    }
+    if (item.kind === 'project') {
+      return t('shell.project')
+    }
+    return t('shell.area')
+  }
+
+  function getResultPlaceholder(item: SearchResultItem): boolean {
+    return !getResultLabel(item).trim()
+  }
 
   if (!isOpen) return null
+
+  const hasQuery = query.trim().length > 0
 
   return createPortal(
     <div
@@ -169,13 +276,12 @@ export function SearchPanel() {
 
             if (e.key === 'ArrowDown') {
               e.preventDefault()
-              if (resultsWithOptimisticTitles.length === 0) return
-              setHighlight((v) => Math.min(v + 1, resultsWithOptimisticTitles.length - 1))
+              if (allResults.length === 0) return
+              setHighlight((v) => Math.min(v + 1, allResults.length - 1 + (hasQuery ? 1 : 0)))
               return
             }
             if (e.key === 'ArrowUp') {
               e.preventDefault()
-              if (resultsWithOptimisticTitles.length === 0) return
               setHighlight((v) => Math.max(v - 1, 0))
               return
             }
@@ -183,29 +289,69 @@ export function SearchPanel() {
             if (e.key === 'Enter') {
               e.preventDefault()
 
-              const item = resultsWithOptimisticTitles[highlight]
-              if (item) {
-                jumpToTask(item)
+              if (highlight < allResults.length) {
+                const item = allResults[highlight]
+                if (item) {
+                  jumpToResult(item)
+                }
+              } else if (hasQuery) {
+                handleContinueSearch()
               }
             }
           }}
         />
 
-        <div className="palette-list">
-          {resultsWithOptimisticTitles.map((item, idx) => (
+        <div className="search-scope-bar" role="radiogroup" aria-label={t('search.scope')}>
+          {SCOPES.map((s) => (
             <button
-              key={item.id}
+              key={s}
+              type="button"
+              role="radio"
+              aria-checked={scope === s}
+              className={`search-scope-pill${scope === s ? ' is-active' : ''}`}
+              onClick={() => {
+                setScope(s)
+                inputRef.current?.focus()
+              }}
+            >
+              {t(`search.scope.${s}`)}
+            </button>
+          ))}
+        </div>
+
+        <div className="palette-list">
+          {allResults.map((item, idx) => (
+            <button
+              key={`${item.kind}-${item.data.id}`}
               type="button"
               className={`palette-item${idx === highlight ? ' is-active' : ''}`}
               onMouseEnter={() => setHighlight(idx)}
-              onClick={() => jumpToTask(item)}
+              onClick={() => jumpToResult(item)}
             >
-              <div className={item.title.trim() ? 'palette-item-title' : 'palette-item-title palette-item-placeholder'}>
-                {item.title.trim() ? item.title : t('task.untitled')}
+              <div
+                className={
+                  getResultPlaceholder(item)
+                    ? 'palette-item-title palette-item-placeholder'
+                    : 'palette-item-title'
+                }
+              >
+                {getResultLabel(item)}
               </div>
-              <div className="palette-item-hint">{item.snippet ?? getTaskHint(item)}</div>
+              <div className="palette-item-hint">{getResultHint(item)}</div>
             </button>
           ))}
+
+          {hasQuery && (
+            <button
+              type="button"
+              className={`palette-item palette-item-continue${highlight === allResults.length ? ' is-active' : ''}`}
+              onMouseEnter={() => setHighlight(allResults.length)}
+              onClick={handleContinueSearch}
+            >
+              <div className="palette-item-title">{t('search.continue')}</div>
+              <div className="palette-item-hint">{t('search.continueHint')}</div>
+            </button>
+          )}
         </div>
       </div>
     </div>,

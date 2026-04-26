@@ -1755,11 +1755,39 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
         }
       }
 
+      const scope = parsed.data.scope ?? 'anywhere'
       const includeLogbook = parsed.data.include_logbook ?? false
 
       const matchQuery = buildFts5PrefixMatchQuery(parsed.data.query)
       if (!matchQuery) {
         return { ok: true, data: [] }
+      }
+
+      const scopeConditions: string[] = []
+      const scopeParams: Record<string, unknown> = {}
+
+      if (scope === 'trash') {
+        scopeConditions.push("t.deleted_at IS NOT NULL AND t.purged_at IS NULL")
+      } else {
+        scopeConditions.push("t.deleted_at IS NULL")
+        if (scope === 'logbook') {
+          scopeConditions.push("t.status IN ('done', 'cancelled')")
+        } else if (scope === 'inbox') {
+          scopeConditions.push("t.status = 'open' AND t.is_inbox = 1")
+        } else if (scope === 'today') {
+          scopeConditions.push("t.status = 'open' AND t.scheduled_at = @date")
+          scopeParams.date = parsed.data.date ?? ''
+        } else if (scope === 'upcoming') {
+          scopeConditions.push("t.status = 'open' AND t.scheduled_at > @date")
+          scopeParams.date = parsed.data.date ?? ''
+        } else if (scope === 'anytime') {
+          scopeConditions.push("t.status = 'open' AND t.scheduled_at IS NULL AND t.is_inbox = 0 AND t.is_someday = 0")
+        } else if (scope === 'someday') {
+          scopeConditions.push("t.status = 'open' AND t.is_someday = 1")
+        } else {
+          // anywhere
+          scopeConditions.push(includeLogbook ? "t.status IN ('open', 'done', 'cancelled')" : "t.status = 'open'")
+        }
       }
 
       try {
@@ -1773,13 +1801,12 @@ export function createTaskActions(db: Database.Database): Record<string, DbActio
              FROM tasks_fts
              JOIN tasks t ON tasks_fts.rowid = t.rowid
              LEFT JOIN projects p ON p.id = t.project_id AND p.deleted_at IS NULL
-             WHERE t.deleted_at IS NULL
-               AND (${includeLogbook ? "t.status IN ('open', 'done', 'cancelled')" : "t.status = 'open'"})
+             WHERE ${scopeConditions.join(' AND ')}
                AND tasks_fts MATCH @query
               ORDER BY bm25(tasks_fts) ASC
               LIMIT 200`
           )
-          .all({ query: matchQuery })
+          .all({ query: matchQuery, ...scopeParams })
 
         const items = parseTaskSearchResultItems(rows)
         return { ok: true, data: items }

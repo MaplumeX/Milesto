@@ -25,7 +25,11 @@ import type { ProjectDetail } from './schemas/project-detail'
 import type { Tag, TagCreateInput, TagUpdateInput } from './schemas/tag'
 import type { Task, TaskConvertToProjectResult, TaskCreateInput, TaskUpdateInput } from './schemas/task'
 import type { TaskCountProjectsProgressResult, TaskCountResult, TaskListItem } from './schemas/task-list'
-import type { TaskSearchResultItem } from './schemas/search'
+import type {
+  AreaSearchResultItem,
+  ProjectSearchResultItem,
+  TaskSearchResultItem,
+} from './schemas/search'
 import type { TaskDetail } from './schemas/task-detail'
 import type { ThemePreference, ThemeState } from './schemas/theme'
 import type { FontSizeState, FontSizeStep } from './schemas/font-size'
@@ -123,7 +127,10 @@ export type WindowApi = {
     listProjectDone(projectId: string, scope?: EntityScope): Promise<Result<TaskListItem[]>>
     listArea(areaId: string): Promise<Result<TaskListItem[]>>
 
-    search(query: string, options?: { includeLogbook?: boolean }): Promise<Result<TaskSearchResultItem[]>>
+    search(
+      query: string,
+      options?: { includeLogbook?: boolean; scope?: string; date?: string }
+    ): Promise<Result<TaskSearchResultItem[]>>
 
     reorderBatch(listId: string, orderedTaskIds: string[]): Promise<Result<{ reordered: boolean }>>
     setTags(taskId: string, tagIds: string[], scope?: EntityScope): Promise<Result<{ updated: boolean }>>
@@ -148,6 +155,7 @@ export type WindowApi = {
     listOpen(): Promise<Result<Project[]>>
     listDone(): Promise<Result<Project[]>>
     listOpenByArea(areaId: string): Promise<Result<Project[]>>
+    search(query: string): Promise<Result<ProjectSearchResultItem[]>>
 
     setTags(projectId: string, tagIds: string[], scope?: EntityScope): Promise<Result<{ updated: boolean }>>
 
@@ -173,6 +181,7 @@ export type WindowApi = {
     update(input: AreaUpdateInput): Promise<Result<Area>>
     list(): Promise<Result<Area[]>>
     delete(id: string): Promise<Result<{ deleted: boolean }>>
+    search(query: string): Promise<Result<AreaSearchResultItem[]>>
 
     setTags(areaId: string, tagIds: string[]): Promise<Result<{ updated: boolean }>>
   }
