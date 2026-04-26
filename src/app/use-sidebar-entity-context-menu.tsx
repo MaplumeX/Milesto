@@ -9,6 +9,7 @@ import type { Project } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
 
 import { formatLocalDate, parseLocalDate } from '../lib/dates'
+import { PopoverMenuGroup } from '../components/PopoverMenuGroup'
 import { PopoverMenuItem } from '../components/PopoverMenuItem'
 import {
   CancelMenuIcon,
@@ -218,47 +219,51 @@ export function useSidebarAreaContextMenu({
       >
         <div className="task-inline-popover-body">
           {menuState.view === 'root' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <PopoverMenuItem
-                icon={<RenameMenuIcon />}
-                onClick={() => {
-                  onRename(menuState.area)
-                  closeMenu({ restoreFocus: false })
-                }}
-              >
-                {t('common.rename')}
-              </PopoverMenuItem>
-
-              <PopoverMenuItem
-                icon={<TagMenuIcon />}
-                onClick={() => setMenuState((current) => (current ? { ...current, view: 'tags' } : current))}
-              >
-                {t('taskEditor.tagsLabel')}
-              </PopoverMenuItem>
-
-              <PopoverMenuItem
-                icon={<DeleteMenuIcon />}
-                onClick={() => {
-                  void (async () => {
-                    setActionError(null)
-
-                    const confirmed = confirm(t('area.deleteConfirm'))
-                    if (!confirmed) return
-
-                    const res = await window.api.area.delete(menuState.area.id)
-                    if (!res.ok) {
-                      setActionError(res.error)
-                      return
-                    }
-
-                    await onAfterMutation()
-                    if (currentPathname === `/areas/${menuState.area.id}`) onNavigate('/today')
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <PopoverMenuGroup>
+                <PopoverMenuItem
+                  icon={<RenameMenuIcon />}
+                  onClick={() => {
+                    onRename(menuState.area)
                     closeMenu({ restoreFocus: false })
-                  })()
-                }}
-              >
-                {t('common.delete')}
-              </PopoverMenuItem>
+                  }}
+                >
+                  {t('common.rename')}
+                </PopoverMenuItem>
+
+                <PopoverMenuItem
+                  icon={<TagMenuIcon />}
+                  onClick={() => setMenuState((current) => (current ? { ...current, view: 'tags' } : current))}
+                >
+                  {t('taskEditor.tagsLabel')}
+                </PopoverMenuItem>
+              </PopoverMenuGroup>
+
+              <PopoverMenuGroup>
+                <PopoverMenuItem
+                  icon={<DeleteMenuIcon />}
+                  onClick={() => {
+                    void (async () => {
+                      setActionError(null)
+
+                      const confirmed = confirm(t('area.deleteConfirm'))
+                      if (!confirmed) return
+
+                      const res = await window.api.area.delete(menuState.area.id)
+                      if (!res.ok) {
+                        setActionError(res.error)
+                        return
+                      }
+
+                      await onAfterMutation()
+                      if (currentPathname === `/areas/${menuState.area.id}`) onNavigate('/today')
+                      closeMenu({ restoreFocus: false })
+                    })()
+                  }}
+                >
+                  {t('common.delete')}
+                </PopoverMenuItem>
+              </PopoverMenuGroup>
             </div>
           ) : (
             <>
@@ -511,98 +516,106 @@ export function useSidebarProjectContextMenu({
       >
         <div className="task-inline-popover-body">
           {menuState.view === 'root' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <PopoverMenuItem
-                icon={<ScheduleMenuIcon />}
-                onClick={() => setMenuState((current) => (current ? { ...current, view: 'plan' } : current))}
-              >
-                {t('common.plan')}
-              </PopoverMenuItem>
-              <PopoverMenuItem
-                icon={<MoveMenuIcon />}
-                onClick={() => setMenuState((current) => (current ? { ...current, view: 'move' } : current))}
-              >
-                {t('common.move')}
-              </PopoverMenuItem>
-              <PopoverMenuItem
-                icon={<TagMenuIcon />}
-                onClick={() => setMenuState((current) => (current ? { ...current, view: 'tags' } : current))}
-              >
-                {t('taskEditor.tagsLabel')}
-              </PopoverMenuItem>
-              <PopoverMenuItem
-                icon={<DueMenuIcon />}
-                onClick={() => setMenuState((current) => (current ? { ...current, view: 'due' } : current))}
-              >
-                {t('taskEditor.dueLabel')}
-              </PopoverMenuItem>
-              <PopoverMenuItem
-                icon={<DoneMenuIcon />}
-                onClick={() => {
-                  void (async () => {
-                    setActionError(null)
-                    const res = await window.api.project.complete(menuState.project.id)
-                    if (!res.ok) {
-                      setActionError(res.error)
-                      return
-                    }
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <PopoverMenuGroup>
+                <PopoverMenuItem
+                  icon={<ScheduleMenuIcon />}
+                  onClick={() => setMenuState((current) => (current ? { ...current, view: 'plan' } : current))}
+                >
+                  {t('common.plan')}
+                </PopoverMenuItem>
+                <PopoverMenuItem
+                  icon={<MoveMenuIcon />}
+                  onClick={() => setMenuState((current) => (current ? { ...current, view: 'move' } : current))}
+                >
+                  {t('common.move')}
+                </PopoverMenuItem>
+                <PopoverMenuItem
+                  icon={<TagMenuIcon />}
+                  onClick={() => setMenuState((current) => (current ? { ...current, view: 'tags' } : current))}
+                >
+                  {t('taskEditor.tagsLabel')}
+                </PopoverMenuItem>
+                <PopoverMenuItem
+                  icon={<DueMenuIcon />}
+                  onClick={() => setMenuState((current) => (current ? { ...current, view: 'due' } : current))}
+                >
+                  {t('taskEditor.dueLabel')}
+                </PopoverMenuItem>
+              </PopoverMenuGroup>
+              <PopoverMenuGroup>
+                <PopoverMenuItem
+                  icon={<DoneMenuIcon />}
+                  onClick={() => {
+                    void (async () => {
+                      setActionError(null)
+                      const res = await window.api.project.complete(menuState.project.id)
+                      if (!res.ok) {
+                        setActionError(res.error)
+                        return
+                      }
 
-                    await onAfterMutation()
+                      await onAfterMutation()
+                      closeMenu({ restoreFocus: false })
+                    })()
+                  }}
+                >
+                  {t('projectPage.markDone')}
+                </PopoverMenuItem>
+                <PopoverMenuItem
+                  icon={<CancelMenuIcon />}
+                  onClick={() => {
+                    void (async () => {
+                      setActionError(null)
+                      const res = await window.api.project.cancel(menuState.project.id)
+                      if (!res.ok) {
+                        setActionError(res.error)
+                        return
+                      }
+
+                      await onAfterMutation()
+                      closeMenu({ restoreFocus: false })
+                    })()
+                  }}
+                >
+                  {t('project.cancel')}
+                </PopoverMenuItem>
+              </PopoverMenuGroup>
+              <PopoverMenuGroup>
+                <PopoverMenuItem
+                  icon={<RenameMenuIcon />}
+                  onClick={() => {
+                    onRename(menuState.project)
                     closeMenu({ restoreFocus: false })
-                  })()
-                }}
-              >
-                {t('projectPage.markDone')}
-              </PopoverMenuItem>
-              <PopoverMenuItem
-                icon={<CancelMenuIcon />}
-                onClick={() => {
-                  void (async () => {
-                    setActionError(null)
-                    const res = await window.api.project.cancel(menuState.project.id)
-                    if (!res.ok) {
-                      setActionError(res.error)
-                      return
-                    }
+                  }}
+                >
+                  {t('common.rename')}
+                </PopoverMenuItem>
+              </PopoverMenuGroup>
+              <PopoverMenuGroup>
+                <PopoverMenuItem
+                  icon={<DeleteMenuIcon />}
+                  onClick={() => {
+                    void (async () => {
+                      setActionError(null)
+                      const confirmed = confirm(t('project.deleteConfirm'))
+                      if (!confirmed) return
 
-                    await onAfterMutation()
-                    closeMenu({ restoreFocus: false })
-                  })()
-                }}
-              >
-                {t('project.cancel')}
-              </PopoverMenuItem>
-              <PopoverMenuItem
-                icon={<RenameMenuIcon />}
-                onClick={() => {
-                  onRename(menuState.project)
-                  closeMenu({ restoreFocus: false })
-                }}
-              >
-                {t('common.rename')}
-              </PopoverMenuItem>
-              <PopoverMenuItem
-                icon={<DeleteMenuIcon />}
-                onClick={() => {
-                  void (async () => {
-                    setActionError(null)
-                    const confirmed = confirm(t('project.deleteConfirm'))
-                    if (!confirmed) return
+                      const res = await window.api.project.delete(menuState.project.id)
+                      if (!res.ok) {
+                        setActionError(res.error)
+                        return
+                      }
 
-                    const res = await window.api.project.delete(menuState.project.id)
-                    if (!res.ok) {
-                      setActionError(res.error)
-                      return
-                    }
-
-                    await onAfterMutation()
-                    if (currentPathname === `/projects/${menuState.project.id}`) onNavigate('/today')
-                    closeMenu({ restoreFocus: false })
-                  })()
-                }}
-              >
-                {t('common.delete')}
-              </PopoverMenuItem>
+                      await onAfterMutation()
+                      if (currentPathname === `/projects/${menuState.project.id}`) onNavigate('/today')
+                      closeMenu({ restoreFocus: false })
+                    })()
+                  }}
+                >
+                  {t('common.delete')}
+                </PopoverMenuItem>
+              </PopoverMenuGroup>
             </div>
           ) : menuState.view === 'move' ? (
             <>

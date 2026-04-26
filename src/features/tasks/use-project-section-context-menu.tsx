@@ -8,6 +8,7 @@ import type { EntityScope } from '../../../shared/schemas/common'
 import type { Project, ProjectSection } from '../../../shared/schemas/project'
 
 import { useAppEvents } from '../../app/AppEventsContext'
+import { PopoverMenuGroup } from '../../components/PopoverMenuGroup'
 import { PopoverMenuItem } from '../../components/PopoverMenuItem'
 import { ConvertMenuIcon, DeleteMenuIcon, DoneMenuIcon, MoveMenuIcon, RestoreMenuIcon } from '../../components/popover-menu-icons'
 
@@ -287,49 +288,55 @@ export function useProjectSectionContextMenu({
       >
         <div className="task-inline-popover-body">
           {menuState.view === 'root' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {canArchive ? (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <PopoverMenuGroup>
+                {canArchive ? (
+                  <PopoverMenuItem
+                    icon={isArchived ? <RestoreMenuIcon /> : <DoneMenuIcon />}
+                    onClick={() => {
+                      if (isArchived) {
+                        void handleReopenSection()
+                      } else {
+                        void handleArchiveSection()
+                      }
+                    }}
+                  >
+                    {isArchived ? t('section.restore') : t('section.archive')}
+                  </PopoverMenuItem>
+                ) : null}
+              </PopoverMenuGroup>
+              <PopoverMenuGroup>
                 <PopoverMenuItem
-                  icon={isArchived ? <RestoreMenuIcon /> : <DoneMenuIcon />}
+                  icon={<MoveMenuIcon />}
                   onClick={() => {
-                    if (isArchived) {
-                      void handleReopenSection()
-                    } else {
-                      void handleArchiveSection()
-                    }
+                    setActionError(null)
+                    setMoveTargetsError(null)
+                    setMenuState((current) => (current ? { ...current, view: 'move' } : current))
                   }}
                 >
-                  {isArchived ? t('section.restore') : t('section.archive')}
+                  {t('common.move')}
                 </PopoverMenuItem>
-              ) : null}
-              <PopoverMenuItem
-                icon={<MoveMenuIcon />}
-                onClick={() => {
-                  setActionError(null)
-                  setMoveTargetsError(null)
-                  setMenuState((current) => (current ? { ...current, view: 'move' } : current))
-                }}
-              >
-                {t('common.move')}
-              </PopoverMenuItem>
-              {canConvertToProject ? (
+                {canConvertToProject ? (
+                  <PopoverMenuItem
+                    icon={<ConvertMenuIcon />}
+                    onClick={() => {
+                      void handleConvertSectionToProject()
+                    }}
+                  >
+                    {t('section.convertToProject')}
+                  </PopoverMenuItem>
+                ) : null}
+              </PopoverMenuGroup>
+              <PopoverMenuGroup>
                 <PopoverMenuItem
-                  icon={<ConvertMenuIcon />}
+                  icon={<DeleteMenuIcon />}
                   onClick={() => {
-                    void handleConvertSectionToProject()
+                    void handleDeleteSection()
                   }}
                 >
-                  {t('section.convertToProject')}
+                  {t('common.delete')}
                 </PopoverMenuItem>
-              ) : null}
-              <PopoverMenuItem
-                icon={<DeleteMenuIcon />}
-                onClick={() => {
-                  void handleDeleteSection()
-                }}
-              >
-                {t('common.delete')}
-              </PopoverMenuItem>
+              </PopoverMenuGroup>
             </div>
           ) : (
             <>

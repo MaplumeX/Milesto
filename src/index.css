@@ -2212,6 +2212,17 @@ body {
   color: var(--accent-strong);
 }
 
+.task-inline-popover-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.task-inline-popover-group + .task-inline-popover-group {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 4px;
+}
 
 .task-inline-popover-tags .task-inline-popover-body {
   padding: 8px;

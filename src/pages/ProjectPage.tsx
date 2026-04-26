@@ -13,6 +13,7 @@ import type { Project, ProjectSection } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
 import type { TaskListItem } from '../../shared/schemas/task-list'
 import { useAppEvents } from '../app/AppEventsContext'
+import { PopoverMenuGroup } from '../components/PopoverMenuGroup'
 import { PopoverMenuItem } from '../components/PopoverMenuItem'
 import {
   CancelMenuIcon,
@@ -1157,8 +1158,8 @@ const ProjectMenu = forwardRef(function ProjectMenu(
     >
       <div className="task-inline-popover-body">
         {view === 'root' ? (
-          <>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <PopoverMenuGroup>
               <PopoverMenuItem
                 ref={completeBtnRef}
                 icon={isClosedProjectStatus(project.status) ? <RestoreMenuIcon /> : <DoneMenuIcon />}
@@ -1216,7 +1217,9 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                   {t('project.cancel')}
                 </PopoverMenuItem>
               ) : null}
+            </PopoverMenuGroup>
 
+            <PopoverMenuGroup>
               <PopoverMenuItem
                 ref={planBtnRef}
                 icon={<ScheduleMenuIcon />}
@@ -1232,7 +1235,9 @@ const ProjectMenu = forwardRef(function ProjectMenu(
               >
                 {t('taskEditor.dueLabel')}
               </PopoverMenuItem>
+            </PopoverMenuGroup>
 
+            <PopoverMenuGroup>
               {!isTrashScope ? (
                 <PopoverMenuItem
                   ref={moveBtnRef}
@@ -1250,7 +1255,9 @@ const ProjectMenu = forwardRef(function ProjectMenu(
               >
                 {t('taskEditor.tagsLabel')}
               </PopoverMenuItem>
+            </PopoverMenuGroup>
 
+            <PopoverMenuGroup>
               {!isTrashScope ? (
                 <PopoverMenuItem
                   ref={deleteBtnRef}
@@ -1277,8 +1284,8 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                   {t('common.delete')}
                 </PopoverMenuItem>
               ) : null}
-            </div>
-          </>
+            </PopoverMenuGroup>
+          </div>
         ) : (
           <>
             <div className="row" style={{ justifyContent: 'flex-start', marginTop: 0 }}>

@@ -11,6 +11,7 @@ import type { Tag } from '../../../shared/schemas/tag'
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useAppEvents } from '../../app/AppEventsContext'
+import { PopoverMenuGroup } from '../../components/PopoverMenuGroup'
 import { PopoverMenuItem } from '../../components/PopoverMenuItem'
 import {
   BackMenuIcon,
@@ -347,79 +348,87 @@ export function useTaskContextMenu({
       >
         <div className="task-inline-popover-body">
           {menuState.view === 'root' ? (
-            <>
-              <PopoverMenuItem
-                icon={<ScheduleMenuIcon />}
-                onClick={() => setMenuState((current) => (current ? { ...current, view: 'schedule' } : current))}
-              >
-                {t('common.schedule')}
-              </PopoverMenuItem>
-              <PopoverMenuItem
-                icon={<TagMenuIcon />}
-                onClick={() => setMenuState((current) => (current ? { ...current, view: 'tags' } : current))}
-              >
-                {t('taskEditor.tagsLabel')}
-              </PopoverMenuItem>
-              <PopoverMenuItem
-                icon={<DueMenuIcon />}
-                onClick={() => setMenuState((current) => (current ? { ...current, view: 'due' } : current))}
-              >
-                {t('taskEditor.dueLabel')}
-              </PopoverMenuItem>
-              {canConvertToProject ? (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <PopoverMenuGroup>
                 <PopoverMenuItem
-                  icon={<ConvertMenuIcon />}
-                  onClick={() => void persistTaskConvertToProject()}
+                  icon={<ScheduleMenuIcon />}
+                  onClick={() => setMenuState((current) => (current ? { ...current, view: 'schedule' } : current))}
                 >
-                  {t('task.convertToProject')}
+                  {t('common.schedule')}
                 </PopoverMenuItem>
-              ) : null}
-              {menuState.task.project_id !== null && menuState.scope !== 'trash' ? (
                 <PopoverMenuItem
-                  icon={<MoveMenuIcon />}
-                  onClick={() => void persistTaskRemoveFromProject()}
+                  icon={<TagMenuIcon />}
+                  onClick={() => setMenuState((current) => (current ? { ...current, view: 'tags' } : current))}
                 >
-                  {t('task.removeFromProject')}
+                  {t('taskEditor.tagsLabel')}
                 </PopoverMenuItem>
-              ) : null}
-              {menuState.task.area_id !== null && menuState.scope !== 'trash' ? (
                 <PopoverMenuItem
-                  icon={<MoveMenuIcon />}
-                  onClick={() => void persistTaskRemoveFromArea()}
+                  icon={<DueMenuIcon />}
+                  onClick={() => setMenuState((current) => (current ? { ...current, view: 'due' } : current))}
                 >
-                  {t('task.removeFromArea')}
+                  {t('taskEditor.dueLabel')}
                 </PopoverMenuItem>
-              ) : null}
-              <PopoverMenuItem
-                icon={isClosed ? <RestoreMenuIcon /> : <DoneMenuIcon />}
-                onClick={() => {
-                  if (isClosed) {
-                    void persistTaskRestore()
-                    return
-                  }
+              </PopoverMenuGroup>
+              <PopoverMenuGroup>
+                {canConvertToProject ? (
+                  <PopoverMenuItem
+                    icon={<ConvertMenuIcon />}
+                    onClick={() => void persistTaskConvertToProject()}
+                  >
+                    {t('task.convertToProject')}
+                  </PopoverMenuItem>
+                ) : null}
+                {menuState.task.project_id !== null && menuState.scope !== 'trash' ? (
+                  <PopoverMenuItem
+                    icon={<MoveMenuIcon />}
+                    onClick={() => void persistTaskRemoveFromProject()}
+                  >
+                    {t('task.removeFromProject')}
+                  </PopoverMenuItem>
+                ) : null}
+                {menuState.task.area_id !== null && menuState.scope !== 'trash' ? (
+                  <PopoverMenuItem
+                    icon={<MoveMenuIcon />}
+                    onClick={() => void persistTaskRemoveFromArea()}
+                  >
+                    {t('task.removeFromArea')}
+                  </PopoverMenuItem>
+                ) : null}
+              </PopoverMenuGroup>
+              <PopoverMenuGroup>
+                <PopoverMenuItem
+                  icon={isClosed ? <RestoreMenuIcon /> : <DoneMenuIcon />}
+                  onClick={() => {
+                    if (isClosed) {
+                      void persistTaskRestore()
+                      return
+                    }
 
-                  void persistTaskToggleDone(true)
-                }}
-              >
-                {isClosed ? t('task.restore') : t('taskEditor.markDone')}
-              </PopoverMenuItem>
-              {!isClosed ? (
-                <PopoverMenuItem
-                  icon={<CancelMenuIcon />}
-                  onClick={() => void persistTaskCancel()}
+                    void persistTaskToggleDone(true)
+                  }}
                 >
-                  {t('task.cancel')}
+                  {isClosed ? t('task.restore') : t('taskEditor.markDone')}
                 </PopoverMenuItem>
-              ) : null}
-              {menuState.scope !== 'trash' ? (
-                <PopoverMenuItem
-                  icon={<DeleteMenuIcon />}
-                  onClick={() => void persistTaskDelete()}
-                >
-                  {t('common.delete')}
-                </PopoverMenuItem>
-              ) : null}
-            </>
+                {!isClosed ? (
+                  <PopoverMenuItem
+                    icon={<CancelMenuIcon />}
+                    onClick={() => void persistTaskCancel()}
+                  >
+                    {t('task.cancel')}
+                  </PopoverMenuItem>
+                ) : null}
+              </PopoverMenuGroup>
+              <PopoverMenuGroup>
+                {menuState.scope !== 'trash' ? (
+                  <PopoverMenuItem
+                    icon={<DeleteMenuIcon />}
+                    onClick={() => void persistTaskDelete()}
+                  >
+                    {t('common.delete')}
+                  </PopoverMenuItem>
+                ) : null}
+              </PopoverMenuGroup>
+            </div>
           ) : (
             <>
               <div className="task-inline-popover-title">{menuState.view === 'schedule' ? t('taskEditor.popoverScheduleTitle') : menuState.view === 'due' ? t('taskEditor.popoverDueTitle') : t('taskEditor.tagsLabel')}</div>
