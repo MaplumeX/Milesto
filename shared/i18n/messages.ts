@@ -153,6 +153,9 @@ export const messagesEn = {
     untitled: 'New section',
     deleteConfirm: 'Delete this section? Tasks in it will be moved before the section is deleted.',
     convertToProject: 'Convert to Project',
+    archive: 'Archive',
+    archiveConfirm: 'Archive this section and complete all open tasks in it?',
+    restore: 'Restore',
   },
   task: {
     untitled: 'New task',
@@ -376,6 +379,9 @@ export const messagesZhCN = {
     untitled: '新建分组',
     deleteConfirm: '删除此分组？其中的任务会先被重新归位，再删除分组。',
     convertToProject: '转化为项目',
+    archive: '存档',
+    archiveConfirm: '存档此分组并将其下的未完成任务全部完成？',
+    restore: '恢复',
   },
   task: {
     untitled: '新建任务',

@@ -28,6 +28,8 @@ import {
   ProjectIdInputSchema,
   ProjectSetTagsInputSchema,
   ProjectSchema,
+  ProjectSectionArchiveInputSchema,
+  ProjectSectionArchiveResultSchema,
   ProjectSectionConvertToProjectInputSchema,
   ProjectSectionConvertToProjectResultSchema,
   ProjectSectionCreateInputSchema,
@@ -35,6 +37,8 @@ import {
   ProjectSectionListInputSchema,
   ProjectSectionMoveInputSchema,
   ProjectSectionMoveResultSchema,
+  ProjectSectionReopenInputSchema,
+  ProjectSectionReopenResultSchema,
   ProjectSectionReorderBatchInputSchema,
   ProjectSectionSchema,
   ProjectSectionRenameInputSchema,
@@ -889,6 +893,18 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     'project.section.reorderBatch',
     ProjectSectionReorderBatchInputSchema,
     z.object({ reordered: z.boolean() })
+  )
+  handleDb(
+    'db:project.section.archive',
+    'project.section.archive',
+    ProjectSectionArchiveInputSchema,
+    ProjectSectionArchiveResultSchema
+  )
+  handleDb(
+    'db:project.section.reopen',
+    'project.section.reopen',
+    ProjectSectionReopenInputSchema,
+    ProjectSectionReopenResultSchema
   )
 
   handleDb('db:area.create', 'area.create', AreaCreateInputSchema, AreaSchema)

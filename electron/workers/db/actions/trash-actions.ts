@@ -286,7 +286,7 @@ function purgeProjectRoot(
     .get(id)
   const sectionRows = db
     .prepare(
-      `SELECT id, project_id, title, position, created_at, updated_at, deleted_at, purged_at
+      `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at, purged_at
        FROM project_sections
        WHERE project_id = ?
          AND purged_at = ?`
@@ -550,7 +550,7 @@ export function createTrashActions(db: Database.Database): Record<string, DbActi
           .get(project.id)
         const sectionRows = db
           .prepare(
-            `SELECT id, project_id, title, position, created_at, updated_at, deleted_at, purged_at
+            `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at, purged_at
              FROM project_sections
              WHERE project_id = ?
                AND deleted_at IS NULL`

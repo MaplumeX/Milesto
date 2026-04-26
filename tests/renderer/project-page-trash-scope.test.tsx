@@ -120,6 +120,7 @@ describe('ProjectPage trash scope', () => {
           project_id: 'project-1',
           title: 'Deleted section',
           position: 1000,
+          status: 'open',
           created_at: '2026-03-16T09:10:00.000Z',
           updated_at: '2026-03-16T11:00:00.000Z',
           deleted_at: '2026-03-16T11:00:00.000Z',

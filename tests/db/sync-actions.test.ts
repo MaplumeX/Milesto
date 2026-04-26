@@ -361,11 +361,39 @@ describe('sync-actions DB contract', () => {
         project_id: project.id,
         title: 'New section',
         position: 0,
+        status: 'done',
         created_at: '2024-01-15T10:00:00.000Z',
       },
     }))
 
     expect(res.applied).toBe(true)
+    const row = db.prepare("SELECT status FROM project_sections WHERE id = 'sec-1'").get() as
+      | { status: string }
+      | undefined
+    expect(row?.status).toBe('done')
+
+    await cleanup()
+  })
+
+  it('sync.listPendingChanges carries archived project_section status', async () => {
+    const { db, cleanup } = await createTestDb()
+    const handlers = buildDbHandlers(db)
+
+    ok(run(handlers, 'project.create', {
+      title: 'Parent project',
+    }))
+    const project = db.prepare("SELECT id FROM projects WHERE title = 'Parent project'").get() as { id: string }
+    const section = ok(run<{ id: string }>(handlers, 'project.section.create', {
+      project_id: project.id,
+      title: 'Archived section',
+    }))
+
+    ok(run(handlers, 'project.section.archive', { id: section.id }))
+    ok(run(handlers, 'sync.setLastSyncAt', { last_sync_at: '2023-12-31T00:00:00.000Z' }))
+
+    const pending = ok(run<Array<Record<string, unknown>>>(handlers, 'sync.listPendingChanges', {}))
+    const sectionChange = pending.find((change) => change.entity_type === 'project_section')
+    expect(sectionChange?.payload).toMatchObject({ id: section.id, status: 'done' })
 
     await cleanup()
   })

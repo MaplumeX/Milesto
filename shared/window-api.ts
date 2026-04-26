@@ -14,8 +14,10 @@ import type {
   ProjectCreateInput,
   ProjectCompleteResult,
   ProjectSection,
+  ProjectSectionArchiveResult,
   ProjectSectionConvertToProjectResult,
   ProjectSectionMoveResult,
+  ProjectSectionReopenResult,
   ProjectSectionReorderBatchResult,
   ProjectUpdateInput,
 } from './schemas/project'
@@ -156,6 +158,8 @@ export type WindowApi = {
       orderedSectionIds: string[],
       scope?: EntityScope
     ): Promise<Result<ProjectSectionReorderBatchResult>>
+    archiveSection(id: string, scope?: EntityScope): Promise<Result<ProjectSectionArchiveResult>>
+    reopenSection(id: string, scope?: EntityScope): Promise<Result<ProjectSectionReopenResult>>
   }
 
   area: {

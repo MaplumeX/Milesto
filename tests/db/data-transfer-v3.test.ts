@@ -5,7 +5,7 @@ import { dispatchDbRequest } from '../../electron/workers/db/db-dispatch'
 import { createTestDb } from './db-test-helper'
 
 import type { DbWorkerRequest } from '../../shared/db-worker-protocol'
-import type { DataExportV2, DataExportV3, DataExportV4 } from '../../shared/schemas/data-transfer'
+import type { DataExportV3, DataExportV4 } from '../../shared/schemas/data-transfer'
 
 type Ok<T> = { ok: true; data: T }
 type Err = { ok: false; error: { code: string; message: string; details?: unknown } }
@@ -62,6 +62,23 @@ describe('Data transfer v3 (project/area tags)', () => {
     expect(project.ok).toBe(true)
     if (!project.ok) return
 
+    const section = dispatchDbRequest(handlers, {
+      id: '4a',
+      type: 'db',
+      action: 'project.section.create',
+      payload: { project_id: project.data.id, title: 'Archived Section' },
+    }) as Res<{ id: string }>
+    expect(section.ok).toBe(true)
+    if (!section.ok) return
+
+    const archiveSection = dispatchDbRequest(handlers, {
+      id: '4b',
+      type: 'db',
+      action: 'project.section.archive',
+      payload: { id: section.data.id },
+    }) as Res<{ archived: boolean }>
+    expect(archiveSection.ok).toBe(true)
+
     // Establish relations with distinct positions.
     const setProjectTags = dispatchDbRequest(handlers, {
       id: '5',
@@ -109,6 +126,7 @@ describe('Data transfer v3 (project/area tags)', () => {
       tags: Array<{ id: string }>
       project_tags: Array<{ project_id: string; tag_id: string; position: number }>
       area_tags: Array<{ area_id: string; tag_id: string; position: number }>
+      project_sections: Array<{ id: string; status: string }>
       view_positions: Array<{ list_id: string; entity_type: string; entity_id: string; rank: number }>
     }>
 
@@ -129,6 +147,7 @@ describe('Data transfer v3 (project/area tags)', () => {
     // Relations to deleted tag should be excluded; remaining relation keeps its original position.
     expect(exported.data.project_tags).toEqual([{ project_id: project.data.id, tag_id: tag1.data.id, position: 1000 }])
     expect(exported.data.area_tags).toEqual([{ area_id: area.data.id, tag_id: tag1.data.id, position: 2000 }])
+    expect(exported.data.project_sections).toMatchObject([{ id: section.data.id, status: 'done' }])
     expect(exported.data.view_positions).toMatchObject([
       { list_id: 'anytime', entity_type: 'project', entity_id: project.data.id, rank: 1000 },
     ])
@@ -141,8 +160,8 @@ describe('Data transfer v3 (project/area tags)', () => {
     const { db } = testDb
     const handlers = buildDbHandlers(db)
 
-    const v2: DataExportV2 = {
-      schema_version: 2,
+    const v2 = {
+      schema_version: 2 as const,
       app_version: 'test',
       exported_at: '2026-01-01T00:00:00.000Z',
       tasks: [],
@@ -162,7 +181,17 @@ describe('Data transfer v3 (project/area tags)', () => {
           deleted_at: null,
         },
       ],
-      project_sections: [],
+      project_sections: [
+        {
+          id: 's1',
+          project_id: 'p1',
+          title: 'Old section',
+          position: 1000,
+          created_at: '2026-01-01T00:00:00.000Z',
+          updated_at: '2026-01-01T00:00:00.000Z',
+          deleted_at: null,
+        },
+      ],
       areas: [],
       tags: [],
       task_tags: [],
@@ -191,6 +220,11 @@ describe('Data transfer v3 (project/area tags)', () => {
 
     const relCount = db.prepare('SELECT COUNT(1) AS c FROM project_tags').get() as { c: number }
     expect(relCount.c).toBe(0)
+
+    const section = db.prepare('SELECT status FROM project_sections WHERE id = ?').get('s1') as
+      | { status: string }
+      | undefined
+    expect(section?.status).toBe('open')
   })
 
   it('imports v3 relations and preserves order via position', async () => {

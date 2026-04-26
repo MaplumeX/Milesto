@@ -206,6 +206,7 @@ function ProjectGroupHeaderRow({
   onCancelEdit,
   onCommitTitle,
   onContextMenu,
+  onOpenMenu,
   measureElement,
   index,
   translateY,
@@ -224,6 +225,7 @@ function ProjectGroupHeaderRow({
   onCancelEdit: () => void
   onCommitTitle: (nextTitle: string) => void
   onContextMenu?: React.MouseEventHandler<HTMLDivElement>
+  onOpenMenu?: (buttonEl: HTMLElement) => void
   measureElement: (el: HTMLLIElement | null) => void
   index: number
   translateY: number
@@ -333,7 +335,19 @@ function ProjectGroupHeaderRow({
           </button>
         )}
 
-        {/* Intentionally no per-section action buttons; keep header visually minimal. */}
+        <div className="project-group-actions">
+          <button
+            type="button"
+            className="button button-ghost project-group-menu-button"
+            aria-label={t('aria.sectionActions')}
+            onClick={(e) => {
+              e.stopPropagation()
+              onOpenMenu?.(e.currentTarget)
+            }}
+          >
+            ...
+          </button>
+        </div>
       </div>
     </li>
   )
@@ -1426,6 +1440,17 @@ export function ProjectGroupedList({
                   onCancelEdit={onCancelSectionTitleEdit}
                   onCommitTitle={(nextTitle) => void onCommitSectionTitle(sectionId, nextTitle)}
                   onContextMenu={(event) => handleSectionContextMenu(event, section, virtualRow.index)}
+                  onOpenMenu={(buttonEl) => {
+                    const rect = buttonEl.getBoundingClientRect()
+                    openProjectSectionContextMenu({
+                      section,
+                      projectId,
+                      scope,
+                      anchorX: rect.left,
+                      anchorY: rect.bottom + 4,
+                      restoreFocusEl: buttonEl,
+                    })
+                  }}
                   measureElement={(el) => {
                     if (!el) return
                     rowVirtualizer.measureElement(el)

@@ -36,6 +36,7 @@ import { usePrefersReducedMotion } from '../features/tasks/dnd-drop-animation'
 import { buildProjectDoneTaskRows } from '../features/tasks/project-done-task-rows'
 import { useTaskContextMenu } from '../features/tasks/use-task-context-menu'
 import { useOptimisticTaskTitles } from '../features/tasks/use-optimistic-task-titles'
+import { useProjectSectionContextMenu } from '../features/tasks/use-project-section-context-menu'
 import { CalendarIcon, ClockIcon } from '../features/tasks/task-metadata-icons'
 import { TagPicker } from '../features/tags/TagPicker'
 import { MarkdownNotes } from '../components/MarkdownNotes'
@@ -353,6 +354,9 @@ export function ProjectPage() {
   }, [closeMenu, menuState])
 
   const completedLabel = t('projectPage.completed')
+  const hasArchivedSections = sections.some((section) => section.status === 'done')
+  const visibleCompletedCount = hasFilter ? (filteredDoneTasks?.length ?? 0) : doneCount
+  const hasCompletedContent = visibleCompletedCount > 0 || hasArchivedSections
 
   if (!pid) {
     return (
@@ -640,7 +644,7 @@ export function ProjectPage() {
         <ProjectGroupedList
           projectId={pid}
           scope={projectScope}
-          sections={sections}
+          sections={sections.filter((s) => s.status === 'open')}
           openTasks={filteredOpenTasks}
           doneTasks={null}
           editingSectionId={editingSectionId}
@@ -673,7 +677,7 @@ export function ProjectPage() {
           onAfterReorder={refresh}
         />
 
-        {(hasFilter ? (filteredDoneTasks?.length ?? 0) : doneCount) > 0 ? (
+        {hasCompletedContent ? (
           <div className="sections-header">
             <button
               type="button"
@@ -706,6 +710,13 @@ export function ProjectPage() {
               const res = await window.api.task.listProjectDone(pid, projectScope)
               if (res.ok) setDoneTasks(res.data)
             }}
+            onMutate={async () => {
+              bumpRevision()
+              await refresh()
+              setDoneTasks(null)
+              const doneRes = await window.api.task.listProjectDone(pid, projectScope)
+              if (doneRes.ok) setDoneTasks(doneRes.data)
+            }}
           />
         ) : null}
 
@@ -714,21 +725,71 @@ export function ProjectPage() {
   )
 }
 
+type DoneAreaRow =
+  | { type: 'header'; section: ProjectSection }
+  | { type: 'task'; task: TaskListItem; affiliationLabel: string | null }
+
+function buildDoneAreaRows(
+  doneRows: ReturnType<typeof buildProjectDoneTaskRows>,
+  sections: ProjectSection[]
+): DoneAreaRow[] {
+  const result: DoneAreaRow[] = []
+  const sectionById = new Map(sections.map((section) => [section.id, section]))
+  const rowsBySectionId = new Map<string, typeof doneRows>()
+  const unsectionedRows: typeof doneRows = []
+
+  for (const row of doneRows) {
+    const sectionId = row.task.section_id
+    if (!sectionId || !sectionById.has(sectionId)) {
+      unsectionedRows.push(row)
+      continue
+    }
+
+    const sectionRows = rowsBySectionId.get(sectionId) ?? []
+    sectionRows.push(row)
+    rowsBySectionId.set(sectionId, sectionRows)
+  }
+
+  for (const row of unsectionedRows) {
+    result.push({ type: 'task', task: row.task, affiliationLabel: row.affiliationLabel })
+  }
+
+  for (const section of sections) {
+    const sectionRows = rowsBySectionId.get(section.id) ?? []
+    if (section.status === 'done') {
+      result.push({ type: 'header', section })
+    }
+
+    for (const row of sectionRows) {
+      result.push({ type: 'task', task: row.task, affiliationLabel: row.affiliationLabel })
+    }
+  }
+
+  return result
+}
+
 function ProjectDoneTaskList({
   doneTasks,
   sections,
   scope,
   onToggleDone,
+  onMutate,
 }: {
   doneTasks: TaskListItem[]
   sections: ProjectSection[]
   scope: EntityScope
   onToggleDone: (taskId: string, done: boolean) => Promise<void>
+  onMutate?: () => Promise<void>
 }) {
+  const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
   const doneTasksWithOptimisticTitles = useOptimisticTaskTitles(doneTasks)
   const prefersReducedMotion = usePrefersReducedMotion()
   const { openTaskContextMenu, menuNode } = useTaskContextMenu({ scope })
+  const { openProjectSectionContextMenu, menuNode: sectionContextMenuNode } = useProjectSectionContextMenu({
+    scope,
+    onMutate: onMutate ?? (async () => {}),
+  })
 
   function getDoneDatePrefix(task: TaskListItem): string | null {
     const iso = task.completed_at ?? task.updated_at
@@ -741,6 +802,8 @@ function ProjectDoneTaskList({
     doneTasks: doneTasksWithOptimisticTitles,
     sections,
   })
+
+  const areaRows = buildDoneAreaRows(doneRows, sections)
 
   const handleTaskContextMenu = useCallback(
     (event: React.MouseEvent<HTMLDivElement>, task: TaskListItem) => {
@@ -770,7 +833,42 @@ function ProjectDoneTaskList({
   return (
     <>
       <ul className="task-list" role="list">
-        {doneRows.map(({ task, affiliationLabel }) => {
+        {areaRows.map((row) => {
+          if (row.type === 'header') {
+            const section = row.section
+            return (
+              <li key={`header-${section.id}`} className="project-group-header done-section-header">
+                <div className="project-group-left">
+                  <div className={`project-group-title${section.title.trim() ? '' : ' is-placeholder'}`}>
+                    {section.title.trim() ? section.title : t('section.untitled')}
+                  </div>
+                </div>
+                <div className="project-group-actions">
+                  <button
+                    type="button"
+                    className="button button-ghost project-group-menu-button"
+                    aria-label={t('aria.sectionActions')}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      openProjectSectionContextMenu({
+                        section,
+                        projectId: section.project_id,
+                        scope,
+                        anchorX: rect.left,
+                        anchorY: rect.bottom + 4,
+                        restoreFocusEl: e.currentTarget,
+                      })
+                    }}
+                  >
+                    ...
+                  </button>
+                </div>
+              </li>
+            )
+          }
+
+          const task = row.task
           const isOpen = openTaskId === task.id
           const titlePrefix = getDoneDatePrefix(task)
 
@@ -788,7 +886,7 @@ function ProjectDoneTaskList({
                   <TaskRow
                     task={task}
                     titlePrefix={titlePrefix}
-                    projectAffiliationLabel={affiliationLabel}
+                    projectAffiliationLabel={row.affiliationLabel}
                     onSelect={selectTask}
                     onOpen={(taskId) => void openTask(taskId)}
                     onToggleDone={(taskId, done) => {
@@ -815,6 +913,7 @@ function ProjectDoneTaskList({
       </ul>
 
       {menuNode}
+      {sectionContextMenuNode}
     </>
   )
 }

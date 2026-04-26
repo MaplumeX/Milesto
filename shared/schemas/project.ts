@@ -136,6 +136,7 @@ export const ProjectSectionSchema = z.object({
   // Sections may be created before being named.
   title: z.string(),
   position: z.number().int(),
+  status: ProjectStatusSchema,
   created_at: IsoDateTimeSchema,
   updated_at: IsoDateTimeSchema,
   deleted_at: IsoDateTimeSchema.nullable(),
@@ -207,3 +208,31 @@ export const ProjectSectionReorderBatchResultSchema = z.object({
 })
 
 export type ProjectSectionReorderBatchResult = z.infer<typeof ProjectSectionReorderBatchResultSchema>
+
+export const ProjectSectionArchiveInputSchema = z.object({
+  id: IdSchema,
+  scope: EntityScopeSchema.optional(),
+})
+
+export type ProjectSectionArchiveInput = z.infer<typeof ProjectSectionArchiveInputSchema>
+
+export const ProjectSectionArchiveResultSchema = z.object({
+  archived: z.boolean(),
+  tasks_archived: z.number().int().nonnegative(),
+})
+
+export type ProjectSectionArchiveResult = z.infer<typeof ProjectSectionArchiveResultSchema>
+
+export const ProjectSectionReopenInputSchema = z.object({
+  id: IdSchema,
+  scope: EntityScopeSchema.optional(),
+})
+
+export type ProjectSectionReopenInput = z.infer<typeof ProjectSectionReopenInputSchema>
+
+export const ProjectSectionReopenResultSchema = z.object({
+  reopened: z.boolean(),
+  tasks_moved: z.number().int().nonnegative(),
+})
+
+export type ProjectSectionReopenResult = z.infer<typeof ProjectSectionReopenResultSchema>

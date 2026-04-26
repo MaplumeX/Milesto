@@ -379,7 +379,7 @@ export function createAreaActions(db: Database.Database): Record<string, DbActio
           .all({ area_id: parsed.data.id, deleted_at: deletedAt })
         const sectionRows = db
           .prepare(
-            `SELECT id, project_id, title, position, created_at, updated_at, deleted_at
+            `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at
              FROM project_sections
              WHERE deleted_at = @deleted_at
                AND project_id IN (

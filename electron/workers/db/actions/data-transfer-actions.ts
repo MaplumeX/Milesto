@@ -68,7 +68,7 @@ export function createDataTransferActions(db: Database.Database): Record<string,
         .parse(
           db
             .prepare(
-              `SELECT id, project_id, title, position, created_at, updated_at, deleted_at
+              `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at
                FROM project_sections
                WHERE deleted_at IS NULL`
             )
@@ -298,9 +298,9 @@ export function createDataTransferActions(db: Database.Database): Record<string,
 
         const insertSection = db.prepare(
           `INSERT INTO project_sections (
-             id, project_id, title, position, created_at, updated_at, deleted_at
+             id, project_id, title, position, status, created_at, updated_at, deleted_at
            ) VALUES (
-             @id, @project_id, @title, @position, @created_at, @updated_at, @deleted_at
+             @id, @project_id, @title, @position, @status, @created_at, @updated_at, @deleted_at
            )`
         )
         for (const section of data.project_sections) {

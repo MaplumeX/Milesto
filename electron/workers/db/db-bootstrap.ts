@@ -445,6 +445,13 @@ function migrate(db: Database.Database) {
     db.pragma('user_version = 10')
   }
 
+  if (userVersion < 11) {
+    if (!hasColumn('project_sections', 'status')) {
+      db.exec(`ALTER TABLE project_sections ADD COLUMN status TEXT NOT NULL DEFAULT 'open';`)
+    }
+    db.pragma('user_version = 11')
+  }
+
   // Defensive: some dev environments may have an inconsistent schema
   // where user_version >= 9 but sync_state is missing.
   if (!hasTable('sync_state')) {

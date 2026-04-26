@@ -80,7 +80,7 @@ export function createSyncActions(db: Database.Database): Record<string, DbActio
 
       const projectSections = queryTable(db, 'project_sections', lastSyncAt, [
         ['id', 'id'], ['project_id', 'project_id'], ['title', 'title'],
-        ['position', 'position'], ['created_at', 'created_at'],
+        ['position', 'position'], ['status', 'status'], ['created_at', 'created_at'],
       ])
 
       const listPositions = db.prepare(`
@@ -339,14 +339,15 @@ function applyRemoteProjectSection(
   if (!lwwCheck(db, 'project_sections', id, updatedAt)) return { applied: false, reason: 'local_is_newer' }
 
   db.prepare(`
-    INSERT INTO project_sections (id, project_id, title, position, created_at, updated_at, deleted_at)
-    VALUES (:id, :project_id, :title, :position, :created_at, :updated_at, :deleted_at)
+    INSERT INTO project_sections (id, project_id, title, position, status, created_at, updated_at, deleted_at)
+    VALUES (:id, :project_id, :title, :position, :status, :created_at, :updated_at, :deleted_at)
     ON CONFLICT(id) DO UPDATE SET
       project_id = excluded.project_id, title = excluded.title, position = excluded.position,
+      status = excluded.status,
       deleted_at = excluded.deleted_at, updated_at = excluded.updated_at
   `).run({
     id, project_id: payload.project_id, title: payload.title, position: payload.position,
-    created_at: payload.created_at, updated_at: updatedAt, deleted_at: deletedAt,
+    status: payload.status ?? 'open', created_at: payload.created_at, updated_at: updatedAt, deleted_at: deletedAt,
   })
 
   return { applied: true }

@@ -1168,6 +1168,29 @@ body {
   visibility: hidden;
 }
 
+.project-group-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.project-group-menu-button {
+  padding: 2px 6px;
+  font-size: 13px;
+  line-height: 1;
+  min-height: auto;
+}
+
+.done-section-header {
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+}
+
+.done-section-header .project-group-title {
+  opacity: 0.6;
+}
+
 
 /* Invisible hit area to drop tasks into the no-section container (project:<id>:none). */
 .project-no-section-dropzone {

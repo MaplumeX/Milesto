@@ -9,7 +9,7 @@ import type { Project, ProjectSection } from '../../../shared/schemas/project'
 
 import { useAppEvents } from '../../app/AppEventsContext'
 import { PopoverMenuItem } from '../../components/PopoverMenuItem'
-import { ConvertMenuIcon, DeleteMenuIcon, MoveMenuIcon } from '../../components/popover-menu-icons'
+import { ConvertMenuIcon, DeleteMenuIcon, DoneMenuIcon, MoveMenuIcon, RestoreMenuIcon } from '../../components/popover-menu-icons'
 
 type ProjectSectionContextMenuView = 'root' | 'move'
 
@@ -176,6 +176,41 @@ export function useProjectSectionContextMenu({
     closeMenu({ restoreFocus: false })
   }, [closeMenu, menuState, onMutate, onSectionRemoved, t])
 
+  const handleArchiveSection = useCallback(async () => {
+    if (!menuState) return
+    if (menuState.scope === 'trash') return
+
+    setActionError(null)
+    const confirmed = confirm(t('section.archiveConfirm'))
+    if (!confirmed) return
+
+    const res = await window.api.project.archiveSection(menuState.section.id, menuState.scope)
+    if (!res.ok) {
+      setActionError(res.error)
+      return
+    }
+
+    onSectionRemoved?.(menuState.section.id)
+    await onMutate()
+    closeMenu({ restoreFocus: false })
+  }, [closeMenu, menuState, onMutate, onSectionRemoved, t])
+
+  const handleReopenSection = useCallback(async () => {
+    if (!menuState) return
+    if (menuState.scope === 'trash') return
+
+    setActionError(null)
+    const res = await window.api.project.reopenSection(menuState.section.id, menuState.scope)
+    if (!res.ok) {
+      setActionError(res.error)
+      return
+    }
+
+    onSectionRemoved?.(menuState.section.id)
+    await onMutate()
+    closeMenu({ restoreFocus: false })
+  }, [closeMenu, menuState, onMutate, onSectionRemoved])
+
   const handleMoveSection = useCallback(async (targetProjectId: string) => {
     if (!menuState) return
 
@@ -232,7 +267,9 @@ export function useProjectSectionContextMenu({
       Math.max(viewportPadding, menuState.anchorY),
       window.innerHeight - viewportPadding
     )
+    const canArchive = menuState.scope !== 'trash'
     const canConvertToProject = menuState.scope !== 'trash'
+    const isArchived = menuState.section.status === 'done'
 
     return createPortal(
       <div
@@ -251,6 +288,20 @@ export function useProjectSectionContextMenu({
         <div className="task-inline-popover-body">
           {menuState.view === 'root' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {canArchive ? (
+                <PopoverMenuItem
+                  icon={isArchived ? <RestoreMenuIcon /> : <DoneMenuIcon />}
+                  onClick={() => {
+                    if (isArchived) {
+                      void handleReopenSection()
+                    } else {
+                      void handleArchiveSection()
+                    }
+                  }}
+                >
+                  {isArchived ? t('section.restore') : t('section.archive')}
+                </PopoverMenuItem>
+              ) : null}
               <PopoverMenuItem
                 icon={<MoveMenuIcon />}
                 onClick={() => {
@@ -338,9 +389,11 @@ export function useProjectSectionContextMenu({
     )
   }, [
     actionError,
+    handleArchiveSection,
     handleConvertSectionToProject,
     handleDeleteSection,
     handleMoveSection,
+    handleReopenSection,
     menuState,
     moveTargets,
     moveTargetsError,

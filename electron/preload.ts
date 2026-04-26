@@ -127,6 +127,8 @@ const api: WindowApi = {
         ordered_section_ids: orderedSectionIds,
         scope,
       }),
+    archiveSection: (id, scope) => invoke('db:project.section.archive', { id, scope }),
+    reopenSection: (id, scope) => invoke('db:project.section.reopen', { id, scope }),
   },
 
   area: {

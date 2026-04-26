@@ -14,6 +14,8 @@ import {
   ProjectDeleteInputSchema,
   ProjectIdInputSchema,
   ProjectSchema,
+  ProjectSectionArchiveInputSchema,
+  ProjectSectionArchiveResultSchema,
   ProjectSectionConvertToProjectInputSchema,
   ProjectSectionConvertToProjectResultSchema,
   ProjectSectionCreateInputSchema,
@@ -24,6 +26,8 @@ import {
   ProjectSectionReorderBatchInputSchema,
   ProjectSectionReorderBatchResultSchema,
   ProjectSectionRenameInputSchema,
+  ProjectSectionReopenInputSchema,
+  ProjectSectionReopenResultSchema,
   ProjectSectionSchema,
   ProjectUpdateInputSchema,
 } from '../../../../shared/schemas/project'
@@ -72,6 +76,7 @@ function listActiveSectionIds(db: Database.Database, projectId: string): string[
        FROM project_sections
        WHERE project_id = @project_id
          AND deleted_at IS NULL
+         AND status = 'open'
        ORDER BY position ASC`
     )
     .all({ project_id: projectId }) as Array<{ id: string }>
@@ -592,7 +597,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
           .all({ project_id: parsed.data.id, deleted_at: deletedAt })
         const sectionRows = db
           .prepare(
-            `SELECT id, project_id, title, position, created_at, updated_at, deleted_at
+            `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at
              FROM project_sections
              WHERE project_id = @project_id AND deleted_at = @deleted_at`
           )
@@ -892,7 +897,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
       const scope = normalizeEntityScope(parsed.data.scope)
       const rows = db
         .prepare(
-          `SELECT id, project_id, title, position, created_at, updated_at, deleted_at
+          `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at
            FROM project_sections
            WHERE ${sectionScopeWhere(scope)}
              AND project_id = @project_id
@@ -975,7 +980,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
 
         const row = db
           .prepare(
-            `SELECT id, project_id, title, position, created_at, updated_at, deleted_at
+            `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at
              FROM project_sections WHERE id = ? LIMIT 1`
           )
           .get(id)
@@ -1045,7 +1050,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
 
         const row = db
           .prepare(
-            `SELECT id, project_id, title, position, created_at, updated_at, deleted_at
+            `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at
              FROM project_sections WHERE id = ? LIMIT 1`
           )
           .get(parsed.data.id)
@@ -1076,7 +1081,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
       const tx = db.transaction(() => {
         const sectionRow = db
           .prepare(
-            `SELECT id, project_id, title, position, created_at, updated_at, deleted_at
+            `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at
              FROM project_sections
              WHERE id = @id
                AND deleted_at IS NULL
@@ -1200,7 +1205,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
 
         const movedSectionRow = db
           .prepare(
-            `SELECT id, project_id, title, position, created_at, updated_at, deleted_at
+            `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at
              FROM project_sections
              WHERE id = @id
              LIMIT 1`
@@ -1261,7 +1266,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
       const tx = db.transaction(() => {
         const sectionRow = db
           .prepare(
-            `SELECT id, project_id, title, position, created_at, updated_at, deleted_at, purged_at
+            `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at, purged_at
              FROM project_sections
              WHERE id = @id
                AND deleted_at IS NULL
@@ -1398,7 +1403,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
                 .all(...movedTaskIds)
         const deletedSectionRow = db
           .prepare(
-            `SELECT id, project_id, title, position, created_at, updated_at, deleted_at, purged_at
+            `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at, purged_at
              FROM project_sections
              WHERE id = @id
              LIMIT 1`
@@ -1515,6 +1520,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
              FROM project_sections
              WHERE project_id = @project_id
                AND ${sectionScopeWhere(scope)}
+               AND status = 'open'
              ORDER BY position ASC`
           )
           .all({ project_id: input.project_id }) as { id: string }[]
@@ -1553,7 +1559,8 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
                  updated_at = @updated_at
              WHERE id = @id
                AND project_id = @project_id
-               AND ${sectionScopeWhere(scope)}`
+               AND ${sectionScopeWhere(scope)}
+               AND status = 'open'`
         )
 
         for (let i = 0; i < input.ordered_section_ids.length; i++) {
@@ -1572,6 +1579,239 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
         return {
           ok: true as const,
           data: ProjectSectionReorderBatchResultSchema.parse({ reordered: true }),
+        }
+      })
+
+      return tx()
+    },
+
+    'project.section.archive': (payload) => {
+      const parsed = ProjectSectionArchiveInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid project.section.archive payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const input = parsed.data
+      const scope = normalizeEntityScope(input.scope)
+      const updatedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        const section = db
+          .prepare(
+            `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at
+             FROM project_sections
+             WHERE id = ? AND deleted_at IS NULL`
+          )
+          .get(input.id) as { id: string; status: string } | undefined
+
+        if (!section) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Project section not found.',
+              details: { id: input.id },
+            },
+          }
+        }
+
+        if (section.status !== 'open') {
+          return {
+            ok: false as const,
+            error: {
+              code: 'INVALID_STATE',
+              message: 'Section is already archived.',
+              details: { id: input.id, status: section.status },
+            },
+          }
+        }
+
+        const taskRows = db
+          .prepare(
+            `SELECT id
+             FROM tasks
+             WHERE section_id = @section_id
+               AND status = 'open'
+               AND ${taskScopeWhere(scope)}`
+          )
+          .all({ section_id: input.id }) as Array<{ id: string }>
+
+        const taskIds = taskRows.map((row) => row.id)
+
+        if (taskIds.length > 0) {
+          const taskParams: Record<string, unknown> = { completed_at: updatedAt, updated_at: updatedAt }
+          const placeholders = taskIds.map((_, i) => `@id_${i}`).join(',')
+          for (let i = 0; i < taskIds.length; i++) {
+            taskParams[`id_${i}`] = taskIds[i]
+          }
+          db.prepare(
+            `UPDATE tasks
+             SET status = 'done',
+                 completed_at = @completed_at,
+                 updated_at = @updated_at
+             WHERE id IN (${placeholders})`
+          ).run(taskParams)
+        }
+
+        db.prepare(
+          `UPDATE project_sections
+           SET status = 'done',
+               updated_at = @updated_at
+           WHERE id = @id AND deleted_at IS NULL`
+        ).run({ id: input.id, updated_at: updatedAt })
+
+        const sync = createLocalSyncRecorder(db, updatedAt)
+        const updatedSectionRow = db
+          .prepare(
+            `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at
+             FROM project_sections
+             WHERE id = ?`
+          )
+          .get(input.id)
+        sync.recordEntity('project_section', ProjectSectionSchema.parse(updatedSectionRow), ['status', 'updated_at'])
+
+        for (const taskId of taskIds) {
+          const taskRow = db
+            .prepare(
+              `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+               FROM tasks
+               WHERE id = ?`
+            )
+            .get(taskId)
+          sync.recordEntity('task', TaskSchema.parse(taskRow), ['status', 'completed_at', 'updated_at'])
+        }
+
+        sync.finalize()
+
+        return {
+          ok: true as const,
+          data: ProjectSectionArchiveResultSchema.parse({
+            archived: true,
+            tasks_archived: taskIds.length,
+          }),
+        }
+      })
+
+      return tx()
+    },
+
+    'project.section.reopen': (payload) => {
+      const parsed = ProjectSectionReopenInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid project.section.reopen payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const input = parsed.data
+      const scope = normalizeEntityScope(input.scope)
+      const updatedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        const section = db
+          .prepare(
+            `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at
+             FROM project_sections
+             WHERE id = ? AND deleted_at IS NULL`
+          )
+          .get(input.id) as { id: string; status: string } | undefined
+
+        if (!section) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Project section not found.',
+              details: { id: input.id },
+            },
+          }
+        }
+
+        if (section.status !== 'done') {
+          return {
+            ok: false as const,
+            error: {
+              code: 'INVALID_STATE',
+              message: 'Section is not archived.',
+              details: { id: input.id, status: section.status },
+            },
+          }
+        }
+
+        const taskRows = db
+          .prepare(
+            `SELECT id
+             FROM tasks
+             WHERE section_id = @section_id
+               AND status = 'done'
+               AND ${taskScopeWhere(scope)}`
+          )
+          .all({ section_id: input.id }) as Array<{ id: string }>
+
+        const taskIds = taskRows.map((row) => row.id)
+
+        if (taskIds.length > 0) {
+          const taskParams: Record<string, unknown> = { updated_at: updatedAt }
+          const placeholders = taskIds.map((_, i) => `@id_${i}`).join(',')
+          for (let i = 0; i < taskIds.length; i++) {
+            taskParams[`id_${i}`] = taskIds[i]
+          }
+          db.prepare(
+            `UPDATE tasks
+             SET section_id = NULL,
+                 updated_at = @updated_at
+             WHERE id IN (${placeholders})`
+          ).run(taskParams)
+        }
+
+        db.prepare(
+          `UPDATE project_sections
+           SET status = 'open',
+               updated_at = @updated_at
+           WHERE id = @id AND deleted_at IS NULL`
+        ).run({ id: input.id, updated_at: updatedAt })
+
+        const sync = createLocalSyncRecorder(db, updatedAt)
+        const updatedSectionRow = db
+          .prepare(
+            `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at
+             FROM project_sections
+             WHERE id = ?`
+          )
+          .get(input.id)
+        sync.recordEntity('project_section', ProjectSectionSchema.parse(updatedSectionRow), ['status', 'updated_at'])
+
+        for (const taskId of taskIds) {
+          const taskRow = db
+            .prepare(
+              `SELECT id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at
+               FROM tasks
+               WHERE id = ?`
+            )
+            .get(taskId)
+          sync.recordEntity('task', TaskSchema.parse(taskRow), ['section_id', 'updated_at'])
+        }
+
+        sync.finalize()
+
+        return {
+          ok: true as const,
+          data: ProjectSectionReopenResultSchema.parse({
+            reopened: true,
+            tasks_moved: taskIds.length,
+          }),
         }
       })
 
@@ -1620,6 +1860,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
              FROM project_sections
              WHERE project_id = @project_id
                AND deleted_at IS NULL
+               AND status = 'open'
                AND position < @position
              ORDER BY position DESC
              LIMIT 1`
@@ -1656,7 +1897,7 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
 
         const deletedSectionRow = db
           .prepare(
-            `SELECT id, project_id, title, position, created_at, updated_at, deleted_at
+            `SELECT id, project_id, title, position, status, created_at, updated_at, deleted_at
              FROM project_sections
              WHERE id = ?
              LIMIT 1`
@@ -1677,7 +1918,9 @@ export function createProjectActions(db: Database.Database): Record<string, DbAc
           .prepare(
             `SELECT id
              FROM project_sections
-             WHERE project_id = @project_id AND deleted_at IS NULL
+             WHERE project_id = @project_id
+               AND deleted_at IS NULL
+               AND status = 'open'
              ORDER BY position ASC`
           )
           .all({ project_id: section.project_id }) as Array<{ id: string }>
