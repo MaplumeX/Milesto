@@ -14,7 +14,9 @@
     "build": "tsc && vite build && electron-builder",
     "test": "node ./scripts/run-vitest-with-electron.mjs run -c vitest.config.ts",
     "test:watch": "node ./scripts/run-vitest-with-electron.mjs -c vitest.config.ts",
+    "pretest:db": "node ./scripts/ensure-electron-native-deps.mjs",
     "test:db": "node ./scripts/run-vitest-with-electron.mjs run -c vitest.db.config.ts",
+    "pretest:db:watch": "node ./scripts/ensure-electron-native-deps.mjs",
     "test:db:watch": "node ./scripts/run-vitest-with-electron.mjs -c vitest.db.config.ts",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"

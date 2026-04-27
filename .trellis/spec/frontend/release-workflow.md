@@ -50,6 +50,10 @@ This document records the repository-level contract for publishing Milesto deskt
   - `.AppImage`
 - Build command contract:
   - `npm run build` must remain the single command that performs TypeScript compilation, Vite production build, and Electron Builder packaging.
+- Database test command contract:
+  - `npm run test:db` must run `scripts/ensure-electron-native-deps.mjs` before `scripts/run-vitest-with-electron.mjs` starts Vitest.
+  - `npm run test:db:watch` must use the same native dependency guard before entering watch mode.
+  - Keep this at the package script contract level so local runs and GitHub Actions clean installs behave the same.
 
 ### 4. Validation & Error Matrix
 
@@ -60,6 +64,7 @@ This document records the repository-level contract for publishing Milesto deskt
 | Release does not exist | Workflow creates a draft release |
 | No installer assets exist under `release/**` | Workflow fails before upload |
 | Any platform build fails | That matrix job fails; other matrix jobs may continue |
+| `better-sqlite3` was installed under Node ABI after `npm ci` | DB test scripts rebuild/probe Electron native dependencies before Vitest imports database code |
 
 ### 5. Good / Base / Bad Cases
 
@@ -74,6 +79,7 @@ This document records the repository-level contract for publishing Milesto deskt
 - Run `npm run lint`.
 - Run `npx tsc --noEmit` when touching release workflow behavior that depends on project build scripts.
 - Run `npm test` and `npm run test:db` before relying on release builds.
+- Verify `npm run test:db` output includes the `pretest:db` native dependency guard before the Vitest command when changing test scripts.
 - GitHub-hosted runner behavior is verified by pushing a release tag; local validation cannot fully prove `gh release` calls.
 
 ### 7. Wrong vs Correct
@@ -117,3 +123,20 @@ npx npm@10 ci
 ```
 
 Use npm 10 compatibility checks before pushing a release tag when the dependency graph or lockfile changed.
+
+#### Wrong
+
+```json
+"test:db": "node ./scripts/run-vitest-with-electron.mjs run -c vitest.db.config.ts"
+```
+
+Running DB tests through Electron without a native dependency guard can load a `better-sqlite3` binary compiled for the GitHub Actions Node version instead of Electron's ABI.
+
+#### Correct
+
+```json
+"pretest:db": "node ./scripts/ensure-electron-native-deps.mjs",
+"test:db": "node ./scripts/run-vitest-with-electron.mjs run -c vitest.db.config.ts"
+```
+
+Use npm lifecycle scripts to keep the DB test command reliable after a clean `npm ci` and before Vitest imports the database layer.
