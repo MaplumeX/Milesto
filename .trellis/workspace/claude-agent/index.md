@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 16
+- **Total Sessions**: 17
 - **Last Active**: 2026-04-27
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~585 | Active |
+| `journal-1.md` | ~618 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 17 | 2026-04-27 | Fix npm lockfile CI install failure | `94b437a` | `master` |
 | 16 | 2026-04-27 | Fix release workflow git repository error | `490d4a8` | `master` |
 | 15 | 2026-04-27 | Add GitHub release workflow | `e4aa627` | `master` |
 | 14 | 2026-04-26 | Enhance search: area/project/task search with scope filter | `6356630` | `master` |
