@@ -77,12 +77,14 @@ jobs:
           TAG_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          shopt -s globstar nullglob
 
-          assets=(release/**/*.dmg release/**/*.exe release/**/*.AppImage)
+          assets=()
+          while IFS= read -r file; do
+            [ -n "$file" ] && assets+=("$file")
+          done < <(find release -maxdepth 2 -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.AppImage" \))
 
           if [ "${#assets[@]}" -eq 0 ]; then
-            echo "No release assets found under release/**."
+            echo "No release assets found under release/."
             find release -maxdepth 3 -type f 2>/dev/null || true
             exit 1
           fi
