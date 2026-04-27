@@ -70,6 +70,7 @@ This document records the repository-level contract for publishing Milesto deskt
 ### 6. Tests Required
 
 - Parse the workflow YAML before committing.
+- When dependency metadata changes, run `npx npm@10 ci` locally before tagging a release. GitHub's Node 22 runners can enforce npm 10 lockfile validation, which may reject lockfiles that npm 11 accepts.
 - Run `npm run lint`.
 - Run `npx tsc --noEmit` when touching release workflow behavior that depends on project build scripts.
 - Run `npm test` and `npm run test:db` before relying on release builds.
@@ -98,3 +99,21 @@ on:
 ```
 
 Release builds must be tied to explicit version tags so GitHub Release assets are reproducible and auditable.
+
+#### Wrong
+
+```bash
+npm install --package-lock-only
+npm ci
+```
+
+This can miss lockfile entries required by the npm version used in GitHub Actions.
+
+#### Correct
+
+```bash
+npx npm@10 install --package-lock-only
+npx npm@10 ci
+```
+
+Use npm 10 compatibility checks before pushing a release tag when the dependency graph or lockfile changed.

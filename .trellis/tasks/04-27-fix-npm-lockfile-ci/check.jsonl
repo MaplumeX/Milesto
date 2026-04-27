@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend project guideline index for release/build-related checks."}
+{"file": ".trellis/spec/frontend/release-workflow.md", "reason": "Release workflow contract covers expected install/build verification."}
