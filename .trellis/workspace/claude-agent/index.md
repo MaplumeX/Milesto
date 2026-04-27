@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 17
+- **Total Sessions**: 18
 - **Last Active**: 2026-04-27
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~618 | Active |
+| `journal-1.md` | ~651 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 18 | 2026-04-27 | Fix release DB test SQLite ABI mismatch | `5a91f0e` | `master` |
 | 17 | 2026-04-27 | Fix npm lockfile CI install failure | `94b437a` | `master` |
 | 16 | 2026-04-27 | Fix release workflow git repository error | `490d4a8` | `master` |
 | 15 | 2026-04-27 | Add GitHub release workflow | `e4aa627` | `master` |

@@ -616,3 +616,36 @@ Synchronized package-lock.json with npm 10 lockfile validation, documented relea
 ### Next Steps
 
 - None - task complete
+
+
+## Session 18: Fix release DB test SQLite ABI mismatch
+
+**Date**: 2026-04-27
+**Task**: Fix release DB test SQLite ABI mismatch
+**Branch**: `master`
+
+### Summary
+
+Fixed GitHub release DB test failures by adding npm pretest guards that rebuild/probe Electron native dependencies before Electron-backed Vitest loads better-sqlite3; updated release workflow spec and verified db tests, lint, unit tests, typecheck, and diff hygiene.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5a91f0e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
