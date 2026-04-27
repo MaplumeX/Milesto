@@ -4,6 +4,7 @@
   "appId": "com.milesto.app",
   "asar": true,
   "productName": "Milesto",
+  "publish": null,
   "directories": {
     "output": "release/${version}"
   },
