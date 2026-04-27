@@ -517,3 +517,36 @@ Extended search to support Area and Project results alongside Tasks. Added scope
 ### Next Steps
 
 - None - task complete
+
+
+## Session 15: Add GitHub release workflow
+
+**Date**: 2026-04-27
+**Task**: Add GitHub release workflow
+**Branch**: `master`
+
+### Summary
+
+Added a tag-triggered GitHub Actions release workflow for Milesto, documented the release workflow contract, verified lint/typecheck/tests, committed the change, and archived the Trellis task.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e4aa627` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
