@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 15
+- **Total Sessions**: 16
 - **Last Active**: 2026-04-27
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~552 | Active |
+| `journal-1.md` | ~585 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 16 | 2026-04-27 | Fix release workflow git repository error | `490d4a8` | `master` |
 | 15 | 2026-04-27 | Add GitHub release workflow | `e4aa627` | `master` |
 | 14 | 2026-04-26 | Enhance search: area/project/task search with scope filter | `6356630` | `master` |
 | 13 | 2026-04-26 | Add settings font size slider | `b10ca8d` | `master` |

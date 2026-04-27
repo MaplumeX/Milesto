@@ -550,3 +550,36 @@ Added a tag-triggered GitHub Actions release workflow for Milesto, documented th
 ### Next Steps
 
 - None - task complete
+
+
+## Session 16: Fix release workflow git repository error
+
+**Date**: 2026-04-27
+**Task**: Fix release workflow git repository error
+**Branch**: `master`
+
+### Summary
+
+Fixed the GitHub Actions release workflow by setting GH_REPO for gh release commands that run without a checked-out git working tree, updated the release workflow contract, verified lint/typecheck/tests, and committed the fix.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `490d4a8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
