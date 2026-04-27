@@ -37,7 +37,9 @@ This document records the repository-level contract for publishing Milesto deskt
   ```
 - Required environment:
   - `GH_TOKEN`: `${{ github.token }}`
+  - `GH_REPO`: `${{ github.repository }}`
   - `TAG_NAME`: `${{ github.ref_name }}`
+- Jobs that run `gh release` without checking out the repository must set `GH_REPO` explicitly so GitHub CLI does not try to infer the repository from local `.git` metadata.
 - Required matrix runners:
   - `macos-latest`
   - `windows-latest`
