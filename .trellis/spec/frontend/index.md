@@ -21,6 +21,7 @@ Update these files when the implementation patterns change.
 | [State Management](./state-management.md) | Local state, global state, server state | Project-specific |
 | [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | Project-specific |
 | [Type Safety](./type-safety.md) | Type patterns, validation | Project-specific |
+| [Release Workflow Contract](./release-workflow.md) | GitHub Actions release build and asset upload contract | Project-specific |
 | [Mixed View List Contracts](./mixed-view-list-contracts.md) | Cross-layer contracts for task/project mixed planning views | Project-specific |
 | [Project Section Conversion Contract](./project-section-conversion.md) | Cross-layer contract for converting project sections into projects | Project-specific |
 
