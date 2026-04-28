@@ -12,6 +12,9 @@
     "dist",
     "dist-electron"
   ],
+  "asarUnpack": [
+    "**/node_modules/ws/**/*"
+  ],
   "mac": {
     "target": [
       "dmg"
