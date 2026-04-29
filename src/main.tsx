@@ -2,6 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import 'react-day-picker/style.css'
+import '@fontsource-variable/inter/index.css'
+import '@fontsource-variable/noto-sans-sc/index.css'
 import './index.css'
 
 import type { Locale } from '../shared/i18n/locale'
