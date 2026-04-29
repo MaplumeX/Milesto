@@ -102,8 +102,8 @@ export function ProjectPage() {
   const titlePlaceholder = t('shell.projectTitlePlaceholder')
   const titleMeasureText = titleDraft.length > 0 ? titleDraft : titlePlaceholder
 
-  const hasUserInteractedRef = useRef(false)
-  const consumedEditTitleForIdRef = useRef<string | null>(null)
+  const consumedEditTitleRouteRef = useRef<string | null>(null)
+  const didInteractWithPageDuringEditTitleIntentRef = useRef(false)
 
   const [notesDraft, setNotesDraft] = useState('')
   const notesRef = useRef<HTMLTextAreaElement | null>(null)
@@ -190,22 +190,29 @@ export function ProjectPage() {
     setDoneTasks(null)
     setEditingSectionId(null)
     setIsEditingTitle(false)
-    hasUserInteractedRef.current = false
-    consumedEditTitleForIdRef.current = null
+    consumedEditTitleRouteRef.current = null
+    didInteractWithPageDuringEditTitleIntentRef.current = false
   }, [pid, projectScope])
 
   useEffect(() => {
-    function markInteracted() {
-      hasUserInteractedRef.current = true
+    const params = new URLSearchParams(location.search)
+    if (params.get('editTitle') !== '1') return
+
+    didInteractWithPageDuringEditTitleIntentRef.current = false
+
+    function markPageInteraction(e: PointerEvent | KeyboardEvent) {
+      if (!(e.target instanceof Element)) return
+      if (!e.target.closest('.page')) return
+      didInteractWithPageDuringEditTitleIntentRef.current = true
     }
 
-    window.addEventListener('pointerdown', markInteracted, true)
-    window.addEventListener('keydown', markInteracted, true)
+    document.addEventListener('pointerdown', markPageInteraction, true)
+    document.addEventListener('keydown', markPageInteraction, true)
     return () => {
-      window.removeEventListener('pointerdown', markInteracted, true)
-      window.removeEventListener('keydown', markInteracted, true)
+      document.removeEventListener('pointerdown', markPageInteraction, true)
+      document.removeEventListener('keydown', markPageInteraction, true)
     }
-  }, [])
+  }, [location.key, location.search])
 
   useEffect(() => {
     if (!project) return
@@ -213,21 +220,23 @@ export function ProjectPage() {
 
     const params = new URLSearchParams(location.search)
     if (params.get('editTitle') !== '1') return
-    if (consumedEditTitleForIdRef.current === project.id) return
-    if (hasUserInteractedRef.current) return
+    const editTitleRouteKey = `${project.id}:${location.key}`
+    if (consumedEditTitleRouteRef.current === editTitleRouteKey) return
 
-    const active = document.activeElement
-    if (active instanceof HTMLElement && active !== document.body && active !== document.documentElement) return
+    consumedEditTitleRouteRef.current = editTitleRouteKey
+    params.delete('editTitle')
+    const nextSearch = params.toString()
 
-    consumedEditTitleForIdRef.current = project.id
+    if (didInteractWithPageDuringEditTitleIntentRef.current) {
+      navigate({ pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : '' }, { replace: true })
+      return
+    }
+
     ignoreNextTitleBlurRef.current = false
     setTitleDraft(project.title ?? '')
     setIsEditingTitle(true)
-
-    params.delete('editTitle')
-    const nextSearch = params.toString()
     navigate({ pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : '' }, { replace: true })
-  }, [location.pathname, location.search, navigate, pid, project])
+  }, [location.key, location.pathname, location.search, navigate, pid, project])
 
   useLayoutEffect(() => {
     if (!isEditingTitle) return

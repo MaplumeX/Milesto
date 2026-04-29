@@ -74,8 +74,8 @@ export function AreaPage() {
   const titlePlaceholder = t('shell.areaTitlePlaceholder')
   const titleMeasureText = titleDraft.length > 0 ? titleDraft : titlePlaceholder
 
-  const hasUserInteractedRef = useRef(false)
-  const consumedEditTitleForIdRef = useRef<string | null>(null)
+  const consumedEditTitleRouteRef = useRef<string | null>(null)
+  const didInteractWithPageDuringEditTitleIntentRef = useRef(false)
 
   const refresh = useCallback(async () => {
     if (!aid) return
@@ -135,8 +135,8 @@ export function AreaPage() {
     setIsMenuOpen(false)
     setSelectedProjectId(null)
     ignoreNextTitleBlurRef.current = false
-    hasUserInteractedRef.current = false
-    consumedEditTitleForIdRef.current = null
+    consumedEditTitleRouteRef.current = null
+    didInteractWithPageDuringEditTitleIntentRef.current = false
   }, [aid])
 
   useEffect(() => {
@@ -177,17 +177,24 @@ export function AreaPage() {
   }, [closeMenu, isMenuOpen])
 
   useEffect(() => {
-    function markInteracted() {
-      hasUserInteractedRef.current = true
+    const params = new URLSearchParams(location.search)
+    if (params.get('editTitle') !== '1') return
+
+    didInteractWithPageDuringEditTitleIntentRef.current = false
+
+    function markPageInteraction(e: PointerEvent | KeyboardEvent) {
+      if (!(e.target instanceof Element)) return
+      if (!e.target.closest('.page')) return
+      didInteractWithPageDuringEditTitleIntentRef.current = true
     }
 
-    window.addEventListener('pointerdown', markInteracted, true)
-    window.addEventListener('keydown', markInteracted, true)
+    document.addEventListener('pointerdown', markPageInteraction, true)
+    document.addEventListener('keydown', markPageInteraction, true)
     return () => {
-      window.removeEventListener('pointerdown', markInteracted, true)
-      window.removeEventListener('keydown', markInteracted, true)
+      document.removeEventListener('pointerdown', markPageInteraction, true)
+      document.removeEventListener('keydown', markPageInteraction, true)
     }
-  }, [])
+  }, [location.key, location.search])
 
   useEffect(() => {
     if (!area) return
@@ -195,21 +202,23 @@ export function AreaPage() {
 
     const params = new URLSearchParams(location.search)
     if (params.get('editTitle') !== '1') return
-    if (consumedEditTitleForIdRef.current === area.id) return
-    if (hasUserInteractedRef.current) return
+    const editTitleRouteKey = `${area.id}:${location.key}`
+    if (consumedEditTitleRouteRef.current === editTitleRouteKey) return
 
-    const active = document.activeElement
-    if (active instanceof HTMLElement && active !== document.body && active !== document.documentElement) return
+    consumedEditTitleRouteRef.current = editTitleRouteKey
+    params.delete('editTitle')
+    const nextSearch = params.toString()
 
-    consumedEditTitleForIdRef.current = area.id
+    if (didInteractWithPageDuringEditTitleIntentRef.current) {
+      navigate({ pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : '' }, { replace: true })
+      return
+    }
+
     ignoreNextTitleBlurRef.current = false
     setTitleDraft(area.title ?? '')
     setIsEditingTitle(true)
-
-    params.delete('editTitle')
-    const nextSearch = params.toString()
     navigate({ pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : '' }, { replace: true })
-  }, [aid, area, location.pathname, location.search, navigate])
+  }, [aid, area, location.key, location.pathname, location.search, navigate])
 
   useLayoutEffect(() => {
     if (!isEditingTitle) return

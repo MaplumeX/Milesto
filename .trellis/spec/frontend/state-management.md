@@ -40,6 +40,10 @@ Current reality:
 
 - Routing uses `HashRouter`.
 - Route params and query strings are part of state ownership when they change what data is shown.
+- Query strings can also carry explicit one-shot UI intents, such as `?editTitle=1` after creating or navigating to an entity.
+- A page that owns a query intent should consume it only after the matching route entity has loaded, scope the consumed marker to the current route/location rather than permanently to the entity id, reset route interaction markers when the route entity id changes, and remove the query with `navigate(..., { replace: true })`.
+- Do not guard an explicit route intent with global capture-phase pointer/keyboard interaction state from the previous page. The create/navigation click can happen before the destination page processes the query.
+- It is valid to cancel a pending query intent when the destination page itself receives pointer or keyboard interaction before the entity load completes, so delayed data does not steal focus back from a control the user deliberately chose on that page.
 
 ---
 
