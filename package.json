@@ -20,8 +20,49 @@
     "test:db": "node ./scripts/run-vitest-with-electron.mjs run -c vitest.db.config.ts",
     "pretest:db:watch": "node ./scripts/ensure-electron-native-deps.mjs",
     "test:db:watch": "node ./scripts/run-vitest-with-electron.mjs -c vitest.db.config.ts",
+    "generate:icon": "node ./scripts/generate-icon.mjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
+  },
+  "build": {
+    "appId": "app.milesto.desktop",
+    "productName": "Milesto",
+    "directories": {
+      "buildResources": "build"
+    },
+    "files": [
+      "dist",
+      "dist-electron"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "Office",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        }
+      ]
+    }
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -58,6 +99,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "happy-dom": "^20.5.3",
+    "sharp": "^0.34.5",
     "typescript": "^5.2.2",
     "vite": "^5.1.6",
     "vite-plugin-electron": "^0.28.6",
