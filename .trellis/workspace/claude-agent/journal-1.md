@@ -649,3 +649,36 @@ Fixed GitHub release DB test failures by adding npm pretest guards that rebuild/
 ### Next Steps
 
 - None - task complete
+
+
+## Session 19: Fix project and area title edit focus
+
+**Date**: 2026-04-29
+**Task**: Fix project and area title edit focus
+**Branch**: `master`
+
+### Summary
+
+Fixed Project/Area title edit focus after create and route switching; added renderer regression coverage and documented route query UI intent handling.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `eb1dd33` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
