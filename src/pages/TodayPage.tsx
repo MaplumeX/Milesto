@@ -50,6 +50,7 @@ export function TodayPage() {
         title={t('nav.today')}
         listId={TASK_LIST_ID_TODAY}
         items={filteredItems}
+        hideTaskSchedule
         topContent={
           <TagFilter
             tags={availableTags}

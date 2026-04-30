@@ -25,6 +25,7 @@ export function TaskRow({
   isOverlay,
   showProjectAffiliation = true,
   projectAffiliationLabel,
+  showSchedule = true,
 }: {
   task: TaskListItem
   dragHandle?: React.ReactNode
@@ -41,15 +42,18 @@ export function TaskRow({
   isOverlay?: boolean
   showProjectAffiliation?: boolean
   projectAffiliationLabel?: string | null
+  showSchedule?: boolean
 }) {
   const { t } = useTranslation()
   const isTitleActivator = !!titleActivatorProps
   const hasTitlePrefix = Boolean(titlePrefix)
   const isCancelled = task.status === 'cancelled'
   const isClosed = isClosedTaskStatus(task.status)
-  const schedulePreview = getTaskSchedulePreviewLabel(task, {
-    someday: t('nav.someday'),
-  })
+  const schedulePreview = showSchedule !== false
+    ? getTaskSchedulePreviewLabel(task, {
+        someday: t('nav.someday'),
+      })
+    : null
   const tagPreview = getTaskTagPreview(
     task.tag_preview ?? [],
     task.tag_count ?? task.tag_preview?.length ?? 0

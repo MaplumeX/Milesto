@@ -63,6 +63,7 @@ function SortableViewRow({
   onTaskContextMenu,
   onProjectContextMenu,
   onSelectForDrag,
+  showSchedule,
 }: {
   item: ViewListItem
   isOverlay?: boolean
@@ -75,6 +76,7 @@ function SortableViewRow({
   onTaskContextMenu?: MouseEventHandler<HTMLDivElement>
   onProjectContextMenu?: MouseEventHandler<HTMLDivElement>
   onSelectForDrag?: (item: ViewListItem) => void
+  showSchedule?: boolean
 }) {
   const key = itemKey(item)
   const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition } = useSortable({
@@ -125,6 +127,7 @@ function SortableViewRow({
       onOpen={onOpenTask}
       onToggleDone={onToggleTaskDone}
       onContextMenu={onTaskContextMenu}
+      showSchedule={showSchedule}
     />
   )
 }
@@ -138,6 +141,7 @@ export function ViewList({
   onAfterReorder,
   topContent,
   emptyState,
+  hideTaskSchedule,
 }: {
   title: ReactNode
   items: ViewListItem[]
@@ -147,6 +151,7 @@ export function ViewList({
   onAfterReorder?: () => Promise<void>
   topContent?: ReactNode
   emptyState?: ReactNode
+  hideTaskSchedule?: boolean
 }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -686,6 +691,7 @@ export function ViewList({
                             isDndEnabled ? (
                               <SortableViewRow
                                 item={item}
+                                showSchedule={!hideTaskSchedule}
                                 onSelectTask={(taskId) => selectItem({ kind: 'task', id: taskId })}
                                 onOpenTask={(taskId) => openItem({ ...item, id: taskId })}
                                 onToggleTaskDone={(taskId, done) => {
@@ -697,6 +703,7 @@ export function ViewList({
                             ) : (
                               <TaskRow
                                 task={item}
+                                showSchedule={!hideTaskSchedule}
                                 onSelect={(taskId) => selectItem({ kind: 'task', id: taskId })}
                                 onOpen={(taskId) => openItem({ ...item, id: taskId })}
                                 onToggleDone={(taskId, done) => {
