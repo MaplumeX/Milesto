@@ -3242,3 +3242,66 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
   font-size: 12px;
   color: var(--muted);
 }
+
+/* Confirm Dialog */
+.confirm-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--scrim);
+  z-index: 60;
+}
+
+.confirm-dialog {
+  width: min(360px, calc(100vw - 48px));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: var(--shadow-sheet);
+  overflow: hidden;
+  animation: overlay-paper-in 160ms ease-out;
+}
+
+.confirm-dialog-message {
+  padding: 24px 24px 0;
+  text-align: center;
+}
+
+.confirm-dialog-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.confirm-dialog-body {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  padding: 20px 24px 24px;
+  justify-content: flex-end;
+}
+
+.button-danger {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.button-danger:hover {
+  filter: brightness(1.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm-dialog {
+    animation: none;
+  }
+}
