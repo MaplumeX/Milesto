@@ -63,6 +63,25 @@ today is still class-based and hand-composed. Document reality first and migrate
 - Class names are semantic (`nav-item`, `palette-item`, `content-bottom-action-button`) instead of utility-first.
 - Icon wrappers typically set `aria-hidden="true"` and rely on the outer control for the accessible name.
 
+### Button Component
+
+Use the shared `Button` primitive instead of handwriting `<button>` elements with `.button` / `.button-ghost` / `.button-danger` classes.
+
+```tsx
+import { Button } from '@/components/Button'
+
+// Good
+<Button variant="ghost" onClick={handleClose}>Close</Button>
+<Button variant="danger" onClick={handleDelete}>Delete</Button>
+
+// Bad — do not hand-compose button classes
+<button className="button button-ghost" onClick={handleClose}>Close</button>
+```
+
+- `variant` maps to the existing CSS classes: `default` → `.button`, `ghost` → `.button-ghost`, `danger` → `.button-danger`.
+- The component is a named export at `src/components/Button.tsx`.
+- For icon-only or menu-item affordances that do not fit the standard button variants, keep using `BottomBarActionButton` or `PopoverMenuItem`.
+
 ---
 
 ## Accessibility
