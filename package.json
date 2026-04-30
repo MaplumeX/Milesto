@@ -1,7 +1,7 @@
 {
   "name": "milesto",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Milesto — 桌面任务管理应用",
   "author": "Milesto <team@milesto.app>",
   "license": "MIT",
@@ -56,7 +56,8 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "differentialPackage": false
     },
     "linux": {
       "icon": "build/icon.png",
