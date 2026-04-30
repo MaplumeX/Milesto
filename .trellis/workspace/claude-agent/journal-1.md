@@ -785,3 +785,36 @@ Built a custom confirmation dialog to replace all native window.confirm() calls.
 ### Next Steps
 
 - None - task complete
+
+
+## Session 23: Add note icon to task/project list rows
+
+**Date**: 2026-05-01
+**Task**: Add note icon to task/project list rows
+**Branch**: `master`
+
+### Summary
+
+Added a file-style note icon that appears next to task and project titles in list views when notes are non-empty. Changes span schema (task-list, view-list), DB queries (task-actions, view-actions), UI components (TaskRow, ProjectRow, NoteIcon), CSS, and test fixtures. All 181 unit/renderer tests and 64 DB tests pass.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8b5538a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

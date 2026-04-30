@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 22
-- **Last Active**: 2026-04-30
+- **Total Sessions**: 23
+- **Last Active**: 2026-05-01
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~787 | Active |
+| `journal-1.md` | ~820 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 23 | 2026-05-01 | Add note icon to task/project list rows | `8b5538a` | `master` |
 | 22 | 2026-04-30 | Button组件化重构 | `f0e06db`, `0595eb7` | `master` |
 | 21 | 2026-04-30 | Custom confirmation dialog component | `41df60f`, `c757986`, `1179288`, `bca609e` | `master` |
 | 20 | 2026-04-30 | Stabilize project progress indicator | `01c543d` | `master` |
