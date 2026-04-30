@@ -50,6 +50,12 @@ today is still class-based and hand-composed. Document reality first and migrate
 - Small components may use tiny local helpers such as `joinClassNames` instead of a class utility dependency.
 - Avoid inline styles unless they are genuinely dynamic and layout-specific.
 - Use `data-*` hooks when styling depends on semantic state rather than boolean class explosion.
+- For small circular progress indicators, prefer SVG geometry over CSS `conic-gradient` plus fractional
+  pixel insets. SVG viewBox coordinates avoid platform-specific subpixel rasterization offsets on Windows,
+  Linux, and macOS.
+- Do not animate SVG pie sectors by transitioning the path `d` value in CSS. Drive the numeric progress ratio
+  from React or another state owner, and recompute a full-radius sector path for each animation frame so the
+  fill does not visually shrink during path interpolation.
 
 ### Current Reality
 

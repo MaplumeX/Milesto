@@ -133,13 +133,6 @@ body {
   }
 }
 
-/* Allow `--ppc-angle` to interpolate so progress changes can animate smoothly. */
-@property --ppc-angle {
-  syntax: '<angle>';
-  inherits: true;
-  initial-value: 0deg;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -2434,12 +2427,7 @@ body {
   cursor: pointer;
   position: relative;
   --ppc-gap: 1.5px;
-  --ppc-angle: 0deg;
   transition: border-color 120ms ease;
-}
-
-.project-progress-control[data-ready] {
-  transition: border-color 120ms ease, --ppc-angle 180ms ease-out;
 }
 
 .project-progress-control[data-size='header'] {
@@ -2448,53 +2436,39 @@ body {
   --ppc-gap: 2px;
 }
 
-.project-progress-control::before {
-  content: '';
+.project-progress-svg {
   position: absolute;
   inset: var(--ppc-gap);
-  border-radius: 999px;
-  background: transparent;
+  width: calc(100% - (var(--ppc-gap) * 2));
+  height: calc(100% - (var(--ppc-gap) * 2));
+  z-index: 0;
+  overflow: visible;
   pointer-events: none;
-  transition: background 120ms ease;
 }
 
-.project-progress-control > * {
+.project-progress-fill {
+  fill: var(--ppc-fill-partial);
+  transition: none;
+}
+
+.project-progress-control > svg:not(.project-progress-svg) {
   position: relative;
   z-index: 1;
 }
 
-.project-progress-control[data-progress='full'] {
-  --ppc-angle: 360deg;
-}
-
-.project-progress-control[data-progress='partial']::before,
-.project-progress-control[data-progress='full']::before {
-  background: conic-gradient(
-    from 0deg,
-    var(--ppc-fill-partial) 0deg,
-    var(--ppc-fill-partial) var(--ppc-angle),
-    transparent var(--ppc-angle),
-    transparent 1turn
-  );
-}
-
 .project-progress-control.is-done {
-  border-color: var(--ppc-color);
-  background: var(--ppc-color);
+  border-color: transparent;
+  background: transparent;
   color: #fff;
 }
 
-.project-progress-control.is-done::before {
-  background: var(--ppc-color);
+.project-progress-control.is-done .project-progress-fill {
+  fill: var(--ppc-color);
 }
 
 .project-progress-control.is-cancelled {
   border-color: transparent;
   color: var(--muted);
-}
-
-.project-progress-control.is-cancelled::before {
-  background: transparent;
 }
 
 button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cancelled) {
@@ -2514,13 +2488,13 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 }
 
 .sidebar .project-progress-control.is-done {
-  border-color: var(--text);
-  background: var(--text);
+  border-color: transparent;
+  background: transparent;
   color: var(--bg);
 }
 
-.sidebar .project-progress-control.is-done::before {
-  background: var(--text);
+.sidebar .project-progress-control.is-done .project-progress-fill {
+  fill: var(--text);
 }
 
 .task-inline-title.is-cancelled {
@@ -2546,12 +2520,7 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .project-progress-control,
-  .project-progress-control[data-ready] {
-    transition: none;
-  }
-
-  .project-progress-control::before {
+  .project-progress-control {
     transition: none;
   }
 }
