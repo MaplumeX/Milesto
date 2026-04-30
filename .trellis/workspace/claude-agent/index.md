@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 21
+- **Total Sessions**: 22
 - **Last Active**: 2026-04-30
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~753 | Active |
+| `journal-1.md` | ~787 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 22 | 2026-04-30 | Button组件化重构 | `f0e06db`, `0595eb7` | `master` |
 | 21 | 2026-04-30 | Custom confirmation dialog component | `41df60f`, `c757986`, `1179288`, `bca609e` | `master` |
 | 20 | 2026-04-30 | Stabilize project progress indicator | `01c543d` | `master` |
 | 19 | 2026-04-29 | Fix project and area title edit focus | `eb1dd33` | `master` |

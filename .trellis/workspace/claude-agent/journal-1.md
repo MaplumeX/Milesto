@@ -751,3 +751,37 @@ Built a custom confirmation dialog to replace all native window.confirm() calls.
 ### Next Steps
 
 - None - task complete
+
+
+## Session 22: Button组件化重构
+
+**Date**: 2026-04-30
+**Task**: Button组件化重构
+**Branch**: `master`
+
+### Summary
+
+创建统一的 <Button> 组件（支持 default/ghost/danger 三种 variant），替换全站 17 个文件中约 57 处手写 <button> 元素。新增 clsx 依赖用于 className 合并。同步更新 component-guidelines.md 记录 Button 使用约定。lint、type-check、build 均通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f0e06db` | (see git log) |
+| `0595eb7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
