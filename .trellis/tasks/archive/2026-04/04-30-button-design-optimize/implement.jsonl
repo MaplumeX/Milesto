@@ -1,0 +1,5 @@
+{"file": ".trellis/tasks/04-30-button-design-optimize/prd.md", "reason": "Task requirements and acceptance criteria"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Frontend component conventions and patterns"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Where to place the new Button component"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Code quality standards for the implementation"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Guidelines for creating reusable components"}
