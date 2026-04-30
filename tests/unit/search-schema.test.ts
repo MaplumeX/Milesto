@@ -13,6 +13,7 @@ describe('shared/schemas/search', () => {
     const baseItem = {
       id: 't1',
       title: 'Milk',
+      notes: '',
       status: 'open' as const,
       is_inbox: true,
       is_someday: false,
@@ -52,6 +53,7 @@ describe('shared/schemas/search', () => {
       TaskListItemSchema.safeParse({
         id: 't1',
         title: 'Milk',
+        notes: '',
         status: 'open',
         is_inbox: true,
         is_someday: false,

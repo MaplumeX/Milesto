@@ -2590,6 +2590,18 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
   vertical-align: middle;
 }
 
+.task-row-note-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+  margin-left: 5px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
 .palette-item-placeholder {
   color: var(--muted);
   font-weight: 500;

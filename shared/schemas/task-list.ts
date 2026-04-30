@@ -13,6 +13,7 @@ import {
 export const TaskListItemSchema = z.object({
   id: IdSchema,
   title: z.string(),
+  notes: z.string(),
   status: TaskStatusSchema,
   is_inbox: DbBoolSchema,
   is_someday: DbBoolSchema,

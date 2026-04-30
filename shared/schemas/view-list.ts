@@ -20,6 +20,7 @@ export const ViewListProjectItemSchema = z.object({
   kind: z.literal('project'),
   id: IdSchema,
   title: z.string(),
+  notes: z.string(),
   status: ProjectStatusSchema,
   area_id: IdSchema.nullable(),
   scheduled_at: LocalDateSchema.nullable(),

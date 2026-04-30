@@ -309,6 +309,7 @@ export function AreaPage() {
         project: {
           id: project.id,
           title: project.title,
+          notes: project.notes,
           status: project.status,
           done_count: projectProgress[project.id]?.done_count ?? 0,
           total_count: projectProgress[project.id]?.total_count ?? 0,
@@ -339,6 +340,7 @@ export function AreaPage() {
                 project={{
                   id: p.id,
                   title: p.title,
+                  notes: p.notes,
                   status: p.status,
                   done_count: projectProgress[p.id]?.done_count ?? 0,
                   total_count: projectProgress[p.id]?.total_count ?? 0,

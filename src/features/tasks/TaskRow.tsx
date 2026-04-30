@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../../components/Button'
 import { Checkbox } from '../../components/Checkbox'
 import { getTaskSchedulePreviewLabel, getTaskTagPreview, isDueUrgent } from './task-metadata'
-import { CalendarIcon, ClockIcon, TagIcon } from './task-metadata-icons'
+import { CalendarIcon, ClockIcon, NoteIcon, TagIcon } from './task-metadata-icons'
 import { TaskProjectAffiliation } from './TaskProjectAffiliation'
 import { getLocalToday } from '../../lib/use-local-today'
 
@@ -120,6 +120,11 @@ export function TaskRow({
             }`.trim() || undefined}
           >
             {task.title.trim() ? task.title : t('task.untitled')}
+            {task.notes?.trim() ? (
+              <span className="task-row-note-icon" aria-hidden="true">
+                <NoteIcon />
+              </span>
+            ) : null}
           </span>
           {showProjectAffiliation ? (
             <TaskProjectAffiliation

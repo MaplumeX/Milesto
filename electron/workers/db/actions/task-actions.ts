@@ -169,6 +169,7 @@ function buildTaskListSelectColumns(
   const columns = [
     `${taskAlias}.id`,
     `${taskAlias}.title`,
+    `${taskAlias}.notes`,
     `${taskAlias}.status`,
     `${taskAlias}.is_inbox`,
     `${taskAlias}.is_someday`,

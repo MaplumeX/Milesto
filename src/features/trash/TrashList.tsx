@@ -99,6 +99,7 @@ export function TrashList({
                       task={{
                         id: entry.id,
                         title: entry.title,
+                        notes: '',
                         status: 'open',
                         is_inbox: false,
                         is_someday: false,
@@ -139,6 +140,7 @@ export function TrashList({
                   project={{
                     id: entry.id,
                     title: entry.title,
+                    notes: '',
                     status: 'open',
                     done_count: 0,
                     total_count: entry.open_task_count,

@@ -2,13 +2,14 @@ import type { ButtonHTMLAttributes, CSSProperties, MouseEventHandler, ReactNode,
 import { useTranslation } from 'react-i18next'
 
 import { getLocalToday } from '../../lib/use-local-today'
-import { CalendarIcon, ClockIcon, TagIcon } from '../tasks/task-metadata-icons'
+import { CalendarIcon, ClockIcon, NoteIcon, TagIcon } from '../tasks/task-metadata-icons'
 import { getTaskSchedulePreviewLabel, getTaskTagPreview, isDueUrgent } from '../tasks/task-metadata'
 import { ProjectProgressControl } from './ProjectProgressControl'
 
 export type ProjectRowProject = {
   id: string
   title: string
+  notes: string
   status: 'open' | 'done' | 'cancelled'
   done_count: number
   total_count: number
@@ -137,6 +138,11 @@ export function ProjectRow({
             {showOpenCount ? (
               <span className="project-open-count" aria-hidden="true">
                 {project.total_count - project.done_count}
+              </span>
+            ) : null}
+            {project.notes?.trim() ? (
+              <span className="task-row-note-icon" aria-hidden="true">
+                <NoteIcon />
               </span>
             ) : null}
           </span>
