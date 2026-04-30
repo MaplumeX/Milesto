@@ -26,7 +26,7 @@ import type { EntityScope } from '../../shared/schemas/common'
 import type { Project } from '../../shared/schemas/project'
 
 import { useAppEvents } from './AppEventsContext'
-import { ConfirmDialogProvider, useConfirm } from '../contexts/ConfirmDialogContext'
+import { useConfirm } from '../contexts/ConfirmDialogContext'
 import { ContentScrollProvider } from './ContentScrollContext'
 import { SidebarNavItem } from './SidebarNavItem'
 import { type OpenEditorHandle, TaskSelectionProvider } from '../features/tasks/TaskSelectionContext'
@@ -1526,7 +1526,6 @@ export function AppShell() {
   ) : null
 
   return (
-    <ConfirmDialogProvider>
     <TaskSelectionProvider
       value={{
         selectedTaskId,
@@ -1760,7 +1759,6 @@ export function AppShell() {
       </div>
       </ContentScrollProvider>
     </TaskSelectionProvider>
-    </ConfirmDialogProvider>
   )
 }
 

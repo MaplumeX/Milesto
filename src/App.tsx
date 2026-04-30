@@ -3,6 +3,7 @@ import { I18nextProvider } from 'react-i18next'
 
 import { AppRouter } from './app/AppRouter'
 import { AppEventsProvider } from './app/AppEventsContext'
+import { ConfirmDialogProvider } from './contexts/ConfirmDialogContext'
 import i18n from './i18n/i18n'
 
 export default function App() {
@@ -10,7 +11,9 @@ export default function App() {
     <I18nextProvider i18n={i18n}>
       <HashRouter>
         <AppEventsProvider>
-          <AppRouter />
+          <ConfirmDialogProvider>
+            <AppRouter />
+          </ConfirmDialogProvider>
         </AppEventsProvider>
       </HashRouter>
     </I18nextProvider>
