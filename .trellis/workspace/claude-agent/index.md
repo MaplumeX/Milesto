@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 20
+- **Total Sessions**: 21
 - **Last Active**: 2026-04-30
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~717 | Active |
+| `journal-1.md` | ~753 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 21 | 2026-04-30 | Custom confirmation dialog component | `41df60f`, `c757986`, `1179288`, `bca609e` | `master` |
 | 20 | 2026-04-30 | Stabilize project progress indicator | `01c543d` | `master` |
 | 19 | 2026-04-29 | Fix project and area title edit focus | `eb1dd33` | `master` |
 | 18 | 2026-04-27 | Fix release DB test SQLite ABI mismatch | `5a91f0e` | `master` |

@@ -715,3 +715,39 @@ Reworked project progress indicator rendering to use stable SVG sector geometry 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 21: Custom confirmation dialog component
+
+**Date**: 2026-04-30
+**Task**: Custom confirmation dialog component
+**Branch**: `master`
+
+### Summary
+
+Built a custom confirmation dialog to replace all native window.confirm() calls. Added ConfirmDialogContext with useConfirm() hook (Promise-based API), portal-rendered dialog with focus trap, Escape/scrim dismiss, and danger variant styling. Moved Provider to App root after fixing a white-screen bug caused by useConfirm() being called outside its Provider. Updated self-test mocks and test setup for auto-confirm behavior. Fixed i18n wording for project delete confirmation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `41df60f` | (see git log) |
+| `c757986` | (see git log) |
+| `1179288` | (see git log) |
+| `bca609e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
