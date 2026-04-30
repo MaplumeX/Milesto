@@ -169,7 +169,7 @@ export const messagesEn = {
     completeConfirm: 'Mark project done and complete {{count}} open tasks?',
     cancel: 'Cancel project',
     cancelConfirm: 'Cancel project and cancel {{count}} open tasks?',
-    deleteConfirm: 'Delete this project? Tasks and sections under it will be soft-deleted.',
+    deleteConfirm: 'Delete this project? Tasks and sections under it will be deleted.',
   },
   tag: {
     newPromptTitle: 'New tag',
@@ -422,7 +422,7 @@ export const messagesZhCN = {
     completeConfirm: '标记项目完成并完成 {{count}} 个未完成任务？',
     cancel: '取消项目',
     cancelConfirm: '取消项目并取消 {{count}} 个未完成任务？',
-    deleteConfirm: '删除此项目？其下的任务与分组将被软删除。',
+    deleteConfirm: '删除此项目？其下的任务与分组将被删除。',
   },
   tag: {
     newPromptTitle: '新建标签',
