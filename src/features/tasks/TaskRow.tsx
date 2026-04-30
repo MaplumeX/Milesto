@@ -2,6 +2,7 @@ import type { TaskListItem } from '../../../shared/schemas/task-list'
 import { isClosedTaskStatus } from '../../../shared/schemas/common'
 import { useTranslation } from 'react-i18next'
 
+import { Button } from '../../components/Button'
 import { Checkbox } from '../../components/Checkbox'
 import { getTaskSchedulePreviewLabel, getTaskTagPreview, isDueUrgent } from './task-metadata'
 import { CalendarIcon, ClockIcon, TagIcon } from './task-metadata-icons'
@@ -179,9 +180,8 @@ export function TaskRow({
       ) : null}
 
       {isClosed && onRestore ? (
-        <button
-          type="button"
-          className="button button-ghost"
+        <Button
+          variant="ghost"
           disabled={!!isOverlay}
           onClick={() => {
             if (!onRestore) return
@@ -189,7 +189,7 @@ export function TaskRow({
           }}
         >
           {t('task.restore')}
-        </button>
+        </Button>
       ) : null}
     </div>
   )

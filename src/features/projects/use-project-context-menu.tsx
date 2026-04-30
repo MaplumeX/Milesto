@@ -10,6 +10,7 @@ import type { Tag } from '../../../shared/schemas/tag'
 
 import { useAppEvents } from '../../app/AppEventsContext'
 import { useConfirm } from '../../contexts/ConfirmDialogContext'
+import { Button } from '../../components/Button'
 import { PopoverMenuGroup } from '../../components/PopoverMenuGroup'
 import { PopoverMenuItem } from '../../components/PopoverMenuItem'
 import {
@@ -347,13 +348,12 @@ export function useProjectContextMenu({
           ) : menuState.view === 'move' ? (
             <>
               <div className="row" style={{ justifyContent: 'flex-start', marginTop: 0 }}>
-                <button
-                  type="button"
-                  className="button button-ghost"
+                <Button
+                  variant="ghost"
                   onClick={() => setMenuState((current) => (current ? { ...current, view: 'root' } : current))}
                 >
                   {t('common.back')}
-                </button>
+                </Button>
                 <div className="task-inline-popover-title">{t('common.move')}</div>
               </div>
 
@@ -422,13 +422,12 @@ export function useProjectContextMenu({
           ) : menuState.view === 'tags' ? (
             <>
               <div className="row" style={{ justifyContent: 'flex-start', marginTop: 0 }}>
-                <button
-                  type="button"
-                  className="button button-ghost"
+                <Button
+                  variant="ghost"
                   onClick={() => setMenuState((current) => (current ? { ...current, view: 'root' } : current))}
                 >
                   {t('common.back')}
-                </button>
+                </Button>
                 <div className="task-inline-popover-title">{t('taskEditor.tagsLabel')}</div>
               </div>
 
@@ -459,13 +458,12 @@ export function useProjectContextMenu({
           ) : (
             <>
               <div className="row" style={{ justifyContent: 'flex-start', marginTop: 0 }}>
-                <button
-                  type="button"
-                  className="button button-ghost"
+                <Button
+                  variant="ghost"
                   onClick={() => setMenuState((current) => (current ? { ...current, view: 'root' } : current))}
                 >
                   {t('common.back')}
-                </button>
+                </Button>
                 <div className="task-inline-popover-title">
                   {menuState.view === 'plan' ? t('common.plan') : t('taskEditor.dueLabel')}
                 </div>
@@ -474,54 +472,47 @@ export function useProjectContextMenu({
               <div className="row" style={{ gap: 8 }}>
                 {menuState.view === 'plan' ? (
                   <>
-                    <button
-                      type="button"
-                      className="button"
+                    <Button
                       onClick={() => {
                         void persistProjectUpdate({ scheduled_at: today, is_someday: false })
                       }}
                     >
                       {t('taskEditor.popoverScheduleToday')}
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-ghost"
+                    </Button>
+                    <Button
+                      variant="ghost"
                       onClick={() => {
                         void persistProjectUpdate({ scheduled_at: null, is_someday: true })
                       }}
                     >
                       {t('taskEditor.popoverScheduleSomeday')}
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-ghost"
+                    </Button>
+                    <Button
+                      variant="ghost"
                       onClick={() => {
                         void persistProjectUpdate({ scheduled_at: null, is_someday: false })
                       }}
                     >
                       {t('common.clear')}
-                    </button>
+                    </Button>
                   </>
                 ) : (
                   <>
-                    <button
-                      type="button"
-                      className="button"
+                    <Button
                       onClick={() => {
                         void persistProjectUpdate({ due_at: today })
                       }}
                     >
                       {t('taskEditor.popoverDueToday')}
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-ghost"
+                    </Button>
+                    <Button
+                      variant="ghost"
                       onClick={() => {
                         void persistProjectUpdate({ due_at: null })
                       }}
                     >
                       {t('common.clear')}
-                    </button>
+                    </Button>
                   </>
                 )}
               </div>

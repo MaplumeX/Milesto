@@ -15,6 +15,7 @@ import type { TaskDetail } from '../../../shared/schemas/task-detail'
 import type { Task, TaskUpdateInput } from '../../../shared/schemas/task'
 
 import { useAppEvents } from '../../app/AppEventsContext'
+import { Button } from '../../components/Button'
 import { Checkbox } from '../../components/Checkbox'
 import { MarkdownNotes } from '../../components/MarkdownNotes'
 import { formatLocalDate, parseLocalDate } from '../../lib/dates'
@@ -729,9 +730,9 @@ export const TaskEditorPaper = forwardRef<
         <div className={paperClassName}>
           <div className="overlay-paper-header">
             <div className="overlay-paper-title">{t('taskEditor.taskTitle')}</div>
-            <button type="button" className="button button-ghost" onClick={onRequestClose}>
+            <Button variant="ghost" onClick={onRequestClose}>
               {t('common.close')}
-            </button>
+            </Button>
           </div>
           <div className="error">
             <div className="error-code">{loadError.code}</div>
@@ -746,9 +747,9 @@ export const TaskEditorPaper = forwardRef<
         <div className={paperClassName}>
           <div className="overlay-paper-header">
             <div className="overlay-paper-title">{t('taskEditor.taskTitle')}</div>
-            <button type="button" className="button button-ghost" onClick={onRequestClose}>
+            <Button variant="ghost" onClick={onRequestClose}>
               {t('common.close')}
-            </button>
+            </Button>
           </div>
           <div className="nav-muted">{t('common.loading')}</div>
         </div>
@@ -1147,9 +1148,8 @@ export const TaskEditorPaper = forwardRef<
                   />
                 </div>
                 <div className="row" style={{ justifyContent: 'flex-start' }}>
-                  <button
-                    type="button"
-                    className="button button-ghost"
+                  <Button
+                    variant="ghost"
                     onClick={() => {
                       const next = { ...draft, is_someday: true, scheduled_at: null, is_inbox: false }
                       setDraft(next)
@@ -1159,10 +1159,9 @@ export const TaskEditorPaper = forwardRef<
                   >
                     <SunIcon />
                     {t('nav.someday')}
-                  </button>
-                  <button
-                    type="button"
-                    className="button button-ghost"
+                  </Button>
+                  <Button
+                    variant="ghost"
                     onClick={() => {
                       const next = { ...draft, scheduled_at: getLocalToday(), is_someday: false, is_inbox: false }
                       setDraft(next)
@@ -1172,10 +1171,9 @@ export const TaskEditorPaper = forwardRef<
                   >
                     <TodayIcon />
                     {t('nav.today')}
-                  </button>
-                  <button
-                    type="button"
-                    className="button button-ghost"
+                  </Button>
+                  <Button
+                    variant="ghost"
                     onClick={() => {
                       const next = { ...draft, scheduled_at: null, is_someday: false }
                       setDraft(next)
@@ -1185,7 +1183,7 @@ export const TaskEditorPaper = forwardRef<
                   >
                     <CircleXIcon />
                     {t('common.clear')}
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -1207,9 +1205,8 @@ export const TaskEditorPaper = forwardRef<
                   />
                 </div>
                 <div className="row" style={{ justifyContent: 'flex-start' }}>
-                  <button
-                    type="button"
-                    className="button button-ghost"
+                  <Button
+                    variant="ghost"
                     onClick={() => {
                       const next = { ...draft, due_at: null }
                       setDraft(next)
@@ -1219,7 +1216,7 @@ export const TaskEditorPaper = forwardRef<
                   >
                     <CircleXIcon />
                     {t('common.clear')}
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -1299,15 +1296,14 @@ export const TaskEditorPaper = forwardRef<
 
               {savePhase === 'error' ? (
                 <div className="task-inline-header-right">
-                  <button
-                    type="button"
-                    className="button button-ghost"
+                  <Button
+                    variant="ghost"
                     onClick={() => {
                       requestSave(draft)
                     }}
                   >
                     {t('common.retry')}
-                  </button>
+                  </Button>
                 </div>
               ) : null}
             </div>
@@ -1485,21 +1481,20 @@ export const TaskEditorPaper = forwardRef<
           <div className="overlay-paper-title">{t('taskEditor.taskTitle')}</div>
 
           {savePhase === 'error' ? (
-            <button
-              type="button"
-              className="button button-ghost"
+            <Button
+              variant="ghost"
               onClick={() => {
                 if (!draft) return
                 requestSave(draft)
               }}
             >
               {t('common.retry')}
-            </button>
+            </Button>
           ) : null}
 
-          <button type="button" className="button button-ghost" onClick={onRequestClose}>
+          <Button variant="ghost" onClick={onRequestClose}>
             {t('common.close')}
-          </button>
+          </Button>
         </div>
 
         {saveError ? (
@@ -1599,9 +1594,8 @@ export const TaskEditorPaper = forwardRef<
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              className="button button-ghost"
+            <Button
+              variant="ghost"
               onClick={() => {
                 const title = prompt(t('project.newTitlePrompt'))
                 if (!title) return
@@ -1621,7 +1615,7 @@ export const TaskEditorPaper = forwardRef<
               }}
             >
               +
-            </button>
+            </Button>
           </div>
 
           <div className="detail-field">
@@ -1687,9 +1681,8 @@ export const TaskEditorPaper = forwardRef<
               }}
             />
             <div className="row">
-              <button
-                type="button"
-                className="button button-ghost"
+              <Button
+                variant="ghost"
                 onClick={() => {
                   const next = { ...draft, scheduled_at: getLocalToday() }
                   setDraft(next)
@@ -1697,10 +1690,9 @@ export const TaskEditorPaper = forwardRef<
                 }}
               >
                 {t('nav.today')}
-              </button>
-              <button
-                type="button"
-                className="button button-ghost"
+              </Button>
+              <Button
+                variant="ghost"
                 onClick={() => {
                   const next = { ...draft, scheduled_at: null }
                   setDraft(next)
@@ -1708,7 +1700,7 @@ export const TaskEditorPaper = forwardRef<
                 }}
               >
                 {t('common.clear')}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -1728,9 +1720,8 @@ export const TaskEditorPaper = forwardRef<
               }}
             />
             <div className="row">
-              <button
-                type="button"
-                className="button button-ghost"
+              <Button
+                variant="ghost"
                 onClick={() => {
                   const next = { ...draft, due_at: null }
                   setDraft(next)
@@ -1738,7 +1729,7 @@ export const TaskEditorPaper = forwardRef<
                 }}
               >
                 {t('common.clear')}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -1791,29 +1782,26 @@ export const TaskEditorPaper = forwardRef<
 
         <div className="detail-actions">
           {isClosedTask ? (
-            <button
-              type="button"
-              className="button button-ghost"
+            <Button
+              variant="ghost"
               onClick={() => void applyTaskStatusAction('restore')}
             >
               {t('task.restore')}
-            </button>
+            </Button>
           ) : (
             <>
-              <button
-                type="button"
-                className="button button-ghost"
+              <Button
+                variant="ghost"
                 onClick={() => void applyTaskStatusAction('done')}
               >
                 {t('taskEditor.markDone')}
-              </button>
-              <button
-                type="button"
-                className="button button-ghost"
+              </Button>
+              <Button
+                variant="ghost"
                 onClick={() => void applyTaskStatusAction('cancel')}
               >
                 {t('task.cancel')}
-              </button>
+              </Button>
             </>
           )}
         </div>

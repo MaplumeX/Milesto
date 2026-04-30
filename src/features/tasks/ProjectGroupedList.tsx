@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import { Button } from '../../components/Button'
 
 import { useVirtualizer } from '@tanstack/react-virtual'
 
@@ -336,9 +337,9 @@ function ProjectGroupHeaderRow({
         )}
 
         <div className="project-group-actions">
-          <button
-            type="button"
-            className="button button-ghost project-group-menu-button"
+          <Button
+            variant="ghost"
+            className="project-group-menu-button"
             aria-label={t('aria.sectionActions')}
             onClick={(e) => {
               e.stopPropagation()
@@ -346,7 +347,7 @@ function ProjectGroupHeaderRow({
             }}
           >
             ...
-          </button>
+          </Button>
         </div>
       </div>
     </li>

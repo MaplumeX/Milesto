@@ -4,6 +4,8 @@ import type { Area } from '../../../shared/schemas/area'
 import type { Project } from '../../../shared/schemas/project'
 import type { TaskUpdateInput } from '../../../shared/schemas/task'
 
+import { Button } from '../../components/Button'
+
 export function TaskMovePopoverContent({
   areas,
   openProjects,
@@ -33,10 +35,10 @@ export function TaskMovePopoverContent({
         <div className="content-bottom-popover-list">
           {areas.length === 0 ? <div className="nav-muted">{t('shell.empty')}</div> : null}
           {areas.map((area) => (
-            <button
+            <Button
               key={area.id}
-              type="button"
-              className={`button button-ghost content-bottom-popover-item${area.title.trim() ? '' : ' is-placeholder'}`}
+              variant="ghost"
+              className={`content-bottom-popover-item${area.title.trim() ? '' : ' is-placeholder'}`}
               onClick={() =>
                 void onMove({
                   area_id: area.id,
@@ -47,7 +49,7 @@ export function TaskMovePopoverContent({
               }
             >
               {area.title.trim() ? area.title : t('area.untitled')}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -59,10 +61,10 @@ export function TaskMovePopoverContent({
         <div className="content-bottom-popover-list">
           {openProjects.length === 0 ? <div className="nav-muted">{t('shell.empty')}</div> : null}
           {openProjects.map((project) => (
-            <button
+            <Button
               key={project.id}
-              type="button"
-              className={`button button-ghost content-bottom-popover-item${
+              variant="ghost"
+              className={`content-bottom-popover-item${
                 project.title.trim() ? '' : ' is-placeholder'
               }`}
               onClick={() =>
@@ -75,7 +77,7 @@ export function TaskMovePopoverContent({
               }
             >
               {project.title.trim() ? project.title : t('project.untitled')}
-            </button>
+            </Button>
           ))}
         </div>
       </div>

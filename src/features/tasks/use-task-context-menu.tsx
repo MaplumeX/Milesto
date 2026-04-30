@@ -12,6 +12,7 @@ import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useAppEvents } from '../../app/AppEventsContext'
 import { useConfirm } from '../../contexts/ConfirmDialogContext'
+import { Button } from '../../components/Button'
 import { PopoverMenuGroup } from '../../components/PopoverMenuGroup'
 import { PopoverMenuItem } from '../../components/PopoverMenuItem'
 import {
@@ -466,27 +467,24 @@ export function useTaskContextMenu({
                     />
                   </div>
                   <div className="row" style={{ justifyContent: 'flex-start' }}>
-                    <button
-                      type="button"
-                      className="button button-ghost"
+                    <Button
+                      variant="ghost"
                       onClick={() => void persistTaskUpdate({ is_someday: true, scheduled_at: null, is_inbox: false })}
                     >
                       {t('nav.someday')}
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-ghost"
+                    </Button>
+                    <Button
+                      variant="ghost"
                       onClick={() => void persistTaskUpdate({ scheduled_at: today, is_someday: false, is_inbox: false })}
                     >
                       {t('nav.today')}
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-ghost"
+                    </Button>
+                    <Button
+                      variant="ghost"
                       onClick={() => void persistTaskUpdate({ scheduled_at: null, is_someday: false })}
                     >
                       {t('common.clear')}
-                    </button>
+                    </Button>
                   </div>
                 </>
               ) : null}
@@ -508,13 +506,12 @@ export function useTaskContextMenu({
                     />
                   </div>
                   <div className="row" style={{ justifyContent: 'flex-start' }}>
-                    <button
-                      type="button"
-                      className="button button-ghost"
+                    <Button
+                      variant="ghost"
                       onClick={() => void persistTaskUpdate({ due_at: null })}
                     >
                       {t('common.clear')}
-                    </button>
+                    </Button>
                   </div>
                 </>
               ) : null}

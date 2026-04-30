@@ -14,6 +14,7 @@ import type { Tag } from '../../shared/schemas/tag'
 import type { TaskListItem } from '../../shared/schemas/task-list'
 import { useAppEvents } from '../app/AppEventsContext'
 import { useConfirm } from '../contexts/ConfirmDialogContext'
+import { Button } from '../components/Button'
 import { PopoverMenuGroup } from '../components/PopoverMenuGroup'
 import { PopoverMenuItem } from '../components/PopoverMenuItem'
 import {
@@ -523,16 +524,15 @@ export function ProjectPage() {
               )}
             </h1>
 
-            <button
+            <Button
               ref={menuButtonRef}
-              type="button"
-              className="button button-ghost"
+              variant="ghost"
               aria-haspopup="dialog"
               aria-expanded={menuState !== null}
               onClick={(e) => openMenu(e.currentTarget, 'root')}
             >
               ...
-            </button>
+            </Button>
           </div>
         </header>
 
@@ -691,9 +691,9 @@ export function ProjectPage() {
 
         {hasCompletedContent ? (
           <div className="sections-header">
-            <button
-              type="button"
-              className="button button-ghost completed-toggle"
+            <Button
+              variant="ghost"
+              className="completed-toggle"
               aria-expanded={isCompletedExpanded}
               onClick={() => {
                 const next = !isCompletedExpanded
@@ -701,7 +701,7 @@ export function ProjectPage() {
               }}
             >
               {completedLabel} {isCompletedExpanded ? '▾' : '▸'}
-            </button>
+            </Button>
           </div>
         ) : null}
 
@@ -856,9 +856,9 @@ function ProjectDoneTaskList({
                   </div>
                 </div>
                 <div className="project-group-actions">
-                  <button
-                    type="button"
-                    className="button button-ghost project-group-menu-button"
+                  <Button
+                    variant="ghost"
+                    className="project-group-menu-button"
                     aria-label={t('aria.sectionActions')}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -874,7 +874,7 @@ function ProjectDoneTaskList({
                     }}
                   >
                     ...
-                  </button>
+                  </Button>
                 </div>
               </li>
             )
@@ -1301,14 +1301,13 @@ const ProjectMenu = forwardRef(function ProjectMenu(
         ) : (
           <>
             <div className="row" style={{ justifyContent: 'flex-start', marginTop: 0 }}>
-              <button
+              <Button
                 ref={backButtonRef}
-                type="button"
-                className="button button-ghost"
+                variant="ghost"
                 onClick={() => goRoot()}
               >
                 {t('common.back')}
-              </button>
+              </Button>
               <div className="task-inline-popover-title">
                 {view === 'plan'
                   ? t('taskEditor.popoverScheduleTitle')
@@ -1350,9 +1349,8 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                   />
                 </div>
                 <div className="row" style={{ justifyContent: 'flex-start' }}>
-                  <button
-                    type="button"
-                    className="button button-ghost"
+                  <Button
+                    variant="ghost"
                     onClick={() => {
                       void (async () => {
                         onError(null)
@@ -1372,10 +1370,9 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                     }}
                   >
                     {t('nav.someday')}
-                  </button>
-                  <button
-                    type="button"
-                    className="button button-ghost"
+                  </Button>
+                  <Button
+                    variant="ghost"
                     onClick={() => {
                       void (async () => {
                         onError(null)
@@ -1395,10 +1392,9 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                     }}
                   >
                     {t('nav.today')}
-                  </button>
-                  <button
-                    type="button"
-                    className="button button-ghost"
+                  </Button>
+                  <Button
+                    variant="ghost"
                     onClick={() => {
                       void (async () => {
                         onError(null)
@@ -1418,7 +1414,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                     }}
                   >
                     {t('common.clear')}
-                  </button>
+                  </Button>
                 </div>
               </>
             ) : view === 'due' ? (
@@ -1446,9 +1442,8 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                   />
                 </div>
                 <div className="row" style={{ justifyContent: 'flex-start' }}>
-                  <button
-                    type="button"
-                    className="button button-ghost"
+                  <Button
+                    variant="ghost"
                     onClick={() => {
                       void (async () => {
                         onError(null)
@@ -1463,10 +1458,9 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                     }}
                   >
                     {t('nav.today')}
-                  </button>
-                  <button
-                    type="button"
-                    className="button button-ghost"
+                  </Button>
+                  <Button
+                    variant="ghost"
                     onClick={() => {
                       void (async () => {
                         onError(null)
@@ -1481,7 +1475,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                     }}
                   >
                     {t('common.clear')}
-                  </button>
+                  </Button>
                 </div>
               </>
             ) : view === 'move' ? (

@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import type { AppError } from '../../../shared/app-error'
 import type { SyncConfig, SyncState } from '../../../shared/schemas/sync'
 
+import { Button } from '../../components/Button'
+
 export function SyncSettingsPanel() {
   const { t } = useTranslation()
   const [syncState, setSyncState] = useState<SyncState>({
@@ -167,23 +169,20 @@ export function SyncSettingsPanel() {
           <div className="settings-row-label" />
           <div className="settings-row-control">
             {!isConnected ? (
-              <button
-                type="button"
-                className="button"
+              <Button
                 disabled={!serverUrl.trim() || !token.trim() || isLoading}
                 onClick={handleConnect}
               >
                 {isLoading ? t('common.loading') : t('settings.syncConnect')}
-              </button>
+              </Button>
             ) : (
-              <button
-                type="button"
-                className="button button-ghost"
+              <Button
+                variant="ghost"
                 disabled={isLoading}
                 onClick={handleDisconnect}
               >
                 {isLoading ? t('common.loading') : t('settings.syncDisconnect')}
-              </button>
+              </Button>
             )}
           </div>
         </div>

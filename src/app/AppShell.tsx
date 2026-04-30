@@ -4,6 +4,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'framer-motion'
 
+import { Button } from '../components/Button'
 import {
   DndContext,
   DragOverlay,
@@ -1640,9 +1641,8 @@ export function AppShell() {
         {sidebarProjectContextMenuNode}
 
         <div className="sidebar-bottom">
-          <button
-            type="button"
-            className="button button-ghost"
+          <Button
+            variant="ghost"
             aria-haspopup="dialog"
             aria-expanded={createPopover ? true : false}
             onClick={(e) => {
@@ -1651,7 +1651,7 @@ export function AppShell() {
             }}
           >
             {t('shell.new')}
-          </button>
+          </Button>
 
           <button
             ref={settingsTriggerRef}

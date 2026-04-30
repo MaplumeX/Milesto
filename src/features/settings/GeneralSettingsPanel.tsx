@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { useTranslation } from 'react-i18next'
 
+import { Button } from '../../components/Button'
 import { Select } from '../../components/Select'
 import type { AppError } from '../../../shared/app-error'
 import { LocaleSchema, type Locale } from '../../../shared/i18n/locale'
@@ -240,9 +241,7 @@ export function GeneralSettingsPanel() {
         <div className="settings-row">
           <div className="settings-row-label">{t('settings.export')}</div>
           <div className="settings-row-control">
-            <button
-              type="button"
-              className="button"
+            <Button
               onClick={() => {
                 void (async () => {
                   const res = await window.api.data.exportToFile()
@@ -256,15 +255,13 @@ export function GeneralSettingsPanel() {
               }}
             >
               {t('settings.export')}
-            </button>
+            </Button>
           </div>
         </div>
         <div className="settings-row">
           <div className="settings-row-label">{t('settings.import')}</div>
           <div className="settings-row-control">
-            <button
-              type="button"
-              className="button"
+            <Button
               onClick={() => {
                 void (async () => {
                   const res = await window.api.data.importFromFile()
@@ -276,15 +273,14 @@ export function GeneralSettingsPanel() {
               }}
             >
               {t('settings.import')}
-            </button>
+            </Button>
           </div>
         </div>
         <div className="settings-row">
           <div className="settings-row-label">{t('settings.resetAllData')}</div>
           <div className="settings-row-control">
-            <button
-              type="button"
-              className="button button-ghost"
+            <Button
+              variant="ghost"
               onClick={async () => {
                 const confirmed = await confirm({ message: t('settings.resetConfirm'), variant: 'danger', confirmText: t('common.delete') })
                 if (!confirmed) return
@@ -297,7 +293,7 @@ export function GeneralSettingsPanel() {
               }}
             >
               {t('settings.resetAllData')}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -307,15 +303,14 @@ export function GeneralSettingsPanel() {
               <span className="mono">{lastExportPath}</span>
             </div>
             <div className="settings-row-control">
-              <button
-                type="button"
-                className="button button-ghost"
+              <Button
+                variant="ghost"
                 onClick={() => {
                   void window.api.app.showItemInFolder(lastExportPath)
                 }}
               >
                 {t('settings.showInFolder')}
-              </button>
+              </Button>
             </div>
           </div>
         ) : null}
@@ -334,15 +329,14 @@ export function GeneralSettingsPanel() {
         <div className="settings-row">
           <div className="settings-row-label" />
           <div className="settings-row-control">
-            <button
-              type="button"
-              className="button button-ghost"
+            <Button
+              variant="ghost"
               onClick={() => {
                 void window.api.app.openPath(userDataPath)
               }}
             >
               {t('settings.openDataFolder')}
-            </button>
+            </Button>
           </div>
         </div>
       </section>

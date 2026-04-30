@@ -14,6 +14,7 @@ import { taskListIdArea } from '../../shared/task-list-ids'
 
 import { useAppEvents } from '../app/AppEventsContext'
 import { useConfirm } from '../contexts/ConfirmDialogContext'
+import { Button } from '../components/Button'
 import { PopoverMenuItem } from '../components/PopoverMenuItem'
 import { DeleteMenuIcon, TagMenuIcon } from '../components/popover-menu-icons'
 import { ProjectRow, type ProjectRowProject } from '../features/projects/ProjectRow'
@@ -488,17 +489,16 @@ export function AreaPage() {
         onAfterReorder={refresh}
         headerActions={
           <>
-            <button
+            <Button
               ref={menuButtonRef}
-              type="button"
-              className="button button-ghost"
+              variant="ghost"
               aria-haspopup="dialog"
               aria-expanded={isMenuOpen}
               aria-label={t('aria.areaActions')}
               onClick={() => setIsMenuOpen((v) => !v)}
             >
               ...
-            </button>
+            </Button>
 
             {isMenuOpen && area && menuButtonRef.current
               ? createPortal(
@@ -683,9 +683,9 @@ const AreaMenu = forwardRef(function AreaMenu(
         ) : (
           <>
             <div className="row" style={{ justifyContent: 'flex-start', marginTop: 0 }}>
-              <button ref={backButtonRef} type="button" className="button button-ghost" onClick={() => goRoot()}>
+              <Button ref={backButtonRef} variant="ghost" onClick={() => goRoot()}>
                 {t('common.back')}
-              </button>
+              </Button>
               <div className="task-inline-popover-title">{t('taskEditor.tagsLabel')}</div>
             </div>
 

@@ -6,6 +6,7 @@ import type { AppError } from '../../shared/app-error'
 import type { TrashEntry } from '../../shared/schemas/trash'
 import { useAppEvents } from '../app/AppEventsContext'
 import { useConfirm } from '../contexts/ConfirmDialogContext'
+import { Button } from '../components/Button'
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 import { TrashList } from '../features/trash/TrashList'
 import { buildProjectPath } from '../lib/entity-scope'
@@ -134,15 +135,14 @@ export function TrashPage() {
       <header className="page-header trash-page-header">
         <h1 className="page-title">{t('nav.trash')}</h1>
 
-        <button
-          type="button"
-          className="button button-ghost"
+        <Button
+          variant="ghost"
           onClick={() => void handleEmpty()}
           disabled={!hasEntries || isEmptying}
           data-trash-empty-action="true"
         >
           {t('trash.emptyAction')}
-        </button>
+        </Button>
       </header>
 
       {error ? <ErrorBanner error={error} /> : null}

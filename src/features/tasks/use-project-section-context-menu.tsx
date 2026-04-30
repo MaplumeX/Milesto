@@ -9,6 +9,7 @@ import type { Project, ProjectSection } from '../../../shared/schemas/project'
 
 import { useAppEvents } from '../../app/AppEventsContext'
 import { useConfirm } from '../../contexts/ConfirmDialogContext'
+import { Button } from '../../components/Button'
 import { PopoverMenuGroup } from '../../components/PopoverMenuGroup'
 import { PopoverMenuItem } from '../../components/PopoverMenuItem'
 import { ConvertMenuIcon, DeleteMenuIcon, DoneMenuIcon, MoveMenuIcon, RestoreMenuIcon } from '../../components/popover-menu-icons'
@@ -343,16 +344,15 @@ export function useProjectSectionContextMenu({
           ) : (
             <>
               <div className="row" style={{ justifyContent: 'flex-start', marginTop: 0 }}>
-                <button
-                  type="button"
-                  className="button button-ghost"
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setActionError(null)
                     setMenuState((current) => (current ? { ...current, view: 'root' } : current))
                   }}
                 >
                   {t('common.back')}
-                </button>
+                </Button>
                 <div className="task-inline-popover-title">{t('common.move')}</div>
               </div>
 

@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useId, useRef, useSt
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 
+import { Button } from '../components/Button'
+
 const FOCUSABLE_SELECTOR = [
   'button:not([disabled])',
   '[href]',
@@ -210,17 +212,16 @@ function ConfirmDialog({
           <div className="confirm-dialog-body">{message}</div>
         </div>
         <div className="confirm-dialog-actions">
-          <button type="button" className="button button-ghost" onClick={onCancel}>
+          <Button variant="ghost" onClick={onCancel}>
             {cancelText ?? t('shell.cancel')}
-          </button>
-          <button
+          </Button>
+          <Button
             ref={confirmButtonRef}
-            type="button"
-            className={`button${variant === 'danger' ? ' button-danger' : ''}`}
+            variant={variant === 'danger' ? 'danger' : 'default'}
             onClick={onConfirm}
           >
             {confirmText ?? t('common.confirm')}
-          </button>
+          </Button>
         </div>
       </div>
     </div>,
