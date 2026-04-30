@@ -818,3 +818,36 @@ Added a file-style note icon that appears next to task and project titles in lis
 ### Next Steps
 
 - None - task complete
+
+
+## Session 24: Hide schedule metadata on collapsed Today items
+
+**Date**: 2026-05-01
+**Task**: Hide schedule metadata on collapsed Today items
+**Branch**: `master`
+
+### Summary
+
+在 Today 页面添加 hideTaskSchedule 选项链，使折叠任务行不再显示冗余的 schedule（计划日期）元数据。改动涉及 TaskRow、ViewList、TodayPage 三个文件，lint/typecheck/测试全部通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9d701c4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
