@@ -56,7 +56,9 @@
             "x64"
           ]
         }
-      ],
+      ]
+    },
+    "nsis": {
       "differentialPackage": false
     },
     "linux": {
