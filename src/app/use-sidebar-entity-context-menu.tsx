@@ -9,6 +9,7 @@ import type { Project } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
 
 import { formatLocalDate, parseLocalDate } from '../lib/dates'
+import { useConfirm } from '../contexts/ConfirmDialogContext'
 import { PopoverMenuGroup } from '../components/PopoverMenuGroup'
 import { PopoverMenuItem } from '../components/PopoverMenuItem'
 import {
@@ -78,6 +79,7 @@ export function useSidebarAreaContextMenu({
   onRename: (area: Area) => void
 }) {
   const { t } = useTranslation()
+  const confirm = useConfirm()
   const [menuState, setMenuState] = useState<SidebarAreaContextMenuState | null>(null)
   const [actionError, setActionError] = useState<AppError | null>(null)
   const [areaTags, setAreaTags] = useState<Tag[]>([])
@@ -246,7 +248,7 @@ export function useSidebarAreaContextMenu({
                     void (async () => {
                       setActionError(null)
 
-                      const confirmed = confirm(t('area.deleteConfirm'))
+                      const confirmed = await confirm({ message: t('area.deleteConfirm'), variant: 'danger', confirmText: t('common.delete') })
                       if (!confirmed) return
 
                       const res = await window.api.area.delete(menuState.area.id)
@@ -319,6 +321,7 @@ export function useSidebarAreaContextMenu({
     allTags,
     areaTags,
     closeMenu,
+    confirm,
     currentPathname,
     menuState,
     onAfterMutation,
@@ -348,6 +351,7 @@ export function useSidebarProjectContextMenu({
   onRename: (project: Project) => void
 }) {
   const { t } = useTranslation()
+  const confirm = useConfirm()
   const [menuState, setMenuState] = useState<SidebarProjectContextMenuState | null>(null)
   const [actionError, setActionError] = useState<AppError | null>(null)
   const [projectTags, setProjectTags] = useState<Tag[]>([])
@@ -598,7 +602,7 @@ export function useSidebarProjectContextMenu({
                   onClick={() => {
                     void (async () => {
                       setActionError(null)
-                      const confirmed = confirm(t('project.deleteConfirm'))
+                      const confirmed = await confirm({ message: t('project.deleteConfirm'), variant: 'danger', confirmText: t('common.delete') })
                       if (!confirmed) return
 
                       const res = await window.api.project.delete(menuState.project.id)
@@ -841,6 +845,7 @@ export function useSidebarProjectContextMenu({
     persistProjectTags,
     persistProjectUpdate,
     projectTags,
+    confirm,
     t,
     tagsError,
     today,

@@ -9,6 +9,7 @@ type SelfTestResult = {
 type SelfTestWindow = Window & {
   __milestoForceTaskUpdateError?: boolean
   __milestoTaskUpdateDelayMs?: number
+  __milestoAutoConfirm?: boolean
   __milestoRunSelfTest?: () => Promise<SelfTestResult>
   __milestoRunSearchSmokeTest?: () => Promise<SelfTestResult>
   __milestoRunSidebarSelfTest?: () => Promise<SelfTestResult>
@@ -1603,10 +1604,11 @@ async function runSelfTest(): Promise<SelfTestResult> {
       throw new Error('Edit bottom bar: expected Search hidden when a task editor is open')
     }
 
-    const prevConfirmDelete = window.confirm
+    const selfTestWindow = getSelfTestWindow()
+    const prevAutoConfirm = selfTestWindow.__milestoAutoConfirm
     try {
       // Canceling delete should keep the editor open and the task intact.
-      window.confirm = () => false
+      selfTestWindow.__milestoAutoConfirm = false
       {
         const r = editDeleteBtn2.getBoundingClientRect()
         dispatchPointerDown(editDeleteBtn2, { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })
@@ -1637,7 +1639,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
       }
 
       // Confirming delete should soft-delete the task and close the editor.
-      window.confirm = () => true
+      selfTestWindow.__milestoAutoConfirm = true
       editDeleteBtn2.click()
       await waitFor('Edit-mode editor closed after delete', () => (getInlinePaper() ? null : true))
       await waitFor('Edit-mode focus restored to listbox after delete', () => {
@@ -1669,7 +1671,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
         throw new Error('Edit-mode delete: expected deleted task excluded from search results')
       }
     } finally {
-      window.confirm = prevConfirmDelete
+      selfTestWindow.__milestoAutoConfirm = prevAutoConfirm
     }
 
     // SearchPanel: Enter should navigate, select, and close.
@@ -2468,8 +2470,9 @@ async function runSelfTest(): Promise<SelfTestResult> {
     )
 
       // Project completion requires confirmation; auto-accept during self-test.
-      const prevConfirm = window.confirm
-      window.confirm = () => true
+      const stw = getSelfTestWindow()
+      const prevAutoConfirm2 = stw.__milestoAutoConfirm
+      stw.__milestoAutoConfirm = true
       try {
       const projectProgressControl = await waitFor('Project progress control (header)', () =>
         document.querySelector<HTMLButtonElement>('.page-header button.project-progress-control')
@@ -3167,7 +3170,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
         throw new Error('Logbook: drag-and-drop activator should not be present')
       }
     } finally {
-      window.confirm = prevConfirm
+      stw.__milestoAutoConfirm = prevAutoConfirm2
     }
   } catch (e) {
     failures.push(e instanceof Error ? e.message : String(e))
@@ -3514,8 +3517,9 @@ async function runProjectSelfTest(): Promise<SelfTestResult> {
       document.querySelector<HTMLElement>('div.task-scroll[role="listbox"][aria-label="Project tasks"]')
     )
 
-    const prevConfirm = window.confirm
-    window.confirm = () => true
+    const stw2 = getSelfTestWindow()
+    const prevAutoConfirm = stw2.__milestoAutoConfirm
+    stw2.__milestoAutoConfirm = true
     try {
       // Complete + reopen via overflow menu.
       const menuButton = await waitFor('Project overflow menu button (project self-test)', () =>
@@ -3857,7 +3861,7 @@ async function runProjectSelfTest(): Promise<SelfTestResult> {
         }
       }
     } finally {
-      window.confirm = prevConfirm
+      stw2.__milestoAutoConfirm = prevAutoConfirm
     }
   } catch (e) {
     failures.push(e instanceof Error ? e.message : String(e))
@@ -3928,8 +3932,9 @@ async function runTrashSelfTest(): Promise<SelfTestResult> {
       throw new Error(`trash self-test: task.delete standalone failed: ${standaloneDelete.error.code}: ${standaloneDelete.error.message}`)
     }
 
-    const prevConfirm = window.confirm
-    window.confirm = () => true
+    const stw3 = getSelfTestWindow()
+    const prevAutoConfirm = stw3.__milestoAutoConfirm
+    stw3.__milestoAutoConfirm = true
 
     try {
       const nav = await waitFor('Trash sidebar nav', () =>
@@ -4182,7 +4187,7 @@ async function runTrashSelfTest(): Promise<SelfTestResult> {
         throw new Error('trash self-test: expected restoreProject to fail after empty trash')
       }
     } finally {
-      window.confirm = prevConfirm
+      stw3.__milestoAutoConfirm = prevAutoConfirm
     }
   } catch (e) {
     failures.push(e instanceof Error ? e.message : String(e))

@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Component patterns, props, composition conventions for this project"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Local state, global state, Context patterns"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "Custom hooks and data fetching patterns"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Code standards and forbidden patterns"}

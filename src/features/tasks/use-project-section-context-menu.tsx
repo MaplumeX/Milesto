@@ -8,6 +8,7 @@ import type { EntityScope } from '../../../shared/schemas/common'
 import type { Project, ProjectSection } from '../../../shared/schemas/project'
 
 import { useAppEvents } from '../../app/AppEventsContext'
+import { useConfirm } from '../../contexts/ConfirmDialogContext'
 import { PopoverMenuGroup } from '../../components/PopoverMenuGroup'
 import { PopoverMenuItem } from '../../components/PopoverMenuItem'
 import { ConvertMenuIcon, DeleteMenuIcon, DoneMenuIcon, MoveMenuIcon, RestoreMenuIcon } from '../../components/popover-menu-icons'
@@ -49,6 +50,7 @@ export function useProjectSectionContextMenu({
   onSectionRemoved?: (sectionId: string) => void
 }) {
   const { t } = useTranslation()
+  const confirm = useConfirm()
   const navigate = useNavigate()
   const { bumpRevision } = useAppEvents()
   const [menuState, setMenuState] = useState<ProjectSectionContextMenuState | null>(null)
@@ -163,7 +165,7 @@ export function useProjectSectionContextMenu({
     if (!menuState) return
 
     setActionError(null)
-    const confirmed = confirm(t('section.deleteConfirm'))
+    const confirmed = await confirm({ message: t('section.deleteConfirm'), variant: 'danger', confirmText: t('common.delete') })
     if (!confirmed) return
 
     const res = await window.api.project.deleteSection(menuState.section.id)
@@ -175,14 +177,14 @@ export function useProjectSectionContextMenu({
     onSectionRemoved?.(menuState.section.id)
     await onMutate()
     closeMenu({ restoreFocus: false })
-  }, [closeMenu, menuState, onMutate, onSectionRemoved, t])
+  }, [closeMenu, confirm, menuState, onMutate, onSectionRemoved, t])
 
   const handleArchiveSection = useCallback(async () => {
     if (!menuState) return
     if (menuState.scope === 'trash') return
 
     setActionError(null)
-    const confirmed = confirm(t('section.archiveConfirm'))
+    const confirmed = await confirm({ message: t('section.archiveConfirm'), variant: 'default' })
     if (!confirmed) return
 
     const res = await window.api.project.archiveSection(menuState.section.id, menuState.scope)
@@ -194,7 +196,7 @@ export function useProjectSectionContextMenu({
     onSectionRemoved?.(menuState.section.id)
     await onMutate()
     closeMenu({ restoreFocus: false })
-  }, [closeMenu, menuState, onMutate, onSectionRemoved, t])
+  }, [closeMenu, confirm, menuState, onMutate, onSectionRemoved, t])
 
   const handleReopenSection = useCallback(async () => {
     if (!menuState) return

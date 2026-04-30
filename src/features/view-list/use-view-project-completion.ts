@@ -5,6 +5,7 @@ import type { AppError } from '../../../shared/app-error'
 import type { ViewListProjectItem } from '../../../shared/schemas/view-list'
 
 import { useAppEvents } from '../../app/AppEventsContext'
+import { useConfirm } from '../../contexts/ConfirmDialogContext'
 
 export function useViewProjectCompletion({
   setError,
@@ -14,12 +15,16 @@ export function useViewProjectCompletion({
   refresh: () => Promise<void>
 }) {
   const { t } = useTranslation()
+  const confirm = useConfirm()
   const { bumpRevision } = useAppEvents()
 
   return useCallback(
     async (project: ViewListProjectItem) => {
       const openCount = Math.max(0, project.total_count - project.done_count)
-      const confirmed = window.confirm(t('project.completeConfirm', { count: openCount }))
+      const confirmed = await confirm({
+        message: t('project.completeConfirm', { count: openCount }),
+        variant: 'default',
+      })
       if (!confirmed) return
 
       const res = await window.api.project.complete(project.id)
@@ -31,6 +36,6 @@ export function useViewProjectCompletion({
       bumpRevision()
       await refresh()
     },
-    [bumpRevision, refresh, setError, t]
+    [bumpRevision, refresh, setError, t, confirm]
   )
 }

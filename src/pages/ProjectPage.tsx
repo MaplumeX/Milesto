@@ -13,6 +13,7 @@ import type { Project, ProjectSection } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
 import type { TaskListItem } from '../../shared/schemas/task-list'
 import { useAppEvents } from '../app/AppEventsContext'
+import { useConfirm } from '../contexts/ConfirmDialogContext'
 import { PopoverMenuGroup } from '../components/PopoverMenuGroup'
 import { PopoverMenuItem } from '../components/PopoverMenuItem'
 import {
@@ -57,6 +58,7 @@ type ProjectMenuState = {
 
 export function ProjectPage() {
   const { t } = useTranslation()
+  const confirm = useConfirm()
   const { revision, bumpRevision } = useAppEvents()
   const { projectId } = useParams<{ projectId: string }>()
   const navigate = useNavigate()
@@ -449,7 +451,7 @@ export function ProjectPage() {
                       return
                     }
 
-                    const confirmed = confirm(t('project.completeConfirm', { count: openCount }))
+                    const confirmed = await confirm({ message: t('project.completeConfirm', { count: openCount }), variant: 'default' })
                     if (!confirmed) return
 
                     const res = await window.api.project.complete(project.id, projectScope)
@@ -1075,6 +1077,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
   ref: ForwardedRef<HTMLDivElement>
 ) {
   const { t } = useTranslation()
+  const confirm = useConfirm()
   type RootKey = 'complete' | 'plan' | 'due' | 'move' | 'tags' | 'delete'
   const isTrashScope = scope === 'trash'
 
@@ -1187,7 +1190,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                       return
                     }
 
-                    const confirmed = confirm(t('project.completeConfirm', { count: openTaskCount }))
+                    const confirmed = await confirm({ message: t('project.completeConfirm', { count: openTaskCount }), variant: 'default' })
                     if (!confirmed) return
                     const res = await window.api.project.complete(project.id, scope)
                     if (!res.ok) {
@@ -1209,7 +1212,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                     void (async () => {
                       onError(null)
 
-                      const confirmed = confirm(t('project.cancelConfirm', { count: openTaskCount }))
+                      const confirmed = await confirm({ message: t('project.cancelConfirm', { count: openTaskCount }), variant: 'danger', confirmText: t('common.delete') })
                       if (!confirmed) return
 
                       const res = await window.api.project.cancel(project.id, scope)
@@ -1275,7 +1278,7 @@ const ProjectMenu = forwardRef(function ProjectMenu(
                     void (async () => {
                       onError(null)
 
-                      const confirmed = confirm(t('project.deleteConfirm'))
+                      const confirmed = await confirm({ message: t('project.deleteConfirm'), variant: 'danger', confirmText: t('common.delete') })
                       if (!confirmed) return
 
                       const res = await window.api.project.delete(project.id)

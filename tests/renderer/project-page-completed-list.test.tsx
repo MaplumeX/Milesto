@@ -269,8 +269,6 @@ describe('ProjectPage completed list', () => {
   it('exposes cancel project in the header overflow menu for open projects', async () => {
     const user = userEvent.setup()
     const api = (window as unknown as { api: WindowApi }).api
-    const confirmSpy = vi.fn(() => true)
-    vi.stubGlobal('confirm', confirmSpy)
 
     api.project.getDetail = vi.fn<WindowApi['project']['getDetail']>(async () =>
       ok({
@@ -350,11 +348,8 @@ describe('ProjectPage completed list', () => {
     }
     await user.click(cancelButton)
 
-    expect(confirmSpy).toHaveBeenCalledTimes(1)
     expect(
       (api.project as typeof api.project & { cancel: ReturnType<typeof vi.fn> }).cancel
     ).toHaveBeenCalledWith('project-1', 'active')
-
-    vi.unstubAllGlobals()
   })
 })

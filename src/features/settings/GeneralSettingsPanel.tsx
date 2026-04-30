@@ -18,6 +18,7 @@ import {
 
 import i18n from '../../i18n/i18n'
 import { applyAppFontSize } from '../../app/app-font-size'
+import { useConfirm } from '../../contexts/ConfirmDialogContext'
 
 function getFontSizeStepLabel(t: (key: string) => string, step: FontSizeStep): string {
   switch (step) {
@@ -40,6 +41,7 @@ function getFontSizeStepLabel(t: (key: string) => string, step: FontSizeStep): s
 
 export function GeneralSettingsPanel() {
   const { t } = useTranslation()
+  const confirm = useConfirm()
   const fontSizeRequestIdRef = useRef(0)
   const [version, setVersion] = useState<string>('')
   const [userDataPath, setUserDataPath] = useState<string>('')
@@ -283,17 +285,15 @@ export function GeneralSettingsPanel() {
             <button
               type="button"
               className="button button-ghost"
-              onClick={() => {
-                const confirmed = confirm(t('settings.resetConfirm'))
+              onClick={async () => {
+                const confirmed = await confirm({ message: t('settings.resetConfirm'), variant: 'danger', confirmText: t('common.delete') })
                 if (!confirmed) return
 
-                void (async () => {
-                  const res = await window.api.data.resetAllData()
-                  if (!res.ok) {
-                    setError(res.error)
-                    return
-                  }
-                })()
+                const res = await window.api.data.resetAllData()
+                if (!res.ok) {
+                  setError(res.error)
+                  return
+                }
               }}
             >
               {t('settings.resetAllData')}

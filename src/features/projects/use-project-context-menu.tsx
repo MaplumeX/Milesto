@@ -9,6 +9,7 @@ import type { Area } from '../../../shared/schemas/area'
 import type { Tag } from '../../../shared/schemas/tag'
 
 import { useAppEvents } from '../../app/AppEventsContext'
+import { useConfirm } from '../../contexts/ConfirmDialogContext'
 import { PopoverMenuGroup } from '../../components/PopoverMenuGroup'
 import { PopoverMenuItem } from '../../components/PopoverMenuItem'
 import {
@@ -54,6 +55,7 @@ export function useProjectContextMenu({
   onRename?: (projectId: string) => void
 } = {}) {
   const { t } = useTranslation()
+  const confirm = useConfirm()
   const navigate = useNavigate()
   const location = useLocation()
   const { bumpRevision } = useAppEvents()
@@ -321,7 +323,7 @@ export function useProjectContextMenu({
                   onClick={() => {
                     void (async () => {
                       setActionError(null)
-                      const confirmed = confirm(t('project.deleteConfirm'))
+                      const confirmed = await confirm({ message: t('project.deleteConfirm'), variant: 'danger', confirmText: t('common.delete') })
                       if (!confirmed) return
 
                       const res = await window.api.project.delete(menuState.project.id)
@@ -575,6 +577,7 @@ export function useProjectContextMenu({
     persistProjectTags,
     persistProjectUpdate,
     projectTags,
+    confirm,
     t,
     tagsError,
     today,

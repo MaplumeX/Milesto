@@ -16,6 +16,14 @@ vi.mock('react-i18next', () => {
   }
 })
 
+// Auto-confirm in tests so components using useConfirm() work without a Provider.
+vi.mock('../../src/contexts/ConfirmDialogContext', () => {
+  return {
+    ConfirmDialogProvider: ({ children }: { children: ReactNode }) => children,
+    useConfirm: () => () => Promise.resolve(true),
+  }
+})
+
 // Provide a default typed window.api for component tests.
 // Individual tests can override specific methods via vi.fn().
 beforeEach(() => {

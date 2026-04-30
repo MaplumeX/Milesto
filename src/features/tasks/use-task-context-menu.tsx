@@ -11,6 +11,7 @@ import type { Tag } from '../../../shared/schemas/tag'
 import type { TaskListItem } from '../../../shared/schemas/task-list'
 
 import { useAppEvents } from '../../app/AppEventsContext'
+import { useConfirm } from '../../contexts/ConfirmDialogContext'
 import { PopoverMenuGroup } from '../../components/PopoverMenuGroup'
 import { PopoverMenuItem } from '../../components/PopoverMenuItem'
 import {
@@ -63,6 +64,7 @@ export function useTaskContextMenu({
   enabled?: boolean
 }) {
   const { t } = useTranslation()
+  const confirm = useConfirm()
   const navigate = useNavigate()
   const { bumpRevision } = useAppEvents()
   const { requestCloseTask, selectTask } = useTaskSelection()
@@ -238,7 +240,7 @@ export function useTaskContextMenu({
 
   const persistTaskDelete = useCallback(async () => {
     if (!menuState) return
-    const confirmed = confirm(t('task.deleteConfirm'))
+    const confirmed = await confirm({ message: t('task.deleteConfirm'), variant: 'danger', confirmText: t('common.delete') })
     if (!confirmed) return
 
     const res = await window.api.task.delete(menuState.task.id)
@@ -249,7 +251,7 @@ export function useTaskContextMenu({
 
     bumpRevision()
     closeMenu({ restoreFocus: false })
-  }, [bumpRevision, closeMenu, menuState, t])
+  }, [bumpRevision, closeMenu, confirm, menuState, t])
 
   const persistTaskRemoveFromProject = useCallback(async () => {
     if (!menuState) return

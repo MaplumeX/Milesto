@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { AppError } from '../../shared/app-error'
 import type { TrashEntry } from '../../shared/schemas/trash'
 import { useAppEvents } from '../app/AppEventsContext'
+import { useConfirm } from '../contexts/ConfirmDialogContext'
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 import { TrashList } from '../features/trash/TrashList'
 import { buildProjectPath } from '../lib/entity-scope'
@@ -17,6 +18,7 @@ function resolveSelectedEntryId(entries: TrashEntry[], preferredId: string | nul
 
 export function TrashPage() {
   const { t } = useTranslation()
+  const confirm = useConfirm()
   const { revision, bumpRevision } = useAppEvents()
   const navigate = useNavigate()
   const { closeTask, openTask, openTaskId, requestCloseTask, selectTask } = useTaskSelection()
@@ -109,7 +111,8 @@ export function TrashPage() {
 
   const handleEmpty = useCallback(async () => {
     if (!hasEntries) return
-    if (!window.confirm(t('trash.emptyConfirm'))) return
+    const confirmed = await confirm({ message: t('trash.emptyConfirm'), variant: 'danger', confirmText: t('common.delete') })
+    if (!confirmed) return
     if (!(await requestCloseTask())) return
 
     setIsEmptying(true)
@@ -124,7 +127,7 @@ export function TrashPage() {
     bumpRevision()
     await refresh(null)
     setIsEmptying(false)
-  }, [bumpRevision, hasEntries, refresh, requestCloseTask, t])
+  }, [bumpRevision, confirm, hasEntries, refresh, requestCloseTask, t])
 
   return (
     <div className="page">

@@ -13,6 +13,7 @@ import type { TaskListItem } from '../../shared/schemas/task-list'
 import { taskListIdArea } from '../../shared/task-list-ids'
 
 import { useAppEvents } from '../app/AppEventsContext'
+import { useConfirm } from '../contexts/ConfirmDialogContext'
 import { PopoverMenuItem } from '../components/PopoverMenuItem'
 import { DeleteMenuIcon, TagMenuIcon } from '../components/popover-menu-icons'
 import { ProjectRow, type ProjectRowProject } from '../features/projects/ProjectRow'
@@ -24,6 +25,7 @@ import { useTaskTagFilter } from '../features/tasks/use-task-tag-filter'
 
 export function AreaPage() {
   const { t } = useTranslation()
+  const confirm = useConfirm()
   const { revision, bumpRevision } = useAppEvents()
   const { areaId } = useParams<{ areaId: string }>()
   const navigate = useNavigate()
@@ -274,7 +276,7 @@ export function AreaPage() {
       }
 
       const openCount = Math.max(0, counts.total_count - counts.done_count)
-      const confirmed = confirm(t('project.completeConfirm', { count: openCount }))
+      const confirmed = await confirm({ message: t('project.completeConfirm', { count: openCount }), variant: 'default' })
       if (!confirmed) return
 
       const res = await window.api.project.complete(p.id)
@@ -284,7 +286,7 @@ export function AreaPage() {
       }
       await mutateAndRefresh()
     },
-    [projects, projectProgress, mutateAndRefresh, t]
+    [projects, projectProgress, mutateAndRefresh, t, confirm]
   )
 
   const handleProjectContextMenu = useCallback(
@@ -569,6 +571,7 @@ const AreaMenu = forwardRef(function AreaMenu(
   ref: ForwardedRef<HTMLDivElement>
 ) {
   const { t } = useTranslation()
+  const confirm = useConfirm()
   type View = 'root' | 'tags'
   type RootKey = 'tags' | 'delete'
 
@@ -658,7 +661,7 @@ const AreaMenu = forwardRef(function AreaMenu(
                   void (async () => {
                     onSetPageError(null)
 
-                    const confirmed = confirm(t('area.deleteConfirm'))
+                    const confirmed = await confirm({ message: t('area.deleteConfirm'), variant: 'danger', confirmText: t('common.delete') })
                     if (!confirmed) return
 
                     const res = await window.api.area.delete(areaId)

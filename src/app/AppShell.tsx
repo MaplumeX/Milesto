@@ -26,6 +26,7 @@ import type { EntityScope } from '../../shared/schemas/common'
 import type { Project } from '../../shared/schemas/project'
 
 import { useAppEvents } from './AppEventsContext'
+import { ConfirmDialogProvider, useConfirm } from '../contexts/ConfirmDialogContext'
 import { ContentScrollProvider } from './ContentScrollContext'
 import { SidebarNavItem } from './SidebarNavItem'
 import { type OpenEditorHandle, TaskSelectionProvider } from '../features/tasks/TaskSelectionContext'
@@ -387,10 +388,12 @@ export function AppShell() {
     contentScrollRef.current?.focus()
   }, [])
 
+  const confirm = useConfirm()
+
   const handleDeleteOpenTask = useCallback(async () => {
     if (!openTaskId) return
 
-    const confirmed = confirm(t('task.deleteConfirm'))
+    const confirmed = await confirm({ message: t('task.deleteConfirm'), variant: 'danger', confirmText: t('common.delete') })
     if (!confirmed) return
 
     const handle = openEditorHandleRef.current
@@ -417,7 +420,7 @@ export function AppShell() {
     window.setTimeout(() => {
       focusActiveTaskListbox()
     }, 0)
-  }, [bumpRevision, focusActiveTaskListbox, openTaskId, t])
+  }, [bumpRevision, confirm, focusActiveTaskListbox, openTaskId, t])
 
   async function handleAddTask() {
     // Task titles can be empty strings; we want a new task to start blank.
@@ -1523,6 +1526,7 @@ export function AppShell() {
   ) : null
 
   return (
+    <ConfirmDialogProvider>
     <TaskSelectionProvider
       value={{
         selectedTaskId,
@@ -1756,6 +1760,7 @@ export function AppShell() {
       </div>
       </ContentScrollProvider>
     </TaskSelectionProvider>
+    </ConfirmDialogProvider>
   )
 }
 
