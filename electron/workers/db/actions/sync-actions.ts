@@ -56,17 +56,20 @@ export function createSyncActions(db: Database.Database): Record<string, DbActio
         ['project_id', 'project_id'], ['section_id', 'section_id'], ['area_id', 'area_id'],
         ['scheduled_at', 'scheduled_at'], ['due_at', 'due_at'],
         ['created_at', 'created_at'], ['completed_at', 'completed_at'],
+        ['purged_at', 'purged_at'],
       ])
 
       const projects = queryTable(db, 'projects', lastSyncAt, [
         ['id', 'id'], ['title', 'title'], ['notes', 'notes'],
-        ['area_id', 'area_id'], ['status', 'status'],
+        ['area_id', 'area_id'], ['status', 'status'], ['position', 'position'],
         ['scheduled_at', 'scheduled_at'], ['is_someday', 'is_someday'], ['due_at', 'due_at'],
         ['created_at', 'created_at'], ['completed_at', 'completed_at'],
+        ['purged_at', 'purged_at'],
       ])
 
       const areas = queryTable(db, 'areas', lastSyncAt, [
-        ['id', 'id'], ['title', 'title'], ['notes', 'notes'], ['created_at', 'created_at'],
+        ['id', 'id'], ['title', 'title'], ['notes', 'notes'], ['position', 'position'],
+        ['created_at', 'created_at'],
       ])
 
       const tags = queryTable(db, 'tags', lastSyncAt, [
@@ -76,11 +79,12 @@ export function createSyncActions(db: Database.Database): Record<string, DbActio
       const checklistItems = queryTable(db, 'task_checklist_items', lastSyncAt, [
         ['id', 'id'], ['task_id', 'task_id'], ['title', 'title'],
         ['done', 'done'], ['position', 'position'], ['created_at', 'created_at'],
-      ])
+      ], 'checklist_item')
 
       const projectSections = queryTable(db, 'project_sections', lastSyncAt, [
         ['id', 'id'], ['project_id', 'project_id'], ['title', 'title'],
         ['position', 'position'], ['status', 'status'], ['created_at', 'created_at'],
+        ['purged_at', 'purged_at'],
       ])
 
       const listPositions = db.prepare(`
@@ -184,11 +188,13 @@ function queryTable(
   db: Database.Database,
   table: string,
   lastSyncAt: string,
-  fields: Array<[string, string]>
+  fields: Array<[string, string]>,
+  entityType?: string
 ): Array<Record<string, unknown>> {
   const jsonFields = fields.map(([alias, col]) => `'${alias}', ${col}`).join(', ')
+  const et = entityType ?? table.slice(0, -1)
   const rows = db.prepare(`
-    SELECT '${table.slice(0, -1)}' as entity_type, id as entity_id, updated_at, deleted_at,
+    SELECT '${et}' as entity_type, id as entity_id, updated_at, deleted_at,
       json_object(${jsonFields}) as payload
     FROM ${table} WHERE updated_at > ?
   `).all(lastSyncAt) as Array<{ entity_type: string; entity_id: string; updated_at: string; deleted_at: string | null; payload: string }>
@@ -211,21 +217,21 @@ function applyRemoteTask(
   if (!lwwCheck(db, 'tasks', id, updatedAt)) return { applied: false, reason: 'local_is_newer' }
 
   db.prepare(`
-    INSERT INTO tasks (id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at)
-    VALUES (:id, :title, :notes, :status, :is_inbox, :is_someday, :project_id, :section_id, :area_id, :scheduled_at, :due_at, :created_at, :updated_at, :completed_at, :deleted_at)
+    INSERT INTO tasks (id, title, notes, status, is_inbox, is_someday, project_id, section_id, area_id, scheduled_at, due_at, created_at, updated_at, completed_at, deleted_at, purged_at)
+    VALUES (:id, :title, :notes, :status, :is_inbox, :is_someday, :project_id, :section_id, :area_id, :scheduled_at, :due_at, :created_at, :updated_at, :completed_at, :deleted_at, :purged_at)
     ON CONFLICT(id) DO UPDATE SET
       title = excluded.title, notes = excluded.notes, status = excluded.status,
       is_inbox = excluded.is_inbox, is_someday = excluded.is_someday,
       project_id = excluded.project_id, section_id = excluded.section_id, area_id = excluded.area_id,
       scheduled_at = excluded.scheduled_at, due_at = excluded.due_at,
-      completed_at = excluded.completed_at, deleted_at = excluded.deleted_at, updated_at = excluded.updated_at
+      completed_at = excluded.completed_at, deleted_at = excluded.deleted_at, purged_at = excluded.purged_at, updated_at = excluded.updated_at
   `).run({
     id, title: payload.title, notes: payload.notes || '', status: payload.status,
     is_inbox: payload.is_inbox ?? 0, is_someday: payload.is_someday ?? 0,
     project_id: payload.project_id, section_id: payload.section_id, area_id: payload.area_id,
     scheduled_at: payload.scheduled_at, due_at: payload.due_at,
     created_at: payload.created_at, updated_at: updatedAt,
-    completed_at: payload.completed_at, deleted_at: deletedAt,
+    completed_at: payload.completed_at, deleted_at: deletedAt, purged_at: payload.purged_at ?? null,
   })
 
   return { applied: true }
@@ -241,19 +247,19 @@ function applyRemoteProject(
   if (!lwwCheck(db, 'projects', id, updatedAt)) return { applied: false, reason: 'local_is_newer' }
 
   db.prepare(`
-    INSERT INTO projects (id, title, notes, area_id, status, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at)
-    VALUES (:id, :title, :notes, :area_id, :status, :scheduled_at, :is_someday, :due_at, :created_at, :updated_at, :completed_at, :deleted_at)
+    INSERT INTO projects (id, title, notes, area_id, status, position, scheduled_at, is_someday, due_at, created_at, updated_at, completed_at, deleted_at, purged_at)
+    VALUES (:id, :title, :notes, :area_id, :status, :position, :scheduled_at, :is_someday, :due_at, :created_at, :updated_at, :completed_at, :deleted_at, :purged_at)
     ON CONFLICT(id) DO UPDATE SET
       title = excluded.title, notes = excluded.notes, area_id = excluded.area_id,
-      status = excluded.status, scheduled_at = excluded.scheduled_at, is_someday = excluded.is_someday,
+      status = excluded.status, position = excluded.position, scheduled_at = excluded.scheduled_at, is_someday = excluded.is_someday,
       due_at = excluded.due_at, completed_at = excluded.completed_at,
-      deleted_at = excluded.deleted_at, updated_at = excluded.updated_at
+      deleted_at = excluded.deleted_at, purged_at = excluded.purged_at, updated_at = excluded.updated_at
   `).run({
     id, title: payload.title, notes: payload.notes || '', area_id: payload.area_id,
-    status: payload.status || 'open', scheduled_at: payload.scheduled_at,
+    status: payload.status || 'open', position: payload.position ?? null, scheduled_at: payload.scheduled_at,
     is_someday: payload.is_someday ?? 0, due_at: payload.due_at,
     created_at: payload.created_at, updated_at: updatedAt,
-    completed_at: payload.completed_at, deleted_at: deletedAt,
+    completed_at: payload.completed_at, deleted_at: deletedAt, purged_at: payload.purged_at ?? null,
   })
 
   return { applied: true }
@@ -269,13 +275,13 @@ function applyRemoteArea(
   if (!lwwCheck(db, 'areas', id, updatedAt)) return { applied: false, reason: 'local_is_newer' }
 
   db.prepare(`
-    INSERT INTO areas (id, title, notes, created_at, updated_at, deleted_at)
-    VALUES (:id, :title, :notes, :created_at, :updated_at, :deleted_at)
+    INSERT INTO areas (id, title, notes, position, created_at, updated_at, deleted_at)
+    VALUES (:id, :title, :notes, :position, :created_at, :updated_at, :deleted_at)
     ON CONFLICT(id) DO UPDATE SET
-      title = excluded.title, notes = excluded.notes,
+      title = excluded.title, notes = excluded.notes, position = excluded.position,
       deleted_at = excluded.deleted_at, updated_at = excluded.updated_at
   `).run({
-    id, title: payload.title, notes: payload.notes || '',
+    id, title: payload.title, notes: payload.notes || '', position: payload.position ?? null,
     created_at: payload.created_at, updated_at: updatedAt, deleted_at: deletedAt,
   })
 
@@ -339,15 +345,15 @@ function applyRemoteProjectSection(
   if (!lwwCheck(db, 'project_sections', id, updatedAt)) return { applied: false, reason: 'local_is_newer' }
 
   db.prepare(`
-    INSERT INTO project_sections (id, project_id, title, position, status, created_at, updated_at, deleted_at)
-    VALUES (:id, :project_id, :title, :position, :status, :created_at, :updated_at, :deleted_at)
+    INSERT INTO project_sections (id, project_id, title, position, status, created_at, updated_at, deleted_at, purged_at)
+    VALUES (:id, :project_id, :title, :position, :status, :created_at, :updated_at, :deleted_at, :purged_at)
     ON CONFLICT(id) DO UPDATE SET
       project_id = excluded.project_id, title = excluded.title, position = excluded.position,
       status = excluded.status,
-      deleted_at = excluded.deleted_at, updated_at = excluded.updated_at
+      deleted_at = excluded.deleted_at, purged_at = excluded.purged_at, updated_at = excluded.updated_at
   `).run({
     id, project_id: payload.project_id, title: payload.title, position: payload.position,
-    status: payload.status ?? 'open', created_at: payload.created_at, updated_at: updatedAt, deleted_at: deletedAt,
+    status: payload.status ?? 'open', created_at: payload.created_at, updated_at: updatedAt, deleted_at: deletedAt, purged_at: payload.purged_at ?? null,
   })
 
   return { applied: true }
