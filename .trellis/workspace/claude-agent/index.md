@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 19
-- **Last Active**: 2026-04-29
+- **Total Sessions**: 20
+- **Last Active**: 2026-04-30
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~684 | Active |
+| `journal-1.md` | ~717 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 20 | 2026-04-30 | Stabilize project progress indicator | `01c543d` | `master` |
 | 19 | 2026-04-29 | Fix project and area title edit focus | `eb1dd33` | `master` |
 | 18 | 2026-04-27 | Fix release DB test SQLite ABI mismatch | `5a91f0e` | `master` |
 | 17 | 2026-04-27 | Fix npm lockfile CI install failure | `94b437a` | `master` |

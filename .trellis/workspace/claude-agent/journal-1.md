@@ -682,3 +682,36 @@ Fixed Project/Area title edit focus after create and route switching; added rend
 ### Next Steps
 
 - None - task complete
+
+
+## Session 20: Stabilize project progress indicator
+
+**Date**: 2026-04-30
+**Task**: Stabilize project progress indicator
+**Branch**: `master`
+
+### Summary
+
+Reworked project progress indicator rendering to use stable SVG sector geometry with RAF-driven progress animation, preserving exact angles and avoiding cross-platform offset or shrink artifacts.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `01c543d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
