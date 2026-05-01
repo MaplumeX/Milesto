@@ -22,7 +22,7 @@ import { formatLocalDate, parseLocalDate } from '../../lib/dates'
 import { buildProjectPath } from '../../lib/entity-scope'
 import { getLocalToday } from '../../lib/use-local-today'
 import { getTaskSchedulePreviewLabel, getTaskTagPreview } from './task-metadata'
-import { CalendarIcon, ChevronDownIcon, CircleXIcon, ClockIcon, SunIcon, TagIcon, TodayIcon } from './task-metadata-icons'
+import { CalendarIcon, CircleXIcon, ClockIcon, SunIcon, TagIcon, TodayIcon } from './task-metadata-icons'
 import { TaskEditorProjectActions } from './TaskEditorProjectActions'
 import { TagPicker } from '../tags/TagPicker'
 
@@ -1368,101 +1368,135 @@ export const TaskEditorPaper = forwardRef<
               ) : null}
 
               <div className="task-inline-metadata-band" data-task-inline-meta-band="true">
-                {schedulePreviewLabel ? (
-                  <div
-                    className="task-inline-chip task-inline-chip--plan"
-                    data-task-inline-meta-kind="schedule"
-                  >
+                <div className="task-inline-metadata-set-values">
+                  {schedulePreviewLabel ? (
+                    <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                      <button
+                        type="button"
+                        className="task-inline-meta-value"
+                        data-task-inline-meta-kind="schedule"
+                        onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
+                      >
+                        <CalendarIcon className="task-inline-meta-value-icon" />
+                        <span className="task-inline-meta-value-text">{schedulePreviewLabel}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="task-inline-meta-clear"
+                        aria-label={t('common.clear')}
+                        onClick={() => {
+                          const next = { ...draft, scheduled_at: null, is_someday: false }
+                          setDraft(next)
+                          scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {draft.due_at ? (
+                    <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                      <button
+                        type="button"
+                        className="task-inline-meta-value"
+                        data-task-inline-meta-kind="due"
+                        onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}
+                      >
+                        <ClockIcon className="task-inline-meta-value-icon" />
+                        <span className="task-inline-meta-value-text">{draft.due_at}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="task-inline-meta-clear"
+                        aria-label={t('common.clear')}
+                        onClick={() => {
+                          const next = { ...draft, due_at: null }
+                          setDraft(next)
+                          scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {selectedTagIds.size > 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                      <button
+                        ref={tagsButtonRef}
+                        type="button"
+                        className="task-inline-meta-value"
+                        data-task-inline-meta-kind="tags"
+                        onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
+                      >
+                        <TagIcon className="task-inline-meta-value-icon" />
+                        <span className="task-inline-meta-value-text">{tagsPreviewLabel}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="task-inline-meta-clear"
+                        aria-label={t('common.clear')}
+                        onClick={() => {
+                          persistTags([])
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="task-inline-metadata-empty-triggers">
+                  {!schedulePreviewLabel ? (
                     <button
                       type="button"
-                      className="task-inline-chip-main"
+                      className="task-inline-meta-trigger"
+                      data-task-inline-meta-kind="schedule"
                       onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
                     >
-                      <CalendarIcon className="task-inline-chip-icon" />
-                      {schedulePreviewLabel}
-                      <ChevronDownIcon className="task-inline-chip-chevron" />
+                      <CalendarIcon className="task-inline-meta-trigger-icon" />
+                      {t('common.schedule')}
                     </button>
-                  </div>
-                ) : (
-                  <div className="task-inline-chip task-inline-chip--placeholder">
-                    <button
-                      type="button"
-                      className="task-inline-chip-main"
-                      onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
-                    >
-                      + {t('common.schedule')}
-                    </button>
-                  </div>
-                )}
+                  ) : null}
 
-                {draft.due_at ? (
-                  <div
-                    className="task-inline-chip task-inline-chip--due"
-                    data-task-inline-meta-kind="due"
-                  >
+                  {!draft.due_at ? (
                     <button
                       type="button"
-                      className="task-inline-chip-main"
+                      className="task-inline-meta-trigger"
+                      data-task-inline-meta-kind="due"
                       onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}
                     >
-                      <ClockIcon className="task-inline-chip-icon" />
-                      {draft.due_at}
-                      <ChevronDownIcon className="task-inline-chip-chevron" />
+                      <ClockIcon className="task-inline-meta-trigger-icon" />
+                      {t('taskEditor.dueLabel')}
                     </button>
-                  </div>
-                ) : (
-                  <div className="task-inline-chip task-inline-chip--placeholder">
-                    <button
-                      type="button"
-                      className="task-inline-chip-main"
-                      onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}
-                    >
-                      + {t('taskEditor.dueLabel')}
-                    </button>
-                  </div>
-                )}
+                  ) : null}
 
-                {selectedTagIds.size > 0 ? (
-                  <div
-                    className="task-inline-chip task-inline-chip--summary"
-                    data-task-inline-meta-kind="tags"
-                  >
+                  {selectedTagIds.size === 0 ? (
                     <button
                       ref={tagsButtonRef}
                       type="button"
-                      className="task-inline-chip-main"
+                      className="task-inline-meta-trigger"
+                      data-task-inline-meta-kind="tags"
                       onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
                     >
-                      <TagIcon className="task-inline-chip-icon" />
-                      {tagsPreviewLabel}
-                      <ChevronDownIcon className="task-inline-chip-chevron" />
+                      <TagIcon className="task-inline-meta-trigger-icon" />
+                      {t('taskEditor.tagsLabel')}
                     </button>
-                  </div>
-                ) : (
-                  <div className="task-inline-chip task-inline-chip--placeholder">
-                    <button
-                      ref={tagsButtonRef}
-                      type="button"
-                      className="task-inline-chip-main"
-                      onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
-                    >
-                      + {t('taskEditor.tagsLabel')}
-                    </button>
-                  </div>
-                )}
+                  ) : null}
 
-                {checklist.length === 0 && !isChecklistExpanded ? (
-                  <div className="task-inline-chip task-inline-chip--placeholder">
+                  {checklist.length === 0 && !isChecklistExpanded ? (
                     <button
                       ref={checklistActionButtonRef}
                       type="button"
-                      className="task-inline-chip-main"
+                      className="task-inline-meta-trigger"
+                      data-task-inline-meta-kind="checklist"
                       onClick={() => openChecklistAndFocus()}
                     >
-                      + {t('taskEditor.checklistLabel')}
+                      {t('taskEditor.checklistLabel')}
                     </button>
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
               </div>
 
             </div>

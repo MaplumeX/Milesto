@@ -586,11 +586,9 @@ function assertInlineCalendarPopover(popover: HTMLElement, label: string) {
 async function setScheduleToSomeday(paper: HTMLElement, label: string, taskId: string) {
   const rightBar = getInlineActionBarRight(paper)
   const scheduleBtn = findButtonByText(rightBar, 'Schedule')
-  const scheduledChip = Array.from(paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find((b) =>
-    ((b.textContent ?? '').trim() || '').startsWith('Scheduled:')
-  )
+  const scheduledValue = paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="schedule"]')
 
-  const trigger = scheduleBtn ?? scheduledChip
+  const trigger = scheduleBtn ?? scheduledValue
   if (!trigger) throw new Error(`${label}: missing Schedule trigger`)
   // Try to position the trigger near the viewport bottom to exercise popover flip.
   const contentScroller = getContentScroller()
@@ -614,12 +612,10 @@ async function setScheduleToSomeday(paper: HTMLElement, label: string, taskId: s
   contentScroller.scrollTop = prevScrollTop
   await sleep(80)
 
-  await waitFor(`${label}: Scheduled chip shows Someday`, () => {
-    const chip = Array.from(paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find((b) =>
-      ((b.textContent ?? '').trim() || '').startsWith('Scheduled:')
-    )
-    if (!chip) return null
-    return (chip.textContent ?? '').includes('Someday') ? true : null
+  await waitFor(`${label}: Scheduled value shows Someday`, () => {
+    const value = paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="schedule"]')
+    if (!value) return null
+    return (value.textContent ?? '').includes('Someday') ? true : null
   })
 
   // Wait for persistence (debounced + serialized save) via task detail, not UI copy.
@@ -634,11 +630,9 @@ async function setScheduleToSomeday(paper: HTMLElement, label: string, taskId: s
 async function setDueToToday(paper: HTMLElement, label: string, today: string, taskId: string) {
   const rightBar = getInlineActionBarRight(paper)
   const dueBtn = findButtonByText(rightBar, 'Due')
-  const dueChip = Array.from(paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find((b) =>
-    ((b.textContent ?? '').trim() || '').startsWith('Due:')
-  )
+  const dueValue = paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="due"]')
 
-  const trigger = dueBtn ?? dueChip
+  const trigger = dueBtn ?? dueValue
   if (!trigger) throw new Error(`${label}: missing Due trigger`)
 
   // Try to position the trigger near the viewport bottom to exercise popover flip.
@@ -666,12 +660,10 @@ async function setDueToToday(paper: HTMLElement, label: string, today: string, t
   contentScroller.scrollTop = prevScrollTop
   await sleep(80)
 
-  await waitFor(`${label}: Due chip shows today`, () => {
-    const chip = Array.from(paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find((b) =>
-      ((b.textContent ?? '').trim() || '').startsWith('Due:')
-    )
-    if (!chip) return null
-    return (chip.textContent ?? '').includes(today) ? true : null
+  await waitFor(`${label}: Due value shows today`, () => {
+    const value = paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="due"]')
+    if (!value) return null
+    return (value.textContent ?? '').includes(today) ? true : null
   })
 
   // Wait for persistence (debounced + serialized save) via task detail, not UI copy.
@@ -764,18 +756,14 @@ async function openEditorByDoubleClick(params: {
 
   const bar = getInlineActionBarRight(paper)
   const scheduleBtn = findButtonByText(bar, 'Schedule')
-  const scheduledChip = Array.from(
-    paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')
-  ).find((b) => ((b.textContent ?? '').trim() || '').startsWith('Scheduled:'))
-  if (!scheduleBtn && !scheduledChip) {
+  const scheduledValue = paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="schedule"]')
+  if (!scheduleBtn && !scheduledValue) {
     throw new Error(`${label}: missing Schedule affordance`)
   }
   if (!findButtonByText(bar, 'Tags')) throw new Error(`${label}: missing Tags button`)
   const dueBtn = findButtonByText(bar, 'Due')
-  const dueChip = Array.from(paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find((b) =>
-    ((b.textContent ?? '').trim() || '').startsWith('Due:')
-  )
-  if (!dueBtn && !dueChip) {
+  const dueValue = paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="due"]')
+  if (!dueBtn && !dueValue) {
     throw new Error(`${label}: missing Due affordance`)
   }
 
@@ -2679,12 +2667,12 @@ async function runSelfTest(): Promise<SelfTestResult> {
       setNativeInputValue(createInput, `  ${workTitle.toLowerCase()} `)
       dispatchKey(createInput, 'Enter')
 
-      await waitFor('Anytime A: Tags chip shows 1 after dup-select', () => {
-        const chip = Array.from(openedAnytime.paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find(
-          (b) => ((b.textContent ?? '').trim() || '').startsWith('Tags:')
-        )
-        if (!chip) return null
-        return (chip.textContent ?? '').includes('Tags: 1') ? true : null
+      await waitFor('Anytime A: Tags value shows 1 after dup-select', () => {
+        const value = openedAnytime.paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="tags"]')
+        if (!value) return null
+        const text = value.textContent ?? ''
+        // Tag preview shows tag titles, not "Tags: N" format
+        return text.includes(workTitle) ? true : null
       })
 
       const tagsAfterDup = await window.api.tag.list()
@@ -2701,12 +2689,11 @@ async function runSelfTest(): Promise<SelfTestResult> {
       setNativeInputValue(createInput, homeTitle)
       dispatchKey(createInput, 'Enter')
 
-      await waitFor('Anytime A: Tags chip shows 2 after create', () => {
-        const chip = Array.from(openedAnytime.paper.querySelectorAll<HTMLButtonElement>('.task-inline-chip-main')).find(
-          (b) => ((b.textContent ?? '').trim() || '').startsWith('Tags:')
-        )
-        if (!chip) return null
-        return (chip.textContent ?? '').includes('Tags: 2') ? true : null
+      await waitFor('Anytime A: Tags value shows 2 after create', () => {
+        const value = openedAnytime.paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="tags"]')
+        if (!value) return null
+        const text = value.textContent ?? ''
+        return (text.includes(workTitle) && text.includes(homeTitle)) ? true : null
       }, { timeoutMs: 15_000 })
 
       const tagsAfterCreate = await window.api.tag.list()

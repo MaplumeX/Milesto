@@ -2088,20 +2088,113 @@ body {
 
 .task-inline-metadata-band {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: 10px;
 }
 
-.task-inline-metadata-band .task-inline-chip {
-  max-width: 100%;
+.task-inline-metadata-set-values {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
-.task-inline-metadata-band .task-inline-chip-main {
-  display: block;
+.task-inline-metadata-empty-triggers {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.task-inline-meta-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: color 120ms ease;
+}
+
+.task-inline-meta-value:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.task-inline-meta-value-icon {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+.task-inline-meta-value-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.task-inline-meta-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, color 120ms ease;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+.task-inline-meta-value:hover + .task-inline-meta-clear,
+.task-inline-meta-clear:hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.task-inline-meta-clear:hover {
+  color: var(--text);
+}
+
+.task-inline-meta-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.task-inline-meta-trigger:hover {
+  color: var(--text);
+}
+
+.task-inline-meta-trigger-icon {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
 }
 
 .task-inline-action-bar {
@@ -2119,113 +2212,6 @@ body {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-}
-
-.task-inline-chip {
-  --task-inline-chip-bg: var(--glass);
-  --task-inline-chip-border: var(--border);
-  --task-inline-chip-text: var(--text);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--task-inline-chip-border);
-  background: var(--task-inline-chip-bg);
-  color: var(--task-inline-chip-text);
-}
-
-.task-inline-chip-main {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  font: inherit;
-  font-size: 10px;
-  color: inherit;
-  cursor: pointer;
-}
-
-.task-inline-chip-icon {
-  width: 12px;
-  height: 12px;
-  flex-shrink: 0;
-  display: inline-block;
-  vertical-align: middle;
-}
-
-.task-inline-chip-chevron {
-  width: 10px;
-  height: 10px;
-  flex-shrink: 0;
-  color: var(--muted);
-  display: inline-block;
-  vertical-align: middle;
-}
-
-.task-inline-chip--placeholder {
-  --task-inline-chip-bg: var(--glass-soft);
-  --task-inline-chip-border: color-mix(in srgb, var(--border) 80%, transparent);
-  --task-inline-chip-text: var(--muted);
-}
-
-.task-inline-chip--placeholder:hover {
-  --task-inline-chip-text: var(--text);
-}
-
-.task-inline-chip-close {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  font-size: 11px;
-  line-height: 1;
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.task-inline-chip-close:hover {
-  color: var(--text);
-}
-
-.task-inline-chip--primary {
-  --task-inline-chip-border: color-mix(in srgb, var(--ppc-color) 35%, transparent);
-}
-
-.task-inline-chip--plan {
-  --task-inline-chip-bg: color-mix(in srgb, var(--ppc-color) 10%, var(--glass-strong));
-  --task-inline-chip-text: color-mix(in srgb, var(--ppc-color) 84%, var(--text));
-}
-
-.task-inline-chip--due {
-  --task-inline-chip-bg: color-mix(in srgb, #F29A4A 14%, var(--glass-strong));
-  --task-inline-chip-border: color-mix(in srgb, #F29A4A 28%, var(--border));
-  --task-inline-chip-text: color-mix(in srgb, #C76A1E 84%, var(--text));
-}
-
-.task-inline-chip--secondary {
-  --task-inline-chip-bg: var(--glass-soft);
-  --task-inline-chip-border: color-mix(in srgb, var(--border) 92%, transparent);
-  --task-inline-chip-text: var(--muted);
-}
-
-.task-inline-chip-button {
-  font: inherit;
-  cursor: pointer;
-  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
-}
-
-.task-inline-chip-button:hover {
-  --task-inline-chip-bg: color-mix(in srgb, var(--wash) 70%, var(--glass-strong));
-  --task-inline-chip-border: color-mix(in srgb, var(--ppc-color) 35%, var(--border));
-  --task-inline-chip-text: var(--text);
-}
-
-.task-inline-chip--summary {
-  --task-inline-chip-bg: color-mix(in srgb, var(--wash) 48%, var(--glass-strong));
-  --task-inline-chip-border: color-mix(in srgb, var(--border) 90%, transparent);
-  --task-inline-chip-text: var(--muted);
 }
 
 .task-inline-popover {
