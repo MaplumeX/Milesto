@@ -24,6 +24,7 @@ import { getLocalToday } from '../../lib/use-local-today'
 import { getTaskSchedulePreviewLabel, getTaskTagPreview } from './task-metadata'
 import { CalendarIcon, CircleXIcon, ClockIcon, SunIcon, TagIcon, TodayIcon } from './task-metadata-icons'
 import { TaskEditorProjectActions } from './TaskEditorProjectActions'
+import { MetaDateBadge } from './MetaDateBadge'
 import { TagPicker } from '../tags/TagPicker'
 
 type Draft = {
@@ -1329,55 +1330,33 @@ export const TaskEditorPaper = forwardRef<
             <div className="task-inline-metadata-band" data-task-inline-meta-band="true">
               <div className="task-inline-metadata-set-values">
                 {schedulePreviewLabel ? (
-                  <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                    <button
-                      type="button"
-                      className="task-inline-meta-value"
-                      data-task-inline-meta-kind="schedule"
-                      onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
-                    >
-                      <CalendarIcon className="task-inline-meta-value-icon" />
-                      <span className="task-inline-meta-value-text">{schedulePreviewLabel}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="task-inline-meta-clear"
-                      aria-label={t('common.clear')}
-                      onClick={() => {
-                        const next = { ...draft, scheduled_at: null, is_someday: false }
-                        setDraft(next)
-                        scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
+                  <MetaDateBadge
+                    icon={CalendarIcon}
+                    value={schedulePreviewLabel}
+                    iconColor="var(--ppc-color)"
+                    ariaLabel={t('common.schedule')}
+                    onClick={(e) => openSchedulePicker(e.currentTarget)}
+                    onClear={() => {
+                      const next = { ...draft, scheduled_at: null, is_someday: false }
+                      setDraft(next)
+                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                    }}
+                  />
                 ) : null}
 
                 {draft.due_at ? (
-                  <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                    <button
-                      type="button"
-                      className="task-inline-meta-value"
-                      data-task-inline-meta-kind="due"
-                      onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}
-                    >
-                      <ClockIcon className="task-inline-meta-value-icon" />
-                      <span className="task-inline-meta-value-text">{draft.due_at}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="task-inline-meta-clear"
-                      aria-label={t('common.clear')}
-                      onClick={() => {
-                        const next = { ...draft, due_at: null }
-                        setDraft(next)
-                        scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
+                  <MetaDateBadge
+                    icon={ClockIcon}
+                    value={draft.due_at}
+                    iconColor="#C76A1E"
+                    ariaLabel={t('taskEditor.dueLabel')}
+                    onClick={(e) => openDuePicker(e.currentTarget)}
+                    onClear={() => {
+                      const next = { ...draft, due_at: null }
+                      setDraft(next)
+                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                    }}
+                  />
                 ) : null}
 
                 {selectedTagIds.size > 0 ? (

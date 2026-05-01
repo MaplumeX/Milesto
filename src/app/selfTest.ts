@@ -586,7 +586,7 @@ function assertInlineCalendarPopover(popover: HTMLElement, label: string) {
 async function setScheduleToSomeday(paper: HTMLElement, label: string, taskId: string) {
   const rightBar = getInlineActionBarRight(paper)
   const scheduleBtn = findButtonByText(rightBar, 'Schedule')
-  const scheduledValue = paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="schedule"]')
+  const scheduledValue = paper.querySelector<HTMLButtonElement>('.meta-date-badge-value')
 
   const trigger = scheduleBtn ?? scheduledValue
   if (!trigger) throw new Error(`${label}: missing Schedule trigger`)
@@ -613,7 +613,7 @@ async function setScheduleToSomeday(paper: HTMLElement, label: string, taskId: s
   await sleep(80)
 
   await waitFor(`${label}: Scheduled value shows Someday`, () => {
-    const value = paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="schedule"]')
+    const value = paper.querySelector<HTMLButtonElement>('.meta-date-badge-value')
     if (!value) return null
     return (value.textContent ?? '').includes('Someday') ? true : null
   })
@@ -630,7 +630,7 @@ async function setScheduleToSomeday(paper: HTMLElement, label: string, taskId: s
 async function setDueToToday(paper: HTMLElement, label: string, today: string, taskId: string) {
   const rightBar = getInlineActionBarRight(paper)
   const dueBtn = findButtonByText(rightBar, 'Due')
-  const dueValue = paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="due"]')
+  const dueValue = paper.querySelector<HTMLButtonElement>('.meta-date-badge-value')
 
   const trigger = dueBtn ?? dueValue
   if (!trigger) throw new Error(`${label}: missing Due trigger`)
@@ -661,7 +661,7 @@ async function setDueToToday(paper: HTMLElement, label: string, today: string, t
   await sleep(80)
 
   await waitFor(`${label}: Due value shows today`, () => {
-    const value = paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="due"]')
+    const value = paper.querySelector<HTMLButtonElement>('.meta-date-badge-value')
     if (!value) return null
     return (value.textContent ?? '').includes(today) ? true : null
   })
@@ -756,13 +756,13 @@ async function openEditorByDoubleClick(params: {
 
   const bar = getInlineActionBarRight(paper)
   const scheduleBtn = findButtonByText(bar, 'Schedule')
-  const scheduledValue = paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="schedule"]')
+  const scheduledValue = paper.querySelector<HTMLButtonElement>('.meta-date-badge-value')
   if (!scheduleBtn && !scheduledValue) {
     throw new Error(`${label}: missing Schedule affordance`)
   }
   if (!findButtonByText(bar, 'Tags')) throw new Error(`${label}: missing Tags button`)
   const dueBtn = findButtonByText(bar, 'Due')
-  const dueValue = paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="due"]')
+  const dueValue = paper.querySelector<HTMLButtonElement>('.meta-date-badge-value')
   if (!dueBtn && !dueValue) {
     throw new Error(`${label}: missing Due affordance`)
   }

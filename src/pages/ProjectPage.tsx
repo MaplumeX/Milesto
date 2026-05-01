@@ -41,6 +41,7 @@ import { useTaskContextMenu } from '../features/tasks/use-task-context-menu'
 import { useOptimisticTaskTitles } from '../features/tasks/use-optimistic-task-titles'
 import { useProjectSectionContextMenu } from '../features/tasks/use-project-section-context-menu'
 import { CalendarIcon, ClockIcon } from '../features/tasks/task-metadata-icons'
+import { MetaDateBadge } from '../features/tasks/MetaDateBadge'
 import { TagPicker } from '../features/tags/TagPicker'
 import { MarkdownNotes } from '../components/MarkdownNotes'
 import { formatLocalDate, formatMonthDay, parseLocalDate } from '../lib/dates'
@@ -964,81 +965,45 @@ function ProjectMetaRow({
 
   if (!hasPlan && !hasDue && !hasTags) return null
 
+  const planValue = project.is_someday
+    ? t('nav.someday')
+    : project.scheduled_at === today
+      ? t('nav.today')
+      : project.scheduled_at ?? ''
+
+  const dueIconColor = isDueUrgent ? 'var(--danger-text)' : '#C76A1E'
+
   return (
     <div className="project-meta" style={{ marginTop: 10 }}>
       {hasPlan ? (
-        <div className="project-meta-row project-meta-text-row">
-          <span className="project-meta-text">
-            <CalendarIcon className="project-meta-icon project-meta-icon--plan" />
-            {project.is_someday
-              ? t('nav.someday')
-              : project.scheduled_at === today
-                ? t('nav.today')
-                : project.scheduled_at}
-          </span>
-          <span className="project-meta-actions">
-            <button
-              type="button"
-              className="project-meta-action project-meta-action--edit"
-              aria-label={t('common.schedule')}
-              onClick={(e) => {
-                e.preventDefault()
-                onEditPlan(e.currentTarget)
-              }}
-            >
-              <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M4 20h4.5L18.5 10a2.8 2.8 0 0 0-4-4L4.5 16H4z" />
-                <path d="m13.5 7.5 3 3" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              className="project-meta-action project-meta-action--clear"
-              aria-label={t('taskEditor.clearScheduledAria')}
-              onClick={(e) => {
-                e.preventDefault()
-                void onClearPlan()
-              }}
-            >
-              ×
-            </button>
-          </span>
+        <div className="project-meta-row">
+          <MetaDateBadge
+            icon={CalendarIcon}
+            value={planValue}
+            iconColor="var(--ppc-color)"
+            ariaLabel={t('common.schedule')}
+            onClick={(e) => {
+              e.preventDefault()
+              onEditPlan(e.currentTarget)
+            }}
+            onClear={() => void onClearPlan()}
+          />
         </div>
       ) : null}
 
       {hasDue ? (
-        <div className="project-meta-row project-meta-text-row">
-          <span className="project-meta-text">
-            <ClockIcon className={`project-meta-icon${isDueUrgent ? ' project-meta-icon--due-urgent' : ' project-meta-icon--due'}`} />
-            {project.due_at}
-          </span>
-          <span className="project-meta-actions">
-            <button
-              type="button"
-              className="project-meta-action project-meta-action--edit"
-              aria-label={t('taskEditor.dueLabel')}
-              onClick={(e) => {
-                e.preventDefault()
-                onEditDue(e.currentTarget)
-              }}
-            >
-              <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M4 20h4.5L18.5 10a2.8 2.8 0 0 0-4-4L4.5 16H4z" />
-                <path d="m13.5 7.5 3 3" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              className="project-meta-action project-meta-action--clear"
-              aria-label={t('taskEditor.clearDueAria')}
-              onClick={(e) => {
-                e.preventDefault()
-                void onClearDue()
-              }}
-            >
-              ×
-            </button>
-          </span>
+        <div className="project-meta-row">
+          <MetaDateBadge
+            icon={ClockIcon}
+            value={project.due_at ?? ''}
+            iconColor={dueIconColor}
+            ariaLabel={t('taskEditor.dueLabel')}
+            onClick={(e) => {
+              e.preventDefault()
+              onEditDue(e.currentTarget)
+            }}
+            onClear={() => void onClearDue()}
+          />
         </div>
       ) : null}
 

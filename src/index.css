@@ -1354,6 +1354,69 @@ body {
   color: var(--text);
 }
 
+.meta-date-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.meta-date-badge:hover {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.meta-date-badge-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.meta-date-badge-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.meta-date-badge-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta-date-badge-clear {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.meta-date-badge:hover .meta-date-badge-clear {
+  display: inline-flex;
+}
+
+.meta-date-badge-clear:hover {
+  color: var(--text);
+}
+
 .project-notes-textarea {
   padding: 6px 0;
 }
