@@ -1152,3 +1152,36 @@ Redesigned inline task editor metadata buttons: replaced pill-shaped chips with 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 34: 统一项目页和任务编辑器计划/到期元数据样式
+
+**Date**: 2026-05-01
+**Task**: 统一项目页和任务编辑器计划/到期元数据样式
+**Branch**: `master`
+
+### Summary
+
+提取 MetaDateBadge 共用组件，统一 ProjectPage 和 TaskEditorPaper 中计划/到期元数据的视觉样式：按钮形态、hover 边框包裹、彩色图标、点击值编辑、X 清除。项目页移除编辑铅笔图标。自测选择器同步更新。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4182c61` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
