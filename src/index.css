@@ -1358,12 +1358,13 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 1px 4px;
 }
 
 .meta-date-badge:hover {
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 1px 4px;
+  border-color: var(--border);
 }
 
 .meta-date-badge-icon {
