@@ -1,6 +1,6 @@
 import { addDays, parseLocalDate } from '../../lib/dates'
 
-export const TASK_TAG_PREVIEW_LIMIT = 2
+export const TASK_TAG_PREVIEW_LIMIT = 3
 
 export function getTaskSchedulePreviewLabel(
   input: {

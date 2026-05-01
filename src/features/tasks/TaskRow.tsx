@@ -4,10 +4,9 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '../../components/Button'
 import { Checkbox } from '../../components/Checkbox'
-import { getTaskSchedulePreviewLabel, getTaskTagPreview, isDueUrgent } from './task-metadata'
+import { getTaskSchedulePreviewLabel, getTaskTagPreview } from './task-metadata'
 import { CalendarIcon, ClockIcon, NoteIcon, TagIcon } from './task-metadata-icons'
 import { TaskProjectAffiliation } from './TaskProjectAffiliation'
-import { getLocalToday } from '../../lib/use-local-today'
 
 export function TaskRow({
   task,
@@ -144,7 +143,7 @@ export function TaskRow({
         <div className="task-row-metadata" data-task-row-meta="cluster">
           {schedulePreview ? (
             <span
-              className="task-row-meta-item task-row-meta-item--schedule"
+              className="task-row-meta-item"
               data-task-row-meta-kind="schedule"
               title={`${t('taskEditor.scheduledPrefix')} ${schedulePreview}`}
             >
@@ -155,9 +154,7 @@ export function TaskRow({
 
           {task.due_at ? (
             <span
-              className={`task-row-meta-item task-row-meta-item--due${
-                isDueUrgent(task.due_at, getLocalToday()) ? ' task-row-meta-item--due-urgent' : ''
-              }`}
+              className="task-row-meta-item"
               data-task-row-meta-kind="due"
               title={`${t('taskEditor.duePrefix')} ${task.due_at}`}
             >
@@ -168,7 +165,7 @@ export function TaskRow({
 
           {tagPreview.visible.length > 0 || tagPreview.overflowCount > 0 ? (
             <span
-              className="task-row-meta-item task-row-meta-item--tags"
+              className="task-row-meta-item"
               data-task-row-meta-kind="tags"
               title={tagPreview.visible.join(', ')}
             >

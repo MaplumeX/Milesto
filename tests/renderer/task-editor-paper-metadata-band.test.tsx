@@ -121,7 +121,7 @@ describe('TaskEditorPaper metadata band', () => {
     expect(items[1]?.textContent).toContain('2026-03-28')
     expect(items[2]?.textContent).toContain('Urgent')
     expect(items[2]?.textContent).toContain('Home')
-    expect(items[2]?.textContent).toContain('+1')
+    expect(items[2]?.textContent).toContain('Deep Work')
 
     expect(Boolean(titleInput.compareDocumentPosition(notes as Node) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
     expect(Boolean((notes as Node).compareDocumentPosition(metadataBand as Node) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)

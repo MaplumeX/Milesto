@@ -1,9 +1,8 @@
 import type { ButtonHTMLAttributes, CSSProperties, MouseEventHandler, ReactNode, Ref } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { getLocalToday } from '../../lib/use-local-today'
 import { CalendarIcon, ClockIcon, NoteIcon, TagIcon } from '../tasks/task-metadata-icons'
-import { getTaskSchedulePreviewLabel, getTaskTagPreview, isDueUrgent } from '../tasks/task-metadata'
+import { getTaskSchedulePreviewLabel, getTaskTagPreview } from '../tasks/task-metadata'
 import { ProjectProgressControl } from './ProjectProgressControl'
 
 export type ProjectRowProject = {
@@ -153,7 +152,7 @@ export function ProjectRow({
         <div className="task-row-metadata" data-task-row-meta="cluster">
           {schedulePreview ? (
             <span
-              className="task-row-meta-item task-row-meta-item--schedule"
+              className="task-row-meta-item"
               data-task-row-meta-kind="schedule"
               title={`${t('taskEditor.scheduledPrefix')} ${schedulePreview}`}
             >
@@ -164,9 +163,7 @@ export function ProjectRow({
 
           {project.due_at ? (
             <span
-              className={`task-row-meta-item task-row-meta-item--due${
-                isDueUrgent(project.due_at, getLocalToday()) ? ' task-row-meta-item--due-urgent' : ''
-              }`}
+              className="task-row-meta-item"
               data-task-row-meta-kind="due"
               title={`${t('taskEditor.duePrefix')} ${project.due_at}`}
             >
@@ -177,7 +174,7 @@ export function ProjectRow({
 
           {tagPreview.visible.length > 0 || tagPreview.overflowCount > 0 ? (
             <span
-              className="task-row-meta-item task-row-meta-item--tags"
+              className="task-row-meta-item"
               data-task-row-meta-kind="tags"
               title={tagPreview.visible.join(', ')}
             >
