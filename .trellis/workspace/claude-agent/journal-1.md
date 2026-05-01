@@ -1185,3 +1185,37 @@ Redesigned inline task editor metadata buttons: replaced pill-shaped chips with 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 35: Redesign task editor meta band with tag chips
+
+**Date**: 2026-05-01
+**Task**: Redesign task editor meta band with tag chips
+**Branch**: `master`
+
+### Summary
+
+Replaced the single Tags button in TaskEditorPaper with per-tag MetaTagChip components (independent inline-× remove), made the + Tags trigger always-visible at the chip-row tail, upgraded all meta band controls to 14px (badge / chip / trigger), and gave empty-value triggers a hover border with pre-reserved space. Recorded hover-only affordance and multi-instance aria-label rules in frontend/component-guidelines.md. Lint, tsc, and meta-band tests pass. AC10 (date badge layout-shift / hover-jitter / flex-stretch fixes still hold at 14px) requires human visual verification before declaring done.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9a06fd5` | (see git log) |
+| `170d41b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
