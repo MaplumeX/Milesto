@@ -21,10 +21,11 @@ import { MarkdownNotes } from '../../components/MarkdownNotes'
 import { formatLocalDate, parseLocalDate } from '../../lib/dates'
 import { buildProjectPath } from '../../lib/entity-scope'
 import { getLocalToday } from '../../lib/use-local-today'
-import { getTaskSchedulePreviewLabel, getTaskTagPreview } from './task-metadata'
+import { getTaskSchedulePreviewLabel } from './task-metadata'
 import { CalendarIcon, CircleXIcon, ClockIcon, SunIcon, TagIcon, TodayIcon } from './task-metadata-icons'
 import { TaskEditorProjectActions } from './TaskEditorProjectActions'
 import { MetaDateBadge } from './MetaDateBadge'
+import { MetaTagChip } from './MetaTagChip'
 import { TagPicker } from '../tags/TagPicker'
 
 type Draft = {
@@ -673,18 +674,6 @@ export const TaskEditorPaper = forwardRef<
     }, [draft?.project_id, detail?.task.status, showProjectActions])
 
     const selectedTagIds = useMemo(() => new Set(detail?.tag_ids ?? []), [detail?.tag_ids])
-    const selectedTagTitles = useMemo(() => {
-      if (!detail?.tag_ids?.length) return []
-
-      const titleById = new Map(tags.map((tag) => [tag.id, tag.title]))
-      return detail.tag_ids
-        .map((id) => titleById.get(id))
-        .filter((title): title is string => Boolean(title))
-    }, [detail?.tag_ids, tags])
-    const tagPreview = useMemo(
-      () => getTaskTagPreview(selectedTagTitles, detail?.tag_ids.length ?? selectedTagTitles.length),
-      [detail?.tag_ids.length, selectedTagTitles]
-    )
     const checklist = detail?.checklist_items ?? []
     const selectedProject = useMemo(() => {
       if (!draft?.project_id) return null
@@ -738,10 +727,6 @@ export const TaskEditorPaper = forwardRef<
     const schedulePreviewLabel = getTaskSchedulePreviewLabel(draft, {
       someday: t('nav.someday'),
     })
-    const tagsPreviewLabel =
-      tagPreview.visible.length > 0
-        ? `${tagPreview.visible.join(', ')}${tagPreview.overflowCount > 0 ? ` +${tagPreview.overflowCount}` : ''}`
-        : `${t('taskEditor.tagsPrefix')} ${selectedTagIds.size}`
     const applyTaskStatusAction = async (action: 'cancel' | 'done' | 'restore') => {
       const res =
         action === 'done'
@@ -1335,6 +1320,7 @@ export const TaskEditorPaper = forwardRef<
                     value={schedulePreviewLabel}
                     iconColor="var(--ppc-color)"
                     ariaLabel={t('common.schedule')}
+                    dataKind="schedule"
                     onClick={(e) => openSchedulePicker(e.currentTarget)}
                     onClear={() => {
                       const next = { ...draft, scheduled_at: null, is_someday: false }
@@ -1350,6 +1336,7 @@ export const TaskEditorPaper = forwardRef<
                     value={draft.due_at}
                     iconColor="#C76A1E"
                     ariaLabel={t('taskEditor.dueLabel')}
+                    dataKind="due"
                     onClick={(e) => openDuePicker(e.currentTarget)}
                     onClear={() => {
                       const next = { ...draft, due_at: null }
@@ -1360,26 +1347,34 @@ export const TaskEditorPaper = forwardRef<
                 ) : null}
 
                 {selectedTagIds.size > 0 ? (
-                  <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                  <div
+                    className="task-inline-meta-tags-row"
+                    data-task-inline-meta-kind="tags"
+                  >
+                    {(detail?.tag_ids ?? []).map((tagId) => {
+                      const title = tags.find((tag) => tag.id === tagId)?.title
+                      if (!title) return null
+                      return (
+                        <MetaTagChip
+                          key={tagId}
+                          title={title}
+                          removeLabel={t('aria.removeTag', { title })}
+                          onRemove={() => {
+                            const remaining = (detail?.tag_ids ?? []).filter((id) => id !== tagId)
+                            persistTags(remaining)
+                          }}
+                        />
+                      )
+                    })}
                     <button
                       ref={tagsButtonRef}
                       type="button"
-                      className="task-inline-meta-value"
-                      data-task-inline-meta-kind="tags"
+                      className="task-inline-meta-trigger task-inline-meta-tags-add"
+                      aria-label={t('taskEditor.tagsLabel')}
                       onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
                     >
-                      <TagIcon className="task-inline-meta-value-icon" />
-                      <span className="task-inline-meta-value-text">{tagsPreviewLabel}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="task-inline-meta-clear"
-                      aria-label={t('common.clear')}
-                      onClick={() => {
-                        persistTags([])
-                      }}
-                    >
-                      ×
+                      <TagIcon className="task-inline-meta-trigger-icon" />
+                      {t('taskEditor.tagsLabel')}
                     </button>
                   </div>
                 ) : null}

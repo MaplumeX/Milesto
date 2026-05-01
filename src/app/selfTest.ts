@@ -2668,7 +2668,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
       dispatchKey(createInput, 'Enter')
 
       await waitFor('Anytime A: Tags value shows 1 after dup-select', () => {
-        const value = openedAnytime.paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="tags"]')
+        const value = openedAnytime.paper.querySelector<HTMLElement>('.task-inline-meta-tags-row[data-task-inline-meta-kind="tags"]')
         if (!value) return null
         const text = value.textContent ?? ''
         // Tag preview shows tag titles, not "Tags: N" format
@@ -2690,7 +2690,7 @@ async function runSelfTest(): Promise<SelfTestResult> {
       dispatchKey(createInput, 'Enter')
 
       await waitFor('Anytime A: Tags value shows 2 after create', () => {
-        const value = openedAnytime.paper.querySelector<HTMLButtonElement>('.task-inline-meta-value[data-task-inline-meta-kind="tags"]')
+        const value = openedAnytime.paper.querySelector<HTMLElement>('.task-inline-meta-tags-row[data-task-inline-meta-kind="tags"]')
         if (!value) return null
         const text = value.textContent ?? ''
         return (text.includes(workTitle) && text.includes(homeTitle)) ? true : null

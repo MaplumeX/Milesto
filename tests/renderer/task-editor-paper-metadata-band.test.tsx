@@ -132,9 +132,24 @@ describe('TaskEditorPaper metadata band', () => {
     expect(Boolean((notes as Node).compareDocumentPosition(metadataBand as Node) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
     expect(getComputedStyle(notes as Element).minHeight).toBe('48px')
 
-    expect(screen.queryByRole('button', { name: 'common.schedule' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'taskEditor.dueLabel' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'taskEditor.tagsLabel' })).toBeNull()
+    // The empty-triggers placeholder area should not render schedule/due/tags placeholders
+    // when those fields already have values. Only the checklist placeholder remains because
+    // the test task has no checklist items.
+    const emptyTriggersArea = metadataBand?.querySelector<HTMLElement>(
+      '.task-inline-metadata-empty-triggers'
+    )
+    expect(emptyTriggersArea).not.toBeNull()
+    expect(emptyTriggersArea?.querySelector('[data-task-inline-meta-kind="schedule"]')).toBeNull()
+    expect(emptyTriggersArea?.querySelector('[data-task-inline-meta-kind="due"]')).toBeNull()
+    expect(emptyTriggersArea?.querySelector('[data-task-inline-meta-kind="tags"]')).toBeNull()
+    // When tags are set, the `+ Tags` add-more trigger persists at the end of the chip row
+    // (also using `taskEditor.tagsLabel` as its accessible name). Verify it is rendered inside
+    // the set-values area's tags row, not in the empty-triggers placeholder area.
+    const addMoreTagsBtn = metadataBand?.querySelector<HTMLButtonElement>(
+      '.task-inline-meta-tags-row .task-inline-meta-tags-add'
+    )
+    expect(addMoreTagsBtn).not.toBeNull()
+    expect(addMoreTagsBtn?.getAttribute('aria-label')).toBe('taskEditor.tagsLabel')
     expect(screen.getByRole('button', { name: /taskEditor\.checklistLabel/ })).toBeInTheDocument()
   })
 
@@ -151,9 +166,17 @@ describe('TaskEditorPaper metadata band', () => {
     await screen.findByText(/Urgent/)
 
     const metadataBand = container.querySelector<HTMLElement>('[data-task-inline-meta-band="true"]')
-    const scheduleTrigger = metadataBand?.querySelector<HTMLElement>('[data-task-inline-meta-kind="schedule"]')
-    const dueTrigger = metadataBand?.querySelector<HTMLElement>('[data-task-inline-meta-kind="due"]')
-    const tagsTrigger = metadataBand?.querySelector<HTMLElement>('[data-task-inline-meta-kind="tags"]')
+    const scheduleTrigger = metadataBand
+      ?.querySelector<HTMLElement>('[data-task-inline-meta-kind="schedule"]')
+      ?.querySelector<HTMLButtonElement>('button.meta-date-badge-value')
+    const dueTrigger = metadataBand
+      ?.querySelector<HTMLElement>('[data-task-inline-meta-kind="due"]')
+      ?.querySelector<HTMLButtonElement>('button.meta-date-badge-value')
+    // When tags are set, the row container carries the `tags` data attribute, but the click
+    // target is the `+ Tags` add-more button rendered at the end of the row.
+    const tagsTrigger = metadataBand?.querySelector<HTMLElement>(
+      '.task-inline-meta-tags-row .task-inline-meta-tags-add'
+    )
 
     expect(scheduleTrigger).not.toBeNull()
     expect(dueTrigger).not.toBeNull()
@@ -201,5 +224,39 @@ describe('TaskEditorPaper metadata band', () => {
     expect(screen.getByRole('button', { name: 'common.schedule' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'taskEditor.dueLabel' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'taskEditor.tagsLabel' })).toBeInTheDocument()
+  })
+
+  it('removing a single tag chip persists only the remaining ids', async () => {
+    const user = userEvent.setup()
+    const { api } = setupApi({ tagIds: ['tag-1', 'tag-2', 'tag-3'] })
+    const { container } = renderInlineEditor()
+
+    await screen.findByDisplayValue('Task A')
+    await screen.findByText(/Urgent/)
+
+    const metadataBand = container.querySelector<HTMLElement>('[data-task-inline-meta-band="true"]')
+    const chips = Array.from(
+      metadataBand?.querySelectorAll<HTMLElement>('.meta-tag-chip') ?? []
+    )
+    expect(chips.length).toBe(3)
+
+    // Remove the middle chip (Home, tag-2). The chip's clear button is icon-only and
+    // its aria-label is `aria.removeTag` (interpolated with the tag title in production
+    // i18n; the test mock just returns the key).
+    const homeChip = chips.find((chip) => chip.textContent?.includes('Home'))
+    expect(homeChip).toBeTruthy()
+    const removeBtn = homeChip?.querySelector<HTMLButtonElement>('.meta-tag-chip-clear')
+    expect(removeBtn).not.toBeNull()
+    expect(removeBtn?.getAttribute('aria-label')).toBe('aria.removeTag')
+
+    await user.click(removeBtn as HTMLElement)
+
+    await waitFor(() => {
+      expect(api.task.setTags).toHaveBeenCalled()
+    })
+    const calls = (api.task.setTags as unknown as { mock: { calls: unknown[][] } }).mock.calls
+    const lastCall = calls[calls.length - 1]
+    expect(lastCall?.[0]).toBe('t1')
+    expect(lastCall?.[1]).toEqual(['tag-1', 'tag-3'])
   })
 })

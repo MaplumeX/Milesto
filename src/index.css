@@ -1360,7 +1360,7 @@ body {
   gap: 4px;
   border: 1px solid transparent;
   border-radius: 4px;
-  padding: 1px 4px;
+  padding: 2px 6px;
   vertical-align: middle;
   align-self: flex-start;
 }
@@ -1370,8 +1370,8 @@ body {
 }
 
 .meta-date-badge-icon {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
 }
 
@@ -1379,9 +1379,9 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text);
-  line-height: 1;
+  line-height: 1.2;
   background: transparent;
   border: 0;
   padding: 0;
@@ -1400,14 +1400,14 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   padding: 0;
   border: 0;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1;
   flex-shrink: 0;
   visibility: hidden;
@@ -2108,91 +2108,84 @@ body {
   flex: 0 0 auto;
 }
 
-.task-inline-meta-value {
+.task-inline-meta-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.meta-tag-chip {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  color: var(--muted);
-  line-height: 1;
-  background: transparent;
-  border: 0;
-  padding: 0;
-  font-family: inherit;
-  cursor: pointer;
-  text-align: left;
-  transition: color 120ms ease;
-}
-
-.task-inline-meta-value:hover {
+  gap: 4px;
+  border: 1px solid var(--border);
+  background: var(--wash);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 14px;
+  line-height: 1.2;
   color: var(--text);
-  text-decoration: underline;
+  vertical-align: middle;
 }
 
-.task-inline-meta-value-icon {
-  width: 11px;
-  height: 11px;
-  flex-shrink: 0;
-}
-
-.task-inline-meta-value-text {
+.meta-tag-chip-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 220px;
 }
 
-.task-inline-meta-clear {
+.meta-tag-chip-clear {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 12px;
-  height: 12px;
+  width: 16px;
+  height: 16px;
   padding: 0;
   border: 0;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 13px;
   line-height: 1;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 120ms ease, color 120ms ease;
-  margin-left: 4px;
   flex-shrink: 0;
+  visibility: hidden;
 }
 
-.task-inline-meta-value:hover + .task-inline-meta-clear,
-.task-inline-meta-clear:hover {
-  opacity: 1;
-  pointer-events: auto;
+.meta-tag-chip:hover .meta-tag-chip-clear {
+  visibility: visible;
 }
 
-.task-inline-meta-clear:hover {
+.meta-tag-chip-clear:hover {
   color: var(--text);
 }
 
 .task-inline-meta-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-size: 10px;
+  gap: 4px;
+  font-size: 14px;
   color: var(--muted);
-  line-height: 1;
+  line-height: 1.2;
   background: transparent;
-  border: 0;
-  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 6px;
   font-family: inherit;
   cursor: pointer;
-  transition: color 120ms ease;
+  transition: color 120ms ease, border-color 120ms ease;
 }
 
 .task-inline-meta-trigger:hover {
   color: var(--text);
+  border-color: var(--border);
 }
 
 .task-inline-meta-trigger-icon {
-  width: 11px;
-  height: 11px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
 }
 

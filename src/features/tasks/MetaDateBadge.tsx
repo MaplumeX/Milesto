@@ -7,11 +7,12 @@ type MetaDateBadgeProps = {
   onClick: (e: MouseEvent<HTMLButtonElement>) => void
   onClear: () => void
   ariaLabel: string
+  dataKind?: string
 }
 
-export function MetaDateBadge({ icon: Icon, value, iconColor, onClick, onClear, ariaLabel }: MetaDateBadgeProps) {
+export function MetaDateBadge({ icon: Icon, value, iconColor, onClick, onClear, ariaLabel, dataKind }: MetaDateBadgeProps) {
   return (
-    <span className="meta-date-badge">
+    <span className="meta-date-badge" data-task-inline-meta-kind={dataKind}>
       <button
         type="button"
         className="meta-date-badge-value"
