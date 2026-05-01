@@ -167,17 +167,18 @@ describe('ProjectPage metadata row', () => {
     cleanup()
   })
 
-  it('renders tags on a dedicated second row while keeping +N overflow behavior', async () => {
+  it('renders schedule, due, and tags each on their own row with correct styling', async () => {
     setupProjectPageApi(makeProjectTags())
 
     const { container } = render(<ProjectPageHarness />)
 
     await screen.findByText('Project Alpha')
 
-    const primaryRow = container.querySelector('[data-project-meta-line="primary"]')
-    const tagsRow = container.querySelector('[data-project-meta-line="tags"]')
-    const planChip = screen.getByText('2026-03-27').closest('.task-inline-chip')
-    const firstTagChip = screen.getByText('Design').closest('.task-inline-chip')
+    const metaContainer = container.querySelector('.project-meta')
+    const planRow = screen.getByText('2026-03-27').closest('.project-meta-text-row')
+    const dueRow = screen.getByText('2026-03-31').closest('.project-meta-text-row')
+    const tagsRow = screen.getByText('Design').closest('.project-meta-tags-row')
+    const firstTagChip = screen.getByText('Design').closest('.project-meta-tag-chip')
 
     expect(screen.getByText('Design')).toBeInTheDocument()
     expect(screen.getByText('Marketing')).toBeInTheDocument()
@@ -187,9 +188,12 @@ describe('ProjectPage metadata row', () => {
     expect(screen.queryByText('Hidden Six')).toBeNull()
 
     const overflowChip = screen.getByText('+2')
-    expect(primaryRow).not.toBeNull()
+    expect(metaContainer).not.toBeNull()
+    expect(planRow).not.toBeNull()
+    expect(dueRow).not.toBeNull()
     expect(tagsRow).not.toBeNull()
-    expect(primaryRow).toContainElement(planChip)
+    expect(planRow).toContainElement(screen.getByText('2026-03-27'))
+    expect(dueRow).toContainElement(screen.getByText('2026-03-31'))
     expect(tagsRow).toContainElement(firstTagChip)
     expect(tagsRow).toContainElement(overflowChip.closest('button'))
     expect(overflowChip.closest('button')).not.toBeNull()

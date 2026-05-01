@@ -1216,20 +1216,147 @@ body {
   gap: 6px;
 }
 
-.project-meta .task-inline-chip-close {
+.project-meta-row {
+  min-width: 0;
+}
+
+/* Redesigned project metadata rows: plain text for schedule/due, chips for tags */
+.project-meta-text-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-meta-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.project-meta-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.project-meta-icon--plan {
+  color: var(--ppc-color);
+}
+
+.project-meta-icon--due {
+  color: #C76A1E;
+}
+
+.project-meta-icon--due-urgent {
+  color: var(--danger-text);
+}
+
+.project-meta-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.project-meta-text-row:hover .project-meta-actions,
+.project-meta-text-row:focus-within .project-meta-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.project-meta-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.project-meta-action:hover {
+  color: var(--text);
+}
+
+.project-meta-action--edit svg {
+  width: 11px;
+  height: 11px;
+}
+
+.project-meta-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.project-meta-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
+  background: var(--glass-soft);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.project-meta-tag-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-meta-tag-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
   opacity: 0;
   pointer-events: none;
   transition: opacity 160ms ease, color 160ms ease;
 }
 
-.project-meta .task-inline-chip:hover .task-inline-chip-close,
-.project-meta .task-inline-chip:focus-within .task-inline-chip-close {
+.project-meta-tag-chip:hover .project-meta-tag-clear,
+.project-meta-tag-chip:focus-within .project-meta-tag-clear {
   opacity: 1;
   pointer-events: auto;
 }
 
-.project-meta-row {
-  min-width: 0;
+.project-meta-tag-clear:hover {
+  color: var(--text);
+}
+
+.project-meta-tag-chip--overflow {
+  border-color: color-mix(in srgb, var(--border) 90%, transparent);
+  background: color-mix(in srgb, var(--wash) 48%, var(--glass-strong));
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.project-meta-tag-chip--overflow:hover {
+  background: color-mix(in srgb, var(--wash) 70%, var(--glass-strong));
+  border-color: color-mix(in srgb, var(--ppc-color) 35%, var(--border));
+  color: var(--text);
 }
 
 .project-notes-textarea {

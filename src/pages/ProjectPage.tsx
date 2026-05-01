@@ -562,6 +562,8 @@ export function ProjectPage() {
           <ProjectMetaRow
             project={project}
             tags={projectTags}
+            onEditPlan={(triggerEl) => openMenu(triggerEl, 'plan')}
+            onEditDue={(triggerEl) => openMenu(triggerEl, 'due')}
             onClearPlan={async () => {
               const res = await window.api.project.update({
                 id: project.id,
@@ -933,6 +935,8 @@ function ProjectDoneTaskList({
 function ProjectMetaRow({
   project,
   tags,
+  onEditPlan,
+  onEditDue,
   onClearPlan,
   onClearDue,
   onRemoveTag,
@@ -940,6 +944,8 @@ function ProjectMetaRow({
 }: {
   project: Project
   tags: Tag[]
+  onEditPlan: (triggerEl: HTMLElement) => void
+  onEditDue: (triggerEl: HTMLElement) => void
   onClearPlan: () => Promise<void>
   onClearDue: () => Promise<void>
   onRemoveTag: (tagId: string) => Promise<void>
@@ -954,68 +960,96 @@ function ProjectMetaRow({
   const visibleTags = tags.slice(0, MAX_VISIBLE_PROJECT_META_TAGS)
   const overflowCount = Math.max(tags.length - visibleTags.length, 0)
 
+  const isDueUrgent = Boolean(project.due_at && project.due_at < today)
+
   if (!hasPlan && !hasDue && !hasTags) return null
 
   return (
     <div className="project-meta" style={{ marginTop: 10 }}>
-      {hasPlan || hasDue ? (
-        <div className="task-inline-action-bar-left project-meta-row" data-project-meta-line="primary">
-          {hasPlan ? (
-            <div className="task-inline-chip task-inline-chip--primary task-inline-chip--plan">
-              <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
-                <CalendarIcon className="task-inline-chip-icon" />
-                {project.is_someday
-                  ? t('nav.someday')
-                  : project.scheduled_at === today
-                    ? t('nav.today')
-                    : project.scheduled_at}
-              </span>
-              <button
-                type="button"
-                className="task-inline-chip-close"
-                aria-label={t('taskEditor.clearScheduledAria')}
-                onClick={(e) => {
-                  e.preventDefault()
-                  void onClearPlan()
-                }}
-              >
-                ×
-              </button>
-            </div>
-          ) : null}
+      {hasPlan ? (
+        <div className="project-meta-row project-meta-text-row">
+          <span className="project-meta-text">
+            <CalendarIcon className="project-meta-icon project-meta-icon--plan" />
+            {project.is_someday
+              ? t('nav.someday')
+              : project.scheduled_at === today
+                ? t('nav.today')
+                : project.scheduled_at}
+          </span>
+          <span className="project-meta-actions">
+            <button
+              type="button"
+              className="project-meta-action project-meta-action--edit"
+              aria-label={t('common.schedule')}
+              onClick={(e) => {
+                e.preventDefault()
+                onEditPlan(e.currentTarget)
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 20h4.5L18.5 10a2.8 2.8 0 0 0-4-4L4.5 16H4z" />
+                <path d="m13.5 7.5 3 3" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="project-meta-action project-meta-action--clear"
+              aria-label={t('taskEditor.clearScheduledAria')}
+              onClick={(e) => {
+                e.preventDefault()
+                void onClearPlan()
+              }}
+            >
+              ×
+            </button>
+          </span>
+        </div>
+      ) : null}
 
-          {hasDue ? (
-            <div className="task-inline-chip task-inline-chip--primary task-inline-chip--due">
-              <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
-                <ClockIcon className="task-inline-chip-icon" />
-                {project.due_at}
-              </span>
-              <button
-                type="button"
-                className="task-inline-chip-close"
-                aria-label={t('taskEditor.clearDueAria')}
-                onClick={(e) => {
-                  e.preventDefault()
-                  void onClearDue()
-                }}
-              >
-                ×
-              </button>
-            </div>
-          ) : null}
+      {hasDue ? (
+        <div className="project-meta-row project-meta-text-row">
+          <span className="project-meta-text">
+            <ClockIcon className={`project-meta-icon${isDueUrgent ? ' project-meta-icon--due-urgent' : ' project-meta-icon--due'}`} />
+            {project.due_at}
+          </span>
+          <span className="project-meta-actions">
+            <button
+              type="button"
+              className="project-meta-action project-meta-action--edit"
+              aria-label={t('taskEditor.dueLabel')}
+              onClick={(e) => {
+                e.preventDefault()
+                onEditDue(e.currentTarget)
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 20h4.5L18.5 10a2.8 2.8 0 0 0-4-4L4.5 16H4z" />
+                <path d="m13.5 7.5 3 3" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="project-meta-action project-meta-action--clear"
+              aria-label={t('taskEditor.clearDueAria')}
+              onClick={(e) => {
+                e.preventDefault()
+                void onClearDue()
+              }}
+            >
+              ×
+            </button>
+          </span>
         </div>
       ) : null}
 
       {hasTags ? (
-        <div className="task-inline-action-bar-left project-meta-row" data-project-meta-line="tags">
+        <div className="project-meta-row project-meta-tags-row">
           {visibleTags.map((tag) => (
-            <div key={tag.id} className="task-inline-chip task-inline-chip--secondary">
-              <span className="task-inline-chip-main" style={{ cursor: 'default' }}>
-                {tag.title}
-              </span>
+            <span key={tag.id} className="project-meta-tag-chip">
+              <span className="project-meta-tag-text">{tag.title}</span>
               <button
                 type="button"
-                className="task-inline-chip-close"
+                className="project-meta-tag-clear"
                 aria-label={t('aria.removeTag', { title: tag.title })}
                 onClick={(e) => {
                   e.preventDefault()
@@ -1024,20 +1058,20 @@ function ProjectMetaRow({
               >
                 ×
               </button>
-            </div>
+            </span>
           ))}
 
           {overflowCount > 0 ? (
             <button
               type="button"
-              className="task-inline-chip task-inline-chip-button task-inline-chip--summary"
+              className="project-meta-tag-chip project-meta-tag-chip--overflow"
               aria-label={t('aria.manageMoreProjectTags', { count: overflowCount })}
               onClick={(e) => {
                 e.preventDefault()
                 onManageTags(e.currentTarget)
               }}
             >
-              <span className="task-inline-chip-main">+{overflowCount}</span>
+              <span className="project-meta-tag-text">+{overflowCount}</span>
             </button>
           ) : null}
         </div>
