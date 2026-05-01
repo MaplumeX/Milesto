@@ -1361,6 +1361,7 @@ body {
   border: 1px solid transparent;
   border-radius: 4px;
   padding: 1px 4px;
+  vertical-align: middle;
 }
 
 .meta-date-badge:hover {
@@ -1395,7 +1396,7 @@ body {
 }
 
 .meta-date-badge-clear {
-  display: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 14px;
@@ -1408,10 +1409,11 @@ body {
   font-size: 11px;
   line-height: 1;
   flex-shrink: 0;
+  visibility: hidden;
 }
 
 .meta-date-badge:hover .meta-date-badge-clear {
-  display: inline-flex;
+  visibility: visible;
 }
 
 .meta-date-badge-clear:hover {
