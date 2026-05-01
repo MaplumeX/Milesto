@@ -1,0 +1,2 @@
+{"file": "frontend/quality-guidelines", "reason": "Lint and typecheck standards for quality verification"}
+{"file": "frontend/type-safety", "reason": "Ensure Result<T> error handling pattern is followed for trash restore calls"}

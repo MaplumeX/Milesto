@@ -1,0 +1,3 @@
+{"file": "frontend/component-guidelines", "reason": "Context menu component patterns and conventions"}
+{"file": "frontend/hook-guidelines", "reason": "Context menu hook patterns (use-task-context-menu, use-project-context-menu)"}
+{"file": "frontend/mixed-view-list-contracts", "reason": "ViewList scope handling and trash scope conventions"}
