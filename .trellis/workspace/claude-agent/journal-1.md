@@ -19,7 +19,9 @@
 
 ### Main Changes
 
-(Add details)
+- Removed global `text-rendering: optimizeLegibility` from `:root` in `src/index.css`.
+- Removed global `-webkit-font-smoothing: antialiased` from `:root`.
+- Left the font stack, root font size, line height, and typography weights unchanged.
 
 ### Git Commits
 
@@ -29,7 +31,9 @@
 
 ### Testing
 
-- [OK] (Add test results)
+- [OK] `npm run lint`
+- [OK] `./node_modules/.bin/tsc --noEmit`
+- [OK] `npm test` (50 files / 181 tests)
 
 ### Status
 
@@ -938,6 +942,39 @@ Unified TrashEntry schema with ViewListItemSchema, extended DB query with tags/p
 | Hash | Message |
 |------|---------|
 | `c3c6788` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 28: Remove global font smoothing hints
+
+**Date**: 2026-05-01
+**Task**: Remove global font smoothing hints
+**Branch**: `master`
+
+### Summary
+
+Removed global text-rendering and WebKit font smoothing CSS hints to avoid blurry typography on Windows while leaving font stack, size, and weights unchanged.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `248fe98` | (see git log) |
 
 ### Testing
 
