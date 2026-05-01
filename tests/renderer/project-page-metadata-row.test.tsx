@@ -175,8 +175,8 @@ describe('ProjectPage metadata row', () => {
     await screen.findByText('Project Alpha')
 
     const metaContainer = container.querySelector('.project-meta')
-    const planRow = screen.getByText('2026-03-27').closest('.project-meta-text-row')
-    const dueRow = screen.getByText('2026-03-31').closest('.project-meta-text-row')
+    const planRow = screen.getByText('2026-03-27').closest('.project-meta-row')
+    const dueRow = screen.getByText('2026-03-31').closest('.project-meta-row')
     const tagsRow = screen.getByText('Design').closest('.project-meta-tags-row')
     const firstTagChip = screen.getByText('Design').closest('.project-meta-tag-chip')
 
