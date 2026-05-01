@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 32
+- **Total Sessions**: 33
 - **Last Active**: 2026-05-01
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1121 | Active |
+| `journal-1.md` | ~1154 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 33 | 2026-05-01 | 删除 TaskEditorPaper overlay 死代码 | `e36e3fa` | `master` |
 | 32 | 2026-05-01 | Redesign inline task editor metadata buttons | `893f89a` | `master` |
 | 31 | 2026-05-01 | 统一任务行和项目行的元数据样式 | `a3d6a24` | `master` |
 | 30 | 2026-05-01 | Redesign project page metadata display | `028eb56` | `master` |

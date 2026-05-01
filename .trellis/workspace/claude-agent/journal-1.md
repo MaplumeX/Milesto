@@ -1119,3 +1119,36 @@ Redesigned inline task editor metadata buttons: replaced pill-shaped chips with 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 33: 删除 TaskEditorPaper overlay 死代码
+
+**Date**: 2026-05-01
+**Task**: 删除 TaskEditorPaper overlay 死代码
+**Branch**: `master`
+
+### Summary
+
+删除 TaskEditorPaper 未使用的 overlay variant 及配套 CSS、测试，共减少约 420 行代码，lint 和全部 182 个测试通过
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e36e3fa` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
