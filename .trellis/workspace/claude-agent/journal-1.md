@@ -1086,3 +1086,36 @@ Redesigned ProjectMetaRow: schedule/due as icon+plain text per row, tags as smal
 ### Next Steps
 
 - None - task complete
+
+
+## Session 32: Redesign inline task editor metadata buttons
+
+**Date**: 2026-05-01
+**Task**: Redesign inline task editor metadata buttons
+**Branch**: `master`
+
+### Summary
+
+Redesigned inline task editor metadata buttons: replaced pill-shaped chips with a two-column layout where set values display as plain icon+text (matching TaskRow style) on the left, and empty triggers show icon+label on the right. Added hover-revealed clear (×) buttons for quick field removal. Updated self-test selectors to match new DOM structure.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `893f89a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
