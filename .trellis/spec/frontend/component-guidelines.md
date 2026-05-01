@@ -57,6 +57,29 @@ today is still class-based and hand-composed. Document reality first and migrate
   from React or another state owner, and recompute a full-radius sector path for each animation frame so the
   fill does not visually shrink during path interpolation.
 
+### Hover-only borders and clear icons (no layout shift)
+
+When a control reveals a border, padding, or `×` icon on hover, reserve the space
+at rest so the surrounding row does not shift. Three reusable techniques in this codebase:
+
+- **Pre-reserve border space**: declare `border: 1px solid transparent` (with
+  matching padding) at rest, then only swap `border-color` on `:hover`. The
+  layout box already accounts for the 1px border, so hovering does not push
+  siblings around. See `.meta-date-badge` and `.task-inline-meta-trigger` in
+  `src/index.css`.
+- **Toggle `×` via `visibility`, not `display`**: hide a clear/remove button
+  with `visibility: hidden` (it still occupies its slot) and switch to
+  `visibility: visible` on the parent's `:hover`. `display: none` removes the
+  element from layout and causes vertical jitter when the user moves between
+  hover/no-hover states. See `.meta-date-badge-clear` and `.meta-tag-chip-clear`.
+- **Anchor flex children that must not stretch**: in column flex containers,
+  set `align-self: flex-start` on chips/badges narrower than the container so
+  they are not stretched to full width on layout recalculation.
+
+These three pieces have caused real regressions historically (commits
+`17189ee` / `12fc4ca` / `c08d179` — meta-badge layout shift, hover jitter,
+flex stretch). Reuse them whenever you add hover-only affordances to a flex row.
+
 ### Current Reality
 
 - `src/index.css` is the shared stylesheet backbone.
@@ -87,6 +110,11 @@ import { Button } from '@/components/Button'
 ## Accessibility
 
 - Icon-only buttons must provide `aria-label`.
+- When the same icon-only control renders multiple times in a list (e.g., a `×`
+  clear button on each tag chip), the `aria-label` must include per-instance
+  context — `"Remove tag {title}"`, not a generic `"Clear"`. Otherwise screen
+  reader users cannot distinguish which instance they are about to activate.
+  See `MetaTagChip` for the pattern.
 - Decorative icons and SVG wrappers must be `aria-hidden`.
 - Dialog-like overlays must set `role="dialog"` and `aria-modal="true"`.
 - Focus must be managed explicitly for shell overlays such as search and settings.
