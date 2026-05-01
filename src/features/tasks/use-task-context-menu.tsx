@@ -239,6 +239,18 @@ export function useTaskContextMenu({
     closeMenu({ restoreFocus: true })
   }, [bumpRevision, closeMenu, menuState])
 
+  const persistTrashRestoreTask = useCallback(async () => {
+    if (!menuState) return
+    const res = await window.api.trash.restoreTask(menuState.task.id)
+    if (!res.ok) {
+      setActionError(res.error)
+      return
+    }
+
+    bumpRevision()
+    closeMenu({ restoreFocus: true })
+  }, [bumpRevision, closeMenu, menuState])
+
   const persistTaskDelete = useCallback(async () => {
     if (!menuState) return
     const confirmed = await confirm({ message: t('task.deleteConfirm'), variant: 'danger', confirmText: t('common.delete') })
@@ -422,14 +434,21 @@ export function useTaskContextMenu({
                 ) : null}
               </PopoverMenuGroup>
               <PopoverMenuGroup>
-                {menuState.scope !== 'trash' ? (
+                {menuState.scope === 'trash' ? (
+                  <PopoverMenuItem
+                    icon={<RestoreMenuIcon />}
+                    onClick={() => void persistTrashRestoreTask()}
+                  >
+                    {t('trash.restoreFromTrash')}
+                  </PopoverMenuItem>
+                ) : (
                   <PopoverMenuItem
                     icon={<DeleteMenuIcon />}
                     onClick={() => void persistTaskDelete()}
                   >
                     {t('common.delete')}
                   </PopoverMenuItem>
-                ) : null}
+                )}
               </PopoverMenuGroup>
             </div>
           ) : (
@@ -564,6 +583,7 @@ export function useTaskContextMenu({
     persistTaskRemoveFromArea,
     persistTaskRemoveFromProject,
     persistTaskRestore,
+    persistTrashRestoreTask,
     persistTaskToggleDone,
     persistTaskUpdate,
     selectedTagIds,

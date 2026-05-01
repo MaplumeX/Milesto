@@ -108,6 +108,7 @@ export const messagesEn = {
     emptyState: 'Trash is empty',
     rootCount: '{{count}} items',
     projectOpenCount: '{{count}} open tasks',
+    restoreFromTrash: 'Restore from Trash',
   },
   settings: {
     title: 'Settings',
@@ -361,6 +362,7 @@ export const messagesZhCN = {
     emptyState: '废纸篓为空',
     rootCount: '{{count}} 个条目',
     projectOpenCount: '{{count}} 个未完成任务',
+    restoreFromTrash: '从废纸篓恢复',
   },
   settings: {
     title: '设置',

@@ -21,6 +21,7 @@ import {
   DueMenuIcon,
   MoveMenuIcon,
   RenameMenuIcon,
+  RestoreMenuIcon,
   ScheduleMenuIcon,
   TagMenuIcon,
 } from '../../components/popover-menu-icons'
@@ -326,32 +327,51 @@ export function useProjectContextMenu({
                 </PopoverMenuItem>
               </PopoverMenuGroup>
               <PopoverMenuGroup>
-                {menuState.scope !== 'trash' ? (
-                <PopoverMenuItem
-                  icon={<DeleteMenuIcon />}
-                  onClick={() => {
-                    void (async () => {
-                      setActionError(null)
-                      const confirmed = await confirm({ message: t('project.deleteConfirm'), variant: 'danger', confirmText: t('common.delete') })
-                      if (!confirmed) return
+                {menuState.scope === 'trash' ? (
+                  <PopoverMenuItem
+                    icon={<RestoreMenuIcon />}
+                    onClick={() => {
+                      void (async () => {
+                        setActionError(null)
+                        const res = await window.api.trash.restoreProject(menuState.project.id)
+                        if (!res.ok) {
+                          setActionError(res.error)
+                          return
+                        }
 
-                      const res = await window.api.project.delete(menuState.project.id)
-                      if (!res.ok) {
-                        setActionError(res.error)
-                        return
-                      }
+                        bumpRevision()
+                        closeMenu({ restoreFocus: true })
+                      })()
+                    }}
+                  >
+                    {t('trash.restoreFromTrash')}
+                  </PopoverMenuItem>
+                ) : (
+                  <PopoverMenuItem
+                    icon={<DeleteMenuIcon />}
+                    onClick={() => {
+                      void (async () => {
+                        setActionError(null)
+                        const confirmed = await confirm({ message: t('project.deleteConfirm'), variant: 'danger', confirmText: t('common.delete') })
+                        if (!confirmed) return
 
-                      bumpRevision()
-                      if (location.pathname === `/projects/${menuState.project.id}`) {
-                        navigate('/today')
-                      }
-                      closeMenu({ restoreFocus: false })
-                  })()
-                }}
-              >
-                {t('common.delete')}
-              </PopoverMenuItem>
-                ) : null}
+                        const res = await window.api.project.delete(menuState.project.id)
+                        if (!res.ok) {
+                          setActionError(res.error)
+                          return
+                        }
+
+                        bumpRevision()
+                        if (location.pathname === `/projects/${menuState.project.id}`) {
+                          navigate('/today')
+                        }
+                        closeMenu({ restoreFocus: false })
+                      })()
+                    }}
+                  >
+                    {t('common.delete')}
+                  </PopoverMenuItem>
+                )}
               </PopoverMenuGroup>
             </div>
           ) : menuState.view === 'move' ? (
