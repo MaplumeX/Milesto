@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend layer entry point - guidelines index"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Verify chip stays class-based + semantic; × clear button has aria-label; decorative TagIcon on +Tags trigger is aria-hidden"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Code Review Checklist - accessibility (aria-label / focus), tests coverage, and lint/typecheck status are mandatory verification points"}
