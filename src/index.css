@@ -2652,12 +2652,6 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
   gap: 16px;
 }
 
-.settings-page-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
 .settings-panel {
   display: flex;
   flex-direction: column;
@@ -2738,40 +2732,50 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
   min-width: 0;
 }
 
-/* Settings tabs — minimal text buttons, no bottom border */
+/* Settings tabs — minimal text with underline indicator */
 .settings-dialog-tabs {
   display: flex;
-  gap: 4px;
+  gap: 10px;
   padding: 0 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--glass-strong);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
 }
 
 .settings-dialog-tab {
-  padding: 10px 14px;
+  position: relative;
+  padding: 10px 2px;
+  margin-bottom: -1px;
   font-size: 13px;
   font-weight: 500;
   color: var(--muted);
   background: none;
   border: none;
-  border-radius: 8px 8px 0 0;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition: color 0.15s;
 }
 
 .settings-dialog-tab:hover {
   color: var(--text);
-  background: var(--wash);
 }
 
 .settings-dialog-tab--active {
   color: var(--text);
-  background: var(--wash-strong);
+  font-weight: 600;
+}
+
+.settings-dialog-tab--active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--text);
+  border-radius: 1px;
 }
 
 /* Settings sections and rows — Things 3 minimal list style */
 .settings-section {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .settings-section-title {
@@ -2785,7 +2789,7 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 }
 
 .settings-section + .settings-section {
-  margin-top: 10px;
+  margin-top: 18px;
 }
 
 .settings-row {
@@ -2793,11 +2797,11 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 5px 0;
+  padding: 8px 0;
 }
 
 .settings-row + .settings-row {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
 }
 
 .settings-row-label {
