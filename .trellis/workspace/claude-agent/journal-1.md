@@ -851,3 +851,36 @@ Added a file-style note icon that appears next to task and project titles in lis
 ### Next Steps
 
 - None - task complete
+
+
+## Session 25: Make trash items consistent with other views
+
+**Date**: 2026-05-01
+**Task**: Make trash items consistent with other views
+**Branch**: `master`
+
+### Summary
+
+Unified TrashEntry schema with ViewListItemSchema, extended DB query with tags/project_title/task counts, replaced custom TrashList with shared ViewList component. Trash now has virtualization, keyboard navigation, progress circles, and context menus matching other views.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1c7e1db` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
