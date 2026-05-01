@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Verify new component follows component patterns and accessibility rules"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Verify change passes lint, typecheck, and accessibility requirements"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Cross-reference frontend conventions"}
