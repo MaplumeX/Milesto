@@ -5,6 +5,8 @@ A focused, keyboard-friendly desktop task manager inspired by Things. Built with
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Node](https://img.shields.io/badge/node-20%2B-green.svg)
 
+**English** | [简体中文](README.zh-CN.md)
+
 ## Features
 
 - **Lists**: Inbox, Today, Upcoming, Anytime, Someday, Logbook, Trash
@@ -28,6 +30,16 @@ A focused, keyboard-friendly desktop task manager inspired by Things. Built with
 | Drag & Drop | @dnd-kit |
 | Virtualization | @tanstack/react-virtual |
 | Testing | Vitest + React Testing Library |
+
+## Screenshots
+
+### Project View
+
+![Project View](docs/photos/1.jpg)
+
+### Upcoming View
+
+![Upcoming View](docs/photos/2.jpg)
 
 ## Architecture
 
