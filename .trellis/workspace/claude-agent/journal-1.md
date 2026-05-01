@@ -1020,3 +1020,36 @@ Removed global text-rendering and WebKit font smoothing CSS hints to avoid blurr
 ### Next Steps
 
 - None - task complete
+
+
+## Session 30: Redesign project page metadata display
+
+**Date**: 2026-05-01
+**Task**: Redesign project page metadata display
+**Branch**: `master`
+
+### Summary
+
+Redesigned ProjectMetaRow: schedule/due as icon+plain text per row, tags as small rounded chips per row, empty fields hidden, hover-reveal edit/clear actions.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `028eb56` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
