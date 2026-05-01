@@ -2458,7 +2458,7 @@ body {
 
 .project-progress-control.is-done {
   border-color: transparent;
-  background: transparent;
+  background: var(--ppc-color);
   color: #fff;
 }
 
@@ -2489,7 +2489,7 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 
 .sidebar .project-progress-control.is-done {
   border-color: transparent;
-  background: transparent;
+  background: var(--text);
   color: var(--bg);
 }
 
