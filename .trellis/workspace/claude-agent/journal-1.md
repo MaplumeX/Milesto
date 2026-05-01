@@ -884,3 +884,36 @@ Unified TrashEntry schema with ViewListItemSchema, extended DB query with tags/p
 ### Next Steps
 
 - None - task complete
+
+
+## Session 26: Add restore from trash button to context menus
+
+**Date**: 2026-05-01
+**Task**: Add restore from trash button to context menus
+**Branch**: `master`
+
+### Summary
+
+为废纸篓视图中的任务和项目右键菜单添加'从废纸篓恢复'按钮，替代原来被隐藏的'删除'按钮位置。使用已有的 trash.restoreTask/restoreProject API，复用 RestoreMenuIcon，添加中英文 i18n 键。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `11d5dec` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

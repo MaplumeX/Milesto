@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 25
+- **Total Sessions**: 26
 - **Last Active**: 2026-05-01
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~886 | Active |
+| `journal-1.md` | ~919 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 26 | 2026-05-01 | Add restore from trash button to context menus | `11d5dec` | `master` |
 | 25 | 2026-05-01 | Make trash items consistent with other views | `1c7e1db` | `master` |
 | 24 | 2026-05-01 | Hide schedule metadata on collapsed Today items | `9d701c4` | `master` |
 | 23 | 2026-05-01 | Add note icon to task/project list rows | `8b5538a` | `master` |
