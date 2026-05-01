@@ -987,3 +987,36 @@ Removed global text-rendering and WebKit font smoothing CSS hints to avoid blurr
 ### Next Steps
 
 - None - task complete
+
+
+## Session 29: 优化设置界面UI设计
+
+**Date**: 2026-05-01
+**Task**: 优化设置界面UI设计
+**Branch**: `master`
+
+### Summary
+
+移除未使用的 SettingsPage，升级设置对话框 Tab 样式为极简文字高亮（底部指示条 + 加粗 active），优化 Row 间距和分隔线透明度，提升整体透气感。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dcfde1c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
