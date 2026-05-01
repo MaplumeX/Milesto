@@ -917,3 +917,36 @@ Unified TrashEntry schema with ViewListItemSchema, extended DB query with tags/p
 ### Next Steps
 
 - None - task complete
+
+
+## Session 27: 修复项目指示器完成状态填充样式
+
+**Date**: 2026-05-01
+**Task**: 修复项目指示器完成状态填充样式
+**Branch**: `master`
+
+### Summary
+
+修复项目指示器在完成状态下只填充内圆的问题。将 .project-progress-control.is-done 和 .sidebar .project-progress-control.is-done 的背景色从 transparent 改为对应的填充色，使整个圆形区域都被填充。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c3c6788` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
