@@ -1380,7 +1380,7 @@ body {
   align-items: center;
   gap: 4px;
   font-size: 14px;
-  color: var(--text);
+  color: inherit;
   line-height: 1.2;
   background: transparent;
   border: 0;
@@ -1879,6 +1879,19 @@ body {
   align-items: center;
   gap: 3px;
   line-height: 1;
+}
+
+.task-row-meta-item[data-task-row-meta-kind="schedule"] {
+  color: var(--ppc-color);
+}
+
+.task-row-meta-item[data-task-row-meta-kind="due"] {
+  color: #C76A1E;
+}
+
+.task-row-meta-item[data-task-row-meta-kind="due"].is-urgent,
+.task-row-meta-item[data-task-row-meta-kind="due"][data-task-row-meta-urgent="true"] {
+  color: var(--danger-text);
 }
 
 .task-row-meta-icon {

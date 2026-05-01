@@ -2,11 +2,20 @@ type MetaTagChipProps = {
   title: string
   onRemove: () => void
   removeLabel: string
+  color?: string | null
 }
 
-export function MetaTagChip({ title, onRemove, removeLabel }: MetaTagChipProps) {
+export function MetaTagChip({ title, onRemove, removeLabel, color }: MetaTagChipProps) {
+  const style: React.CSSProperties | undefined = color
+    ? {
+        borderColor: color,
+        background: `color-mix(in srgb, ${color} 12%, transparent)`,
+        color,
+      }
+    : undefined
+
   return (
-    <span className="meta-tag-chip">
+    <span className="meta-tag-chip" style={style}>
       <span className="meta-tag-chip-text">{title}</span>
       <button
         type="button"

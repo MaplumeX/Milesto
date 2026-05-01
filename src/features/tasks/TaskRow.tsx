@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '../../components/Button'
 import { Checkbox } from '../../components/Checkbox'
-import { getTaskSchedulePreviewLabel, getTaskTagPreview } from './task-metadata'
+import { getTaskSchedulePreviewLabel, getTaskTagPreview, isDueUrgent } from './task-metadata'
+import { getLocalToday } from '../../lib/use-local-today'
 import { CalendarIcon, ClockIcon, NoteIcon, TagIcon } from './task-metadata-icons'
 import { TaskProjectAffiliation } from './TaskProjectAffiliation'
 
@@ -57,6 +58,8 @@ export function TaskRow({
     task.tag_preview ?? [],
     task.tag_count ?? task.tag_preview?.length ?? 0
   )
+  const today = getLocalToday()
+  const dueUrgent = isDueUrgent(task.due_at, today)
   const hasMetadata = Boolean(schedulePreview || task.due_at || tagPreview.visible.length || tagPreview.overflowCount)
   const {
     className: titleActivatorClassName,
@@ -154,8 +157,9 @@ export function TaskRow({
 
           {task.due_at ? (
             <span
-              className="task-row-meta-item"
+              className={`task-row-meta-item${dueUrgent ? ' is-urgent' : ''}`}
               data-task-row-meta-kind="due"
+              data-task-row-meta-urgent={dueUrgent ? 'true' : undefined}
               title={`${t('taskEditor.duePrefix')} ${task.due_at}`}
             >
               <ClockIcon className="task-row-meta-icon" />

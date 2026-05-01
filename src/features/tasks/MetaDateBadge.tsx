@@ -12,14 +12,14 @@ type MetaDateBadgeProps = {
 
 export function MetaDateBadge({ icon: Icon, value, iconColor, onClick, onClear, ariaLabel, dataKind }: MetaDateBadgeProps) {
   return (
-    <span className="meta-date-badge" data-task-inline-meta-kind={dataKind}>
+    <span className="meta-date-badge" data-task-inline-meta-kind={dataKind} style={{ color: iconColor }}>
       <button
         type="button"
         className="meta-date-badge-value"
         aria-label={ariaLabel}
         onClick={onClick}
       >
-        <Icon className="meta-date-badge-icon" style={{ color: iconColor }} />
+        <Icon className="meta-date-badge-icon" />
         <span className="meta-date-badge-text">{value}</span>
       </button>
       <button

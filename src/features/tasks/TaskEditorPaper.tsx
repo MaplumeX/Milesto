@@ -1358,6 +1358,7 @@ export const TaskEditorPaper = forwardRef<
                         <MetaTagChip
                           key={tagId}
                           title={title}
+                          color={tags.find((tag) => tag.id === tagId)?.color}
                           removeLabel={t('aria.removeTag', { title })}
                           onRemove={() => {
                             const remaining = (detail?.tag_ids ?? []).filter((id) => id !== tagId)
