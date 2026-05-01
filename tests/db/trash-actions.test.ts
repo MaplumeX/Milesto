@@ -11,23 +11,6 @@ type Ok<T> = { ok: true; data: T }
 type Err = { ok: false; error: { code: string; message: string; details?: unknown } }
 type Res<T> = Ok<T> | Err
 
-type TrashTaskEntry = {
-  kind: 'task'
-  id: string
-  title: string
-  deleted_at: string
-}
-
-type TrashProjectEntry = {
-  kind: 'project'
-  id: string
-  title: string
-  deleted_at: string
-  open_task_count: number
-}
-
-type TrashEntry = TrashTaskEntry | TrashProjectEntry
-
 function run<T>(handlers: Record<string, DbActionHandler>, action: string, payload: unknown): Res<T> {
   return dispatchDbRequest(handlers, {
     id: `${action}-${Math.random()}`,
@@ -107,6 +90,7 @@ describe('trash DB contract', () => {
     })
     expect(deletedStandaloneTask).toMatchObject({ ok: true, data: { deleted: true } })
 
+    type TrashEntry = { kind: string; id: string; title: string; deleted_at: string | null; status: string; total_count?: number; done_count?: number }
     const trash = run<TrashEntry[]>(handlers, 'trash.list', {})
     expect(trash.ok).toBe(true)
     if (!trash.ok) return
@@ -127,7 +111,8 @@ describe('trash DB contract', () => {
       id: createdProject.data.id,
       title: 'Project Alpha',
       deleted_at: '2026-03-16T11:00:00.000Z',
-      open_task_count: 1,
+      total_count: 2,
+      done_count: 1,
     })
   })
 
@@ -172,6 +157,7 @@ describe('trash DB contract', () => {
     })
     expect(deletedArea).toMatchObject({ ok: true, data: { deleted: true } })
 
+    type TrashEntry = { kind: string; id: string; title: string; total_count?: number; done_count?: number }
     const trash = run<TrashEntry[]>(handlers, 'trash.list', {})
     expect(trash.ok).toBe(true)
     if (!trash.ok) return
@@ -183,7 +169,8 @@ describe('trash DB contract', () => {
     expect(trash.data[0]).toMatchObject({
       kind: 'project',
       id: createdProject.data.id,
-      open_task_count: 1,
+      total_count: 1,
+      done_count: 0,
     })
     expect(trash.data[1]).toMatchObject({
       kind: 'task',
@@ -428,6 +415,7 @@ describe('trash DB contract', () => {
     const emptied = run<{ purged_count: number }>(handlers, 'trash.empty', {})
     expect(emptied).toMatchObject({ ok: true, data: { purged_count: 1 } })
 
+    type TrashEntry = { kind: string; id: string }
     const remaining = run<TrashEntry[]>(handlers, 'trash.list', {})
     expect(remaining).toMatchObject({ ok: true, data: [] })
 

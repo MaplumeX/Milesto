@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 
 import type { AppError } from '../../../shared/app-error'
 import type { Area } from '../../../shared/schemas/area'
+import type { EntityScope } from '../../../shared/schemas/common'
 import type { Tag } from '../../../shared/schemas/tag'
 
 import { useAppEvents } from '../../app/AppEventsContext'
@@ -31,6 +32,7 @@ type ProjectContextMenuView = 'root' | 'plan' | 'move' | 'due' | 'tags'
 
 type ProjectContextMenuState = {
   project: ProjectRowProject
+  scope: EntityScope
   anchorX: number
   anchorY: number
   restoreFocusEl: HTMLElement | null
@@ -39,6 +41,7 @@ type ProjectContextMenuState = {
 
 type OpenProjectContextMenuInput = {
   project: ProjectRowProject
+  scope?: EntityScope
   anchorX: number
   anchorY: number
   restoreFocusEl?: HTMLElement | null
@@ -51,8 +54,10 @@ function getMenuWidth(view: ProjectContextMenuView): number {
 }
 
 export function useProjectContextMenu({
+  scope = 'active',
   onRename,
 }: {
+  scope?: EntityScope
   onRename?: (projectId: string) => void
 } = {}) {
   const { t } = useTranslation()
@@ -94,20 +99,21 @@ export function useProjectContextMenu({
   }, [menuState])
 
   const openProjectContextMenu = useCallback(
-    ({ project, anchorX, anchorY, restoreFocusEl = null }: OpenProjectContextMenuInput) => {
+    ({ project, scope: nextScope, anchorX, anchorY, restoreFocusEl = null }: OpenProjectContextMenuInput) => {
       setActionError(null)
       setProjectTags([])
       setAllTags([])
       setTagsError(null)
       setMenuState({
         project,
+        scope: nextScope ?? scope,
         anchorX,
         anchorY,
         restoreFocusEl,
         view: 'root',
       })
     },
-    []
+    [scope]
   )
 
   useEffect(() => {
@@ -181,6 +187,7 @@ export function useProjectContextMenu({
     const res = await window.api.project.update({
       id: menuState.project.id,
       ...(patch as Record<string, unknown>),
+      scope: menuState.scope,
     })
     if (!res.ok) {
       setActionError(res.error)
@@ -195,13 +202,13 @@ export function useProjectContextMenu({
   const persistProjectTags = useCallback(async (nextIds: string[]) => {
     if (!menuState) return false
 
-    const res = await window.api.project.setTags(menuState.project.id, nextIds)
+    const res = await window.api.project.setTags(menuState.project.id, nextIds, menuState.scope)
     if (!res.ok) {
       return false
     }
 
     bumpRevision()
-    const detailRes = await window.api.project.getDetail(menuState.project.id)
+    const detailRes = await window.api.project.getDetail(menuState.project.id, menuState.scope)
     if (detailRes.ok) setProjectTags(detailRes.data.tags)
     return true
   }, [bumpRevision, menuState])
@@ -271,7 +278,7 @@ export function useProjectContextMenu({
                   onClick={() => {
                     void (async () => {
                       setActionError(null)
-                      const res = await window.api.project.complete(menuState.project.id)
+                      const res = await window.api.project.complete(menuState.project.id, menuState.scope)
                       if (!res.ok) {
                         setActionError(res.error)
                         return
@@ -289,7 +296,7 @@ export function useProjectContextMenu({
                   onClick={() => {
                     void (async () => {
                       setActionError(null)
-                      const res = await window.api.project.cancel(menuState.project.id)
+                      const res = await window.api.project.cancel(menuState.project.id, menuState.scope)
                       if (!res.ok) {
                         setActionError(res.error)
                         return
@@ -319,6 +326,7 @@ export function useProjectContextMenu({
                 </PopoverMenuItem>
               </PopoverMenuGroup>
               <PopoverMenuGroup>
+                {menuState.scope !== 'trash' ? (
                 <PopoverMenuItem
                   icon={<DeleteMenuIcon />}
                   onClick={() => {
@@ -343,6 +351,7 @@ export function useProjectContextMenu({
               >
                 {t('common.delete')}
               </PopoverMenuItem>
+                ) : null}
               </PopoverMenuGroup>
             </div>
           ) : menuState.view === 'move' ? (

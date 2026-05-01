@@ -21,6 +21,7 @@ import {
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
+import type { EntityScope } from '../../../shared/schemas/common'
 import type {
   ViewListItem,
   ViewListProjectItem,
@@ -28,6 +29,7 @@ import type {
   ViewReorderItem,
 } from '../../../shared/schemas/view-list'
 
+import { buildProjectPath } from '../../lib/entity-scope'
 import { useContentScrollRef } from '../../app/ContentScrollContext'
 import { AnimatedTaskSlot } from '../tasks/AnimatedTaskSlot'
 import {
@@ -136,6 +138,8 @@ export function ViewList({
   title,
   items,
   listId,
+  scope = 'active',
+  headerActions,
   onToggleTaskDone,
   onCompleteProject,
   onAfterReorder,
@@ -146,6 +150,8 @@ export function ViewList({
   title: ReactNode
   items: ViewListItem[]
   listId?: string
+  scope?: EntityScope
+  headerActions?: ReactNode
   onToggleTaskDone?: (taskId: string, done: boolean) => Promise<void>
   onCompleteProject?: (project: ViewListProjectItem) => Promise<void>
   onAfterReorder?: () => Promise<void>
@@ -163,8 +169,8 @@ export function ViewList({
     () => getTaskDropAnimationDurationMs(prefersReducedMotion),
     [prefersReducedMotion]
   )
-  const { openTaskContextMenu, menuNode } = useTaskContextMenu({ scope: 'active' })
-  const { openProjectContextMenu, menuNode: projectMenuNode } = useProjectContextMenu()
+  const { openTaskContextMenu, menuNode } = useTaskContextMenu({ scope })
+  const { openProjectContextMenu, menuNode: projectMenuNode } = useProjectContextMenu({ scope })
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [activeItemKey, setActiveItemKey] = useState<string | null>(null)
@@ -255,9 +261,9 @@ export function ViewList({
         void openTask(item.id)
         return
       }
-      navigate(`/projects/${item.id}`)
+      navigate(buildProjectPath(item.id, scope))
     },
-    [navigate, openTask]
+    [navigate, openTask, scope]
   )
 
   const lastSelectedIndexRef = useRef(0)
@@ -531,12 +537,13 @@ export function ViewList({
 
       void openProjectContextMenu({
         project,
+        scope,
         anchorX: event.clientX,
         anchorY: event.clientY,
         restoreFocusEl,
       })
     },
-    [openProjectContextMenu, selectItem]
+    [openProjectContextMenu, scope, selectItem]
   )
 
   return (
@@ -546,6 +553,7 @@ export function ViewList({
           <div className="page-header-left">
             <h1 className="page-title">{title}</h1>
           </div>
+          {headerActions ? <div className="page-header-right">{headerActions}</div> : null}
         </header>
 
         {topContent ? <div className="task-list-top-content">{topContent}</div> : null}
@@ -713,7 +721,7 @@ export function ViewList({
                               />
                             )
                           }
-                          editorContent={<TaskInlineEditorRow taskId={item.id} />}
+                          editorContent={<TaskInlineEditorRow taskId={item.id} scope={scope} />}
                           onHeightChange={() => {
                             if (liEl) rowVirtualizer.measureElement(liEl)
                           }}

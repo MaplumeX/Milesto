@@ -9,86 +9,199 @@ import {
   TrashEmptyResultSchema,
   TrashEntrySchema,
   TrashListInputSchema,
-  TrashProjectEntrySchema,
   TrashPurgeResultSchema,
   TrashRestoreResultSchema,
   TrashRootIdInputSchema,
-  TrashTaskEntrySchema,
 } from '../../../../shared/schemas/trash'
+import {
+  ViewListTaskItemSchema,
+  ViewListProjectItemSchema,
+} from '../../../../shared/schemas/view-list'
 import { ProjectSchema, ProjectSectionSchema } from '../../../../shared/schemas/project'
 import { TaskSchema } from '../../../../shared/schemas/task'
 
 type SyncRecorder = ReturnType<typeof createLocalSyncRecorder>
 
-type TrashListRow = {
-  kind: 'task' | 'project'
-  id: string
-  title: string
-  deleted_at: string
-  open_task_count: number | null
+const TAG_PREVIEW_SEPARATOR = '|||'
+
+const TagPreviewRowSchema = z
+  .object({
+    tag_count: z.number().int().nonnegative().nullable().optional(),
+    tag_preview_text: z.string().nullable().optional(),
+    tag_ids_text: z.string().nullable().optional(),
+  })
+  .passthrough()
+
+function tagCountSql(relationTable: 'task_tags' | 'project_tags', entityColumn: 'task_id' | 'project_id', alias: string) {
+  return `(
+    SELECT COUNT(1)
+    FROM ${relationTable} rel
+    JOIN tags tag ON tag.id = rel.tag_id AND tag.deleted_at IS NULL
+    WHERE rel.deleted_at IS NULL
+      AND rel.${entityColumn} = ${alias}.id
+  )`
+}
+
+function tagPreviewSql(relationTable: 'task_tags' | 'project_tags', entityColumn: 'task_id' | 'project_id', alias: string) {
+  const orderExpr = relationTable === 'project_tags' ? 'rel.position ASC, rel.created_at ASC' : 'rel.created_at ASC'
+  return `(
+    SELECT group_concat(preview.title, '${TAG_PREVIEW_SEPARATOR}')
+    FROM (
+      SELECT tag.title AS title
+      FROM ${relationTable} rel
+      JOIN tags tag ON tag.id = rel.tag_id AND tag.deleted_at IS NULL
+      WHERE rel.deleted_at IS NULL
+        AND rel.${entityColumn} = ${alias}.id
+      ORDER BY ${orderExpr}, rel.rowid ASC
+      LIMIT 2
+    ) preview
+  )`
+}
+
+function tagIdsSql(relationTable: 'task_tags' | 'project_tags', entityColumn: 'task_id' | 'project_id', alias: string) {
+  const orderExpr = relationTable === 'project_tags' ? 'rel.position ASC, rel.created_at ASC' : 'rel.created_at ASC'
+  return `(
+    SELECT group_concat(rel.tag_id, '${TAG_PREVIEW_SEPARATOR}')
+    FROM ${relationTable} rel
+    JOIN tags tag ON tag.id = rel.tag_id AND tag.deleted_at IS NULL
+    WHERE rel.deleted_at IS NULL
+      AND rel.${entityColumn} = ${alias}.id
+    ORDER BY ${orderExpr}, rel.rowid ASC
+  )`
+}
+
+function parseDelimitedText(value: string | null | undefined): string[] {
+  if (!value) return []
+  return value.split(TAG_PREVIEW_SEPARATOR).filter((part) => part.length > 0)
+}
+
+function trashTaskSelectColumns(): string {
+  return [
+    "'task' AS kind",
+    't.id',
+    't.title',
+    't.notes',
+    't.status',
+    't.is_inbox',
+    't.is_someday',
+    't.project_id',
+    'proj.title AS project_title',
+    't.section_id',
+    't.area_id',
+    't.scheduled_at',
+    't.due_at',
+    't.created_at',
+    't.updated_at',
+    't.completed_at',
+    't.deleted_at',
+    `${tagCountSql('task_tags', 'task_id', 't')} AS tag_count`,
+    `${tagPreviewSql('task_tags', 'task_id', 't')} AS tag_preview_text`,
+    `${tagIdsSql('task_tags', 'task_id', 't')} AS tag_ids_text`,
+  ].join(',\n             ')
+}
+
+function trashProjectSelectColumns(): string {
+  return [
+    "'project' AS kind",
+    'p.id',
+    'p.title',
+    'p.notes',
+    'p.status',
+    'p.area_id',
+    'p.scheduled_at',
+    'p.is_someday',
+    'p.due_at',
+    'p.created_at',
+    'p.updated_at',
+    'p.completed_at',
+    'p.deleted_at',
+    `${tagCountSql('project_tags', 'project_id', 'p')} AS tag_count`,
+    `${tagPreviewSql('project_tags', 'project_id', 'p')} AS tag_preview_text`,
+    `${tagIdsSql('project_tags', 'project_id', 'p')} AS tag_ids_text`,
+    `(
+       SELECT COUNT(1)
+       FROM tasks child
+       WHERE child.deleted_at IS NOT NULL
+         AND child.purged_at IS NULL
+         AND child.project_id = p.id
+     ) AS total_count`,
+    `(
+       SELECT COALESCE(SUM(CASE WHEN child.status IN ('done', 'cancelled') THEN 1 ELSE 0 END), 0)
+       FROM tasks child
+       WHERE child.deleted_at IS NOT NULL
+         AND child.purged_at IS NULL
+         AND child.project_id = p.id
+     ) AS done_count`,
+  ].join(',\n             ')
 }
 
 function listTrashEntries(db: Database.Database) {
-  const rows = db
+  const taskRows = db
     .prepare(
-      `SELECT kind, id, title, deleted_at, open_task_count
-       FROM (
-         SELECT
-           'project' AS kind,
-           p.id,
-           p.title,
-           p.deleted_at,
-           CAST((
-             SELECT COUNT(1)
-             FROM tasks t
-             WHERE t.project_id = p.id
-               AND t.deleted_at IS NOT NULL
-               AND t.purged_at IS NULL
-               AND t.status = 'open'
-           ) AS INTEGER) AS open_task_count
-         FROM projects p
-         WHERE p.deleted_at IS NOT NULL
-           AND p.purged_at IS NULL
-
-         UNION ALL
-
-         SELECT
-           'task' AS kind,
-           t.id,
-           t.title,
-           t.deleted_at,
-           NULL AS open_task_count
-         FROM tasks t
-         WHERE t.deleted_at IS NOT NULL
-           AND t.purged_at IS NULL
-           AND NOT EXISTS (
-             SELECT 1
-             FROM projects p
-             WHERE p.id = t.project_id
-               AND p.deleted_at IS NOT NULL
-               AND p.purged_at IS NULL
-           )
-       )
-       ORDER BY deleted_at DESC, title COLLATE NOCASE ASC, id ASC`
+      `SELECT
+             ${trashTaskSelectColumns()}
+       FROM tasks t
+       LEFT JOIN projects proj
+         ON proj.id = t.project_id
+       WHERE t.deleted_at IS NOT NULL
+         AND t.purged_at IS NULL
+         AND NOT EXISTS (
+           SELECT 1
+           FROM projects dp
+           WHERE dp.id = t.project_id
+             AND dp.deleted_at IS NOT NULL
+             AND dp.purged_at IS NULL
+         )
+       ORDER BY t.deleted_at DESC, t.title COLLATE NOCASE ASC, t.id ASC`
     )
-    .all() as TrashListRow[]
+    .all()
 
-  return rows.map((row) =>
-    row.kind === 'project'
-      ? TrashProjectEntrySchema.parse({
-          kind: 'project',
-          id: row.id,
-          title: row.title,
-          deleted_at: row.deleted_at,
-          open_task_count: row.open_task_count ?? 0,
-        })
-      : TrashTaskEntrySchema.parse({
-          kind: 'task',
-          id: row.id,
-          title: row.title,
-          deleted_at: row.deleted_at,
-        })
+  const projectRows = db
+    .prepare(
+      `SELECT
+             ${trashProjectSelectColumns()}
+       FROM projects p
+       WHERE p.deleted_at IS NOT NULL
+         AND p.purged_at IS NULL
+       ORDER BY p.deleted_at DESC, p.title COLLATE NOCASE ASC, p.id ASC`
+    )
+    .all()
+
+  const tasks = z.array(TagPreviewRowSchema).parse(taskRows).map((row) =>
+    ViewListTaskItemSchema.parse({
+      ...row,
+      kind: 'task',
+      tag_preview: parseDelimitedText(row.tag_preview_text),
+      tag_count: row.tag_count ?? 0,
+      tag_ids: parseDelimitedText(row.tag_ids_text),
+    })
   )
+
+  const projects = z.array(TagPreviewRowSchema).parse(projectRows).map((row) =>
+    ViewListProjectItemSchema.parse({
+      ...row,
+      kind: 'project',
+      tag_preview: parseDelimitedText(row.tag_preview_text),
+      tag_count: row.tag_count ?? 0,
+      tag_ids: parseDelimitedText(row.tag_ids_text),
+    })
+  )
+
+  // Interleave by deleted_at DESC, then title, then id (same order as the original single-query approach).
+  const items: (typeof tasks[number] | typeof projects[number])[] = [...tasks, ...projects]
+  items.sort((a, b) => {
+    const aDeleted = a.deleted_at ?? ''
+    const bDeleted = b.deleted_at ?? ''
+    const deleted = bDeleted.localeCompare(aDeleted) // DESC
+    if (deleted !== 0) return deleted
+    const title = a.title.localeCompare(b.title) // ASC
+    if (title !== 0) return title
+    const kind = a.kind.localeCompare(b.kind)
+    if (kind !== 0) return kind
+    return a.id.localeCompare(b.id)
+  })
+
+  return z.array(TrashEntrySchema).parse(items)
 }
 
 function isTaskAbsorbedByDeletedProject(db: Database.Database, projectId: string | null | undefined): boolean {
@@ -328,7 +441,7 @@ export function createTrashActions(db: Database.Database): Record<string, DbActi
         }
       }
 
-      const entries = z.array(TrashEntrySchema).parse(listTrashEntries(db))
+      const entries = listTrashEntries(db)
       return { ok: true, data: entries }
     },
 

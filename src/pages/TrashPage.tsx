@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import type { AppError } from '../../shared/app-error'
+import type { ViewListItem } from '../../shared/schemas/view-list'
 import type { TrashEntry } from '../../shared/schemas/trash'
+import { Button } from '../components/Button'
 import { useAppEvents } from '../app/AppEventsContext'
 import { useConfirm } from '../contexts/ConfirmDialogContext'
-import { Button } from '../components/Button'
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
-import { TrashList } from '../features/trash/TrashList'
-import { buildProjectPath } from '../lib/entity-scope'
+import { ViewList } from '../features/view-list/ViewList'
 
 function resolveSelectedEntryId(entries: TrashEntry[], preferredId: string | null): string | null {
   if (entries.length === 0) return null
@@ -21,12 +20,10 @@ export function TrashPage() {
   const { t } = useTranslation()
   const confirm = useConfirm()
   const { revision, bumpRevision } = useAppEvents()
-  const navigate = useNavigate()
-  const { closeTask, openTask, openTaskId, requestCloseTask, selectTask } = useTaskSelection()
-  const [entries, setEntries] = useState<TrashEntry[]>([])
+  const { closeTask, openTaskId, requestCloseTask, selectTask } = useTaskSelection()
+  const [items, setItems] = useState<ViewListItem[]>([])
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null)
   const [isEmptying, setIsEmptying] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<AppError | null>(null)
   const skipNextRevisionRefreshRef = useRef(false)
 
@@ -34,14 +31,12 @@ export function TrashPage() {
     const res = await window.api.trash.list()
     if (!res.ok) {
       setError(res.error)
-      setIsLoading(false)
       return
     }
 
-    setEntries(res.data)
+    setItems(res.data)
     setSelectedEntryId((current) => resolveSelectedEntryId(res.data, preferredSelectedId ?? current))
     setError(null)
-    setIsLoading(false)
   }, [])
 
   useEffect(() => {
@@ -54,11 +49,11 @@ export function TrashPage() {
     void refresh()
   }, [refresh, revision])
 
-  const hasEntries = entries.length > 0
+  const hasEntries = items.length > 0
 
   const selectedEntry = useMemo(
-    () => entries.find((entry) => entry.id === selectedEntryId) ?? null,
-    [entries, selectedEntryId]
+    () => items.find((entry) => entry.id === selectedEntryId) ?? null,
+    [items, selectedEntryId]
   )
 
   useEffect(() => {
@@ -72,28 +67,10 @@ export function TrashPage() {
 
   useEffect(() => {
     if (!openTaskId) return
-    const hasOpenTask = entries.some((entry) => entry.kind === 'task' && entry.id === openTaskId)
+    const hasOpenTask = items.some((entry) => entry.kind === 'task' && entry.id === openTaskId)
     if (hasOpenTask) return
     closeTask()
-  }, [closeTask, entries, openTaskId])
-
-  const handleOpenTask = useCallback(
-    async (taskId: string) => {
-      setSelectedEntryId(taskId)
-      await openTask(taskId)
-    },
-    [openTask]
-  )
-
-  const handleOpenProject = useCallback(
-    async (projectId: string) => {
-      const ok = await requestCloseTask()
-      if (!ok) return
-      setSelectedEntryId(projectId)
-      navigate(buildProjectPath(projectId, 'trash'))
-    },
-    [navigate, requestCloseTask]
-  )
+  }, [closeTask, items, openTaskId])
 
   const handleToggleTaskDone = useCallback(
     async (taskId: string, done: boolean) => {
@@ -106,6 +83,21 @@ export function TrashPage() {
       skipNextRevisionRefreshRef.current = true
       bumpRevision()
       await refresh(taskId)
+    },
+    [bumpRevision, refresh]
+  )
+
+  const handleCompleteProject = useCallback(
+    async (project: import('../../shared/schemas/view-list').ViewListProjectItem) => {
+      const res = await window.api.project.complete(project.id, 'trash')
+      if (!res.ok) {
+        setError(res.error)
+        return
+      }
+
+      skipNextRevisionRefreshRef.current = true
+      bumpRevision()
+      await refresh(project.id)
     },
     [bumpRevision, refresh]
   )
@@ -130,39 +122,30 @@ export function TrashPage() {
     setIsEmptying(false)
   }, [bumpRevision, confirm, hasEntries, refresh, requestCloseTask, t])
 
+  const headerActions = (
+    <Button
+      variant="ghost"
+      onClick={() => void handleEmpty()}
+      disabled={!hasEntries || isEmptying}
+      data-trash-empty-action="true"
+    >
+      {t('trash.emptyAction')}
+    </Button>
+  )
+
   return (
-    <div className="page">
-      <header className="page-header trash-page-header">
-        <h1 className="page-title">{t('nav.trash')}</h1>
-
-        <Button
-          variant="ghost"
-          onClick={() => void handleEmpty()}
-          disabled={!hasEntries || isEmptying}
-          data-trash-empty-action="true"
-        >
-          {t('trash.emptyAction')}
-        </Button>
-      </header>
-
+    <>
       {error ? <ErrorBanner error={error} /> : null}
-
-      {isLoading ? <div className="nav-muted">{t('common.loading')}</div> : null}
-
-      {!isLoading && !hasEntries ? <div className="nav-muted">{t('trash.emptyState')}</div> : null}
-
-      {!isLoading && hasEntries ? (
-        <TrashList
-          entries={entries}
-          selectedEntryId={selectedEntry?.id ?? selectedEntryId}
-          openTaskId={openTaskId}
-          onSelectEntry={setSelectedEntryId}
-          onOpenTask={handleOpenTask}
-          onOpenProject={handleOpenProject}
-          onToggleTaskDone={handleToggleTaskDone}
-        />
-      ) : null}
-    </div>
+      <ViewList
+        title={t('nav.trash')}
+        items={items}
+        scope="trash"
+        headerActions={headerActions}
+        onToggleTaskDone={handleToggleTaskDone}
+        onCompleteProject={handleCompleteProject}
+        emptyState={<div className="nav-muted">{t('trash.emptyState')}</div>}
+      />
+    </>
   )
 }
 
