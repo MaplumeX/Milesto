@@ -1,0 +1,3 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Component patterns and styling conventions for modifying TaskRow and ProjectRow"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Frontend quality standards including testing and accessibility requirements"}
