@@ -1053,3 +1053,36 @@ Redesigned ProjectMetaRow: schedule/due as icon+plain text per row, tags as smal
 ### Next Steps
 
 - None - task complete
+
+
+## Session 31: 统一任务行和项目行的元数据样式
+
+**Date**: 2026-05-01
+**Task**: 统一任务行和项目行的元数据样式
+**Branch**: `master`
+
+### Summary
+
+将 TaskRow 和 ProjectRow 的元数据展示从圆角药丸徽章风格统一为图标+纯文本风格。移除颜色编码（蓝色 schedule、橙色/红色 due）和 urgency 高亮，统一使用 muted 灰色。字体从 10px 提升到 11px。标签限制从 2 放宽到 3。内联编辑器（TaskEditorPaper）保持原有交互式 chip 风格不变。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a3d6a24` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
