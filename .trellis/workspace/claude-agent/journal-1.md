@@ -1219,3 +1219,36 @@ Replaced the single Tags button in TaskEditorPaper with per-tag MetaTagChip comp
 ### Next Steps
 
 - None - task complete
+
+
+## Session 36: Add color semantics to metadata badges
+
+**Date**: 2026-05-01
+**Task**: Add color semantics to metadata badges
+**Branch**: `master`
+
+### Summary
+
+为 TaskRow、MetaDateBadge、MetaTagChip 添加颜色语义。TaskRow schedule 显示为项目主色，due 显示为橙色（逾期为红色）；MetaDateBadge 文字颜色跟随 icon；MetaTagChip 支持标签颜色。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e37f278` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
