@@ -1,7 +1,7 @@
 {
   "name": "milesto",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Milesto — 桌面任务管理应用",
   "author": "Milesto <team@milesto.app>",
   "license": "MIT",
