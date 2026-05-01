@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/mixed-view-list-contracts.md", "reason": "Verify Trash migration to ViewList follows existing ViewList contracts"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Verify TaskRow/ProjectViewRow usage follows component guidelines"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Verify schema alias and zod patterns are correct"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Verify tests and lint pass"}
+{"file": ".trellis/spec/server/error-handling.md", "reason": "Verify DB action returns Result<T> with proper validation"}

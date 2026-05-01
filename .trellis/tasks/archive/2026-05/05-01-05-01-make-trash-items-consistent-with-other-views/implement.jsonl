@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/frontend/mixed-view-list-contracts.md", "reason": "ViewList/ViewListItem schema contracts and rendering conventions — core reference for Trash→ViewList migration"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Component patterns and prop conventions for TaskRow/ProjectRow/ProjectViewRow"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "TaskSelectionContext, AppEventsContext usage in list views"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Zod schema patterns and type alias conventions for schema unification"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Test and lint requirements for DoD"}
+{"file": ".trellis/spec/server/error-handling.md", "reason": "Result<T> and DB action handler patterns for trash-actions rewrite"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Schema changes must propagate: shared → DB query → IPC → renderer"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "TrashList→ViewList is a code-reuse refactor; guide helps avoid over-abstracting"}
