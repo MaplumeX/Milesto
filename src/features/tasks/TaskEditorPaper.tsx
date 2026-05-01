@@ -9,7 +9,7 @@ import type { Area } from '../../../shared/schemas/area'
 import type { ChecklistItem } from '../../../shared/schemas/checklist'
 import type { EntityScope } from '../../../shared/schemas/common'
 import { isClosedTaskStatus } from '../../../shared/schemas/common'
-import type { Project, ProjectSection } from '../../../shared/schemas/project'
+import type { Project } from '../../../shared/schemas/project'
 import type { Tag } from '../../../shared/schemas/tag'
 import type { TaskDetail } from '../../../shared/schemas/task-detail'
 import type { Task, TaskUpdateInput } from '../../../shared/schemas/task'
@@ -43,8 +43,6 @@ export type TaskEditorPaperHandle = {
   focusTitle: () => void
   focusLastErrorTarget: () => void
 }
-
-type TaskEditorVariant = 'overlay' | 'inline'
 
 type ChecklistRowView = {
   key: string
@@ -198,7 +196,6 @@ export const TaskEditorPaper = forwardRef<
   {
     taskId: string
     onRequestClose: () => void
-    variant?: TaskEditorVariant
     showProjectActions?: boolean
     scope?: EntityScope
     projectScope?: EntityScope
@@ -207,7 +204,6 @@ export const TaskEditorPaper = forwardRef<
     {
       taskId,
       onRequestClose,
-      variant = 'overlay',
       showProjectActions = true,
       scope = 'active',
       projectScope = 'active',
@@ -272,7 +268,6 @@ export const TaskEditorPaper = forwardRef<
     const checklistActionButtonRef = useRef<HTMLButtonElement | null>(null)
 
     const [projects, setProjects] = useState<Project[]>([])
-    const [sections, setSections] = useState<ProjectSection[]>([])
     const [areas, setAreas] = useState<Area[]>([])
     const [tags, setTags] = useState<Tag[]>([])
     const [fallbackProject, setFallbackProject] = useState<Project | null>(null)
@@ -327,8 +322,6 @@ export const TaskEditorPaper = forwardRef<
     }, [])
 
     useEffect(() => {
-      if (variant !== 'inline') return
-
       function handlePointerDown(e: PointerEvent) {
         if (e.button !== 0) return
         if (!(e.target instanceof Node)) return
@@ -374,7 +367,7 @@ export const TaskEditorPaper = forwardRef<
 
       document.addEventListener('pointerdown', handlePointerDown, true)
       return () => document.removeEventListener('pointerdown', handlePointerDown, true)
-    }, [activePicker, onRequestClose, variant])
+    }, [activePicker, onRequestClose])
 
     useEffect(() => {
       if (!activePicker) return
@@ -610,7 +603,6 @@ export const TaskEditorPaper = forwardRef<
     }, [scope, taskId])
 
     useEffect(() => {
-      if (variant !== 'inline') return
       const notes = draft?.notes
       if (notes === undefined) return
       const el = notesInputRef.current
@@ -624,24 +616,8 @@ export const TaskEditorPaper = forwardRef<
       if (document.activeElement === el) {
         el.scrollIntoView({ block: 'nearest' })
       }
-    }, [draft?.notes, variant])
+    }, [draft?.notes])
 
-    useEffect(() => {
-      const projectId = draft?.project_id
-      if (!projectId) {
-        setSections([])
-        return
-      }
-
-      void (async () => {
-        const res = await window.api.project.listSections(projectId, projectScope)
-        if (!res.ok) {
-          setSections([])
-          return
-        }
-        setSections(res.data)
-      })()
-    }, [draft?.project_id, projectScope])
 
     useEffect(() => {
       const projectId = draft?.project_id
@@ -723,13 +699,13 @@ export const TaskEditorPaper = forwardRef<
     const projectButtonStatus = selectedProject?.status ?? null
     const actionErrorMessage = actionError ? `${actionError.code}: ${actionError.message}` : null
 
-    const paperClassName = variant === 'inline' ? 'task-inline-paper' : 'overlay-paper'
+    const paperClassName = 'task-inline-paper'
 
     if (loadError) {
       return (
         <div className={paperClassName}>
-          <div className="overlay-paper-header">
-            <div className="overlay-paper-title">{t('taskEditor.taskTitle')}</div>
+          <div className="task-inline-header">
+            <div style={{ fontWeight: 700 }}>{t('taskEditor.taskTitle')}</div>
             <Button variant="ghost" onClick={onRequestClose}>
               {t('common.close')}
             </Button>
@@ -745,8 +721,8 @@ export const TaskEditorPaper = forwardRef<
     if (!detail || !draft) {
       return (
         <div className={paperClassName}>
-          <div className="overlay-paper-header">
-            <div className="overlay-paper-title">{t('taskEditor.taskTitle')}</div>
+          <div className="task-inline-header">
+            <div style={{ fontWeight: 700 }}>{t('taskEditor.taskTitle')}</div>
             <Button variant="ghost" onClick={onRequestClose}>
               {t('common.close')}
             </Button>
@@ -765,19 +741,6 @@ export const TaskEditorPaper = forwardRef<
       tagPreview.visible.length > 0
         ? `${tagPreview.visible.join(', ')}${tagPreview.overflowCount > 0 ? ` +${tagPreview.overflowCount}` : ''}`
         : `${t('taskEditor.tagsPrefix')} ${selectedTagIds.size}`
-    const statusLabel =
-      detail.task.status === 'done'
-        ? t('taskEditor.statusDone')
-        : detail.task.status === 'cancelled'
-          ? t('taskEditor.statusCancelled')
-          : t('taskEditor.statusOpen')
-    const statusBadgeClass =
-      detail.task.status === 'done'
-        ? 'badge-done'
-        : detail.task.status === 'cancelled'
-          ? 'badge-cancelled'
-          : 'badge-open'
-
     const applyTaskStatusAction = async (action: 'cancel' | 'done' | 'restore') => {
       const res =
         action === 'done'
@@ -933,920 +896,581 @@ export const TaskEditorPaper = forwardRef<
     }
 
     const collapseInlineChecklist = () => {
-      if (variant !== 'inline') return
       setIsChecklistExpanded(false)
       window.setTimeout(() => {
         checklistActionButtonRef.current?.focus()
       }, 0)
     }
+    const openChecklistAndFocus = () => {
+      setIsChecklistExpanded(true)
+      setChecklistCreateRequestToken((v) => v + 1)
+    }
 
-    if (variant === 'inline') {
-      const openChecklistAndFocus = () => {
-        setIsChecklistExpanded(true)
-        setChecklistCreateRequestToken((v) => v + 1)
+    const openSchedulePicker = (anchorEl: HTMLElement) => {
+      setActivePicker({ kind: 'schedule', anchorEl })
+    }
+
+    const openDuePicker = (anchorEl: HTMLElement) => {
+      setActivePicker({ kind: 'due', anchorEl })
+    }
+
+    const openTagsPicker = (anchorEl: HTMLElement) => {
+      setActivePicker({ kind: 'tags', anchorEl })
+    }
+
+    const openProjectMenu = (anchorEl: HTMLElement) => {
+      setActionError(null)
+      setActivePicker({ kind: 'project-menu', anchorEl })
+    }
+
+    const openProjectMovePicker = () => {
+      const current = activePickerRef.current
+      if (!current) return
+      setActionError(null)
+      setActivePicker({ kind: 'project-move', anchorEl: current.anchorEl })
+    }
+
+    const openProjectPage = async () => {
+      const projectId = draft.project_id
+      if (!projectId) return
+
+      closeActivePicker({ restoreFocus: false })
+      const ok = await flushPendingChanges()
+      if (!ok) {
+        focusLastErrorTarget()
+        return
       }
 
-      const openSchedulePicker = (anchorEl: HTMLElement) => {
-        setActivePicker({ kind: 'schedule', anchorEl })
+      navigate(buildProjectPath(projectId, projectScope))
+    }
+
+    const moveTaskToProject = async (patch: Partial<Omit<TaskUpdateInput, 'id'>>) => {
+      setActionError(null)
+      const res = await window.api.task.update({ id: detail.task.id, ...patch, scope })
+      if (!res.ok) {
+        setActionError(res.error)
+        return
       }
 
-      const openDuePicker = (anchorEl: HTMLElement) => {
-        setActivePicker({ kind: 'due', anchorEl })
-      }
+      syncProjectAffiliationState(res.data)
+      closeActivePicker({ restoreFocus: false })
+      window.setTimeout(() => {
+        onRequestClose()
+      }, 0)
+    }
 
-      const openTagsPicker = (anchorEl: HTMLElement) => {
-        setActivePicker({ kind: 'tags', anchorEl })
-      }
+    const persistTags = (nextTagIds: string[]) => {
+      // Optimistic UI update; persistence is tracked so close/switch can await it.
+      setDetail((d) => (d ? { ...d, tag_ids: nextTagIds } : d))
+      setTagsError(null)
 
-      const openProjectMenu = (anchorEl: HTMLElement) => {
-        setActionError(null)
-        setActivePicker({ kind: 'project-menu', anchorEl })
-      }
-
-      const openProjectMovePicker = () => {
-        const current = activePickerRef.current
-        if (!current) return
-        setActionError(null)
-        setActivePicker({ kind: 'project-move', anchorEl: current.anchorEl })
-      }
-
-      const openProjectPage = async () => {
-        const projectId = draft.project_id
-        if (!projectId) return
-
-        closeActivePicker({ restoreFocus: false })
-        const ok = await flushPendingChanges()
-        if (!ok) {
-          focusLastErrorTarget()
-          return
-        }
-
-        navigate(buildProjectPath(projectId, projectScope))
-      }
-
-      const moveTaskToProject = async (patch: Partial<Omit<TaskUpdateInput, 'id'>>) => {
-        setActionError(null)
-        const res = await window.api.task.update({ id: detail.task.id, ...patch, scope })
+      tagsSaveSeqRef.current += 1
+      const seq = tagsSaveSeqRef.current
+      const promise = (async () => {
+        const res = await window.api.task.setTags(detail.task.id, nextTagIds, scope)
+        if (tagsSaveSeqRef.current !== seq) return
         if (!res.ok) {
-          setActionError(res.error)
+          lastFlushFailureTargetRef.current = 'tags'
+          setTagsError(res.error)
           return
         }
-
-        syncProjectAffiliationState(res.data)
-        closeActivePicker({ restoreFocus: false })
-        window.setTimeout(() => {
-          onRequestClose()
-        }, 0)
-      }
-
-      const persistTags = (nextTagIds: string[]) => {
-        // Optimistic UI update; persistence is tracked so close/switch can await it.
-        setDetail((d) => (d ? { ...d, tag_ids: nextTagIds } : d))
         setTagsError(null)
+      })()
 
-        tagsSaveSeqRef.current += 1
-        const seq = tagsSaveSeqRef.current
-        const promise = (async () => {
-          const res = await window.api.task.setTags(detail.task.id, nextTagIds, scope)
-          if (tagsSaveSeqRef.current !== seq) return
-          if (!res.ok) {
-            lastFlushFailureTargetRef.current = 'tags'
-            setTagsError(res.error)
-            return
-          }
-          setTagsError(null)
-        })()
+      tagsSavePromiseRef.current = promise
+    }
 
-        tagsSavePromiseRef.current = promise
-      }
+    const renderPopover = () => {
+      if (!activePicker) return null
 
-      const renderPopover = () => {
-        if (!activePicker) return null
+      const rect = activePicker.anchorEl.getBoundingClientRect()
+      const viewportPadding = 12
+      const isCalendar = activePicker.kind === 'schedule' || activePicker.kind === 'due'
+      const isTags = activePicker.kind === 'tags'
+      const isProjectMenu = activePicker.kind === 'project-menu'
+      const isProjectMove = activePicker.kind === 'project-move'
 
-        const rect = activePicker.anchorEl.getBoundingClientRect()
-        const viewportPadding = 12
-        const isCalendar = activePicker.kind === 'schedule' || activePicker.kind === 'due'
-        const isTags = activePicker.kind === 'tags'
-        const isProjectMenu = activePicker.kind === 'project-menu'
-        const isProjectMove = activePicker.kind === 'project-move'
+      const maxWidth = isProjectMove ? 320 : isTags ? 220 : isProjectMenu ? 188 : 236
+      const left = Math.min(Math.max(viewportPadding, rect.left), window.innerWidth - maxWidth - viewportPadding)
 
-        const maxWidth = isProjectMove ? 320 : isTags ? 220 : isProjectMenu ? 188 : 236
-        const left = Math.min(Math.max(viewportPadding, rect.left), window.innerWidth - maxWidth - viewportPadding)
+      const preferredTop = rect.bottom + 8
+      const spaceBelow = window.innerHeight - viewportPadding - preferredTop
+      const spaceAbove = rect.top - 8 - viewportPadding
+      const estimatedCalendarHeight = 250
+      const estimatedHeight = isProjectMove ? 360 : isProjectMenu ? 120 : estimatedCalendarHeight
+      const openAbove =
+        (isCalendar || isProjectMove || isProjectMenu) &&
+        spaceBelow < estimatedHeight &&
+        spaceAbove > spaceBelow
 
-        const preferredTop = rect.bottom + 8
-        const spaceBelow = window.innerHeight - viewportPadding - preferredTop
-        const spaceAbove = rect.top - 8 - viewportPadding
-        const estimatedCalendarHeight = 250
-        const estimatedHeight = isProjectMove ? 360 : isProjectMenu ? 120 : estimatedCalendarHeight
-        const openAbove =
-          (isCalendar || isProjectMove || isProjectMenu) &&
-          spaceBelow < estimatedHeight &&
-          spaceAbove > spaceBelow
+      const top = (() => {
+        if (!isCalendar && !isProjectMove && !isProjectMenu) {
+          return Math.min(preferredTop, window.innerHeight - viewportPadding)
+        }
 
-        const top = (() => {
-          if (!isCalendar && !isProjectMove && !isProjectMenu) {
-            return Math.min(preferredTop, window.innerHeight - viewportPadding)
-          }
+        // When flipping above, anchor the popover edge to the trigger edge.
+        return openAbove ? rect.top - 8 : preferredTop
+      })()
 
-          // When flipping above, anchor the popover edge to the trigger edge.
-          return openAbove ? rect.top - 8 : preferredTop
-        })()
+      const maxHeight = (() => {
+        if (!isCalendar && !isProjectMove) return undefined
 
-        const maxHeight = (() => {
-          if (!isCalendar && !isProjectMove) return undefined
+        const sideSpace = openAbove ? spaceAbove : spaceBelow
+        // Keep it usable when viewport is tight.
+        return Math.max(180, sideSpace)
+      })()
 
-          const sideSpace = openAbove ? spaceAbove : spaceBelow
-          // Keep it usable when viewport is tight.
-          return Math.max(180, sideSpace)
-        })()
-
-        return createPortal(
-          <div
-            ref={popoverRef}
-            className={
-              isCalendar
-                ? 'task-inline-popover task-inline-popover-calendar'
-                : isTags
-                  ? 'task-inline-popover task-inline-popover-tags'
-                  : 'task-inline-popover'
-            }
-            role="dialog"
-            style={{
-              position: 'fixed',
-              top,
-              left,
-              width: maxWidth,
-              maxHeight,
-              overflow: isProjectMove ? 'auto' : undefined,
-              transform: openAbove ? 'translateY(-100%)' : undefined,
-              zIndex: 45,
-            }}
-          >
-            {!showProjectActions && (isProjectMenu || isProjectMove) ? null : isProjectMenu ? (
-              <TaskEditorProjectActions
-                mode="menu"
-                onOpenProject={() => void openProjectPage()}
-                onOpenMove={openProjectMovePicker}
-              />
-            ) : isProjectMove ? (
-              <TaskEditorProjectActions
-                mode="move"
-                areas={areas}
-                openProjects={projects}
-                actionError={actionErrorMessage}
-                onMoveProject={moveTaskToProject}
-              />
-            ) : activePicker.kind === 'tags' ? (
-              <div className="task-inline-popover-body">
-                <div className="task-inline-popover-title">{t('taskEditor.tagsLabel')}</div>
-                <TagPicker
-                  tags={tags}
-                  selectedTagIds={Array.from(selectedTagIds)}
-                  onToggle={(tagId, selected) => {
-                    const next = new Set(selectedTagIds)
-                    if (selected) next.add(tagId)
-                    else next.delete(tagId)
-                    persistTags(Array.from(next))
-                  }}
-                  onCreate={async (title) => {
-                    const res = await window.api.tag.create({ title })
-                    if (!res.ok) return { ok: false, error: res.error }
-                    const list = await window.api.tag.list()
-                    if (list.ok) setTags(list.data)
-                    return { ok: true, tag: res.data }
-                  }}
-                  onRefresh={async () => {
-                    const list = await window.api.tag.list()
-                    if (list.ok) setTags(list.data)
-                  }}
-                  persistError={tagsError}
-                />
-              </div>
-            ) : activePicker.kind === 'schedule' ? (
-              <div className="task-inline-popover-body">
-                <div className="task-inline-calendar">
-                  <DayPicker
-                    mode="single"
-                    selected={!draft.is_someday && draft.scheduled_at ? parseLocalDate(draft.scheduled_at) ?? undefined : undefined}
-                    onSelect={(date) => {
-                      const nextDate = date ? formatLocalDate(date) : null
-                      const next = {
-                        ...draft,
-                        scheduled_at: nextDate,
-                        is_someday: false,
-                        // Assigning a concrete schedule is a form of processing; it must leave Inbox.
-                        is_inbox: nextDate ? false : draft.is_inbox,
-                      }
-                      setDraft(next)
-                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                      closeActivePicker({ restoreFocus: true })
-                    }}
-                    weekStartsOn={1}
-                    showOutsideDays
-                    fixedWeeks
-                    autoFocus
-                  />
-                </div>
-                <div className="row" style={{ justifyContent: 'flex-start' }}>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      const next = { ...draft, is_someday: true, scheduled_at: null, is_inbox: false }
-                      setDraft(next)
-                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                      closeActivePicker({ restoreFocus: true })
-                    }}
-                  >
-                    <SunIcon />
-                    {t('nav.someday')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      const next = { ...draft, scheduled_at: getLocalToday(), is_someday: false, is_inbox: false }
-                      setDraft(next)
-                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                      closeActivePicker({ restoreFocus: true })
-                    }}
-                  >
-                    <TodayIcon />
-                    {t('nav.today')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      const next = { ...draft, scheduled_at: null, is_someday: false }
-                      setDraft(next)
-                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                      closeActivePicker({ restoreFocus: true })
-                    }}
-                  >
-                    <CircleXIcon />
-                    {t('common.clear')}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="task-inline-popover-body">
-                <div className="task-inline-calendar">
-                  <DayPicker
-                    mode="single"
-                    selected={draft.due_at ? parseLocalDate(draft.due_at) ?? undefined : undefined}
-                    onSelect={(date) => {
-                      const next = { ...draft, due_at: date ? formatLocalDate(date) : null }
-                      setDraft(next)
-                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                      closeActivePicker({ restoreFocus: true })
-                    }}
-                    weekStartsOn={1}
-                    showOutsideDays
-                    fixedWeeks
-                    autoFocus
-                  />
-                </div>
-                <div className="row" style={{ justifyContent: 'flex-start' }}>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      const next = { ...draft, due_at: null }
-                      setDraft(next)
-                      scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                      closeActivePicker({ restoreFocus: true })
-                    }}
-                  >
-                    <CircleXIcon />
-                    {t('common.clear')}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>,
-          document.body
-        )
-      }
-
-      const projectTrigger =
-        showProjectActions &&
-        projectButtonTitle &&
-        projectButtonStatus &&
-        projectProgress &&
-        projectProgress.projectId === draft.project_id ? (
-          <TaskEditorProjectActions
-            mode="trigger"
-            projectTitle={projectButtonTitle}
-            projectStatus={projectButtonStatus}
-            doneCount={projectProgress.doneCount}
-            totalCount={projectProgress.totalCount}
-            onToggleMenu={openProjectMenu}
-          />
-        ) : null
-
-      return (
+      return createPortal(
         <div
-          className="task-inline-shell"
-          ref={inlineRootRef}
-          onKeyDownCapture={(e) => {
-            if (e.key !== 'Escape') return
-            if (!activePickerRef.current) return
-            e.preventDefault()
-            e.stopPropagation()
-            closeActivePicker({ restoreFocus: true })
+          ref={popoverRef}
+          className={
+            isCalendar
+              ? 'task-inline-popover task-inline-popover-calendar'
+              : isTags
+                ? 'task-inline-popover task-inline-popover-tags'
+                : 'task-inline-popover'
+          }
+          role="dialog"
+          style={{
+            position: 'fixed',
+            top,
+            left,
+            width: maxWidth,
+            maxHeight,
+            overflow: isProjectMove ? 'auto' : undefined,
+            transform: openAbove ? 'translateY(-100%)' : undefined,
+            zIndex: 45,
           }}
         >
-          <div className={paperClassName}>
-            <div className="task-inline-header">
-              <Checkbox
-                className="task-checkbox"
-                ariaLabel={t('aria.taskDone')}
-                checked={isClosedTask}
-                mark={isCancelledTask ? 'x' : 'check'}
-                onCheckedChange={(nextDone) => {
-                  void (async () => {
-                    if (!isClosedTask) {
-                      if (!nextDone) return
-                      await applyTaskStatusAction('done')
-                      return
+          {!showProjectActions && (isProjectMenu || isProjectMove) ? null : isProjectMenu ? (
+            <TaskEditorProjectActions
+              mode="menu"
+              onOpenProject={() => void openProjectPage()}
+              onOpenMove={openProjectMovePicker}
+            />
+          ) : isProjectMove ? (
+            <TaskEditorProjectActions
+              mode="move"
+              areas={areas}
+              openProjects={projects}
+              actionError={actionErrorMessage}
+              onMoveProject={moveTaskToProject}
+            />
+          ) : activePicker.kind === 'tags' ? (
+            <div className="task-inline-popover-body">
+              <div className="task-inline-popover-title">{t('taskEditor.tagsLabel')}</div>
+              <TagPicker
+                tags={tags}
+                selectedTagIds={Array.from(selectedTagIds)}
+                onToggle={(tagId, selected) => {
+                  const next = new Set(selectedTagIds)
+                  if (selected) next.add(tagId)
+                  else next.delete(tagId)
+                  persistTags(Array.from(next))
+                }}
+                onCreate={async (title) => {
+                  const res = await window.api.tag.create({ title })
+                  if (!res.ok) return { ok: false, error: res.error }
+                  const list = await window.api.tag.list()
+                  if (list.ok) setTags(list.data)
+                  return { ok: true, tag: res.data }
+                }}
+                onRefresh={async () => {
+                  const list = await window.api.tag.list()
+                  if (list.ok) setTags(list.data)
+                }}
+                persistError={tagsError}
+              />
+            </div>
+          ) : activePicker.kind === 'schedule' ? (
+            <div className="task-inline-popover-body">
+              <div className="task-inline-calendar">
+                <DayPicker
+                  mode="single"
+                  selected={!draft.is_someday && draft.scheduled_at ? parseLocalDate(draft.scheduled_at) ?? undefined : undefined}
+                  onSelect={(date) => {
+                    const nextDate = date ? formatLocalDate(date) : null
+                    const next = {
+                      ...draft,
+                      scheduled_at: nextDate,
+                      is_someday: false,
+                      // Assigning a concrete schedule is a form of processing; it must leave Inbox.
+                      is_inbox: nextDate ? false : draft.is_inbox,
                     }
-
-                    if (nextDone) return
-                    await applyTaskStatusAction('restore')
-                  })()
-                }}
-              />
-
-              <input
-                id="task-title"
-                ref={titleInputRef}
-                className={`task-inline-title${isCancelledTask ? ' is-cancelled' : ''}`}
-                value={draft.title}
-                onChange={(e) => {
-                  const next = { ...draft, title: e.target.value }
-                  setDraft(next)
-                  scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
-                }}
-                onKeyDown={(e) => {
-                  if (e.key !== 'Enter') return
-                  if (e.metaKey || e.ctrlKey) return
-                  e.preventDefault()
-                  e.stopPropagation()
-                  onRequestClose()
-                }}
-                placeholder={t('task.titlePlaceholder')}
-              />
-
-              {savePhase === 'error' ? (
-                <div className="task-inline-header-right">
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      requestSave(draft)
-                    }}
-                  >
-                    {t('common.retry')}
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="task-inline-content">
-              {saveError ? (
-                <div className="error">
-                  <div className="error-code">{saveError.code}</div>
-                  <div>{saveError.message}</div>
-                </div>
-              ) : null}
-
-              {actionError ? (
-                <div className="error">
-                  <div className="error-code">{actionError.code}</div>
-                  <div>{actionError.message}</div>
-                </div>
-              ) : null}
-
-              {tagsError ? (
-                <div className="error">
-                  <div className="error-code">{tagsError.code}</div>
-                  <div>{tagsError.message}</div>
-                </div>
-              ) : null}
-
-              {checklistError ? (
-                <div className="error">
-                  <div className="error-code">{checklistError.code}</div>
-                  <div>{checklistError.message}</div>
-                </div>
-              ) : null}
-
-              <MarkdownNotes
-                id="task-notes"
-                textareaRef={notesInputRef}
-                className="task-inline-notes"
-                style={{ minHeight: `${TASK_INLINE_NOTES_MIN_HEIGHT_PX}px` }}
-                value={draft.notes}
-                onChange={(nextNotes) => {
-                  const next = { ...draft, notes: nextNotes }
-                  setDraft(next)
-                  scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
-                }}
-                placeholder={t('task.notesPlaceholder')}
-              />
-
-              {isChecklistExpanded ? (
-                <div className="task-inline-section">
-                  <Checklist
-                    items={checklist}
-                    variant="inline"
-                    createRequestToken={checklistCreateRequestToken}
-                    fallbackFocusRef={checklistActionButtonRef}
-                    onCreate={createChecklistItem}
-                    onToggle={toggleChecklistItem}
-                    onRename={renameChecklistItem}
-                    onDelete={deleteChecklistItem}
-                    onCollapseWhenEmpty={collapseInlineChecklist}
-                  />
-                </div>
-              ) : null}
-
-              <div className="task-inline-metadata-band" data-task-inline-meta-band="true">
-                <div className="task-inline-metadata-set-values">
-                  {schedulePreviewLabel ? (
-                    <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                      <button
-                        type="button"
-                        className="task-inline-meta-value"
-                        data-task-inline-meta-kind="schedule"
-                        onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
-                      >
-                        <CalendarIcon className="task-inline-meta-value-icon" />
-                        <span className="task-inline-meta-value-text">{schedulePreviewLabel}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="task-inline-meta-clear"
-                        aria-label={t('common.clear')}
-                        onClick={() => {
-                          const next = { ...draft, scheduled_at: null, is_someday: false }
-                          setDraft(next)
-                          scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {draft.due_at ? (
-                    <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                      <button
-                        type="button"
-                        className="task-inline-meta-value"
-                        data-task-inline-meta-kind="due"
-                        onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}
-                      >
-                        <ClockIcon className="task-inline-meta-value-icon" />
-                        <span className="task-inline-meta-value-text">{draft.due_at}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="task-inline-meta-clear"
-                        aria-label={t('common.clear')}
-                        onClick={() => {
-                          const next = { ...draft, due_at: null }
-                          setDraft(next)
-                          scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {selectedTagIds.size > 0 ? (
-                    <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                      <button
-                        ref={tagsButtonRef}
-                        type="button"
-                        className="task-inline-meta-value"
-                        data-task-inline-meta-kind="tags"
-                        onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
-                      >
-                        <TagIcon className="task-inline-meta-value-icon" />
-                        <span className="task-inline-meta-value-text">{tagsPreviewLabel}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="task-inline-meta-clear"
-                        aria-label={t('common.clear')}
-                        onClick={() => {
-                          persistTags([])
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="task-inline-metadata-empty-triggers">
-                  {!schedulePreviewLabel ? (
-                    <button
-                      type="button"
-                      className="task-inline-meta-trigger"
-                      data-task-inline-meta-kind="schedule"
-                      onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
-                    >
-                      <CalendarIcon className="task-inline-meta-trigger-icon" />
-                      {t('common.schedule')}
-                    </button>
-                  ) : null}
-
-                  {!draft.due_at ? (
-                    <button
-                      type="button"
-                      className="task-inline-meta-trigger"
-                      data-task-inline-meta-kind="due"
-                      onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}
-                    >
-                      <ClockIcon className="task-inline-meta-trigger-icon" />
-                      {t('taskEditor.dueLabel')}
-                    </button>
-                  ) : null}
-
-                  {selectedTagIds.size === 0 ? (
-                    <button
-                      ref={tagsButtonRef}
-                      type="button"
-                      className="task-inline-meta-trigger"
-                      data-task-inline-meta-kind="tags"
-                      onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
-                    >
-                      <TagIcon className="task-inline-meta-trigger-icon" />
-                      {t('taskEditor.tagsLabel')}
-                    </button>
-                  ) : null}
-
-                  {checklist.length === 0 && !isChecklistExpanded ? (
-                    <button
-                      ref={checklistActionButtonRef}
-                      type="button"
-                      className="task-inline-meta-trigger"
-                      data-task-inline-meta-kind="checklist"
-                      onClick={() => openChecklistAndFocus()}
-                    >
-                      {t('taskEditor.checklistLabel')}
-                    </button>
-                  ) : null}
-                </div>
+                    setDraft(next)
+                    scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                    closeActivePicker({ restoreFocus: true })
+                  }}
+                  weekStartsOn={1}
+                  showOutsideDays
+                  fixedWeeks
+                  autoFocus
+                />
               </div>
-
+              <div className="row" style={{ justifyContent: 'flex-start' }}>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    const next = { ...draft, is_someday: true, scheduled_at: null, is_inbox: false }
+                    setDraft(next)
+                    scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                    closeActivePicker({ restoreFocus: true })
+                  }}
+                >
+                  <SunIcon />
+                  {t('nav.someday')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    const next = { ...draft, scheduled_at: getLocalToday(), is_someday: false, is_inbox: false }
+                    setDraft(next)
+                    scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                    closeActivePicker({ restoreFocus: true })
+                  }}
+                >
+                  <TodayIcon />
+                  {t('nav.today')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    const next = { ...draft, scheduled_at: null, is_someday: false }
+                    setDraft(next)
+                    scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                    closeActivePicker({ restoreFocus: true })
+                  }}
+                >
+                  <CircleXIcon />
+                  {t('common.clear')}
+                </Button>
+              </div>
             </div>
-          </div>
-
-          {projectTrigger ? <div className="task-inline-footer">{projectTrigger}</div> : null}
-
-          {renderPopover()}
-        </div>
+          ) : (
+            <div className="task-inline-popover-body">
+              <div className="task-inline-calendar">
+                <DayPicker
+                  mode="single"
+                  selected={draft.due_at ? parseLocalDate(draft.due_at) ?? undefined : undefined}
+                  onSelect={(date) => {
+                    const next = { ...draft, due_at: date ? formatLocalDate(date) : null }
+                    setDraft(next)
+                    scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                    closeActivePicker({ restoreFocus: true })
+                  }}
+                  weekStartsOn={1}
+                  showOutsideDays
+                  fixedWeeks
+                  autoFocus
+                />
+              </div>
+              <div className="row" style={{ justifyContent: 'flex-start' }}>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    const next = { ...draft, due_at: null }
+                    setDraft(next)
+                    scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                    closeActivePicker({ restoreFocus: true })
+                  }}
+                >
+                  <CircleXIcon />
+                  {t('common.clear')}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>,
+        document.body
       )
     }
 
+    const projectTrigger =
+      showProjectActions &&
+      projectButtonTitle &&
+      projectButtonStatus &&
+      projectProgress &&
+      projectProgress.projectId === draft.project_id ? (
+        <TaskEditorProjectActions
+          mode="trigger"
+          projectTitle={projectButtonTitle}
+          projectStatus={projectButtonStatus}
+          doneCount={projectProgress.doneCount}
+          totalCount={projectProgress.totalCount}
+          onToggleMenu={openProjectMenu}
+        />
+      ) : null
+
     return (
-      <div className={paperClassName}>
-        <div className="overlay-paper-header">
-          <div className="overlay-paper-title">{t('taskEditor.taskTitle')}</div>
-
-          {savePhase === 'error' ? (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                if (!draft) return
-                requestSave(draft)
-              }}
-            >
-              {t('common.retry')}
-            </Button>
-          ) : null}
-
-          <Button variant="ghost" onClick={onRequestClose}>
-            {t('common.close')}
-          </Button>
-        </div>
-
-        {saveError ? (
-          <div className="error">
-            <div className="error-code">{saveError.code}</div>
-            <div>{saveError.message}</div>
-          </div>
-        ) : null}
-
-        {actionError ? (
-          <div className="error">
-            <div className="error-code">{actionError.code}</div>
-            <div>{actionError.message}</div>
-          </div>
-        ) : null}
-
-        {checklistError ? (
-          <div className="error">
-            <div className="error-code">{checklistError.code}</div>
-            <div>{checklistError.message}</div>
-          </div>
-        ) : null}
-
-        <div className="detail-meta" style={{ marginTop: 6 }}>
-          <span className={`badge ${statusBadgeClass}`}>{statusLabel}</span>
-          {detail.task.is_someday ? (
-            <span className="badge">
-              {t('taskEditor.scheduledPrefix')} {t('nav.someday')}
-            </span>
-          ) : detail.task.scheduled_at ? (
-            <span className="badge">
-              {t('taskEditor.scheduledPrefix')} {detail.task.scheduled_at}
-            </span>
-          ) : null}
-          {detail.task.due_at ? (
-            <span className="badge">
-              {t('taskEditor.duePrefix')} {detail.task.due_at}
-            </span>
-          ) : null}
-        </div>
-
-        <div className="detail-field">
-          <label className="label" htmlFor="task-title">
-            {t('taskEditor.titleLabel')}
-          </label>
-          <input
-            id="task-title"
-            ref={titleInputRef}
-            className={`input task-title-input${isCancelledTask ? ' is-cancelled' : ''}`}
-            value={draft.title}
-            onChange={(e) => {
-              const next = { ...draft, title: e.target.value }
-              setDraft(next)
-              scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
-            }}
-          />
-        </div>
-
-        <div className="detail-field">
-          <label className="label" htmlFor="task-notes">
-            {t('taskEditor.notesLabel')}
-          </label>
-          <MarkdownNotes
-            id="task-notes"
-            className="input"
-            rows={8}
-            value={draft.notes}
-            onChange={(nextNotes) => {
-              const next = { ...draft, notes: nextNotes }
-              setDraft(next)
-              scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
-            }}
-            placeholder={t('taskEditor.markdownPlaceholder')}
-          />
-        </div>
-
-        <div className="detail-grid">
-          <div className="detail-field">
-            <label className="label" htmlFor="task-project">
-              {t('taskEditor.projectLabel')}
-            </label>
-            <select
-              id="task-project"
-              className="input"
-              value={draft.project_id ?? ''}
-              onChange={(e) => {
-                const nextProject = e.target.value ? e.target.value : null
-                const next = { ...draft, project_id: nextProject, section_id: null }
-                setDraft(next)
-                scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-              }}
-            >
-              <option value="">{t('common.noneOption')}</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.title.trim() ? p.title : t('project.untitled')}
-                </option>
-              ))}
-            </select>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                const title = prompt(t('project.newTitlePrompt'))
-                if (!title) return
+      <div
+        className="task-inline-shell"
+        ref={inlineRootRef}
+        onKeyDownCapture={(e) => {
+          if (e.key !== 'Escape') return
+          if (!activePickerRef.current) return
+          e.preventDefault()
+          e.stopPropagation()
+          closeActivePicker({ restoreFocus: true })
+        }}
+      >
+        <div className={paperClassName}>
+          <div className="task-inline-header">
+            <Checkbox
+              className="task-checkbox"
+              ariaLabel={t('aria.taskDone')}
+              checked={isClosedTask}
+              mark={isCancelledTask ? 'x' : 'check'}
+              onCheckedChange={(nextDone) => {
                 void (async () => {
-                  const res = await window.api.project.create({ title })
-                  if (!res.ok) {
-                    setActionError(res.error)
+                  if (!isClosedTask) {
+                    if (!nextDone) return
+                    await applyTaskStatusAction('done')
                     return
                   }
-                  setActionError(null)
-                  const projectsRes = await window.api.project.listOpen()
-                  if (projectsRes.ok) setProjects(projectsRes.data)
-                  const next = { ...draft, project_id: res.data.id, section_id: null }
-                  setDraft(next)
-                  scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+
+                  if (nextDone) return
+                  await applyTaskStatusAction('restore')
                 })()
               }}
-            >
-              +
-            </Button>
-          </div>
-
-          <div className="detail-field">
-            <label className="label" htmlFor="task-section">
-              {t('taskEditor.sectionLabel')}
-            </label>
-            <select
-              id="task-section"
-              className="input"
-              value={draft.section_id ?? ''}
-              onChange={(e) => {
-                const next = { ...draft, section_id: e.target.value ? e.target.value : null }
-                setDraft(next)
-                scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-              }}
-              disabled={!draft.project_id}
-            >
-              <option value="">{t('common.noneOption')}</option>
-              {sections.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.title.trim() ? s.title : t('section.untitled')}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="detail-field">
-            <label className="label" htmlFor="task-area">
-              {t('taskEditor.areaLabel')}
-            </label>
-            <select
-              id="task-area"
-              className="input"
-              value={draft.area_id ?? ''}
-              onChange={(e) => {
-                const next = { ...draft, area_id: e.target.value ? e.target.value : null }
-                setDraft(next)
-                scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-              }}
-            >
-              <option value="">{t('common.noneOption')}</option>
-              {areas.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.title.trim() ? a.title : t('area.untitled')}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="detail-field">
-            <label className="label" htmlFor="task-scheduled">
-              {t('taskEditor.scheduledLabel')}
-            </label>
-            <input
-              id="task-scheduled"
-              className="input"
-              type="date"
-              value={draft.scheduled_at ?? ''}
-              onChange={(e) => {
-                const next = { ...draft, scheduled_at: e.target.value ? e.target.value : null }
-                setDraft(next)
-                scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-              }}
             />
-            <div className="row">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  const next = { ...draft, scheduled_at: getLocalToday() }
-                  setDraft(next)
-                  scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                }}
-              >
-                {t('nav.today')}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  const next = { ...draft, scheduled_at: null }
-                  setDraft(next)
-                  scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                }}
-              >
-                {t('common.clear')}
-              </Button>
-            </div>
-          </div>
 
-          <div className="detail-field">
-            <label className="label" htmlFor="task-due">
-              {t('taskEditor.dueLabel')}
-            </label>
             <input
-              id="task-due"
-              className="input"
-              type="date"
-              value={draft.due_at ?? ''}
+              id="task-title"
+              ref={titleInputRef}
+              className={`task-inline-title${isCancelledTask ? ' is-cancelled' : ''}`}
+              value={draft.title}
               onChange={(e) => {
-                const next = { ...draft, due_at: e.target.value ? e.target.value : null }
+                const next = { ...draft, title: e.target.value }
                 setDraft(next)
-                scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
               }}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return
+                if (e.metaKey || e.ctrlKey) return
+                e.preventDefault()
+                e.stopPropagation()
+                onRequestClose()
+              }}
+              placeholder={t('task.titlePlaceholder')}
             />
-            <div className="row">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  const next = { ...draft, due_at: null }
-                  setDraft(next)
-                  scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
-                }}
-              >
-                {t('common.clear')}
-              </Button>
+
+            {savePhase === 'error' ? (
+              <div className="task-inline-header-right">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    requestSave(draft)
+                  }}
+                >
+                  {t('common.retry')}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="task-inline-content">
+            {saveError ? (
+              <div className="error">
+                <div className="error-code">{saveError.code}</div>
+                <div>{saveError.message}</div>
+              </div>
+            ) : null}
+
+            {actionError ? (
+              <div className="error">
+                <div className="error-code">{actionError.code}</div>
+                <div>{actionError.message}</div>
+              </div>
+            ) : null}
+
+            {tagsError ? (
+              <div className="error">
+                <div className="error-code">{tagsError.code}</div>
+                <div>{tagsError.message}</div>
+              </div>
+            ) : null}
+
+            {checklistError ? (
+              <div className="error">
+                <div className="error-code">{checklistError.code}</div>
+                <div>{checklistError.message}</div>
+              </div>
+            ) : null}
+
+            <MarkdownNotes
+              id="task-notes"
+              textareaRef={notesInputRef}
+              className="task-inline-notes"
+              style={{ minHeight: `${TASK_INLINE_NOTES_MIN_HEIGHT_PX}px` }}
+              value={draft.notes}
+              onChange={(nextNotes) => {
+                const next = { ...draft, notes: nextNotes }
+                setDraft(next)
+                scheduleSave(next, TITLE_NOTES_DEBOUNCE_MS)
+              }}
+              placeholder={t('task.notesPlaceholder')}
+            />
+
+            {isChecklistExpanded ? (
+              <div className="task-inline-section">
+                <Checklist
+                  items={checklist}
+                  createRequestToken={checklistCreateRequestToken}
+                  fallbackFocusRef={checklistActionButtonRef}
+                  onCreate={createChecklistItem}
+                  onToggle={toggleChecklistItem}
+                  onRename={renameChecklistItem}
+                  onDelete={deleteChecklistItem}
+                  onCollapseWhenEmpty={collapseInlineChecklist}
+                />
+              </div>
+            ) : null}
+
+            <div className="task-inline-metadata-band" data-task-inline-meta-band="true">
+              <div className="task-inline-metadata-set-values">
+                {schedulePreviewLabel ? (
+                  <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                    <button
+                      type="button"
+                      className="task-inline-meta-value"
+                      data-task-inline-meta-kind="schedule"
+                      onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
+                    >
+                      <CalendarIcon className="task-inline-meta-value-icon" />
+                      <span className="task-inline-meta-value-text">{schedulePreviewLabel}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="task-inline-meta-clear"
+                      aria-label={t('common.clear')}
+                      onClick={() => {
+                        const next = { ...draft, scheduled_at: null, is_someday: false }
+                        setDraft(next)
+                        scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : null}
+
+                {draft.due_at ? (
+                  <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                    <button
+                      type="button"
+                      className="task-inline-meta-value"
+                      data-task-inline-meta-kind="due"
+                      onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}
+                    >
+                      <ClockIcon className="task-inline-meta-value-icon" />
+                      <span className="task-inline-meta-value-text">{draft.due_at}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="task-inline-meta-clear"
+                      aria-label={t('common.clear')}
+                      onClick={() => {
+                        const next = { ...draft, due_at: null }
+                        setDraft(next)
+                        scheduleSave(next, OTHER_FIELDS_DEBOUNCE_MS)
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : null}
+
+                {selectedTagIds.size > 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                    <button
+                      ref={tagsButtonRef}
+                      type="button"
+                      className="task-inline-meta-value"
+                      data-task-inline-meta-kind="tags"
+                      onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
+                    >
+                      <TagIcon className="task-inline-meta-value-icon" />
+                      <span className="task-inline-meta-value-text">{tagsPreviewLabel}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="task-inline-meta-clear"
+                      aria-label={t('common.clear')}
+                      onClick={() => {
+                        persistTags([])
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="task-inline-metadata-empty-triggers">
+                {!schedulePreviewLabel ? (
+                  <button
+                    type="button"
+                    className="task-inline-meta-trigger"
+                    data-task-inline-meta-kind="schedule"
+                    onClick={(e) => openSchedulePicker(e.currentTarget as HTMLElement)}
+                  >
+                    <CalendarIcon className="task-inline-meta-trigger-icon" />
+                    {t('common.schedule')}
+                  </button>
+                ) : null}
+
+                {!draft.due_at ? (
+                  <button
+                    type="button"
+                    className="task-inline-meta-trigger"
+                    data-task-inline-meta-kind="due"
+                    onClick={(e) => openDuePicker(e.currentTarget as HTMLElement)}
+                  >
+                    <ClockIcon className="task-inline-meta-trigger-icon" />
+                    {t('taskEditor.dueLabel')}
+                  </button>
+                ) : null}
+
+                {selectedTagIds.size === 0 ? (
+                  <button
+                    ref={tagsButtonRef}
+                    type="button"
+                    className="task-inline-meta-trigger"
+                    data-task-inline-meta-kind="tags"
+                    onClick={(e) => openTagsPicker(e.currentTarget as HTMLElement)}
+                  >
+                    <TagIcon className="task-inline-meta-trigger-icon" />
+                    {t('taskEditor.tagsLabel')}
+                  </button>
+                ) : null}
+
+                {checklist.length === 0 && !isChecklistExpanded ? (
+                  <button
+                    ref={checklistActionButtonRef}
+                    type="button"
+                    className="task-inline-meta-trigger"
+                    data-task-inline-meta-kind="checklist"
+                    onClick={() => openChecklistAndFocus()}
+                  >
+                    {t('taskEditor.checklistLabel')}
+                  </button>
+                ) : null}
+              </div>
             </div>
+
           </div>
         </div>
 
-        <div className="detail-field">
-          <div className="label">{t('taskEditor.tagsLabel')}</div>
-          <TagPicker
-            tags={tags}
-            selectedTagIds={Array.from(selectedTagIds)}
-            onToggle={(tagId, selected) => {
-              const next = new Set(selectedTagIds)
-              if (selected) next.add(tagId)
-              else next.delete(tagId)
+        {projectTrigger ? <div className="task-inline-footer">{projectTrigger}</div> : null}
 
-              void (async () => {
-                const res = await window.api.task.setTags(detail.task.id, Array.from(next), scope)
-                if (!res.ok) {
-                  setActionError(res.error)
-                  return
-                }
-                setActionError(null)
-                setDetail((d) => (d ? { ...d, tag_ids: Array.from(next) } : d))
-              })()
-            }}
-            onCreate={async (title) => {
-              const res = await window.api.tag.create({ title })
-              if (!res.ok) return { ok: false, error: res.error }
-              const list = await window.api.tag.list()
-              if (list.ok) setTags(list.data)
-              return { ok: true, tag: res.data }
-            }}
-            onRefresh={async () => {
-              const list = await window.api.tag.list()
-              if (list.ok) setTags(list.data)
-            }}
-          />
-        </div>
-
-        <div className="detail-field">
-          <div className="label">{t('taskEditor.checklistLabel')}</div>
-          <Checklist
-            items={checklist}
-            variant="overlay"
-            onCreate={createChecklistItem}
-            onToggle={toggleChecklistItem}
-            onRename={renameChecklistItem}
-            onDelete={deleteChecklistItem}
-          />
-        </div>
-
-        <div className="detail-actions">
-          {isClosedTask ? (
-            <Button
-              variant="ghost"
-              onClick={() => void applyTaskStatusAction('restore')}
-            >
-              {t('task.restore')}
-            </Button>
-          ) : (
-            <>
-              <Button
-                variant="ghost"
-                onClick={() => void applyTaskStatusAction('done')}
-              >
-                {t('taskEditor.markDone')}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => void applyTaskStatusAction('cancel')}
-              >
-                {t('task.cancel')}
-              </Button>
-            </>
-          )}
-        </div>
+        {renderPopover()}
       </div>
     )
-  }
-)
+    }
+  )
 
 function Checklist({
   items,
-  variant,
   createRequestToken,
   fallbackFocusRef,
   onCreate,
@@ -1856,7 +1480,6 @@ function Checklist({
   onCollapseWhenEmpty,
 }: {
   items: ChecklistItem[]
-  variant: TaskEditorVariant
   createRequestToken?: number
   fallbackFocusRef?: { current: HTMLButtonElement | null }
   onCreate: (title: string) => Promise<ChecklistItem | null>
@@ -1977,7 +1600,7 @@ function Checklist({
           const remainingCount = rowsRef.current.length - 1
           setRows((prev) => prev.filter((row) => row.key !== rowKey))
 
-          if (remainingCount === 0 && variant === 'inline') {
+          if (remainingCount === 0) {
             onCollapseWhenEmpty?.()
             return
           }
@@ -2053,7 +1676,7 @@ function Checklist({
         committingRowsRef.current.delete(rowKey)
       }
     },
-    [onCollapseWhenEmpty, onCreate, onDelete, onRename, queueFallbackFocus, queueRowFocus, variant]
+    [onCollapseWhenEmpty, onCreate, onDelete, onRename, queueFallbackFocus, queueRowFocus]
   )
 
   const handleToggle = useCallback(
@@ -2171,7 +1794,7 @@ function Checklist({
               ensureEditableRow()
             }}
           >
-            {variant === 'overlay' ? 'Create first checklist item' : 'Create checklist item'}
+            {'Create checklist item'}
           </button>
         </li>
       ) : null}

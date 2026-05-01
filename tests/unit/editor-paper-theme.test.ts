@@ -10,9 +10,8 @@ describe('editor paper theme contract', () => {
     expect(css).toContain('--editor-paper: #31353A;')
   })
 
-  it('maps inline and overlay task editors to editor paper', () => {
+  it('maps inline task editor to editor paper', () => {
     expect(css).toMatch(/\.task-inline-paper\s*\{[\s\S]*background:\s*var\(--editor-paper\);/)
-    expect(css).toMatch(/\.overlay-paper\s*\{[\s\S]*background:\s*var\(--editor-paper\);/)
   })
 
   it('keeps task inline popovers on the existing paper surface', () => {

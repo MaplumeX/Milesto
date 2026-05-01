@@ -74,7 +74,7 @@ describe('TaskEditorPaper status actions', () => {
     cleanup()
   })
 
-  it('shows Cancel for open tasks and keeps the overlay open after cancelling', async () => {
+  it('shows an unchecked checkbox for open tasks and marks done on click', async () => {
     const user = userEvent.setup()
     const { api } = setupApi('open')
 
@@ -87,21 +87,40 @@ describe('TaskEditorPaper status actions', () => {
     )
 
     await screen.findByDisplayValue('Task A')
-    expect(screen.getByRole('button', { name: 'taskEditor.markDone' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'task.cancel' })).toBeInTheDocument()
+    const checkbox = screen.getByRole('checkbox', { name: 'aria.taskDone' })
+    expect(checkbox).not.toBeChecked()
 
-    await user.click(screen.getByRole('button', { name: 'task.cancel' }))
+    await user.click(checkbox)
 
     await waitFor(() => {
-      expect(
-        (api.task as typeof api.task & { cancel: ReturnType<typeof vi.fn> }).cancel
-      ).toHaveBeenCalledWith('t1', 'active')
+      expect(api.task.toggleDone).toHaveBeenCalledWith('t1', true, 'active')
     })
-    expect(await screen.findByRole('button', { name: 'task.restore' })).toBeInTheDocument()
-    expect(screen.getByDisplayValue('Task A')).toBeInTheDocument()
   })
 
-  it('shows a cancelled badge and restore for cancelled tasks', async () => {
+  it('shows a checked checkbox for done tasks and restores on click', async () => {
+    const user = userEvent.setup()
+    const { api } = setupApi('done')
+
+    render(
+      <MemoryRouter>
+        <AppEventsProvider>
+          <TaskEditorPaper taskId="t1" onRequestClose={() => {}} />
+        </AppEventsProvider>
+      </MemoryRouter>
+    )
+
+    await screen.findByDisplayValue('Task A')
+    const checkbox = screen.getByRole('checkbox', { name: 'aria.taskDone' })
+    expect(checkbox).toBeChecked()
+
+    await user.click(checkbox)
+
+    await waitFor(() => {
+      expect(api.task.restore).toHaveBeenCalledWith('t1', 'active')
+    })
+  })
+
+  it('shows a checked checkbox for cancelled tasks and restores on click', async () => {
     const user = userEvent.setup()
     const { api } = setupApi('cancelled')
 
@@ -114,12 +133,10 @@ describe('TaskEditorPaper status actions', () => {
     )
 
     await screen.findByDisplayValue('Task A')
-    expect(screen.getByText('taskEditor.statusCancelled')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'task.restore' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'taskEditor.markDone' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'task.cancel' })).toBeNull()
+    const checkbox = screen.getByRole('checkbox', { name: 'aria.taskDone' })
+    expect(checkbox).toBeChecked()
 
-    await user.click(screen.getByRole('button', { name: 'task.restore' }))
+    await user.click(checkbox)
 
     await waitFor(() => {
       expect(api.task.restore).toHaveBeenCalledWith('t1', 'active')

@@ -87,7 +87,7 @@ function renderInlineEditor() {
   return render(
     <MemoryRouter>
       <AppEventsProvider>
-        <TaskEditorPaper taskId="t1" variant="inline" onRequestClose={() => {}} />
+        <TaskEditorPaper taskId="t1" onRequestClose={() => {}} />
       </AppEventsProvider>
     </MemoryRouter>
   )
@@ -116,7 +116,12 @@ describe('TaskEditorPaper metadata band', () => {
     expect(metadataBand).not.toBeNull()
 
     const items = Array.from(metadataBand?.querySelectorAll<HTMLElement>('[data-task-inline-meta-kind]') ?? [])
-    expect(items.map((item) => item.dataset.taskInlineMetaKind)).toEqual(['schedule', 'due', 'tags'])
+    expect(items.map((item) => item.dataset.taskInlineMetaKind)).toEqual([
+      'schedule',
+      'due',
+      'tags',
+      'checklist',
+    ])
     expect(items[0]?.textContent).toContain('2026-03-30')
     expect(items[1]?.textContent).toContain('2026-03-28')
     expect(items[2]?.textContent).toContain('Urgent')
@@ -146,9 +151,9 @@ describe('TaskEditorPaper metadata band', () => {
     await screen.findByText(/Urgent/)
 
     const metadataBand = container.querySelector<HTMLElement>('[data-task-inline-meta-band="true"]')
-    const scheduleTrigger = metadataBand?.querySelector<HTMLElement>('[data-task-inline-meta-kind="schedule"] button')
-    const dueTrigger = metadataBand?.querySelector<HTMLElement>('[data-task-inline-meta-kind="due"] button')
-    const tagsTrigger = metadataBand?.querySelector<HTMLElement>('[data-task-inline-meta-kind="tags"] button')
+    const scheduleTrigger = metadataBand?.querySelector<HTMLElement>('[data-task-inline-meta-kind="schedule"]')
+    const dueTrigger = metadataBand?.querySelector<HTMLElement>('[data-task-inline-meta-kind="due"]')
+    const tagsTrigger = metadataBand?.querySelector<HTMLElement>('[data-task-inline-meta-kind="tags"]')
 
     expect(scheduleTrigger).not.toBeNull()
     expect(dueTrigger).not.toBeNull()
@@ -169,7 +174,10 @@ describe('TaskEditorPaper metadata band', () => {
       expect(document.querySelector('.task-inline-popover-calendar')).not.toBeNull()
     })
     expect(screen.queryByRole('button', { name: 'nav.someday' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'common.clear' })).toBeInTheDocument()
+    const clearBtn = Array.from(document.querySelectorAll('.task-inline-popover button')).find(
+      (b) => b.textContent === 'common.clear'
+    )
+    expect(clearBtn).toBeDefined()
     await user.keyboard('{Escape}')
     await waitFor(() => {
       expect(document.querySelector('.task-inline-popover')).toBeNull()
@@ -190,8 +198,8 @@ describe('TaskEditorPaper metadata band', () => {
     expect(metadataBand?.textContent).toContain('common.schedule')
     expect(metadataBand?.textContent).toContain('taskEditor.dueLabel')
     expect(metadataBand?.textContent).toContain('taskEditor.tagsLabel')
-    expect(screen.getByRole('button', { name: /\+ common\.schedule/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /\+ taskEditor\.dueLabel/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /\+ taskEditor\.tagsLabel/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'common.schedule' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'taskEditor.dueLabel' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'taskEditor.tagsLabel' })).toBeInTheDocument()
   })
 })

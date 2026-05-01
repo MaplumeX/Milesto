@@ -75,7 +75,6 @@ export function TaskInlineEditorRow({
       <TaskEditorPaper
         ref={editorRef}
         taskId={taskId}
-        variant="inline"
         showProjectActions={showProjectActions}
         scope={scope}
         projectScope={projectScope}
