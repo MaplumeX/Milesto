@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/mixed-view-list-contracts.md", "reason": "ViewList and ProjectViewRow contracts — the pattern AreaPage needs to adopt"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Component conventions for rendering project rows"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Zod schema and type safety guidelines for new ViewListByArea schema"}
+{"file": ".trellis/spec/server/error-handling.md", "reason": "DB action error handling conventions for new view.listByArea action"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Cross-layer data flow: DB worker → main → renderer for new API"}

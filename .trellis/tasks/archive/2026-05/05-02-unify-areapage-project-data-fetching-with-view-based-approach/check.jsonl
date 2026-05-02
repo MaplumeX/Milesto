@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/frontend/mixed-view-list-contracts.md", "reason": "Verify AreaPage adoption follows existing ViewList contracts"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Verify new schema follows type-safety conventions"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Quality checks for the implementation"}
