@@ -1252,3 +1252,36 @@ Replaced the single Tags button in TaskEditorPaper with per-tag MetaTagChip comp
 ### Next Steps
 
 - None - task complete
+
+
+## Session 37: Unify AreaPage projects with view-based fetch
+
+**Date**: 2026-05-02
+**Task**: Unify AreaPage projects with view-based fetch
+**Branch**: `master`
+
+### Summary
+
+Added view.listByArea so AreaPage projects load with full metadata (tag preview, counts, due/scheduled) in a single call, replacing project.listOpenByArea + countProjectsProgress. Tightened ProjectRowProject metadata fields, added DB area-scope tests, and documented the contract under mixed-view-list-contracts.md.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `457c830` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 36
-- **Last Active**: 2026-05-01
+- **Total Sessions**: 37
+- **Last Active**: 2026-05-02
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1254 | Active |
+| `journal-1.md` | ~1287 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 37 | 2026-05-02 | Unify AreaPage projects with view-based fetch | `457c830` | `master` |
 | 36 | 2026-05-01 | Add color semantics to metadata badges | `e37f278` | `master` |
 | 35 | 2026-05-01 | Redesign task editor meta band with tag chips | `9a06fd5`, `170d41b` | `master` |
 | 34 | 2026-05-01 | 统一项目页和任务编辑器计划/到期元数据样式 | `4182c61` | `master` |
