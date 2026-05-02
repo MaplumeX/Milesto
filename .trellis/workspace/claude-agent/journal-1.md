@@ -1285,3 +1285,36 @@ Added view.listByArea so AreaPage projects load with full metadata (tag preview,
 ### Next Steps
 
 - None - task complete
+
+
+## Session 38: Add tag metadata display on AreaPage
+
+**Date**: 2026-05-02
+**Task**: Add tag metadata display on AreaPage
+**Branch**: `master`
+
+### Summary
+
+Added AreaMetaRow component to AreaPage showing tag chips inline below the title. Refactored menu state from boolean to AreaMenuState object with initialView support, enabling direct navigation to tags subview from overflow chip. Reused project-meta-* CSS classes, added manageMoreAreaTags i18n key.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `be8da05` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
