@@ -164,7 +164,7 @@ export function AreaPage() {
     ignoreNextTitleBlurRef.current = false
     consumedEditTitleRouteRef.current = null
     didInteractWithPageDuringEditTitleIntentRef.current = false
-  }, [aid])
+  }, [aid, selectProject])
 
   useEffect(() => {
     if (!menuState) return
@@ -347,7 +347,7 @@ export function AreaPage() {
         restoreFocusEl,
       })
     },
-    [openProjectContextMenu]
+    [openProjectContextMenu, selectProject]
   )
 
   const projectsTopContent =
