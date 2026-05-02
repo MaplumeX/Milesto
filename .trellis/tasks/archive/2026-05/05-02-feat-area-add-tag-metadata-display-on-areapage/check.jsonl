@@ -1,0 +1,2 @@
+{"file": "frontend/component-guidelines.md", "reason": "Verify hover-only borders/clear icons use visibility not display, aria-label includes per-instance context, and no layout shift on hover"}
+{"file": "frontend/type-safety.md", "reason": "Verify tag mutations use Result<T> pattern and error handling"}

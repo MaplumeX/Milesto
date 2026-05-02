@@ -1,0 +1,3 @@
+{"file": "frontend/component-guidelines.md", "reason": "Component structure, props conventions, styling patterns (hover-only affordances), accessibility requirements for tag chips"}
+{"file": "frontend/state-management.md", "reason": "Local UI state patterns, refresh-after-mutation pattern, route state for menu initialView"}
+{"file": "frontend/type-safety.md", "reason": "Result<T> error handling pattern for tag mutations"}
