@@ -12,10 +12,10 @@ export type ProjectRowProject = {
   status: 'open' | 'done' | 'cancelled'
   done_count: number
   total_count: number
-  area_id?: string | null
-  scheduled_at?: string | null
-  due_at?: string | null
-  is_someday?: boolean
+  area_id: string | null
+  scheduled_at: string | null
+  due_at: string | null
+  is_someday: boolean
   tag_preview?: string[]
   tag_count?: number
 }
@@ -53,7 +53,7 @@ export function ProjectRow({
   const hasTitlePrefix = Boolean(titlePrefix)
   const hasTitle = project.title.trim().length > 0
   const schedulePreview = getTaskSchedulePreviewLabel(
-    { is_someday: project.is_someday ?? false, scheduled_at: project.scheduled_at ?? null },
+    { is_someday: project.is_someday, scheduled_at: project.scheduled_at },
     { someday: t('nav.someday') }
   )
   const tagPreview = getTaskTagPreview(

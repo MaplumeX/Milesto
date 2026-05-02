@@ -47,6 +47,10 @@ export type ViewListTaskItem = z.infer<typeof ViewListTaskItemSchema>
 export type ViewListProjectItem = z.infer<typeof ViewListProjectItemSchema>
 export type ViewListItem = z.infer<typeof ViewListItemSchema>
 
+export const ViewListByAreaInputSchema = z.object({
+  area_id: IdSchema,
+})
+
 export const ViewListAnytimeInputSchema = z.object({})
 export const ViewListSomedayInputSchema = z.object({})
 

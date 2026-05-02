@@ -137,6 +137,7 @@ export type WindowApi = {
   }
 
   view: {
+    listByArea(areaId: string): Promise<Result<ViewListItem[]>>
     listAnytime(): Promise<Result<ViewListItem[]>>
     listSomeday(): Promise<Result<ViewListItem[]>>
     listToday(date: string): Promise<Result<ViewListItem[]>>

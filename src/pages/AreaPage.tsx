@@ -7,9 +7,9 @@ import { useTranslation } from 'react-i18next'
 import type { AppError } from '../../shared/app-error'
 import { isClosedProjectStatus } from '../../shared/schemas/common'
 import type { Area } from '../../shared/schemas/area'
-import type { Project } from '../../shared/schemas/project'
 import type { Tag } from '../../shared/schemas/tag'
 import type { TaskListItem } from '../../shared/schemas/task-list'
+import type { ViewListProjectItem } from '../../shared/schemas/view-list'
 import { taskListIdArea } from '../../shared/task-list-ids'
 
 import { useAppEvents } from '../app/AppEventsContext'
@@ -17,7 +17,7 @@ import { useConfirm } from '../contexts/ConfirmDialogContext'
 import { Button } from '../components/Button'
 import { PopoverMenuItem } from '../components/PopoverMenuItem'
 import { DeleteMenuIcon, TagMenuIcon } from '../components/popover-menu-icons'
-import { ProjectRow, type ProjectRowProject } from '../features/projects/ProjectRow'
+import { ProjectViewRow } from '../features/view-list/ProjectViewRow'
 import { useProjectContextMenu } from '../features/projects/use-project-context-menu'
 import { TagPicker } from '../features/tags/TagPicker'
 import { TaskList } from '../features/tasks/TaskList'
@@ -35,8 +35,7 @@ export function AreaPage() {
 
   const [area, setArea] = useState<Area | null>(null)
   const [areaTags, setAreaTags] = useState<Tag[]>([])
-  const [projects, setProjects] = useState<Project[]>([])
-  const [projectProgress, setProjectProgress] = useState<Record<string, { done_count: number; total_count: number }>>({})
+  const [projects, setProjects] = useState<ViewListProjectItem[]>([])
   const [tasks, setTasks] = useState<TaskListItem[]>([])
   const [error, setError] = useState<AppError | null>(null)
 
@@ -85,7 +84,7 @@ export function AreaPage() {
 
     const [areaRes, projectsRes, tasksRes] = await Promise.all([
       window.api.area.getDetail(aid),
-      window.api.project.listOpenByArea(aid),
+      window.api.view.listByArea(aid),
       window.api.task.listArea(aid),
     ])
 
@@ -102,22 +101,10 @@ export function AreaPage() {
       return
     }
 
-    const projectIds = projectsRes.data.map((p) => p.id)
-    const progressRes = projectIds.length > 0 ? await window.api.task.countProjectsProgress(projectIds) : null
-    if (progressRes && !progressRes.ok) {
-      setError(progressRes.error)
-      return
-    }
-
     setError(null)
     setArea(areaRes.data.area)
     setAreaTags(areaRes.data.tags)
-    setProjects(projectsRes.data)
-    const nextProgress: Record<string, { done_count: number; total_count: number }> = {}
-    for (const row of progressRes?.data ?? []) {
-      nextProgress[row.project_id] = { done_count: row.done_count, total_count: row.total_count }
-    }
-    setProjectProgress(nextProgress)
+    setProjects(projectsRes.data.filter((item): item is ViewListProjectItem => item.kind === 'project'))
     setTasks(tasksRes.data)
   }, [aid])
 
@@ -253,18 +240,16 @@ export function AreaPage() {
 
   const projectUntitled = t('project.untitled')
   const sortedProjects = useMemo(() => {
-    const displayTitle = (p: Project) => (p.title.trim() ? p.title : projectUntitled)
+    const displayTitle = (p: ViewListProjectItem) => (p.title.trim() ? p.title : projectUntitled)
     return [...projects].sort((a, b) =>
       displayTitle(a).toLocaleLowerCase().localeCompare(displayTitle(b).toLocaleLowerCase())
     )
   }, [projects, projectUntitled])
 
   const handleCompleteProject = useCallback(
-    async (project: ProjectRowProject) => {
+    async (project: ViewListProjectItem) => {
       const p = projects.find((proj) => proj.id === project.id)
       if (!p) return
-      const counts = projectProgress[project.id]
-      if (!counts) return
 
       if (isClosedProjectStatus(p.status)) {
         const res = await window.api.project.update({ id: p.id, status: 'open' })
@@ -276,7 +261,7 @@ export function AreaPage() {
         return
       }
 
-      const openCount = Math.max(0, counts.total_count - counts.done_count)
+      const openCount = Math.max(0, p.total_count - p.done_count)
       const confirmed = await confirm({ message: t('project.completeConfirm', { count: openCount }), variant: 'default' })
       if (!confirmed) return
 
@@ -287,11 +272,11 @@ export function AreaPage() {
       }
       await mutateAndRefresh()
     },
-    [projects, projectProgress, mutateAndRefresh, t, confirm]
+    [projects, mutateAndRefresh, t, confirm]
   )
 
   const handleProjectContextMenu = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>, project: Project) => {
+    (event: React.MouseEvent<HTMLDivElement>, project: ViewListProjectItem) => {
       event.preventDefault()
       event.stopPropagation()
       setSelectedProjectId(project.id)
@@ -311,19 +296,21 @@ export function AreaPage() {
           title: project.title,
           notes: project.notes,
           status: project.status,
-          done_count: projectProgress[project.id]?.done_count ?? 0,
-          total_count: projectProgress[project.id]?.total_count ?? 0,
+          done_count: project.done_count,
+          total_count: project.total_count,
           area_id: project.area_id,
           scheduled_at: project.scheduled_at,
           due_at: project.due_at,
           is_someday: project.is_someday,
+          tag_preview: project.tag_preview ?? [],
+          tag_count: project.tag_count ?? 0,
         },
         anchorX: event.clientX,
         anchorY: event.clientY,
         restoreFocusEl,
       })
     },
-    [openProjectContextMenu, projectProgress]
+    [openProjectContextMenu]
   )
 
   const projectsTopContent =
@@ -336,15 +323,8 @@ export function AreaPage() {
               className={`task-row${selectedProjectId === p.id ? ' is-selected' : ''}`}
               data-area-project-row="true"
             >
-              <ProjectRow
-                project={{
-                  id: p.id,
-                  title: p.title,
-                  notes: p.notes,
-                  status: p.status,
-                  done_count: projectProgress[p.id]?.done_count ?? 0,
-                  total_count: projectProgress[p.id]?.total_count ?? 0,
-                }}
+              <ProjectViewRow
+                project={p}
                 onSelect={(projectId) => setSelectedProjectId(projectId)}
                 onOpen={(projectId) => navigate(`/projects/${projectId}`)}
                 onComplete={handleCompleteProject}

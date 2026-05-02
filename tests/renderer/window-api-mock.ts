@@ -86,6 +86,7 @@ export function createWindowApiMock(): WindowApi {
     },
 
     view: {
+      listByArea: vi.fn<WindowApi['view']['listByArea']>(async () => ok([])),
       listAnytime: vi.fn<WindowApi['view']['listAnytime']>(async () => ok([])),
       listSomeday: vi.fn<WindowApi['view']['listSomeday']>(async () => ok([])),
       listToday: vi.fn<WindowApi['view']['listToday']>(async () => ok([])),

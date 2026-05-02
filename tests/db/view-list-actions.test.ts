@@ -144,6 +144,95 @@ describe('view list DB contract', () => {
     ])
   })
 
+  it('lists projects only for a given area with progress and tag metadata', async () => {
+    const testDb = await createTestDb()
+    cleanup = testDb.cleanup
+
+    const handlers = buildDbHandlers(testDb.db)
+
+    const area = run<{ id: string }>(handlers, 'area.create', { title: 'Work' })
+    const otherArea = run<{ id: string }>(handlers, 'area.create', { title: 'Personal' })
+    expect(area.ok && otherArea.ok).toBe(true)
+    if (!area.ok || !otherArea.ok) return
+
+    const tag = run<{ id: string }>(handlers, 'tag.create', { title: 'Focus' })
+    expect(tag.ok).toBe(true)
+    if (!tag.ok) return
+
+    const project = run<{ id: string }>(handlers, 'project.create', {
+      title: 'Area project',
+      area_id: area.data.id,
+      due_at: '2026-05-10',
+    })
+    const otherProject = run<{ id: string }>(handlers, 'project.create', {
+      title: 'Other area project',
+      area_id: otherArea.data.id,
+    })
+    expect(project.ok && otherProject.ok).toBe(true)
+    if (!project.ok || !otherProject.ok) return
+
+    expect(
+      run(handlers, 'project.setTags', {
+        project_id: project.data.id,
+        tag_ids: [tag.data.id],
+      })
+    ).toMatchObject({ ok: true })
+
+    const doneTask = run<{ id: string }>(handlers, 'task.create', {
+      title: 'Finished',
+      project_id: project.data.id,
+    })
+    const openTask = run<{ id: string }>(handlers, 'task.create', {
+      title: 'Pending',
+      project_id: project.data.id,
+    })
+    expect(doneTask.ok && openTask.ok).toBe(true)
+    if (!doneTask.ok || !openTask.ok) return
+    expect(
+      run(handlers, 'task.toggleDone', { id: doneTask.data.id, done: true })
+    ).toMatchObject({ ok: true })
+
+    // A standalone area task must NOT show up in the project list view.
+    expect(
+      run(handlers, 'task.create', { title: 'Standalone area task', area_id: area.data.id }).ok
+    ).toBe(true)
+
+    const result = run<
+      Array<{
+        kind: 'task' | 'project'
+        id: string
+        title: string
+        due_at: string | null
+        tag_ids?: string[]
+        total_count?: number
+        done_count?: number
+      }>
+    >(handlers, 'view.listByArea', { area_id: area.data.id })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect(result.data.map((item) => ({ kind: item.kind, id: item.id }))).toEqual([
+      { kind: 'project', id: project.data.id },
+    ])
+    expect(result.data[0]).toMatchObject({
+      kind: 'project',
+      title: 'Area project',
+      due_at: '2026-05-10',
+      tag_ids: [tag.data.id],
+      total_count: 2,
+      done_count: 1,
+    })
+  })
+
+  it('rejects view.listByArea payload missing area_id', async () => {
+    const testDb = await createTestDb()
+    cleanup = testDb.cleanup
+
+    const handlers = buildDbHandlers(testDb.db)
+    const result = run(handlers, 'view.listByArea', {})
+    expect(result).toMatchObject({ ok: false, error: { code: 'VALIDATION_FAILED' } })
+  })
+
   it('covers anytime, someday, and upcoming project buckets', async () => {
     const testDb = await createTestDb()
     cleanup = testDb.cleanup

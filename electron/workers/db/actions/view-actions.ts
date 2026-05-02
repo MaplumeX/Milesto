@@ -7,6 +7,7 @@ import { nowIso } from './utils'
 
 import {
   ViewListAnytimeInputSchema,
+  ViewListByAreaInputSchema,
   ViewListItemSchema,
   ViewListProjectItemSchema,
   ViewListSomedayInputSchema,
@@ -232,6 +233,34 @@ function listManualView(db: Database.Database, listId: string, taskWhere: string
 
 export function createViewActions(db: Database.Database): Record<string, DbActionHandler> {
   return {
+    'view.listByArea': (payload) => {
+      const parsed = ViewListByAreaInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid view.listByArea payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const projectRows = db
+        .prepare(
+          `SELECT
+             ${projectSelectColumns()}
+           FROM projects p
+           WHERE p.deleted_at IS NULL
+             AND p.status = 'open'
+             AND p.area_id = @area_id`
+        )
+        .all({ area_id: parsed.data.area_id })
+
+      const items = parseProjectRows(projectRows)
+      return { ok: true, data: items }
+    },
+
     'view.listAnytime': (payload) => {
       const parsed = ViewListAnytimeInputSchema.safeParse(payload)
       if (!parsed.success) {

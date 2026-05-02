@@ -103,6 +103,7 @@ import {
   TrashRestoreResultSchema,
   TrashRootIdInputSchema,
   ViewListAnytimeInputSchema,
+  ViewListByAreaInputSchema,
   ViewListItemSchema,
   ViewListSomedayInputSchema,
   ViewListTodayInputSchema,
@@ -964,6 +965,7 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   handleDb('db:project.search', 'project.search', z.object({ query: z.string().min(1) }), z.array(ProjectSearchResultItemSchema))
   handleDb('db:area.search', 'area.search', z.object({ query: z.string().min(1) }), z.array(AreaSearchResultItemSchema))
 
+  handleDb('db:view.listByArea', 'view.listByArea', ViewListByAreaInputSchema, z.array(ViewListItemSchema))
   handleDb('db:view.listAnytime', 'view.listAnytime', ViewListAnytimeInputSchema, z.array(ViewListItemSchema))
   handleDb('db:view.listSomeday', 'view.listSomeday', ViewListSomedayInputSchema, z.array(ViewListItemSchema))
   handleDb('db:view.listToday', 'view.listToday', ViewListTodayInputSchema, z.array(ViewListItemSchema))

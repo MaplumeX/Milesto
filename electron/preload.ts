@@ -87,6 +87,7 @@ const api: WindowApi = {
   },
 
   view: {
+    listByArea: (areaId) => invoke('db:view.listByArea', { area_id: areaId }),
     listAnytime: () => invoke('db:view.listAnytime', {}),
     listSomeday: () => invoke('db:view.listSomeday', {}),
     listToday: (date) => invoke('db:view.listToday', { date }),

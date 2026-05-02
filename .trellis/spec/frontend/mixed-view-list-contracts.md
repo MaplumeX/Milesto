@@ -102,3 +102,66 @@ await window.api.view.reorderBatch(
 ```
 
 The entity type is explicit at every renderer, IPC, DB, export, and sync boundary.
+
+## Scenario: Area Page Projects View
+
+### 1. Scope / Trigger
+
+- Trigger: AreaPage renders a project list above its area-scoped task list.
+- Applies to: the projects sub-list on `/areas/:areaId`.
+- Does not apply to: AreaPage tasks (still served by `task.listArea`).
+
+### 2. Signatures
+
+- Renderer API: `window.api.view.listByArea(areaId): Promise<Result<ViewListItem[]>>`.
+- IPC: `db:view.listByArea` with payload `{ area_id }`.
+- DB action: `view.listByArea`. Returns only `kind: 'project'` rows (no tasks).
+
+### 3. Contracts
+
+- Returns open projects (`status = 'open'`, `deleted_at IS NULL`) where `area_id` matches the input.
+- Each row is a full `ViewListProjectItem`, including `tag_preview`, `tag_count`, `tag_ids`, `total_count`, `done_count`, `due_at`, `scheduled_at`, `is_someday`.
+- The renderer must filter the result to `kind === 'project'` before assigning to project state, even though the DB action only emits projects today — preserves the discriminated-union contract end-to-end.
+- Project rendering must reuse `ProjectViewRow` (the same row used by mixed views) so metadata, progress ring, and context-menu behavior stay consistent across pages.
+
+### 4. Validation & Error Matrix
+
+| Boundary | Invalid condition | Expected behavior |
+|---|---|---|
+| `view.listByArea` | `area_id` missing or not an `IdSchema` | Return `VALIDATION_FAILED` |
+| DB read | row violates `ViewListProjectItemSchema` | Fail fast during parse |
+
+### 5. Good/Base/Bad Cases
+
+- Good: an area with two open projects renders two `ProjectViewRow` rows with progress ring counts and tag chips.
+- Base: an area with no projects renders only the task list; the `projectsTopContent` collapses to `null`.
+- Bad: refetching projects via `project.listOpenByArea()` and a separate `task.countProjectsProgress()` call — this loses tag metadata and re-introduces the old multi-call dependency.
+
+### 6. Tests Required
+
+- DB tests:
+  - `view.listByArea` returns only projects whose `area_id` matches and excludes other areas.
+  - Returned rows include `tag_ids`, `tag_preview`, `total_count`, `done_count` derived from project tasks.
+  - Empty payload (missing `area_id`) is rejected with `VALIDATION_FAILED`.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+const [projectsRes, progressRes] = await Promise.all([
+  window.api.project.listOpenByArea(areaId),
+  window.api.task.countProjectsProgress(projectIds),
+])
+// then merge progress into bare Project records and strip metadata.
+```
+
+#### Correct
+
+```ts
+const res = await window.api.view.listByArea(areaId)
+if (!res.ok) return
+setProjects(res.data.filter((item): item is ViewListProjectItem => item.kind === 'project'))
+```
+
+The view-based call returns one fully enriched payload and stays consistent with Today / Anytime / Someday / Upcoming.
