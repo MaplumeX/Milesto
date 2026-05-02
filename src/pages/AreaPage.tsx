@@ -22,6 +22,7 @@ import { useProjectContextMenu } from '../features/projects/use-project-context-
 import { TagPicker } from '../features/tags/TagPicker'
 import { TaskList } from '../features/tasks/TaskList'
 import { TagFilter } from '../features/tasks/TagFilter'
+import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 import { useTaskTagFilter } from '../features/tasks/use-task-tag-filter'
 
 export function AreaPage() {
@@ -40,6 +41,21 @@ export function AreaPage() {
   const [error, setError] = useState<AppError | null>(null)
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const { selectedTaskId, selectTask } = useTaskSelection()
+
+  // Mutual exclusion: selecting a project clears task selection and vice versa.
+  const selectProject = useCallback(
+    (projectId: string | null) => {
+      setSelectedProjectId(projectId)
+      if (projectId) selectTask(null)
+    },
+    [selectTask],
+  )
+
+  useEffect(() => {
+    if (selectedTaskId) setSelectedProjectId(null)
+  }, [selectedTaskId])
+
   const { openProjectContextMenu, menuNode: projectMenuNode } = useProjectContextMenu()
 
   const {
@@ -123,7 +139,7 @@ export function AreaPage() {
     void aid
     setIsEditingTitle(false)
     setIsMenuOpen(false)
-    setSelectedProjectId(null)
+    selectProject(null)
     ignoreNextTitleBlurRef.current = false
     consumedEditTitleRouteRef.current = null
     didInteractWithPageDuringEditTitleIntentRef.current = false
@@ -279,7 +295,7 @@ export function AreaPage() {
     (event: React.MouseEvent<HTMLDivElement>, project: ViewListProjectItem) => {
       event.preventDefault()
       event.stopPropagation()
-      setSelectedProjectId(project.id)
+      selectProject(project.id)
 
       const eventTarget = event.target
       const restoreFocusEl =
@@ -325,7 +341,7 @@ export function AreaPage() {
             >
               <ProjectViewRow
                 project={p}
-                onSelect={(projectId) => setSelectedProjectId(projectId)}
+                onSelect={(projectId) => selectProject(projectId)}
                 onOpen={(projectId) => navigate(`/projects/${projectId}`)}
                 onComplete={handleCompleteProject}
                 onContextMenu={(event) => handleProjectContextMenu(event, p)}
