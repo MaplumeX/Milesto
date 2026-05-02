@@ -49,6 +49,7 @@ export const messagesEn = {
     expandArea: 'Expand area {{title}}',
     removeTag: 'Remove tag {{title}}',
     manageMoreProjectTags: 'Manage {{count}} more tags',
+    manageMoreAreaTags: 'Manage {{count}} more tags',
   },
   nav: {
     inbox: 'Inbox',
@@ -303,6 +304,7 @@ export const messagesZhCN = {
     expandArea: '展开领域 {{title}}',
     removeTag: '移除标签 {{title}}',
     manageMoreProjectTags: '管理另外 {{count}} 个标签',
+    manageMoreAreaTags: '管理另外 {{count}} 个标签',
   },
   nav: {
     inbox: '收件箱',

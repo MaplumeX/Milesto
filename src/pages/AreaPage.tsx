@@ -12,6 +12,8 @@ import type { TaskListItem } from '../../shared/schemas/task-list'
 import type { ViewListProjectItem } from '../../shared/schemas/view-list'
 import { taskListIdArea } from '../../shared/task-list-ids'
 
+const MAX_VISIBLE_AREA_META_TAGS = 4
+
 import { useAppEvents } from '../app/AppEventsContext'
 import { useConfirm } from '../contexts/ConfirmDialogContext'
 import { Button } from '../components/Button'
@@ -24,6 +26,14 @@ import { TaskList } from '../features/tasks/TaskList'
 import { TagFilter } from '../features/tasks/TagFilter'
 import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
 import { useTaskTagFilter } from '../features/tasks/use-task-tag-filter'
+
+type AreaMenuView = 'root' | 'tags'
+
+type AreaMenuState = {
+  anchorEl: HTMLElement
+  focusReturnEl: HTMLElement
+  initialView: AreaMenuView
+} | null
 
 export function AreaPage() {
   const { t } = useTranslation()
@@ -66,18 +76,29 @@ export function AreaPage() {
     hasFilter,
   } = useTaskTagFilter(tasks)
 
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [menuState, setMenuState] = useState<AreaMenuState>(null)
   const menuButtonRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
-  const closeMenu = useCallback((opts?: { restoreFocus?: boolean }) => {
-    setIsMenuOpen(false)
-    if (!opts?.restoreFocus) return
+  const closeMenu = useCallback(() => {
+    setMenuState((current) => {
+      current?.focusReturnEl.focus()
+      return null
+    })
+  }, [])
 
-    const btn = menuButtonRef.current
-    window.setTimeout(() => {
-      if (btn?.isConnected) btn.focus()
-    }, 0)
+  const openMenu = useCallback((anchorEl: HTMLElement, initialView: AreaMenuView = 'root') => {
+    setMenuState((current) => {
+      if (current && current.focusReturnEl === anchorEl && current.initialView === initialView) {
+        return null
+      }
+
+      return {
+        anchorEl,
+        focusReturnEl: anchorEl,
+        initialView,
+      }
+    })
   }, [])
 
   const [isEditingTitle, setIsEditingTitle] = useState(false)
@@ -138,7 +159,7 @@ export function AreaPage() {
   useEffect(() => {
     void aid
     setIsEditingTitle(false)
-    setIsMenuOpen(false)
+    setMenuState(null)
     selectProject(null)
     ignoreNextTitleBlurRef.current = false
     consumedEditTitleRouteRef.current = null
@@ -146,28 +167,28 @@ export function AreaPage() {
   }, [aid])
 
   useEffect(() => {
-    if (!isMenuOpen) return
+    if (!menuState) return
+    const launcher = menuState.focusReturnEl
 
     function handlePointerDown(e: PointerEvent) {
       if (e.button !== 0) return
       if (!(e.target instanceof Node)) return
       const pop = menuRef.current
-      const btn = menuButtonRef.current
-      if (pop?.contains(e.target) || btn?.contains(e.target)) return
+      if (pop?.contains(e.target) || launcher.contains(e.target)) return
       e.preventDefault()
       e.stopPropagation()
-      closeMenu({ restoreFocus: true })
+      closeMenu()
     }
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return
       e.preventDefault()
       e.stopPropagation()
-      closeMenu({ restoreFocus: true })
+      closeMenu()
     }
 
     function handleClose() {
-      closeMenu({ restoreFocus: false })
+      closeMenu()
     }
 
     document.addEventListener('pointerdown', handlePointerDown, true)
@@ -180,7 +201,7 @@ export function AreaPage() {
       window.removeEventListener('resize', handleClose)
       window.removeEventListener('scroll', handleClose, true)
     }
-  }, [closeMenu, isMenuOpen])
+  }, [closeMenu, menuState])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -475,6 +496,22 @@ export function AreaPage() {
         tasks={filteredTasks}
         topContent={
           <>
+            {area ? (
+              <AreaMetaRow
+                tags={areaTags}
+                onRemoveTag={async (tagId) => {
+                  const nextIds = areaTags.filter((tag) => tag.id !== tagId).map((tag) => tag.id)
+                  const res = await window.api.area.setTags(aid, nextIds)
+                  if (!res.ok) {
+                    setError(res.error)
+                    return
+                  }
+                  bumpRevision()
+                  await refresh()
+                }}
+                onManageTags={(triggerEl) => openMenu(triggerEl, 'tags')}
+              />
+            ) : null}
             <TagFilter
               tags={availableTags}
               selectedTagIds={selectedTagIds}
@@ -491,21 +528,22 @@ export function AreaPage() {
               ref={menuButtonRef}
               variant="ghost"
               aria-haspopup="dialog"
-              aria-expanded={isMenuOpen}
+              aria-expanded={menuState !== null}
               aria-label={t('aria.areaActions')}
-              onClick={() => setIsMenuOpen((v) => !v)}
+              onClick={(e) => openMenu(e.currentTarget, 'root')}
             >
               ...
             </Button>
 
-            {isMenuOpen && area && menuButtonRef.current
+            {menuState && area
               ? createPortal(
                   <AreaMenu
                     ref={menuRef}
-                    anchorEl={menuButtonRef.current}
+                    anchorEl={menuState.anchorEl}
+                    initialView={menuState.initialView}
                     areaId={aid}
                     areaTags={areaTags}
-                    onClose={() => closeMenu({ restoreFocus: true })}
+                    onClose={closeMenu}
                     onBumpRevision={bumpRevision}
                     onMutate={mutateAndRefresh}
                     onNavigate={navigate}
@@ -524,6 +562,60 @@ export function AreaPage() {
       />
       {projectMenuNode}
     </>
+  )
+}
+
+function AreaMetaRow({
+  tags,
+  onRemoveTag,
+  onManageTags,
+}: {
+  tags: Tag[]
+  onRemoveTag: (tagId: string) => Promise<void>
+  onManageTags: (triggerEl: HTMLElement) => void
+}) {
+  const { t } = useTranslation()
+
+  if (tags.length === 0) return null
+
+  const visibleTags = tags.slice(0, MAX_VISIBLE_AREA_META_TAGS)
+  const overflowCount = Math.max(tags.length - visibleTags.length, 0)
+
+  return (
+    <div className="project-meta" style={{ marginTop: 10 }}>
+      <div className="project-meta-row project-meta-tags-row">
+        {visibleTags.map((tag) => (
+          <span key={tag.id} className="project-meta-tag-chip">
+            <span className="project-meta-tag-text">{tag.title}</span>
+            <button
+              type="button"
+              className="project-meta-tag-clear"
+              aria-label={t('aria.removeTag', { title: tag.title })}
+              onClick={(e) => {
+                e.preventDefault()
+                void onRemoveTag(tag.id)
+              }}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+
+        {overflowCount > 0 ? (
+          <button
+            type="button"
+            className="project-meta-tag-chip project-meta-tag-chip--overflow"
+            aria-label={t('aria.manageMoreAreaTags', { count: overflowCount })}
+            onClick={(e) => {
+              e.preventDefault()
+              onManageTags(e.currentTarget)
+            }}
+          >
+            <span className="project-meta-tag-text">+{overflowCount}</span>
+          </button>
+        ) : null}
+      </div>
+    </div>
   )
 }
 
@@ -549,6 +641,7 @@ function AreaTitleIcon({ className }: { className?: string }) {
 const AreaMenu = forwardRef(function AreaMenu(
   {
     anchorEl,
+    initialView,
     areaId,
     areaTags,
     onClose,
@@ -558,6 +651,7 @@ const AreaMenu = forwardRef(function AreaMenu(
     onSetPageError,
   }: {
     anchorEl: HTMLElement
+    initialView: AreaMenuView
     areaId: string
     areaTags: Tag[]
     onClose: () => void
@@ -573,7 +667,7 @@ const AreaMenu = forwardRef(function AreaMenu(
   type View = 'root' | 'tags'
   type RootKey = 'tags' | 'delete'
 
-  const [view, setView] = useState<View>('root')
+  const [view, setView] = useState<View>(initialView)
   const lastRootFocusRef = useRef<RootKey>('tags')
 
   const backButtonRef = useRef<HTMLButtonElement | null>(null)
