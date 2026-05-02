@@ -506,7 +506,7 @@ export function useProjectContextMenu({
                         void persistProjectUpdate({ scheduled_at: today, is_someday: false })
                       }}
                     >
-                      {t('taskEditor.popoverScheduleToday')}
+                      {t('nav.today')}
                     </Button>
                     <Button
                       variant="ghost"
@@ -514,7 +514,7 @@ export function useProjectContextMenu({
                         void persistProjectUpdate({ scheduled_at: null, is_someday: true })
                       }}
                     >
-                      {t('taskEditor.popoverScheduleSomeday')}
+                      {t('nav.someday')}
                     </Button>
                     <Button
                       variant="ghost"
@@ -532,7 +532,7 @@ export function useProjectContextMenu({
                         void persistProjectUpdate({ due_at: today })
                       }}
                     >
-                      {t('taskEditor.popoverDueToday')}
+                      {t('nav.today')}
                     </Button>
                     <Button
                       variant="ghost"
