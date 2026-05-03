@@ -67,6 +67,44 @@ Most hooks are either:
 
 ---
 
+## IPC Event Subscriptions
+
+When subscribing to main-process events via `window.api.*.onXxx`, always mirror the existing `sync.onStateChange` pattern:
+
+- The subscription function returns an **unsubscribe function** `() => void`.
+- Register inside `useEffect` and return the unsubscribe as cleanup.
+- In React 18 StrictMode, forgetting cleanup causes immediate listener leaks because effects run twice.
+
+### Example: subscribing to chat stream events (`src/features/chat/use-chat-streaming.ts`)
+
+```tsx
+useEffect(() => {
+  const unsubDelta = window.api.chat.onMessageDelta((e) => {
+    bufferedDeltas.current.push(e.delta)
+    scheduleFlush()
+  })
+  const unsubDone = window.api.chat.onMessageDone((e) => {
+    setIsLoading(false)
+    refreshMessages(e.sessionId)
+  })
+  return () => {
+    unsubDelta()
+    unsubDone()
+  }
+}, [])
+```
+
+### Anti-pattern
+
+```tsx
+// Bad: no cleanup — StrictMode doubles listeners on every hot reload
+useEffect(() => {
+  window.api.chat.onMessageDelta((e) => setDelta(e.delta))
+}, [])
+```
+
+---
+
 ## Examples
 
 ### Example: time-based hook owns timer setup and cleanup (`src/lib/use-local-today.ts`)

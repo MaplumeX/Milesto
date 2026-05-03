@@ -68,6 +68,24 @@ For each boundary:
 
 **Good**: Each layer only knows its neighbors
 
+### Mistake 4: Putting LLM Secrets in Renderer
+
+**Bad**: Instantiating `ChatOpenAI` or storing `apiKey` in the renderer process.
+
+**Good**: Run the agent runtime entirely in the **main process**. The renderer sends messages via `window.api.chat.send()` and receives tokens via IPC events. The API key never leaves main + DB worker.
+
+### Pattern: Main-Process Agent with Streaming IPC
+
+When integrating an LLM agent (e.g. LangGraph) into the Electron app:
+
+1. **Agent runtime lives in main** — `electron/agent/agent-runtime.ts` creates the graph, calls the LLM, runs tools.
+2. **Tools call DB worker directly** — reuse `dbWorker.request(action, payload)`; do NOT call `window.api.*` from main.
+3. **Streaming via IPC events** — main subscribes to `streamEvents`, then `win.webContents.send('chat:messageDelta', payload)`.
+4. **Renderer subscribes and unsubscribes** — mirror `sync.onStateChange`: return `() => void` unsubscribe, plain payload (not `Result<T>`).
+5. **High-risk confirm at IPC layer** — tools `await confirmGate(action, summary)` which emits `onConfirmRequest` to renderer; renderer calls `chat.confirmRespond`; do NOT use langgraph `interrupt()` + `checkpointer` (creates dual source of truth with SQLite).
+6. **Abort via AbortController** — pass `signal` into `streamEvents`; renderer calls `chat.abort(messageId)` → main calls `controller.abort()`.
+7. **Bump revision after writes** — agent tools that mutate data should trigger `broadcastSyncDataChanged()` so renderer's `AppEventsContext` refreshes views.
+
 ---
 
 ## Checklist for Cross-Layer Features
