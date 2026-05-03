@@ -1356,3 +1356,36 @@ Implemented conversational AI assistant using @langchain/langgraph in Electron m
 ### Next Steps
 
 - None - task complete
+
+
+## Session 40: Fix chat assistant message duplication
+
+**Date**: 2026-05-03
+**Task**: Fix chat assistant message duplication
+**Branch**: `master`
+
+### Summary
+
+Fixed a bug where every AI assistant response appeared twice in the chat panel. Root cause: agent-runtime.ts called onDone twice for a single run (once on on_chain_end and once after the stream loop), causing main.ts to insert two identical rows into chat_messages. Added a doneCalled guard. Also added missing user-message persistence before the agent run starts.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d55b264` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
