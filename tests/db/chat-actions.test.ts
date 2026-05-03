@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import type Database from 'better-sqlite3'
+import { mkdtemp, rm } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 
+import { initDb } from '../../electron/workers/db/db-bootstrap'
 import { createChatActions } from '../../electron/workers/db/actions/chat-actions'
 import { createTestDb } from './db-test-helper'
 
@@ -17,6 +22,86 @@ describe('chat actions', () => {
     cleanupDb = cleanup
     return { db, actions: createChatActions(db) }
   }
+
+  it('keeps sessions and messages after reopening the same database file', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'milesto-chat-persistence-test-'))
+    const dbPath = path.join(dir, 'test.sqlite3')
+    let db: Database.Database | null = initDb(dbPath)
+    cleanupDb = async () => {
+      if (db?.open) db.close()
+      await rm(dir, { recursive: true, force: true })
+    }
+
+    let actions = createChatActions(db)
+    const created = actions['chat.createSession']({ title: 'Restarted chat' })
+    expect(created.ok).toBe(true)
+    if (!created.ok) return
+    const sessionId = (created.data as { id: string }).id
+
+    const inserted = actions['chat.insertMessage']({
+      session_id: sessionId,
+      role: 'user',
+      content: 'still here',
+    })
+    expect(inserted.ok).toBe(true)
+
+    db.close()
+    db = initDb(dbPath)
+    actions = createChatActions(db)
+
+    const sessions = actions['chat.listSessions']({})
+    expect(sessions.ok).toBe(true)
+    if (!sessions.ok) return
+    expect((sessions.data as Array<{ id: string; title: string }>)).toEqual([
+      expect.objectContaining({ id: sessionId, title: 'Restarted chat' }),
+    ])
+
+    const messages = actions['chat.listMessages']({ session_id: sessionId })
+    expect(messages.ok).toBe(true)
+    if (!messages.ok) return
+    expect((messages.data as Array<{ content: string }>).map((m) => m.content)).toEqual(['still here'])
+  })
+
+  it('repairs missing chat tables when user_version is already at least 12', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'milesto-chat-schema-test-'))
+    const dbPath = path.join(dir, 'test.sqlite3')
+    let db: Database.Database | null = initDb(dbPath)
+    cleanupDb = async () => {
+      if (db?.open) db.close()
+      await rm(dir, { recursive: true, force: true })
+    }
+
+    db.exec(`
+      DROP TABLE chat_messages;
+      DROP TABLE chat_sessions;
+      PRAGMA user_version = 12;
+    `)
+    db.close()
+
+    db = initDb(dbPath)
+
+    const chatSessionsTable = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'chat_sessions'")
+      .get()
+    const chatMessagesTable = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'chat_messages'")
+      .get()
+    const sessionIndex = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_chat_sessions_updated'")
+      .get()
+    const messageIndex = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_chat_messages_session_created'")
+      .get()
+
+    expect(chatSessionsTable).toBeTruthy()
+    expect(chatMessagesTable).toBeTruthy()
+    expect(sessionIndex).toBeTruthy()
+    expect(messageIndex).toBeTruthy()
+
+    const actions = createChatActions(db)
+    const created = actions['chat.createSession']({ title: 'Repaired' })
+    expect(created.ok).toBe(true)
+  })
 
   it('creates a session with the default title when none is provided', async () => {
     const { actions } = await setup()

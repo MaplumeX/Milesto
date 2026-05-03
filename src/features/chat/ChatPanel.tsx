@@ -48,6 +48,12 @@ export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
     }
   }, [])
 
+  useEffect(() => {
+    if (activeSessionId !== null) return
+    if (sessions.length === 0) return
+    setActiveSessionId(sessions[0]!.id)
+  }, [activeSessionId, sessions])
+
   const handleCreateSession = useCallback(async () => {
     const session = await createSession(t('chat.newSessionDefault'))
     if (session) {

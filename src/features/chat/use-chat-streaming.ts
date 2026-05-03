@@ -116,6 +116,8 @@ export function useChatStreaming(activeSessionId: string | null) {
       if (cancelled) return
       if (res.ok) {
         setSessions(res.data)
+      } else {
+        setError({ code: res.error.code, message: res.error.message })
       }
     })()
     return () => {
@@ -135,6 +137,8 @@ export function useChatStreaming(activeSessionId: string | null) {
       if (cancelled) return
       if (res.ok) {
         setMessages(res.data)
+      } else {
+        setError({ code: res.error.code, message: res.error.message })
       }
     })()
     return () => {

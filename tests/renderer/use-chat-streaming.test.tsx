@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ok } from '../../shared/result'
+import { err, ok } from '../../shared/result'
 import type { ChatMessage, ChatSession } from '../../shared/schemas/chat'
 import type { WindowApi } from '../../shared/window-api'
 import { useChatStreaming } from '../../src/features/chat/use-chat-streaming'
@@ -229,5 +229,21 @@ describe('useChatStreaming', () => {
     expect(result.current.streaming.isLoading).toBe(false)
     expect(result.current.confirmRequest).toBeNull()
     expect(result.current.sessions).toEqual([])
+  })
+
+  it('exposes chat history loading failures instead of showing an empty state silently', async () => {
+    installChatEventHandlers()
+    api().chat.listSessions = vi.fn<WindowApi['chat']['listSessions']>(async () =>
+      err({ code: 'DB_ERROR', message: 'Could not load chat sessions.' })
+    )
+
+    const { result } = renderHook(() => useChatStreaming(null))
+
+    await waitFor(() => {
+      expect(result.current.error).toEqual({
+        code: 'DB_ERROR',
+        message: 'Could not load chat sessions.',
+      })
+    })
   })
 })

@@ -33,6 +33,34 @@ function migrate(db: Database.Database) {
     return rows.some((r) => r.name === columnName)
   }
 
+  function ensureChatSchema() {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS chat_sessions (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        tool_calls TEXT,
+        tool_call_id TEXT,
+        created_at TEXT NOT NULL,
+        CHECK (role IN ('user', 'assistant', 'tool', 'system')),
+        FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_session_created
+        ON chat_messages(session_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated
+        ON chat_sessions(updated_at DESC);
+    `)
+  }
+
   if (userVersion < 1) {
     db.exec(`
       CREATE TABLE IF NOT EXISTS areas (
@@ -454,32 +482,21 @@ function migrate(db: Database.Database) {
 
   if (userVersion < 12) {
     // v12: AI chat sessions and messages.
+    ensureChatSchema()
+    db.pragma('user_version = 12')
+  }
+
+  // Defensive: some environments may have user_version >= 12 but be missing
+  // chat tables/indexes from a partially applied dev migration.
+  if (!hasTable('chat_sessions') || !hasTable('chat_messages')) {
+    ensureChatSchema()
+  } else {
     db.exec(`
-      CREATE TABLE IF NOT EXISTS chat_sessions (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS chat_messages (
-        id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        tool_calls TEXT,
-        tool_call_id TEXT,
-        created_at TEXT NOT NULL,
-        CHECK (role IN ('user', 'assistant', 'tool', 'system')),
-        FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
-      );
-
       CREATE INDEX IF NOT EXISTS idx_chat_messages_session_created
         ON chat_messages(session_id, created_at);
       CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated
         ON chat_sessions(updated_at DESC);
     `)
-    db.pragma('user_version = 12')
   }
 
   // Defensive: some dev environments may have an inconsistent schema
