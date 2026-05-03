@@ -158,6 +158,11 @@ export function useChatStreaming(activeSessionId: string | null) {
         setError({ code: res.error.code, message: res.error.message })
         return ''
       }
+      // Refresh messages immediately so the user message appears right away
+      const messagesRes = await window.api.chat.listMessages(activeSessionId)
+      if (messagesRes.ok) {
+        setMessages(messagesRes.data)
+      }
       return res.data.messageId
     },
     [activeSessionId]
