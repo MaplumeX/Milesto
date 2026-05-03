@@ -34,6 +34,7 @@ import { type OpenEditorHandle, TaskSelectionProvider } from '../features/tasks/
 import { ProjectProgressIndicator } from '../features/projects/ProjectProgressControl'
 import { SettingsDialog } from '../features/settings/SettingsDialog'
 import { SearchPanel } from './SearchPanel'
+import { ChatPanel } from '../features/chat/ChatPanel'
 import { ContentBottomBarActions } from './ContentBottomBarActions'
 import { BottomBarActionButton } from './BottomBarActionButton'
 import { formatLocalDate } from '../lib/dates'
@@ -191,6 +192,13 @@ export function AppShell() {
   const [openTaskId, setOpenTaskId] = useState<string | null>(null)
   const [createPopover, setCreatePopover] = useState<CreatePopover>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isChatOpen, setIsChatOpen] = useState(() => {
+    try {
+      return localStorage.getItem('milesto:chatPanelOpen') === '1'
+    } catch {
+      return false
+    }
+  })
   const createPopoverRef = useRef<CreatePopover>(createPopover)
   const settingsTriggerRef = useRef<HTMLButtonElement | null>(null)
   useEffect(() => {
@@ -293,6 +301,18 @@ export function AppShell() {
 
   const openSettingsDialog = useCallback(() => {
     setIsSettingsOpen(true)
+  }, [])
+
+  const toggleChat = useCallback(() => {
+    setIsChatOpen((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('milesto:chatPanelOpen', next ? '1' : '0')
+      } catch {
+        // ignore
+      }
+      return next
+    })
   }, [])
 
   useEffect(() => {
@@ -1653,21 +1673,23 @@ export function AppShell() {
             {t('shell.new')}
           </Button>
 
-          <button
-            ref={settingsTriggerRef}
-            type="button"
-            className="nav-item nav-item-button"
-            aria-haspopup="dialog"
-            aria-expanded={isSettingsOpen}
-            aria-controls="settings-dialog"
-            data-settings-trigger="true"
-            onClick={() => {
-              closeCreatePopover({ restoreFocus: false })
-              openSettingsDialog()
-            }}
-          >
-            {t('nav.settings')}
-          </button>
+          <div className="sidebar-bottom-actions">
+            <button
+              ref={settingsTriggerRef}
+              type="button"
+              className="nav-item nav-item-button"
+              aria-haspopup="dialog"
+              aria-expanded={isSettingsOpen}
+              aria-controls="settings-dialog"
+              data-settings-trigger="true"
+              onClick={() => {
+                closeCreatePopover({ restoreFocus: false })
+                openSettingsDialog()
+              }}
+            >
+              {t('nav.settings')}
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -1748,6 +1770,8 @@ export function AppShell() {
                 )}
               </div>
             </div>
+
+            <ChatPanel isOpen={isChatOpen} onToggle={toggleChat} />
           </div>
         </main>
 

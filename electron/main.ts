@@ -1314,7 +1314,21 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
       onToolResult: (name, result) => {
         broadcastChatEvent('chat:toolResult', { messageId, name, result })
       },
-      onDone: () => {
+      onDone: async (finalContent) => {
+        // Persist the assistant message to SQLite
+        if (finalContent.trim().length > 0) {
+          try {
+            await dbWorker.request('chat.insertMessage', {
+              session_id: sessionId,
+              role: 'assistant',
+              content: finalContent,
+              tool_calls: null,
+              tool_call_id: null,
+            })
+          } catch (err) {
+            console.error('[chat] failed to persist assistant message:', err)
+          }
+        }
         broadcastChatEvent('chat:messageDone', { sessionId, messageId })
         inflightRuns.delete(messageId)
       },

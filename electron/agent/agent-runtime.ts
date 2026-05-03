@@ -9,7 +9,7 @@ export type RuntimeCallbacks = {
   onToken: (delta: string) => void
   onToolCall: (name: string, args: unknown) => void
   onToolResult: (name: string, result: string) => void
-  onDone: () => void
+  onDone: (finalContent: string) => void
   onError: (error: { code: string; message: string }) => void
 }
 
@@ -53,6 +53,7 @@ export function createAgentRuntime(
       const combinedSignal = combineAbortSignals(inflightController.signal, signal)
 
       const inputs = { messages: [...history, new HumanMessage(message)] }
+      let assistantContent = ''
 
       try {
         const stream = agent.streamEvents(inputs, { version: 'v2', signal: combinedSignal })
@@ -64,6 +65,7 @@ export function createAgentRuntime(
             case 'on_chat_model_stream': {
               const chunk = ev.data?.chunk
               if (chunk && typeof chunk.content === 'string' && chunk.content.length > 0) {
+                assistantContent += chunk.content
                 callbacks.onToken(chunk.content)
               }
               break
@@ -79,7 +81,7 @@ export function createAgentRuntime(
             }
             case 'on_chain_end': {
               if (ev.name === 'LangGraph') {
-                callbacks.onDone()
+                callbacks.onDone(assistantContent)
               }
               break
             }
@@ -89,13 +91,13 @@ export function createAgentRuntime(
         // If we exited the loop without an explicit on_chain_end, still call onDone
         // unless we were aborted.
         if (!combinedSignal.aborted) {
-          callbacks.onDone()
+          callbacks.onDone(assistantContent)
         }
       } catch (e) {
         const error = e instanceof Error ? e : new Error(String(e))
         if (error.name === 'AbortError') {
           // Expected on abort — still notify done so main process cleans up inflightRuns
-          callbacks.onDone()
+          callbacks.onDone(assistantContent)
           return
         }
         callbacks.onError({ code: 'AGENT_RUNTIME_ERROR', message: error.message })
