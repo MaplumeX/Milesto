@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, nativeTheme, session, shell } from
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 
 import { z } from 'zod'
 
@@ -11,6 +12,10 @@ import { err, ok, resultSchema, type Result } from '../shared/result'
 import { DbWorkerClient } from './workers/db/db-worker-client'
 import { SyncEngine } from './sync/sync-engine'
 import { SyncConfigSchema, SyncStateSchema, type SyncState } from '../shared/schemas/sync'
+
+import { createAgentRuntime, type AgentRuntime } from './agent/agent-runtime'
+import { makeTaskTools } from './agent/tools/task-tools'
+import { HumanMessage, AIMessage, ToolMessage, SystemMessage, type BaseMessage } from '@langchain/core/messages'
 
 import { LocaleSchema, getSupportedLocales, normalizeLocale, type Locale } from '../shared/i18n/locale'
 import { translate } from '../shared/i18n/translate'
@@ -1142,6 +1147,158 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     ChatMessageListInputSchema,
     z.array(ChatMessageSchema)
   )
+
+  // Chat streaming IPC handlers (PR2)
+  const ChatSendPayloadSchema = z.object({ sessionId: z.string().uuid(), content: z.string().min(1) })
+  const ChatSendResultSchema = resultSchema(z.object({ messageId: z.string() }))
+  const ChatAbortPayloadSchema = z.object({ messageId: z.string() })
+
+  const inflightRuns = new Map<string, { runtime: AgentRuntime; controller: AbortController }>()
+
+  function broadcastChatEvent(channel: string, payload: unknown) {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(channel, payload)
+    }
+  }
+
+  ipcMain.handle('chat:send', async (event, payload) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return ChatSendResultSchema.parse(err(senderErr))
+
+    const parsedPayload = ChatSendPayloadSchema.safeParse(payload)
+    if (!parsedPayload.success) {
+      return ChatSendResultSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid payload.',
+          details: { issues: parsedPayload.error.issues },
+        })
+      )
+    }
+
+    // Load AI config
+    const configRes = await dbWorker.request('settings.getAiConfig', {})
+    if (!configRes.ok) return ChatSendResultSchema.parse(err(configRes.error))
+
+    const configParsed = z.object({ config: AiConfigSchema }).safeParse(configRes.data)
+    if (!configParsed.success) {
+      return ChatSendResultSchema.parse(
+        err({
+          code: 'DB_INVALID_RETURN',
+          message: 'Invalid AI config from DB.',
+          details: { issues: configParsed.error.issues },
+        })
+      )
+    }
+
+    const aiConfig = configParsed.data.config
+    if (!aiConfig.enabled) {
+      return ChatSendResultSchema.parse(
+        err({
+          code: 'AI_DISABLED',
+          message: 'AI assistant is disabled. Enable it in Settings.',
+        })
+      )
+    }
+
+    const messageId = randomUUID()
+    const { sessionId, content } = parsedPayload.data
+    const controller = new AbortController()
+
+    // Load conversation history for context
+    const historyMessages: BaseMessage[] = []
+    try {
+      const historyRes = await dbWorker.request('chat.listMessages', { session_id: sessionId })
+      if (historyRes.ok && Array.isArray(historyRes.data)) {
+        for (const msg of historyRes.data) {
+          const parsedMsg = ChatMessageSchema.safeParse(msg)
+          if (!parsedMsg.success) continue
+          const m = parsedMsg.data
+          switch (m.role) {
+            case 'user':
+              historyMessages.push(new HumanMessage(m.content))
+              break
+            case 'assistant': {
+              const toolCalls = Array.isArray(m.tool_calls)
+                ? m.tool_calls.filter(
+                    (tc): tc is { id?: string; name: string; args: Record<string, unknown> } =>
+                      tc !== null && typeof tc === 'object' && 'name' in tc
+                  )
+                : undefined
+              historyMessages.push(new AIMessage({ content: m.content, tool_calls: toolCalls }))
+              break
+            }
+            case 'tool':
+              if (m.tool_call_id) {
+                historyMessages.push(new ToolMessage({ content: m.content, tool_call_id: m.tool_call_id }))
+              }
+              break
+            case 'system':
+              historyMessages.push(new SystemMessage(m.content))
+              break
+          }
+        }
+      }
+    } catch {
+      // If history fails to load, continue with empty history
+    }
+
+    const tools = makeTaskTools(dbWorker)
+    const runtime = createAgentRuntime(aiConfig, [...tools], {
+      onToken: (delta) => {
+        broadcastChatEvent('chat:messageDelta', { sessionId, messageId, delta })
+      },
+      onToolCall: (name, args) => {
+        broadcastChatEvent('chat:toolCall', { messageId, name, args })
+      },
+      onToolResult: (name, result) => {
+        broadcastChatEvent('chat:toolResult', { messageId, name, result })
+      },
+      onDone: () => {
+        broadcastChatEvent('chat:messageDone', { sessionId, messageId })
+        inflightRuns.delete(messageId)
+      },
+      onError: (error) => {
+        broadcastChatEvent('chat:messageError', { sessionId, messageId, code: error.code, message: error.message })
+        broadcastChatEvent('chat:messageDone', { sessionId, messageId })
+        inflightRuns.delete(messageId)
+        // Also log the error
+        console.error('[agent] runtime error:', error.code, error.message)
+      },
+    })
+
+    inflightRuns.set(messageId, { runtime, controller })
+
+    // Start streaming asynchronously — do NOT await so we return immediately.
+    void runtime.send(sessionId, content, historyMessages, controller.signal)
+
+    return ChatSendResultSchema.parse(ok({ messageId }))
+  })
+
+  ipcMain.handle('chat:abort', async (event, payload) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return ResultVoidSchema.parse(err(senderErr))
+
+    const parsedPayload = ChatAbortPayloadSchema.safeParse(payload)
+    if (!parsedPayload.success) {
+      return ResultVoidSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid payload.',
+          details: { issues: parsedPayload.error.issues },
+        })
+      )
+    }
+
+    const run = inflightRuns.get(parsedPayload.data.messageId)
+    if (run) {
+      run.controller.abort()
+      run.runtime.abort()
+      inflightRuns.delete(parsedPayload.data.messageId)
+    }
+
+    return ResultVoidSchema.parse(ok(undefined))
+  })
 
   // Sync IPC handlers
   const SyncStateResultSchema = resultSchema(SyncStateSchema)

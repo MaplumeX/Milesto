@@ -222,13 +222,23 @@ export type WindowApi = {
     onDataChanged(callback: () => void): () => void
   }
 
-  // PR1 surface: session + history management only.
-  // PR2 will add `send / abort / on*` event APIs in the same namespace.
   chat: {
+    // Session management (PR1)
     listSessions(): Promise<Result<ChatSession[]>>
     createSession(title?: string): Promise<Result<ChatSession>>
     renameSession(id: string, title: string): Promise<Result<ChatSession>>
     deleteSession(id: string): Promise<Result<{ deleted: boolean }>>
     listMessages(sessionId: string): Promise<Result<ChatMessage[]>>
+
+    // Streaming conversation (PR2)
+    send(sessionId: string, content: string): Promise<Result<{ messageId: string }>>
+    abort(messageId: string): Promise<Result<void>>
+
+    // Event subscriptions — mirror sync.onStateChange shape (return unsubscribe, payload is plain T)
+    onMessageDelta(callback: (event: { sessionId: string; messageId: string; delta: string }) => void): () => void
+    onToolCall(callback: (event: { messageId: string; name: string; args: unknown }) => void): () => void
+    onToolResult(callback: (event: { messageId: string; name: string; result: string }) => void): () => void
+    onMessageDone(callback: (event: { sessionId: string; messageId: string }) => void): () => void
+    onMessageError(callback: (event: { sessionId: string; messageId: string; code: string; message: string }) => void): () => void
   }
 }

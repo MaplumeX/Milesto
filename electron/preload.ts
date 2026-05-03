@@ -199,6 +199,40 @@ const api: WindowApi = {
     renameSession: (id, title) => invoke('db:chat.renameSession', { id, title }),
     deleteSession: (id) => invoke('db:chat.deleteSession', { id }),
     listMessages: (sessionId) => invoke('db:chat.listMessages', { session_id: sessionId }),
+
+    send: (sessionId, content) => invoke('chat:send', { sessionId, content }),
+    abort: (messageId) => invoke('chat:abort', { messageId }),
+
+    onMessageDelta: (callback) => {
+      const handler = (_event: unknown, payload: unknown) =>
+        callback(payload as { sessionId: string; messageId: string; delta: string })
+      ipcRenderer.on('chat:messageDelta', handler)
+      return () => ipcRenderer.removeListener('chat:messageDelta', handler)
+    },
+    onToolCall: (callback) => {
+      const handler = (_event: unknown, payload: unknown) =>
+        callback(payload as { messageId: string; name: string; args: unknown })
+      ipcRenderer.on('chat:toolCall', handler)
+      return () => ipcRenderer.removeListener('chat:toolCall', handler)
+    },
+    onToolResult: (callback) => {
+      const handler = (_event: unknown, payload: unknown) =>
+        callback(payload as { messageId: string; name: string; result: string })
+      ipcRenderer.on('chat:toolResult', handler)
+      return () => ipcRenderer.removeListener('chat:toolResult', handler)
+    },
+    onMessageDone: (callback) => {
+      const handler = (_event: unknown, payload: unknown) =>
+        callback(payload as { sessionId: string; messageId: string })
+      ipcRenderer.on('chat:messageDone', handler)
+      return () => ipcRenderer.removeListener('chat:messageDone', handler)
+    },
+    onMessageError: (callback) => {
+      const handler = (_event: unknown, payload: unknown) =>
+        callback(payload as { sessionId: string; messageId: string; code: string; message: string })
+      ipcRenderer.on('chat:messageError', handler)
+      return () => ipcRenderer.removeListener('chat:messageError', handler)
+    },
   },
 }
 

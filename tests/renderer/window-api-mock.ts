@@ -173,6 +173,14 @@ export function createWindowApiMock(): WindowApi {
       renameSession: vi.fn<WindowApi['chat']['renameSession']>(async () => err(unimplementedError)),
       deleteSession: vi.fn<WindowApi['chat']['deleteSession']>(async () => ok({ deleted: true })),
       listMessages: vi.fn<WindowApi['chat']['listMessages']>(async () => ok([])),
+
+      send: vi.fn<WindowApi['chat']['send']>(async () => ok({ messageId: 'test-message-id' })),
+      abort: vi.fn<WindowApi['chat']['abort']>(async () => ok(undefined)),
+      onMessageDelta: vi.fn<WindowApi['chat']['onMessageDelta']>(() => () => {}),
+      onToolCall: vi.fn<WindowApi['chat']['onToolCall']>(() => () => {}),
+      onToolResult: vi.fn<WindowApi['chat']['onToolResult']>(() => () => {}),
+      onMessageDone: vi.fn<WindowApi['chat']['onMessageDone']>(() => () => {}),
+      onMessageError: vi.fn<WindowApi['chat']['onMessageError']>(() => () => {}),
     },
   }
 }
