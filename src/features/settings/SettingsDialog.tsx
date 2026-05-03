@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 
+import { AiSettingsPanel } from './AiSettingsPanel'
 import { GeneralSettingsPanel } from './GeneralSettingsPanel'
 import { SyncSettingsPanel } from './SyncSettingsPanel'
 
@@ -35,7 +36,7 @@ export function SettingsDialog({
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const titleId = useId()
-  const [activeTab, setActiveTab] = useState<'general' | 'sync'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'sync' | 'ai'>('general')
 
   useEffect(() => {
     if (!isOpen) return
@@ -156,11 +157,26 @@ export function SettingsDialog({
           >
             {t('settings.syncTab')}
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'ai'}
+            className={`settings-dialog-tab ${activeTab === 'ai' ? 'settings-dialog-tab--active' : ''}`}
+            onClick={() => setActiveTab('ai')}
+          >
+            {t('settings.aiTab')}
+          </button>
         </div>
 
         <div className="settings-dialog-body">
           <div className="settings-dialog-panel">
-            {activeTab === 'general' ? <GeneralSettingsPanel /> : <SyncSettingsPanel />}
+            {activeTab === 'general' ? (
+              <GeneralSettingsPanel />
+            ) : activeTab === 'sync' ? (
+              <SyncSettingsPanel />
+            ) : (
+              <AiSettingsPanel />
+            )}
           </div>
         </div>
       </div>

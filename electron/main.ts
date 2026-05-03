@@ -18,6 +18,13 @@ import { translate } from '../shared/i18n/translate'
 import {
   DataExportSchema,
   AreaDetailSchema,
+  AiConfigSchema,
+  ChatMessageListInputSchema,
+  ChatMessageSchema,
+  ChatSessionCreateInputSchema,
+  ChatSessionIdInputSchema,
+  ChatSessionRenameInputSchema,
+  ChatSessionSchema,
   ProjectCompleteInputSchema,
   ProjectCancelInputSchema,
   ProjectCancelResultSchema,
@@ -244,6 +251,10 @@ const SetFontSizeStepPayloadSchema = z.object({ step: z.unknown() }).superRefine
     ctx.addIssue({ code: 'custom', path: ['step'], message: 'Required' })
   }
 })
+
+const AiConfigResultSchema = resultSchema(AiConfigSchema)
+const SetAiConfigPayloadSchema = z.object({ config: z.unknown() })
+const DbAiConfigRowSchema = z.object({ config: AiConfigSchema })
 
 const DbLocaleRowSchema = z.object({ locale: z.string().nullable() })
 const DbSetLocaleResultSchema = z.object({ locale: z.string() })
@@ -888,6 +899,70 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     return FontSizeStateResultSchema.parse(ok({ step: dbStepParsed.data }))
   })
 
+  ipcMain.handle('settings:getAiConfig', async (event) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return AiConfigResultSchema.parse(err(senderErr))
+
+    const res = await dbWorker.request('settings.getAiConfig', {})
+    if (!res.ok) return AiConfigResultSchema.parse(err(res.error))
+
+    const parsedData = DbAiConfigRowSchema.safeParse(res.data)
+    if (!parsedData.success) {
+      return AiConfigResultSchema.parse(
+        err({
+          code: 'DB_INVALID_RETURN',
+          message: 'Invalid DB return value.',
+          details: { issues: parsedData.error.issues, action: 'settings.getAiConfig' },
+        })
+      )
+    }
+
+    return AiConfigResultSchema.parse(ok(parsedData.data.config))
+  })
+
+  ipcMain.handle('settings:setAiConfig', async (event, payload) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return AiConfigResultSchema.parse(err(senderErr))
+
+    const parsedPayload = SetAiConfigPayloadSchema.safeParse(payload)
+    if (!parsedPayload.success) {
+      return AiConfigResultSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid payload.',
+          details: { issues: parsedPayload.error.issues },
+        })
+      )
+    }
+
+    const configParsed = AiConfigSchema.safeParse(parsedPayload.data.config)
+    if (!configParsed.success) {
+      return AiConfigResultSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid AI config.',
+          details: { issues: configParsed.error.issues },
+        })
+      )
+    }
+
+    const res = await dbWorker.request('settings.setAiConfig', { config: configParsed.data })
+    if (!res.ok) return AiConfigResultSchema.parse(err(res.error))
+
+    const parsedData = DbAiConfigRowSchema.safeParse(res.data)
+    if (!parsedData.success) {
+      return AiConfigResultSchema.parse(
+        err({
+          code: 'DB_INVALID_RETURN',
+          message: 'Invalid DB return value.',
+          details: { issues: parsedData.error.issues, action: 'settings.setAiConfig' },
+        })
+      )
+    }
+
+    return AiConfigResultSchema.parse(ok(parsedData.data.config))
+  })
+
   // DB IPC (Renderer -> Main -> DB Worker)
   handleDb('db:trash.list', 'trash.list', TrashListInputSchema, z.array(TrashEntrySchema))
   handleDb('db:trash.restoreTask', 'trash.restoreTask', TrashRootIdInputSchema, TrashRestoreResultSchema)
@@ -1045,6 +1120,28 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   handleDb('db:checklist.create', 'checklist.create', ChecklistItemCreateInputSchema, ChecklistItemSchema)
   handleDb('db:checklist.update', 'checklist.update', ChecklistItemUpdateInputSchema, ChecklistItemSchema)
   handleDb('db:checklist.delete', 'checklist.delete', ChecklistItemDeleteInputSchema, z.object({ deleted: z.boolean() }))
+
+  // Chat sessions + messages (PR1: read/manage only).
+  handleDb('db:chat.listSessions', 'chat.listSessions', z.object({}), z.array(ChatSessionSchema))
+  handleDb('db:chat.createSession', 'chat.createSession', ChatSessionCreateInputSchema, ChatSessionSchema)
+  handleDb(
+    'db:chat.renameSession',
+    'chat.renameSession',
+    ChatSessionRenameInputSchema,
+    ChatSessionSchema
+  )
+  handleDb(
+    'db:chat.deleteSession',
+    'chat.deleteSession',
+    ChatSessionIdInputSchema,
+    z.object({ deleted: z.boolean() })
+  )
+  handleDb(
+    'db:chat.listMessages',
+    'chat.listMessages',
+    ChatMessageListInputSchema,
+    z.array(ChatMessageSchema)
+  )
 
   // Sync IPC handlers
   const SyncStateResultSchema = resultSchema(SyncStateSchema)

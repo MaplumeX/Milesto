@@ -30,6 +30,8 @@ const api: WindowApi = {
     setThemePreference: (preference) => invoke('settings:setThemePreference', { preference }),
     getFontSizeState: () => invoke('settings:getFontSizeState'),
     setFontSizeStep: (step) => invoke('settings:setFontSizeStep', { step }),
+    getAiConfig: () => invoke('settings:getAiConfig'),
+    setAiConfig: (config) => invoke('settings:setAiConfig', { config }),
   },
   trash: {
     list: () => invoke('db:trash.list', {}),
@@ -189,6 +191,14 @@ const api: WindowApi = {
       ipcRenderer.on('sync:dataChanged', handler)
       return () => ipcRenderer.removeListener('sync:dataChanged', handler)
     },
+  },
+
+  chat: {
+    listSessions: () => invoke('db:chat.listSessions', {}),
+    createSession: (title) => invoke('db:chat.createSession', { title }),
+    renameSession: (id, title) => invoke('db:chat.renameSession', { id, title }),
+    deleteSession: (id) => invoke('db:chat.deleteSession', { id }),
+    listMessages: (sessionId) => invoke('db:chat.listMessages', { session_id: sessionId }),
   },
 }
 

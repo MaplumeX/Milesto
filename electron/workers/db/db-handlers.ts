@@ -5,6 +5,7 @@ import { createTaskActions } from './actions/task-actions'
 import { createProjectActions } from './actions/project-actions'
 import { createAreaActions } from './actions/area-actions'
 import { createTagActions } from './actions/tag-actions'
+import { createChatActions } from './actions/chat-actions'
 import { createChecklistActions } from './actions/checklist-actions'
 import { createListPositionActions } from './actions/list-position-actions'
 import { createDataTransferActions } from './actions/data-transfer-actions'
@@ -24,6 +25,7 @@ export function buildDbHandlers(db: Database.Database): Record<string, DbActionH
     ...createProjectActions(db),
     ...createAreaActions(db),
     ...createTagActions(db),
+    ...createChatActions(db),
     ...createChecklistActions(db),
     ...createListPositionActions(db),
     ...createDataTransferActions(db),

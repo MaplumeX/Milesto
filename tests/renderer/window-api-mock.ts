@@ -2,6 +2,7 @@ import { vi } from 'vitest'
 
 import { err, ok } from '../../shared/result'
 import type { AppError } from '../../shared/app-error'
+import { DEFAULT_AI_CONFIG } from '../../shared/schemas/chat'
 import type { WindowApi } from '../../shared/window-api'
 
 const unimplementedError: AppError = {
@@ -43,6 +44,8 @@ export function createWindowApiMock(): WindowApi {
       ),
       getFontSizeState: vi.fn<WindowApi['settings']['getFontSizeState']>(async () => ok({ step: 0 })),
       setFontSizeStep: vi.fn<WindowApi['settings']['setFontSizeStep']>(async (step) => ok({ step })),
+      getAiConfig: vi.fn<WindowApi['settings']['getAiConfig']>(async () => ok(DEFAULT_AI_CONFIG)),
+      setAiConfig: vi.fn<WindowApi['settings']['setAiConfig']>(async (config) => ok(config)),
     },
 
     trash: {
@@ -162,6 +165,14 @@ export function createWindowApiMock(): WindowApi {
       disconnect: vi.fn<WindowApi['sync']['disconnect']>(async () => ok(undefined)),
       onStateChange: vi.fn<WindowApi['sync']['onStateChange']>(() => () => {}),
       onDataChanged: vi.fn<WindowApi['sync']['onDataChanged']>(() => () => {}),
+    },
+
+    chat: {
+      listSessions: vi.fn<WindowApi['chat']['listSessions']>(async () => ok([])),
+      createSession: vi.fn<WindowApi['chat']['createSession']>(async () => err(unimplementedError)),
+      renameSession: vi.fn<WindowApi['chat']['renameSession']>(async () => err(unimplementedError)),
+      deleteSession: vi.fn<WindowApi['chat']['deleteSession']>(async () => ok({ deleted: true })),
+      listMessages: vi.fn<WindowApi['chat']['listMessages']>(async () => ok([])),
     },
   }
 }

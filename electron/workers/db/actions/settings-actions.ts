@@ -5,6 +5,7 @@ import type { DbActionHandler } from './db-actions'
 import { nowIso } from './utils'
 
 import { normalizeLocale, type Locale } from '../../../../shared/i18n/locale'
+import { AiConfigSchema, DEFAULT_AI_CONFIG, type AiConfig } from '../../../../shared/schemas/chat'
 import { FontSizeStepSchema, type FontSizeStep } from '../../../../shared/schemas/font-size'
 import { ThemePreferenceSchema, type ThemePreference } from '../../../../shared/schemas/theme'
 
@@ -15,6 +16,7 @@ const SIDEBAR_COLLAPSED_AREA_IDS_KEY = 'sidebar.collapsedAreaIds'
 
 const THEME_PREFERENCE_KEY = 'theme.preference'
 const FONT_SIZE_STEP_KEY = 'fontSize.step'
+const AI_CONFIG_KEY = 'ai.config'
 
 const GetSidebarStateInputSchema = z.object({})
 const SetSidebarStateInputSchema = z.object({ collapsedAreaIds: z.unknown() })
@@ -29,6 +31,9 @@ const SetFontSizeStepInputSchema = z.object({ step: z.unknown() }).superRefine((
     ctx.addIssue({ code: 'custom', path: ['step'], message: 'Required' })
   }
 })
+
+const GetAiConfigInputSchema = z.object({})
+const SetAiConfigInputSchema = z.object({ config: z.unknown() })
 
 export function createSettingsActions(db: Database.Database): Record<string, DbActionHandler> {
   return {
@@ -309,6 +314,82 @@ export function createSettingsActions(db: Database.Database): Record<string, DbA
       tx()
 
       return { ok: true, data: { step } satisfies { step: FontSizeStep } }
+    },
+
+    'settings.getAiConfig': (payload) => {
+      const parsed = GetAiConfigInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid settings.getAiConfig payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const row = db
+        .prepare('SELECT value FROM app_settings WHERE key = ? LIMIT 1')
+        .get(AI_CONFIG_KEY) as { value?: unknown } | undefined
+
+      if (!row || typeof row.value !== 'string' || !row.value.trim()) {
+        return { ok: true, data: { config: DEFAULT_AI_CONFIG } satisfies { config: AiConfig } }
+      }
+
+      try {
+        const json = JSON.parse(row.value) as unknown
+        const validated = AiConfigSchema.safeParse(json)
+        if (!validated.success) {
+          // Persisted config is invalid (e.g. older schema); fall back to defaults.
+          return { ok: true, data: { config: DEFAULT_AI_CONFIG } satisfies { config: AiConfig } }
+        }
+        return { ok: true, data: { config: validated.data } satisfies { config: AiConfig } }
+      } catch {
+        return { ok: true, data: { config: DEFAULT_AI_CONFIG } satisfies { config: AiConfig } }
+      }
+    },
+
+    'settings.setAiConfig': (payload) => {
+      const parsed = SetAiConfigInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid settings.setAiConfig payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const configParsed = AiConfigSchema.safeParse(parsed.data.config)
+      if (!configParsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid AI config.',
+            details: { issues: configParsed.error.issues },
+          },
+        }
+      }
+
+      const config = configParsed.data
+      const updatedAt = nowIso()
+
+      const tx = db.transaction(() => {
+        db.prepare(
+          `INSERT INTO app_settings (key, value, updated_at)
+           VALUES (@key, @value, @updated_at)
+           ON CONFLICT(key) DO UPDATE SET
+             value = excluded.value,
+             updated_at = excluded.updated_at`
+        ).run({ key: AI_CONFIG_KEY, value: JSON.stringify(config), updated_at: updatedAt })
+      })
+      tx()
+
+      return { ok: true, data: { config } satisfies { config: AiConfig } }
     },
   }
 }

@@ -4,6 +4,7 @@ import type { Locale } from './i18n/locale'
 import type { EntityScope } from './schemas/common'
 
 import type { Area, AreaCreateInput, AreaUpdateInput } from './schemas/area'
+import type { AiConfig, ChatMessage, ChatSession } from './schemas/chat'
 import type {
   ChecklistItem,
   ChecklistItemCreateInput,
@@ -91,6 +92,9 @@ export type WindowApi = {
 
     getFontSizeState(): Promise<Result<FontSizeState>>
     setFontSizeStep(step: FontSizeStep): Promise<Result<FontSizeState>>
+
+    getAiConfig(): Promise<Result<AiConfig>>
+    setAiConfig(config: AiConfig): Promise<Result<AiConfig>>
   }
 
   trash: {
@@ -216,5 +220,15 @@ export type WindowApi = {
     disconnect(): Promise<Result<void>>
     onStateChange(callback: (state: SyncState) => void): () => void
     onDataChanged(callback: () => void): () => void
+  }
+
+  // PR1 surface: session + history management only.
+  // PR2 will add `send / abort / on*` event APIs in the same namespace.
+  chat: {
+    listSessions(): Promise<Result<ChatSession[]>>
+    createSession(title?: string): Promise<Result<ChatSession>>
+    renameSession(id: string, title: string): Promise<Result<ChatSession>>
+    deleteSession(id: string): Promise<Result<{ deleted: boolean }>>
+    listMessages(sessionId: string): Promise<Result<ChatMessage[]>>
   }
 }

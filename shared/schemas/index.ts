@@ -1,6 +1,7 @@
 export * from './area'
 export * from './area-detail'
 export * from './area-set-tags'
+export * from './chat'
 export * from './checklist'
 export * from './common'
 export * from './data-transfer'
