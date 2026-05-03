@@ -1458,3 +1458,36 @@ Fixed AI chat sessions disappearing after restart by repairing chat schema drift
 ### Next Steps
 
 - None - task complete
+
+
+## Session 43: AI工具调用用户感知
+
+**Date**: 2026-05-03
+**Task**: AI工具调用用户感知
+**Branch**: `master`
+
+### Summary
+
+在 AI chat 面板中实现工具调用实时反馈。收到 onToolCall 时显示工具卡片（含工具名、可展开参数），onToolResult 后更新为完成/错误状态。支持多个工具串行调用、abort 清理、deleteSession 清理。扩展了 agent runtime 的 onToolResult 回调以传递 isError 标志。新增 6 个测试覆盖生命周期。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `23a8e94` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
