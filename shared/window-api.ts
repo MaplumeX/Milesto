@@ -240,5 +240,9 @@ export type WindowApi = {
     onToolResult(callback: (event: { messageId: string; name: string; result: string }) => void): () => void
     onMessageDone(callback: (event: { sessionId: string; messageId: string }) => void): () => void
     onMessageError(callback: (event: { sessionId: string; messageId: string; code: string; message: string }) => void): () => void
+
+    // High-risk action confirmation (PR3)
+    confirmRespond(messageId: string, approve: boolean): Promise<Result<void>>
+    onConfirmRequest(callback: (event: { messageId: string; action: string; summary: string }) => void): () => void
   }
 }

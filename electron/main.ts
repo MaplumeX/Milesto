@@ -15,6 +15,12 @@ import { SyncConfigSchema, SyncStateSchema, type SyncState } from '../shared/sch
 
 import { createAgentRuntime, type AgentRuntime } from './agent/agent-runtime'
 import { makeTaskTools } from './agent/tools/task-tools'
+import { makeTaskWriteTools } from './agent/tools/task-write-tools'
+import { makeProjectTools } from './agent/tools/project-tools'
+import { makeAreaTools } from './agent/tools/area-tools'
+import { makeTagTools } from './agent/tools/tag-tools'
+import { createConfirmGate } from './agent/confirm-gate'
+import type { ConfirmRequest } from './agent/confirm-gate'
 import { HumanMessage, AIMessage, ToolMessage, SystemMessage, type BaseMessage } from '@langchain/core/messages'
 
 import { LocaleSchema, getSupportedLocales, normalizeLocale, type Locale } from '../shared/i18n/locale'
@@ -1148,7 +1154,7 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     z.array(ChatMessageSchema)
   )
 
-  // Chat streaming IPC handlers (PR2)
+  // Chat streaming IPC handlers (PR2 + PR3)
   const ChatSendPayloadSchema = z.object({ sessionId: z.string().uuid(), content: z.string().min(1) })
   const ChatSendResultSchema = resultSchema(z.object({ messageId: z.string() }))
   const ChatAbortPayloadSchema = z.object({ messageId: z.string() })
@@ -1160,6 +1166,47 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
       win.webContents.send(channel, payload)
     }
   }
+
+  function broadcastSyncDataChanged() {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('sync:dataChanged')
+    }
+  }
+
+  // PR3: Confirm gate for high-risk actions
+  const { confirmGate, resolveConfirm } = createConfirmGate({
+    onConfirmRequest: (req: ConfirmRequest) => {
+      broadcastChatEvent('chat:confirmRequest', req)
+    },
+  })
+
+  ipcMain.handle('chat:confirmRespond', async (event, payload) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return ResultVoidSchema.parse(err(senderErr))
+
+    const parsedPayload = z.object({ messageId: z.string(), approve: z.boolean() }).safeParse(payload)
+    if (!parsedPayload.success) {
+      return ResultVoidSchema.parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid payload.',
+          details: { issues: parsedPayload.error.issues },
+        })
+      )
+    }
+
+    const resolved = resolveConfirm(parsedPayload.data.messageId, parsedPayload.data.approve)
+    if (!resolved) {
+      return ResultVoidSchema.parse(
+        err({
+          code: 'CONFIRM_NOT_FOUND',
+          message: 'No pending confirmation found for this message.',
+        })
+      )
+    }
+
+    return ResultVoidSchema.parse(ok(undefined))
+  })
 
   ipcMain.handle('chat:send', async (event, payload) => {
     const senderErr = ensureTrustedSender(event)
@@ -1243,8 +1290,21 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
       // If history fails to load, continue with empty history
     }
 
-    const tools = makeTaskTools(dbWorker)
-    const runtime = createAgentRuntime(aiConfig, [...tools], {
+    const tools = [
+      ...makeTaskTools(dbWorker),
+      ...makeTaskWriteTools(dbWorker, {
+        onBumpRevision: broadcastSyncDataChanged,
+        confirmGate,
+      }),
+      ...makeProjectTools(dbWorker, {
+        onBumpRevision: broadcastSyncDataChanged,
+        confirmGate,
+      }),
+      ...makeAreaTools(dbWorker),
+      ...makeTagTools(dbWorker),
+    ]
+
+    const runtime = createAgentRuntime(aiConfig, tools, {
       onToken: (delta) => {
         broadcastChatEvent('chat:messageDelta', { sessionId, messageId, delta })
       },
@@ -1308,12 +1368,6 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   function broadcastSyncState(state: SyncState) {
     if (win && !win.isDestroyed()) {
       win.webContents.send('sync:stateChanged', state)
-    }
-  }
-
-  function broadcastSyncDataChanged() {
-    if (win && !win.isDestroyed()) {
-      win.webContents.send('sync:dataChanged')
     }
   }
 

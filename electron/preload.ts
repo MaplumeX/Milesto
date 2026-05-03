@@ -233,6 +233,14 @@ const api: WindowApi = {
       ipcRenderer.on('chat:messageError', handler)
       return () => ipcRenderer.removeListener('chat:messageError', handler)
     },
+
+    confirmRespond: (messageId, approve) => invoke('chat:confirmRespond', { messageId, approve }),
+    onConfirmRequest: (callback) => {
+      const handler = (_event: unknown, payload: unknown) =>
+        callback(payload as { messageId: string; action: string; summary: string })
+      ipcRenderer.on('chat:confirmRequest', handler)
+      return () => ipcRenderer.removeListener('chat:confirmRequest', handler)
+    },
   },
 }
 

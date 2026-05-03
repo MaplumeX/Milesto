@@ -18,7 +18,11 @@ export type AgentRuntime = {
   abort: () => void
 }
 
-export function createAgentRuntime(config: AiConfig, tools: StructuredToolInterface[], callbacks: RuntimeCallbacks): AgentRuntime {
+export function createAgentRuntime(
+  config: AiConfig,
+  tools: StructuredToolInterface[],
+  callbacks: RuntimeCallbacks
+): AgentRuntime {
   const llm = new ChatOpenAI({
     model: config.model,
     streaming: true,
@@ -30,9 +34,12 @@ export function createAgentRuntime(config: AiConfig, tools: StructuredToolInterf
     tools,
     prompt: new SystemMessage(
       'You are Milesto assistant, a helpful task-management AI. ' +
-        'You can read tasks from Today, Inbox, Anytime, Someday, Upcoming, Logbook, Project, and Area. ' +
-        'You can also search tasks and view task details. ' +
-        'Reply in the same language as the user.',
+        'You can read and manage tasks from Today, Inbox, Anytime, Someday, Upcoming, Logbook, Project, and Area. ' +
+        'You can also search tasks, view task and project details, create/update/delete tasks and projects, ' +
+        'manage project sections, and set tags. ' +
+        'High-risk actions (task delete, project complete/cancel/delete, delete section) require user confirmation. ' +
+        'Reply in the same language as the user. ' +
+        'When you perform a write operation, briefly describe what you did before presenting the result.'
     ),
   })
 

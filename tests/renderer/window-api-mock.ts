@@ -181,6 +181,9 @@ export function createWindowApiMock(): WindowApi {
       onToolResult: vi.fn<WindowApi['chat']['onToolResult']>(() => () => {}),
       onMessageDone: vi.fn<WindowApi['chat']['onMessageDone']>(() => () => {}),
       onMessageError: vi.fn<WindowApi['chat']['onMessageError']>(() => () => {}),
+
+      confirmRespond: vi.fn<WindowApi['chat']['confirmRespond']>(async () => ok(undefined)),
+      onConfirmRequest: vi.fn<WindowApi['chat']['onConfirmRequest']>(() => () => {}),
     },
   }
 }
