@@ -1389,3 +1389,37 @@ Fixed a bug where every AI assistant response appeared twice in the chat panel. 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 41: Fix AI agent run handling
+
+**Date**: 2026-05-03
+**Task**: Fix AI agent run handling
+**Branch**: `master`
+
+### Summary
+
+Fixed AI agent tool payloads, run-scoped chat streaming, confirmation cleanup, active-session deletion cleanup, and recorded the run identity contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b4697a1` | (see git log) |
+| `7e00e13` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
