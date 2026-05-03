@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/ai-agent-setup.md", "reason": "Verify AI agent behavior and runtime conventions."}
+{"file": ".trellis/spec/server/index.md", "reason": "Verify main-process/server conventions."}
+{"file": ".trellis/spec/server/error-handling.md", "reason": "Verify IPC and runtime error handling."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Verify frontend conventions."}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "Verify hook lifecycle, effects, and cleanup."}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Verify session state and async race fixes."}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Verify test and quality expectations."}

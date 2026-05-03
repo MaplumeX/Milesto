@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/ai-agent-setup.md", "reason": "AI agent feature-specific setup and runtime expectations."}
+{"file": ".trellis/spec/server/index.md", "reason": "Server/main-process implementation checklist and conventions."}
+{"file": ".trellis/spec/server/error-handling.md", "reason": "IPC/DB action error handling conventions for agent runtime fixes."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend implementation checklist and conventions."}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "Chat streaming hook state and effect changes."}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Session-scoped UI state and async race handling."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Type-safe renderer/API event handling and tests."}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Renderer regression test expectations."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Changes span IPC, DB actions, agent runtime, and renderer state."}
