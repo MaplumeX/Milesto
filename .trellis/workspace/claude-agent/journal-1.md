@@ -1491,3 +1491,36 @@ Fixed AI chat sessions disappearing after restart by repairing chat schema drift
 ### Next Steps
 
 - None - task complete
+
+
+## Session 44: Float AI chat toggle so closed panel stops occupying a flex column
+
+**Date**: 2026-05-03
+**Task**: Float AI chat toggle so closed panel stops occupying a flex column
+**Branch**: `master`
+
+### Summary
+
+Diagnosed perceived right-edge white gap as the 28px .chat-toggle button claiming a flex column inside .content-grid even when the chat panel was closed. Selected Approach A: convert .chat-toggle to position:absolute anchored to .content-main (already position:relative), top:8 right:8 z:5. Added @media (max-width:720px) override so .chat-toggle.is-active becomes position:fixed top:12 right:12 z:31, keeping the toggle reachable when the mobile panel goes fullscreen. Validated with npm run lint (clean) and npm run test on tests/renderer/ (28 files / 123 tests passing). No JSX changes; ChatPanel still returns the same Fragment of toggle + conditional panel.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2931b01` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
