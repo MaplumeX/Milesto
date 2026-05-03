@@ -1,0 +1,4 @@
+{"check": 1, "description": "Agent onDone fires exactly once per run (verified by reading agent-runtime.ts)"}
+{"check": 2, "description": "User message is inserted before assistant runs (verified by reading main.ts)"}
+{"check": 3, "description": "Tests pass: npm run test"}
+{"check": 4, "description": "No duplicate assistant messages in DB after single run"}
