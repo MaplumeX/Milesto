@@ -217,7 +217,7 @@ const api: WindowApi = {
     },
     onToolResult: (callback) => {
       const handler = (_event: unknown, payload: unknown) =>
-        callback(payload as { messageId: string; name: string; result: string })
+        callback(payload as { messageId: string; name: string; result: string; isError?: boolean })
       ipcRenderer.on('chat:toolResult', handler)
       return () => ipcRenderer.removeListener('chat:toolResult', handler)
     },

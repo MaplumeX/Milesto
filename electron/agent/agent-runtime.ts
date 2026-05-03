@@ -8,7 +8,7 @@ import type { AiConfig } from '../../shared/schemas/chat'
 export type RuntimeCallbacks = {
   onToken: (delta: string) => void
   onToolCall: (name: string, args: unknown) => void
-  onToolResult: (name: string, result: string) => void
+  onToolResult: (name: string, result: string, isError?: boolean) => void
   onDone: (finalContent: string) => void
   onError: (error: { code: string; message: string }) => void
 }
@@ -76,8 +76,10 @@ export function createAgentRuntime(
               break
             }
             case 'on_tool_end': {
-              const output = typeof ev.data?.output === 'string' ? ev.data.output : JSON.stringify(ev.data?.output)
-              callbacks.onToolResult(ev.name, output)
+              const rawOutput = ev.data?.output
+              const isError = rawOutput instanceof Error || (rawOutput != null && typeof rawOutput === 'object' && 'error' in rawOutput)
+              const output = typeof rawOutput === 'string' ? rawOutput : JSON.stringify(rawOutput)
+              callbacks.onToolResult(ev.name, output, isError)
               break
             }
             case 'on_chain_end': {

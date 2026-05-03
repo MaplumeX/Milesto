@@ -3,14 +3,16 @@ import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
 
 import type { ChatMessage } from '../../../shared/schemas/chat'
+import type { StreamingToolCall } from './use-chat-streaming'
 
 type ChatMessagesProps = {
   messages: ChatMessage[]
   streamingDelta: string
   isLoading: boolean
+  streamingToolCalls?: StreamingToolCall[]
 }
 
-export function ChatMessages({ messages, streamingDelta, isLoading }: ChatMessagesProps) {
+export function ChatMessages({ messages, streamingDelta, isLoading, streamingToolCalls = [] }: ChatMessagesProps) {
   const { t } = useTranslation()
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -23,7 +25,7 @@ export function ChatMessages({ messages, streamingDelta, isLoading }: ChatMessag
     if (isNearBottom) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [messages, streamingDelta])
+  }, [messages, streamingDelta, streamingToolCalls])
 
   const allMessages = [...messages]
   // If streaming, append a pending assistant message
@@ -39,6 +41,8 @@ export function ChatMessages({ messages, streamingDelta, isLoading }: ChatMessag
     })
   }
 
+  const showStreamingToolCalls = isLoading && streamingToolCalls.length > 0
+
   return (
     <div ref={containerRef} className="chat-messages">
       {allMessages.length === 0 ? (
@@ -48,6 +52,17 @@ export function ChatMessages({ messages, streamingDelta, isLoading }: ChatMessag
           <ChatMessageBubble key={msg.id} message={msg} />
         ))
       )}
+      {showStreamingToolCalls ? (
+        <div className="chat-message is-tool">
+          <div className="chat-message-bubble">
+            <div className="chat-streaming-tool-calls">
+              {streamingToolCalls.map((tc, i) => (
+                <StreamingToolCallCard key={`${tc.name}-${i}`} toolCall={tc} />
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div ref={bottomRef} />
     </div>
   )
@@ -97,5 +112,93 @@ function ToolMessageContent({ message }: { message: ChatMessage }) {
         <pre className="chat-tool-body">{message.content}</pre>
       ) : null}
     </div>
+  )
+}
+
+function StreamingToolCallCard({ toolCall }: { toolCall: StreamingToolCall }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const { t } = useTranslation()
+
+  const statusIcon =
+    toolCall.status === 'pending' ? (
+      <span className="chat-tool-status-icon chat-tool-status-pending" aria-hidden="true">
+        <Spinner />
+      </span>
+    ) : toolCall.status === 'error' ? (
+      <span className="chat-tool-status-icon chat-tool-status-error" aria-hidden="true">
+        ⚠
+      </span>
+    ) : (
+      <span className="chat-tool-status-icon chat-tool-status-completed" aria-hidden="true">
+        ✓
+      </span>
+    )
+
+  const statusLabel =
+    toolCall.status === 'pending'
+      ? t('chat.toolStatusPending')
+      : toolCall.status === 'error'
+        ? t('chat.toolStatusError')
+        : t('chat.toolStatusCompleted')
+
+  return (
+    <div className={`chat-tool-message${toolCall.status === 'error' ? ' is-error' : ''}`}>
+      <button
+        type="button"
+        className="chat-tool-toggle"
+        onClick={() => setIsExpanded((v) => !v)}
+        aria-expanded={isExpanded}
+      >
+        <span className="chat-tool-toggle-left">
+          {statusIcon}
+          <span className="chat-tool-name">{toolCall.name}</span>
+          <span className="chat-tool-status-label">{statusLabel}</span>
+        </span>
+        <span className="chat-tool-chevron" aria-hidden="true">
+          {isExpanded ? '▾' : '▸'}
+        </span>
+      </button>
+      {isExpanded ? (
+        <div className="chat-tool-body">
+          <div className="chat-tool-section">
+            <div className="chat-tool-section-title">{t('chat.toolArgs')}</div>
+            <pre>{JSON.stringify(toolCall.args, null, 2)}</pre>
+          </div>
+          {toolCall.result !== undefined ? (
+            <div className="chat-tool-section">
+              <div className="chat-tool-section-title">{t('chat.toolResult')}</div>
+              <pre>{toolCall.result}</pre>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function Spinner() {
+  return (
+    <svg className="chat-tool-spinner" viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true">
+      <circle
+        cx="8"
+        cy="8"
+        r="6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeDasharray="28"
+        strokeDashoffset="8"
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from="0 8 8"
+          to="360 8 8"
+          dur="1s"
+          repeatCount="indefinite"
+        />
+      </circle>
+    </svg>
   )
 }

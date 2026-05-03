@@ -237,7 +237,7 @@ export type WindowApi = {
     // Event subscriptions — mirror sync.onStateChange shape (return unsubscribe, payload is plain T)
     onMessageDelta(callback: (event: { sessionId: string; messageId: string; delta: string }) => void): () => void
     onToolCall(callback: (event: { messageId: string; name: string; args: unknown }) => void): () => void
-    onToolResult(callback: (event: { messageId: string; name: string; result: string }) => void): () => void
+    onToolResult(callback: (event: { messageId: string; name: string; result: string; isError?: boolean }) => void): () => void
     onMessageDone(callback: (event: { sessionId: string; messageId: string }) => void): () => void
     onMessageError(callback: (event: { sessionId: string; messageId: string; code: string; message: string }) => void): () => void
 

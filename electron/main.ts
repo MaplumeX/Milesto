@@ -1336,8 +1336,8 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
       onToolCall: (name, args) => {
         broadcastChatEvent('chat:toolCall', { messageId, name, args })
       },
-      onToolResult: (name, result) => {
-        broadcastChatEvent('chat:toolResult', { messageId, name, result })
+      onToolResult: (name, result, isError) => {
+        broadcastChatEvent('chat:toolResult', { messageId, name, result, isError })
       },
       onDone: async (finalContent) => {
         // Persist the assistant message to SQLite

@@ -22,6 +22,7 @@ export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
     messages,
     sessions,
     streaming,
+    streamingToolCalls,
     error,
     confirmRequest,
     sendMessage,
@@ -165,6 +166,7 @@ export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
                   messages={messages}
                   streamingDelta={streamingDelta}
                   isLoading={isLoading}
+                  streamingToolCalls={streamingToolCalls}
                 />
 
                 <ChatComposer

@@ -3713,6 +3713,74 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
   border-top: 1px solid var(--border);
 }
 
+/* Streaming tool call cards */
+.chat-streaming-tool-calls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-tool-message.is-error {
+  border-color: var(--danger);
+}
+
+.chat-tool-toggle-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chat-tool-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.chat-tool-status-pending {
+  color: var(--muted);
+}
+
+.chat-tool-status-completed {
+  color: var(--success);
+}
+
+.chat-tool-status-error {
+  color: var(--danger);
+}
+
+.chat-tool-status-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: lowercase;
+}
+
+.chat-tool-spinner {
+  display: block;
+}
+
+.chat-tool-section + .chat-tool-section {
+  margin-top: 8px;
+}
+
+.chat-tool-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 4px;
+}
+
+.chat-tool-section pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* Chat Composer */
 .chat-composer {
   flex: none;

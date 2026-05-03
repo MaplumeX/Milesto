@@ -17,6 +17,8 @@ type ChatEventHandlers = {
   done?: Parameters<WindowApi['chat']['onMessageDone']>[0]
   error?: Parameters<WindowApi['chat']['onMessageError']>[0]
   confirm?: Parameters<WindowApi['chat']['onConfirmRequest']>[0]
+  toolCall?: Parameters<WindowApi['chat']['onToolCall']>[0]
+  toolResult?: Parameters<WindowApi['chat']['onToolResult']>[0]
 }
 
 function api(): WindowApi {
@@ -68,6 +70,18 @@ function installChatEventHandlers(): ChatEventHandlers {
     handlers.confirm = callback
     return () => {
       handlers.confirm = undefined
+    }
+  })
+  api().chat.onToolCall = vi.fn<WindowApi['chat']['onToolCall']>((callback) => {
+    handlers.toolCall = callback
+    return () => {
+      handlers.toolCall = undefined
+    }
+  })
+  api().chat.onToolResult = vi.fn<WindowApi['chat']['onToolResult']>((callback) => {
+    handlers.toolResult = callback
+    return () => {
+      handlers.toolResult = undefined
     }
   })
   return handlers
@@ -245,5 +259,124 @@ describe('useChatStreaming', () => {
         message: 'Could not load chat sessions.',
       })
     })
+  })
+
+  it('tracks streaming tool calls and results', async () => {
+    const handlers = installChatEventHandlers()
+    api().chat.send = vi.fn<WindowApi['chat']['send']>(async () => ok({ messageId: RUN_A }))
+    api().chat.listMessages = vi.fn<WindowApi['chat']['listMessages']>(async () => ok([]))
+
+    const { result } = renderHook(() => useChatStreaming(SESSION_A))
+
+    await act(async () => {
+      await result.current.sendMessage('hello')
+    })
+
+    act(() => {
+      handlers.toolCall?.({ messageId: RUN_A, name: 'searchTasks', args: { query: 'test' } })
+    })
+
+    expect(result.current.streamingToolCalls).toEqual([
+      { name: 'searchTasks', args: { query: 'test' }, status: 'pending' },
+    ])
+
+    act(() => {
+      handlers.toolResult?.({ messageId: RUN_A, name: 'searchTasks', result: '[]' })
+    })
+
+    expect(result.current.streamingToolCalls).toEqual([
+      { name: 'searchTasks', args: { query: 'test' }, result: '[]', status: 'completed' },
+    ])
+  })
+
+  it('marks streaming tool call as error when isError is true', async () => {
+    const handlers = installChatEventHandlers()
+    api().chat.send = vi.fn<WindowApi['chat']['send']>(async () => ok({ messageId: RUN_A }))
+    api().chat.listMessages = vi.fn<WindowApi['chat']['listMessages']>(async () => ok([]))
+
+    const { result } = renderHook(() => useChatStreaming(SESSION_A))
+
+    await act(async () => {
+      await result.current.sendMessage('hello')
+    })
+
+    act(() => {
+      handlers.toolCall?.({ messageId: RUN_A, name: 'createTask', args: { title: 'x' } })
+    })
+
+    act(() => {
+      handlers.toolResult?.({ messageId: RUN_A, name: 'createTask', result: 'Failed', isError: true })
+    })
+
+    expect(result.current.streamingToolCalls).toEqual([
+      { name: 'createTask', args: { title: 'x' }, result: 'Failed', status: 'error' },
+    ])
+  })
+
+  it('clears streaming tool calls on done', async () => {
+    const handlers = installChatEventHandlers()
+    api().chat.send = vi.fn<WindowApi['chat']['send']>(async () => ok({ messageId: RUN_A }))
+    api().chat.listMessages = vi.fn<WindowApi['chat']['listMessages']>(async () => ok([]))
+
+    const { result } = renderHook(() => useChatStreaming(SESSION_A))
+
+    await act(async () => {
+      await result.current.sendMessage('hello')
+    })
+
+    act(() => {
+      handlers.toolCall?.({ messageId: RUN_A, name: 'searchTasks', args: {} })
+    })
+
+    expect(result.current.streamingToolCalls.length).toBe(1)
+
+    act(() => {
+      handlers.done?.({ sessionId: SESSION_A, messageId: RUN_A })
+    })
+
+    expect(result.current.streamingToolCalls).toEqual([])
+  })
+
+  it('clears streaming tool calls on abort', async () => {
+    const handlers = installChatEventHandlers()
+    api().chat.send = vi.fn<WindowApi['chat']['send']>(async () => ok({ messageId: RUN_A }))
+    api().chat.listMessages = vi.fn<WindowApi['chat']['listMessages']>(async () => ok([]))
+    api().chat.abort = vi.fn<WindowApi['chat']['abort']>(async () => ok(undefined))
+
+    const { result } = renderHook(() => useChatStreaming(SESSION_A))
+
+    await act(async () => {
+      await result.current.sendMessage('hello')
+    })
+
+    act(() => {
+      handlers.toolCall?.({ messageId: RUN_A, name: 'searchTasks', args: {} })
+    })
+
+    expect(result.current.streamingToolCalls.length).toBe(1)
+
+    await act(async () => {
+      await result.current.abortMessage(RUN_A)
+    })
+
+    expect(result.current.streamingToolCalls).toEqual([])
+  })
+
+  it('ignores tool call events for stale runs', async () => {
+    const handlers = installChatEventHandlers()
+    api().chat.send = vi.fn<WindowApi['chat']['send']>(async () => ok({ messageId: RUN_A }))
+    api().chat.listMessages = vi.fn<WindowApi['chat']['listMessages']>(async () => ok([]))
+
+    const { result } = renderHook(() => useChatStreaming(SESSION_A))
+
+    await act(async () => {
+      await result.current.sendMessage('hello')
+    })
+
+    act(() => {
+      handlers.toolCall?.({ messageId: STALE_RUN_A, name: 'searchTasks', args: {} })
+    })
+
+    expect(result.current.streamingToolCalls).toEqual([])
   })
 })

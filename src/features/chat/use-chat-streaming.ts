@@ -21,6 +21,13 @@ export type ConfirmRequest = {
   summary: string
 }
 
+export type StreamingToolCall = {
+  name: string
+  args: unknown
+  result?: string
+  status: 'pending' | 'completed' | 'error'
+}
+
 type DeltaBuffer = {
   sessionId: string
   messageId: string
@@ -45,12 +52,20 @@ function isSameRun(
   )
 }
 
+function isSameRunByMessageId(
+  streaming: StreamingState,
+  event: { messageId: string }
+): boolean {
+  return streaming.isLoading && streaming.messageId === event.messageId
+}
+
 export function useChatStreaming(activeSessionId: string | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [streaming, setStreaming] = useState<StreamingState>(IDLE_STREAMING)
   const [error, setError] = useState<ChatError | null>(null)
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null)
+  const [streamingToolCalls, setStreamingToolCalls] = useState<StreamingToolCall[]>([])
 
   // RAF-batched delta buffer
   const deltaBufferRef = useRef<DeltaBuffer | null>(null)
@@ -159,12 +174,24 @@ export function useChatStreaming(activeSessionId: string | null) {
       scheduleFlush()
     })
 
-    const unsubToolCall = window.api.chat.onToolCall(() => {
-      // Tool calls are visualized in the message list; no immediate state change needed here.
+    const unsubToolCall = window.api.chat.onToolCall((event) => {
+      if (!isSameRunByMessageId(streamingRef.current, event)) return
+      setStreamingToolCalls((prev) => [...prev, { name: event.name, args: event.args, status: 'pending' }])
     })
 
-    const unsubToolResult = window.api.chat.onToolResult(() => {
-      // Tool results are visualized in the message list.
+    const unsubToolResult = window.api.chat.onToolResult((event) => {
+      if (!isSameRunByMessageId(streamingRef.current, event)) return
+      setStreamingToolCalls((prev) => {
+        const idx = prev.findIndex((tc) => tc.status === 'pending')
+        if (idx === -1) return prev
+        const next = [...prev]
+        next[idx] = {
+          ...next[idx]!,
+          result: event.result,
+          status: event.isError ? 'error' : 'completed',
+        }
+        return next
+      })
     })
 
     const unsubDone = window.api.chat.onMessageDone((event) => {
@@ -172,6 +199,7 @@ export function useChatStreaming(activeSessionId: string | null) {
       flushDeltaBuffer()
       clearDeltaBuffer(event)
       setStreamingState((prev) => (isSameRun(prev, event) ? IDLE_STREAMING : prev))
+      setStreamingToolCalls([])
       setConfirmRequest((prev) =>
         prev?.sessionId === event.sessionId && prev.runMessageId === event.messageId ? null : prev
       )
@@ -191,6 +219,7 @@ export function useChatStreaming(activeSessionId: string | null) {
       flushDeltaBuffer()
       clearDeltaBuffer(event)
       setStreamingState((prev) => (isSameRun(prev, event) ? IDLE_STREAMING : prev))
+      setStreamingToolCalls([])
       setConfirmRequest((prev) =>
         prev?.sessionId === event.sessionId && prev.runMessageId === event.messageId ? null : prev
       )
@@ -238,6 +267,7 @@ export function useChatStreaming(activeSessionId: string | null) {
       const sessionId = activeSessionId
       setError(null)
       setConfirmRequest(null)
+      setStreamingToolCalls([])
       clearDeltaBuffer()
       setStreamingState({ sessionId, messageId: null, delta: '', isLoading: true })
 
@@ -272,6 +302,7 @@ export function useChatStreaming(activeSessionId: string | null) {
     await window.api.chat.abort(messageId)
     clearDeltaBuffer()
     setStreamingState((prev) => (prev.messageId === messageId ? IDLE_STREAMING : prev))
+    setStreamingToolCalls([])
     setConfirmRequest((prev) => (prev?.runMessageId === messageId ? null : prev))
   }, [clearDeltaBuffer, setStreamingState])
 
@@ -323,6 +354,7 @@ export function useChatStreaming(activeSessionId: string | null) {
       clearDeltaBuffer()
       setMessages([])
       setStreamingState(IDLE_STREAMING)
+      setStreamingToolCalls([])
       setConfirmRequest(null)
       setError(null)
     }
@@ -344,6 +376,7 @@ export function useChatStreaming(activeSessionId: string | null) {
     messages,
     sessions,
     streaming,
+    streamingToolCalls,
     error,
     confirmRequest,
     sendMessage,
