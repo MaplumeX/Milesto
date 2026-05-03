@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Review against frontend/Electron project conventions."}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Verify tests, regression coverage, and implementation quality."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Check schema and IPC type safety for chat persistence paths."}
+{"file": ".trellis/spec/frontend/local-data-persistence.md", "reason": "Verify local SQLite persistence and restart-safe chat history behavior."}

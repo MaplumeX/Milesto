@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend and Electron code conventions for chat UI, hooks, IPC, and local persistence behavior."}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Quality bar and review checklist for implementing a regression-safe persistence fix."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Type and schema validation conventions for DB/IPC/chat data boundaries."}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "Hook conventions relevant to restoring active chat session state after sessions load."}
+{"file": ".trellis/spec/frontend/local-data-persistence.md", "reason": "Local SQLite persistence contract added for AI chat history restart behavior."}
