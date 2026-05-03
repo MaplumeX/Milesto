@@ -1,0 +1,12 @@
+{"file": ".trellis/tasks/05-03-feat-ai-agent-integrate-langgraph-conversational-assistant/research/langgraphjs-tool-calling.md", "reason": "langgraphjs 1.x 工具调用 / streamEvents / AbortController / zod schema 的实操陷阱与 TL;DR；agent-runtime + tools 模块直接对照实现"}
+{"file": ".trellis/tasks/05-03-feat-ai-agent-integrate-langgraph-conversational-assistant/research/electron-ipc-streaming-patterns.md", "reason": "Electron main→renderer 流式订阅模式；preload/main 形态、StrictMode 防泄漏、按 messageId 多流隔离、AbortController 往返；chat.on* 事件 API 必须 mirror 这里的 sync.onStateChange 范本"}
+{"file": ".trellis/spec/server/index.md", "reason": "Electron main + DB Worker + ipcMain.handle 架构总览；agent-runtime 跑在 main、tool 内调 dbApi 通过现有 worker"}
+{"file": ".trellis/spec/server/error-handling.md", "reason": "Result<T> + AppError code 约定；tool 返回 err 时序列化为 JSON 字符串、bumpRevision、ensureTrustedSender 边界"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "src/features/chat/、electron/agent/、shared/schemas/chat.ts、electron/workers/db/actions/chat-actions.ts 的放置位置依据"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "AppEventsContext bumpRevision 触发跨视图刷新；Chat Panel 不引入新状态库，沿用 Context + 局部 state"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "ChatPanel/ChatSessionList/ChatMessages/ChatComposer/ConfirmDialog 须遵循的组件结构与命名规范"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "useChat/useChatSession 等自定义 hook 的依赖、卸载、订阅清理规则；与 sync.onStateChange 模板一致"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "zod schemas + Result<T> + window-api 类型同步；ChatSession/ChatMessage/AiConfig 必须由 zod 派生 TS 类型"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "lint/typecheck/test 全绿、不破坏 self-test 4 套件、不绕过 IPC zod 校验"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "tool 内必须复用现有 window.api.task/project/area/tag.* 路径，不要绕过 IPC zod + Result"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "renderer↔main↔db-worker 三层职责边界；agent-runtime 在 main、API key 不暴露 renderer、流式事件用 IPC event 不用 invoke"}

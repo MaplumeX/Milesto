@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "verify lint/typecheck/test 全绿、self-test 4 套件未回归、commit/PR 规范"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "verify zod schemas 与 TS 类型一致、Result<T> 路径完整、window-api 接口未越界"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "verify ChatPanel 系列组件命名、props、文件位置符合规范"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "verify chat 订阅 hook 在 StrictMode 下不泄漏 listener、依赖数组完整"}
+{"file": ".trellis/spec/server/error-handling.md", "reason": "verify tool 错误路径序列化合理、ensureTrustedSender 覆盖新增 chat.* IPC、bumpRevision 触发完整"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "verify agent tool 内未绕过 window.api / DbWorkerClient 路径，未绕过 zod 校验"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "verify API key 仅留 main、流式事件用 event 不用 invoke、worker 边界未被穿透"}
+{"file": ".trellis/tasks/05-03-feat-ai-agent-integrate-langgraph-conversational-assistant/research/langgraphjs-tool-calling.md", "reason": "verify createReactAgent / streaming:true / AbortController / @langchain/core 去重等实施陷阱已规避"}
+{"file": ".trellis/tasks/05-03-feat-ai-agent-integrate-langgraph-conversational-assistant/research/electron-ipc-streaming-patterns.md", "reason": "verify chat.on* 形状 mirror 了 sync.onStateChange、window-api-mock 已扩展、按 messageId 多流隔离正确"}
