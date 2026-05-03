@@ -1423,3 +1423,38 @@ Fixed AI agent tool payloads, run-scoped chat streaming, confirmation cleanup, a
 ### Next Steps
 
 - None - task complete
+
+
+## Session 42: Fix AI chat session persistence
+
+**Date**: 2026-05-03
+**Task**: Fix AI chat session persistence
+**Branch**: `master`
+
+### Summary
+
+Fixed AI chat sessions disappearing after restart by repairing chat schema drift, auto-selecting restored sessions, surfacing load errors, adding regression tests, and documenting the local persistence contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `13c6237` | (see git log) |
+| `f01a13f` | (see git log) |
+| `82ec621` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
