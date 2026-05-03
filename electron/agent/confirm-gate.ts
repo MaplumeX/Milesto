@@ -8,6 +8,7 @@ export type ConfirmRequest = {
 
 export type ConfirmCallbacks = {
   onConfirmRequest: (req: ConfirmRequest) => void
+  onConfirmSettled?: (messageId: string) => void
 }
 
 export type ConfirmGate = (action: string, summary: string) => Promise<boolean>
@@ -22,6 +23,7 @@ export type ConfirmGate = (action: string, summary: string) => Promise<boolean>
 export function createConfirmGate(callbacks: ConfirmCallbacks): {
   confirmGate: ConfirmGate
   resolveConfirm: (messageId: string, approve: boolean) => boolean
+  cancelAllConfirms: () => number
 } {
   const pending = new Map<string, { resolve: (value: boolean) => void }>()
 
@@ -39,8 +41,19 @@ export function createConfirmGate(callbacks: ConfirmCallbacks): {
     if (!entry) return false
     entry.resolve(approve)
     pending.delete(messageId)
+    callbacks.onConfirmSettled?.(messageId)
     return true
   }
 
-  return { confirmGate, resolveConfirm }
+  const cancelAllConfirms = (): number => {
+    const entries = Array.from(pending.entries())
+    for (const [messageId, entry] of entries) {
+      entry.resolve(false)
+      pending.delete(messageId)
+      callbacks.onConfirmSettled?.(messageId)
+    }
+    return entries.length
+  }
+
+  return { confirmGate, resolveConfirm, cancelAllConfirms }
 }

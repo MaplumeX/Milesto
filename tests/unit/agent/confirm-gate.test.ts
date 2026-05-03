@@ -64,4 +64,25 @@ describe('createConfirmGate', () => {
     expect(result1).toBe(true)
     expect(result2).toBe(false)
   })
+
+  it('cancels all pending confirmations as rejected and reports settled ids', async () => {
+    const onConfirmRequest = vi.fn()
+    const onConfirmSettled = vi.fn()
+    const { confirmGate, cancelAllConfirms } = createConfirmGate({
+      onConfirmRequest,
+      onConfirmSettled,
+    })
+
+    const promise1 = confirmGate('task.delete', '删除任务 A')
+    const promise2 = confirmGate('project.delete', '删除项目 B')
+    const req1 = onConfirmRequest.mock.calls[0]![0]
+    const req2 = onConfirmRequest.mock.calls[1]![0]
+
+    expect(cancelAllConfirms()).toBe(2)
+    await expect(promise1).resolves.toBe(false)
+    await expect(promise2).resolves.toBe(false)
+    expect(onConfirmSettled).toHaveBeenCalledWith(req1.messageId)
+    expect(onConfirmSettled).toHaveBeenCalledWith(req2.messageId)
+    expect(cancelAllConfirms()).toBe(0)
+  })
 })

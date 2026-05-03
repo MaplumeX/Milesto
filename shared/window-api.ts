@@ -243,6 +243,12 @@ export type WindowApi = {
 
     // High-risk action confirmation (PR3)
     confirmRespond(messageId: string, approve: boolean): Promise<Result<void>>
-    onConfirmRequest(callback: (event: { messageId: string; action: string; summary: string }) => void): () => void
+    onConfirmRequest(callback: (event: {
+      messageId: string
+      sessionId: string
+      runMessageId: string
+      action: string
+      summary: string
+    }) => void): () => void
   }
 }

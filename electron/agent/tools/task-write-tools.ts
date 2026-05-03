@@ -17,16 +17,14 @@ export function makeTaskWriteTools(db: DbWorkerClient, callbacks: TaskWriteToolC
     tool(
       async ({ title, projectId, areaId, notes, scheduledAt, dueAt, isInbox, isSomeday }) => {
         const result = await db.request('task.create', {
-          input: {
-            title,
-            project_id: projectId ?? null,
-            area_id: areaId ?? null,
-            notes: notes ?? '',
-            scheduled_at: scheduledAt ?? null,
-            due_at: dueAt ?? null,
-            is_inbox: isInbox ?? false,
-            is_someday: isSomeday ?? false,
-          },
+          title,
+          project_id: projectId ?? null,
+          area_id: areaId ?? null,
+          notes: notes ?? '',
+          scheduled_at: scheduledAt ?? null,
+          due_at: dueAt ?? null,
+          is_inbox: isInbox ?? false,
+          is_someday: isSomeday ?? false,
         })
         if (result.ok) onBumpRevision()
         const data = result.ok ? (result.data as { id: string }) : null
@@ -54,18 +52,16 @@ export function makeTaskWriteTools(db: DbWorkerClient, callbacks: TaskWriteToolC
     tool(
       async ({ id, title, notes, scheduledAt, dueAt, projectId, areaId, sectionId, isInbox, isSomeday }) => {
         const result = await db.request('task.update', {
-          input: {
-            id,
-            title,
-            notes,
-            scheduled_at: scheduledAt,
-            due_at: dueAt,
-            project_id: projectId,
-            area_id: areaId,
-            section_id: sectionId,
-            is_inbox: isInbox,
-            is_someday: isSomeday,
-          },
+          id,
+          title,
+          notes,
+          scheduled_at: scheduledAt,
+          due_at: dueAt,
+          project_id: projectId,
+          area_id: areaId,
+          section_id: sectionId,
+          is_inbox: isInbox,
+          is_someday: isSomeday,
         })
         if (result.ok) onBumpRevision()
         const data = result.ok ? (result.data as { title: string }) : null

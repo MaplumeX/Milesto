@@ -68,10 +68,22 @@ export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
   )
 
   const handleAbort = useCallback(() => {
-    if (lastMessageIdRef.current) {
-      abortMessage(lastMessageIdRef.current)
+    const messageId = streaming.sessionId === activeSessionId ? streaming.messageId : lastMessageIdRef.current
+    if (messageId) {
+      void abortMessage(messageId)
     }
-  }, [abortMessage])
+  }, [abortMessage, activeSessionId, streaming.messageId, streaming.sessionId])
+
+  const handleDeleteSession = useCallback(
+    async (id: string) => {
+      const deleted = await deleteSession(id)
+      if (deleted && id === activeSessionId) {
+        setActiveSessionId(null)
+        lastMessageIdRef.current = null
+      }
+    },
+    [activeSessionId, deleteSession]
+  )
 
   const handleApproveConfirm = useCallback(() => {
     if (confirmRequest) {
@@ -85,8 +97,10 @@ export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
     }
   }, [confirmRequest, respondConfirm])
 
-  const isLoading = streaming.isLoading
-  const streamingDelta = streaming.delta
+  const isActiveSessionStreaming = streaming.sessionId === activeSessionId
+  const isLoading = isActiveSessionStreaming && streaming.isLoading
+  const streamingDelta = isActiveSessionStreaming ? streaming.delta : ''
+  const visibleConfirmRequest = confirmRequest?.sessionId === activeSessionId ? confirmRequest : null
 
   const disabled = aiEnabled !== true
   const disabledHint = aiEnabled === false
@@ -123,7 +137,7 @@ export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
                 onSelect={setActiveSessionId}
                 onCreate={handleCreateSession}
                 onRename={renameSession}
-                onDelete={deleteSession}
+                onDelete={handleDeleteSession}
               />
 
               <div className="chat-panel-main">
@@ -158,10 +172,10 @@ export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
             </div>
           </div>
 
-          {confirmRequest ? (
+          {visibleConfirmRequest ? (
             <ConfirmDialog
-              action={confirmRequest.action}
-              summary={confirmRequest.summary}
+              action={visibleConfirmRequest.action}
+              summary={visibleConfirmRequest.summary}
               onApprove={handleApproveConfirm}
               onReject={handleRejectConfirm}
             />

@@ -17,14 +17,12 @@ export function makeProjectTools(db: DbWorkerClient, callbacks: ProjectToolCallb
     tool(
       async ({ title, areaId, notes, scheduledAt, dueAt, isSomeday }) => {
         const result = await db.request('project.create', {
-          input: {
-            title,
-            area_id: areaId ?? null,
-            notes: notes ?? '',
-            scheduled_at: scheduledAt ?? null,
-            due_at: dueAt ?? null,
-            is_someday: isSomeday ?? false,
-          },
+          title,
+          area_id: areaId ?? null,
+          notes: notes ?? '',
+          scheduled_at: scheduledAt ?? null,
+          due_at: dueAt ?? null,
+          is_someday: isSomeday ?? false,
         })
         if (result.ok) onBumpRevision()
         const data = result.ok ? (result.data as { id: string }) : null
@@ -50,15 +48,13 @@ export function makeProjectTools(db: DbWorkerClient, callbacks: ProjectToolCallb
     tool(
       async ({ id, title, notes, areaId, scheduledAt, dueAt, isSomeday }) => {
         const result = await db.request('project.update', {
-          input: {
-            id,
-            title,
-            notes,
-            area_id: areaId,
-            scheduled_at: scheduledAt,
-            due_at: dueAt,
-            is_someday: isSomeday,
-          },
+          id,
+          title,
+          notes,
+          area_id: areaId,
+          scheduled_at: scheduledAt,
+          due_at: dueAt,
+          is_someday: isSomeday,
         })
         if (result.ok) onBumpRevision()
         const data = result.ok ? (result.data as { title: string }) : null

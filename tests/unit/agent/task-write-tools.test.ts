@@ -36,20 +36,55 @@ describe('makeTaskWriteTools', () => {
     const result = await createTool.invoke({ title: 'Test task' })
 
     expect(db.request).toHaveBeenCalledWith('task.create', {
-      input: {
-        title: 'Test task',
-        project_id: null,
-        area_id: null,
-        notes: '',
-        scheduled_at: null,
-        due_at: null,
-        is_inbox: false,
-        is_someday: false,
-      },
+      title: 'Test task',
+      project_id: null,
+      area_id: null,
+      notes: '',
+      scheduled_at: null,
+      due_at: null,
+      is_inbox: false,
+      is_someday: false,
     })
     expect(callbacks.onBumpRevision).toHaveBeenCalledTimes(1)
     expect(result).toContain('已创建任务')
     expect(result).toContain(TASK_ID)
+  })
+
+  it('task_update passes a top-level db payload and bumps revision on success', async () => {
+    const db = createMockDb()
+    const callbacks = createMockCallbacks()
+    const tools = makeTaskWriteTools(db, callbacks)
+
+    const updateTool = tools.find((t) => t.name === 'task_update')!
+    vi.mocked(db.request).mockResolvedValue({
+      ok: true,
+      data: { id: TASK_ID, title: 'Updated task' },
+    })
+
+    const result = await updateTool.invoke({
+      id: TASK_ID,
+      title: 'Updated task',
+      notes: 'Notes',
+      scheduledAt: '2026-05-04',
+      dueAt: '2026-05-05',
+      isInbox: true,
+      isSomeday: false,
+    })
+
+    expect(db.request).toHaveBeenCalledWith('task.update', {
+      id: TASK_ID,
+      title: 'Updated task',
+      notes: 'Notes',
+      scheduled_at: '2026-05-04',
+      due_at: '2026-05-05',
+      project_id: undefined,
+      area_id: undefined,
+      section_id: undefined,
+      is_inbox: true,
+      is_someday: false,
+    })
+    expect(callbacks.onBumpRevision).toHaveBeenCalledTimes(1)
+    expect(result).toContain('已更新任务')
   })
 
   it('task_delete uses confirmGate and bumps revision when approved', async () => {

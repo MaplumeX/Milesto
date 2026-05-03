@@ -118,3 +118,69 @@ The following are explicitly out of scope for this iteration:
 - **Tools** wrap existing `window.api` DB calls (`electron/agent/tools/`).
 - **Streaming** uses `webContents.send` on a single `chat:*` channel per the project's IPC conventions.
 - **History** is loaded from SQLite on each turn and passed to LangGraph manually (no built-in checkpointer).
+
+## Scenario: Chat Run Identity and Confirmation Contract
+
+### 1. Scope / Trigger
+
+Trigger this contract when changing `chat:send`, stream events, confirmation events, or renderer chat streaming state. These paths cross Electron main, preload, shared `WindowApi`, renderer hooks, agent runtime, and DB history.
+
+### 2. Signatures
+
+- `chat:send({ sessionId: string, content: string }) -> Result<{ messageId: string }>`
+- `chat:abort({ messageId: string }) -> Result<void>`
+- `chat:messageDelta -> { sessionId: string, messageId: string, delta: string }`
+- `chat:messageDone -> { sessionId: string, messageId: string }`
+- `chat:messageError -> { sessionId: string, messageId: string, code: string, message: string }`
+- `chat:confirmRequest -> { messageId: string, sessionId: string, runMessageId: string, action: string, summary: string }`
+- `chat:confirmRespond({ messageId: string, approve: boolean }) -> Result<void>`
+
+### 3. Contracts
+
+- `messageId` from `chat:send` is the run identity for all stream events.
+- `chat:confirmRequest.messageId` is the confirmation identity; `runMessageId` points back to the owning run.
+- Renderer streaming state must match both `sessionId` and run `messageId` before applying delta/done/error/confirm events.
+- `chat:send` must build LangGraph history before inserting the current user message, because `agent-runtime.send()` appends the current `HumanMessage` itself.
+- Agent tool DB payloads must match DB action schemas directly. Do not wrap create/update inputs in an extra `{ input: ... }` object unless the target DB action schema explicitly requires it.
+
+### 4. Validation & Error Matrix
+
+| Condition | Expected behavior |
+|---|---|
+| AI disabled | `chat:send` returns `AI_DISABLED`; no run starts |
+| Unknown confirmation id | `chat:confirmRespond` returns `CONFIRM_NOT_FOUND` |
+| Abort while confirmation is pending | pending confirmation resolves `false`; renderer clears dialog |
+| Stream event for stale/different run | renderer ignores it |
+| Current user message is already persisted before history load | bug: model receives the current user turn twice |
+
+### 5. Good/Base/Bad Cases
+
+- Good: send returns run `messageId`, renderer binds streaming to that id, main starts runtime after IPC response can deliver the id, and stale events are ignored.
+- Base: switching away from a streaming session keeps the background run alive but hides its loading state from the visible session.
+- Bad: matching stream events by `sessionId` only lets old runs mutate the current run.
+
+### 6. Tests Required
+
+- Agent tool unit tests assert top-level DB payloads for create and update tools.
+- Confirm gate unit tests assert approve, reject, unknown id, concurrent confirms, and cancel-all behavior.
+- Renderer hook tests assert stale send refreshes are ignored, background run completion does not overwrite visible messages, abort clears confirmation state, and deleting the active session clears local chat state.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```typescript
+await dbWorker.request('chat.insertMessage', { session_id: sessionId, role: 'user', content })
+const history = await dbWorker.request('chat.listMessages', { session_id: sessionId })
+void runtime.send(sessionId, content, historyMessages, controller.signal)
+```
+
+#### Correct
+
+```typescript
+const history = await dbWorker.request('chat.listMessages', { session_id: sessionId })
+await dbWorker.request('chat.insertMessage', { session_id: sessionId, role: 'user', content })
+setTimeout(() => {
+  void runtime.send(sessionId, content, historyMessages, controller.signal)
+}, 0)
+```

@@ -1159,7 +1159,12 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
   const ChatSendResultSchema = resultSchema(z.object({ messageId: z.string() }))
   const ChatAbortPayloadSchema = z.object({ messageId: z.string() })
 
-  const inflightRuns = new Map<string, { runtime: AgentRuntime; controller: AbortController }>()
+  const inflightRuns = new Map<string, {
+    runtime: AgentRuntime
+    controller: AbortController
+    cancelConfirmations: () => number
+  }>()
+  const pendingConfirmGates = new Map<string, { resolveConfirm: (messageId: string, approve: boolean) => boolean }>()
 
   function broadcastChatEvent(channel: string, payload: unknown) {
     if (win && !win.isDestroyed()) {
@@ -1172,13 +1177,6 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
       win.webContents.send('sync:dataChanged')
     }
   }
-
-  // PR3: Confirm gate for high-risk actions
-  const { confirmGate, resolveConfirm } = createConfirmGate({
-    onConfirmRequest: (req: ConfirmRequest) => {
-      broadcastChatEvent('chat:confirmRequest', req)
-    },
-  })
 
   ipcMain.handle('chat:confirmRespond', async (event, payload) => {
     const senderErr = ensureTrustedSender(event)
@@ -1195,7 +1193,8 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
       )
     }
 
-    const resolved = resolveConfirm(parsedPayload.data.messageId, parsedPayload.data.approve)
+    const gate = pendingConfirmGates.get(parsedPayload.data.messageId)
+    const resolved = gate?.resolveConfirm(parsedPayload.data.messageId, parsedPayload.data.approve) ?? false
     if (!resolved) {
       return ResultVoidSchema.parse(
         err({
@@ -1252,19 +1251,6 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     const { sessionId, content } = parsedPayload.data
     const controller = new AbortController()
 
-    // Persist user message before running the agent
-    try {
-      await dbWorker.request('chat.insertMessage', {
-        session_id: sessionId,
-        role: 'user',
-        content,
-        tool_calls: null,
-        tool_call_id: null,
-      })
-    } catch (err) {
-      console.error('[chat] failed to persist user message:', err)
-    }
-
     // Load conversation history for context
     const historyMessages: BaseMessage[] = []
     try {
@@ -1303,15 +1289,41 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
       // If history fails to load, continue with empty history
     }
 
+    // Persist the current user message after history is assembled. The runtime
+    // appends the current HumanMessage itself, so history must not include it.
+    try {
+      await dbWorker.request('chat.insertMessage', {
+        session_id: sessionId,
+        role: 'user',
+        content,
+        tool_calls: null,
+        tool_call_id: null,
+      })
+    } catch (err) {
+      console.error('[chat] failed to persist user message:', err)
+    }
+
+    let resolveRunConfirm: (messageId: string, approve: boolean) => boolean = () => false
+    const runConfirmGate = createConfirmGate({
+      onConfirmRequest: (req: ConfirmRequest) => {
+        pendingConfirmGates.set(req.messageId, { resolveConfirm: resolveRunConfirm })
+        broadcastChatEvent('chat:confirmRequest', { ...req, sessionId, runMessageId: messageId })
+      },
+      onConfirmSettled: (confirmMessageId) => {
+        pendingConfirmGates.delete(confirmMessageId)
+      },
+    })
+    resolveRunConfirm = runConfirmGate.resolveConfirm
+
     const tools = [
       ...makeTaskTools(dbWorker),
       ...makeTaskWriteTools(dbWorker, {
         onBumpRevision: broadcastSyncDataChanged,
-        confirmGate,
+        confirmGate: runConfirmGate.confirmGate,
       }),
       ...makeProjectTools(dbWorker, {
         onBumpRevision: broadcastSyncDataChanged,
-        confirmGate,
+        confirmGate: runConfirmGate.confirmGate,
       }),
       ...makeAreaTools(dbWorker),
       ...makeTagTools(dbWorker),
@@ -1346,6 +1358,7 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
         inflightRuns.delete(messageId)
       },
       onError: (error) => {
+        runConfirmGate.cancelAllConfirms()
         broadcastChatEvent('chat:messageError', { sessionId, messageId, code: error.code, message: error.message })
         broadcastChatEvent('chat:messageDone', { sessionId, messageId })
         inflightRuns.delete(messageId)
@@ -1354,10 +1367,14 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
       },
     })
 
-    inflightRuns.set(messageId, { runtime, controller })
+    inflightRuns.set(messageId, { runtime, controller, cancelConfirmations: runConfirmGate.cancelAllConfirms })
 
-    // Start streaming asynchronously — do NOT await so we return immediately.
-    void runtime.send(sessionId, content, historyMessages, controller.signal)
+    // Start streaming after the IPC response has a chance to deliver messageId,
+    // so renderer-side stream state can bind events to this exact run.
+    setTimeout(() => {
+      if (!inflightRuns.has(messageId)) return
+      void runtime.send(sessionId, content, historyMessages, controller.signal)
+    }, 0)
 
     return ChatSendResultSchema.parse(ok({ messageId }))
   })
@@ -1379,6 +1396,7 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
 
     const run = inflightRuns.get(parsedPayload.data.messageId)
     if (run) {
+      run.cancelConfirmations()
       run.controller.abort()
       run.runtime.abort()
       inflightRuns.delete(parsedPayload.data.messageId)

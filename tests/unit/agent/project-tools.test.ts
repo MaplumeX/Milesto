@@ -35,18 +35,49 @@ describe('makeProjectTools', () => {
     const result = await createTool.invoke({ title: 'New Project' })
 
     expect(db.request).toHaveBeenCalledWith('project.create', {
-      input: {
-        title: 'New Project',
-        area_id: null,
-        notes: '',
-        scheduled_at: null,
-        due_at: null,
-        is_someday: false,
-      },
+      title: 'New Project',
+      area_id: null,
+      notes: '',
+      scheduled_at: null,
+      due_at: null,
+      is_someday: false,
     })
     expect(callbacks.onBumpRevision).toHaveBeenCalledTimes(1)
     expect(result).toContain('已创建项目')
     expect(result).toContain(PROJ_ID)
+  })
+
+  it('project_update passes a top-level db payload and bumps revision on success', async () => {
+    const db = createMockDb()
+    const callbacks = createMockCallbacks()
+    const tools = makeProjectTools(db, callbacks)
+
+    const updateTool = tools.find((t) => t.name === 'project_update')!
+    vi.mocked(db.request).mockResolvedValue({
+      ok: true,
+      data: { id: PROJ_ID, title: 'Updated Project' },
+    })
+
+    const result = await updateTool.invoke({
+      id: PROJ_ID,
+      title: 'Updated Project',
+      notes: 'Notes',
+      scheduledAt: '2026-05-04',
+      dueAt: '2026-05-05',
+      isSomeday: true,
+    })
+
+    expect(db.request).toHaveBeenCalledWith('project.update', {
+      id: PROJ_ID,
+      title: 'Updated Project',
+      notes: 'Notes',
+      area_id: undefined,
+      scheduled_at: '2026-05-04',
+      due_at: '2026-05-05',
+      is_someday: true,
+    })
+    expect(callbacks.onBumpRevision).toHaveBeenCalledTimes(1)
+    expect(result).toContain('已更新项目')
   })
 
   it('project_complete uses confirmGate and bumps revision when approved', async () => {
