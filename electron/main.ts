@@ -1252,6 +1252,19 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     const { sessionId, content } = parsedPayload.data
     const controller = new AbortController()
 
+    // Persist user message before running the agent
+    try {
+      await dbWorker.request('chat.insertMessage', {
+        session_id: sessionId,
+        role: 'user',
+        content,
+        tool_calls: null,
+        tool_call_id: null,
+      })
+    } catch (err) {
+      console.error('[chat] failed to persist user message:', err)
+    }
+
     // Load conversation history for context
     const historyMessages: BaseMessage[] = []
     try {

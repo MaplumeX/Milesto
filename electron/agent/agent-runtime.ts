@@ -54,6 +54,7 @@ export function createAgentRuntime(
 
       const inputs = { messages: [...history, new HumanMessage(message)] }
       let assistantContent = ''
+      let doneCalled = false
 
       try {
         const stream = agent.streamEvents(inputs, { version: 'v2', signal: combinedSignal })
@@ -80,7 +81,8 @@ export function createAgentRuntime(
               break
             }
             case 'on_chain_end': {
-              if (ev.name === 'LangGraph') {
+              if (ev.name === 'LangGraph' && !doneCalled) {
+                doneCalled = true
                 callbacks.onDone(assistantContent)
               }
               break
@@ -90,7 +92,8 @@ export function createAgentRuntime(
 
         // If we exited the loop without an explicit on_chain_end, still call onDone
         // unless we were aborted.
-        if (!combinedSignal.aborted) {
+        if (!combinedSignal.aborted && !doneCalled) {
+          doneCalled = true
           callbacks.onDone(assistantContent)
         }
       } catch (e) {
