@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/ai-agent-setup.md", "reason": "AI agent architecture, streaming contracts, and chat IPC conventions"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Frontend component patterns and conventions"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "Hook writing conventions"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "State management patterns (React Context, no Redux)"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "TypeScript type safety guidelines"}
