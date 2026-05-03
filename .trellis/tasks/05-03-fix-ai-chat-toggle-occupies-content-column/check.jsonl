@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Quality bar — lint / type / test gates for the CSS fix."}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Verify the change follows class-naming / structural conventions."}
+{"file": ".trellis/tasks/05-03-fix-ai-chat-toggle-occupies-content-column/prd.md", "reason": "Acceptance criteria + DoD checklist for verification pass."}

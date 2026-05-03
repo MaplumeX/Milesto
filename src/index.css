@@ -3416,6 +3416,10 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 
 /* Chat Panel */
 .chat-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
   width: 28px;
   height: 28px;
   padding: 0;
@@ -3427,7 +3431,6 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: none;
 }
 
 .chat-toggle:hover {
@@ -3937,5 +3940,12 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
     width: auto;
     z-index: 30;
     border-left: none;
+  }
+
+  .chat-toggle.is-active {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 31;
   }
 }
