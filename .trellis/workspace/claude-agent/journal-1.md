@@ -1557,3 +1557,36 @@ Diagnosed perceived right-edge white gap as the 28px .chat-toggle button claimin
 ### Next Steps
 
 - None - task complete
+
+
+## Session 46: 调薄 ghost 按钮视觉体积
+
+**Date**: 2026-05-04
+**Task**: 调薄 ghost 按钮视觉体积
+**Branch**: `feature/ui-improve`
+
+### Summary
+
+将 .button-ghost 的 padding 从继承的 10px 12px 缩减为 4px 8px，border-radius 从 12px 缩减为 8px，使 ghost 按钮看起来更紧凑。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2ea3e3c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

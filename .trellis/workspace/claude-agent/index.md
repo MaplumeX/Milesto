@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 45
+- **Total Sessions**: 46
 - **Last Active**: 2026-05-04
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1559 | Active |
+| `journal-1.md` | ~1592 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 46 | 2026-05-04 | 调薄 ghost 按钮视觉体积 | `2ea3e3c` | `feature/ui-improve` |
 | 45 | 2026-05-04 | 侧边栏宽度可拖拽调整 | `f937828` | `feature/ui-improve` |
 | 44 | 2026-05-03 | Float AI chat toggle so closed panel stops occupying a flex column | `2931b01` | `master` |
 | 43 | 2026-05-03 | AI工具调用用户感知 | `23a8e94` | `master` |
