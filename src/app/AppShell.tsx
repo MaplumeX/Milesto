@@ -1657,7 +1657,7 @@ export function AppShell() {
           />
         ) : null}
         <aside
-          className="sidebar"
+          className={`sidebar${isDraggingSidebar ? ' is-resizing' : ''}`}
           aria-label={t('aria.sidebar')}
           style={{
             width: sidebarWidth,
@@ -1794,15 +1794,14 @@ export function AppShell() {
             </button>
           </div>
         </div>
-      </aside>
-
         {sidebarWidth > 0 || isDraggingSidebar ? (
           <div
-            className={`sidebar-resize-handle${isDraggingSidebar ? ' is-dragging' : ''}`}
+            className="sidebar-resize-handle"
             onPointerDown={handleResizeHandlePointerDown}
             onDoubleClick={handleResizeHandleDoubleClick}
           />
         ) : null}
+      </aside>
 
         <main className="content" aria-label={t('aria.content')}>
           <div className="content-grid">
