@@ -1623,3 +1623,36 @@ Added global custom scrollbar styles: 6px thin thumb with --scrollbar-thumb CSS 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 48: Refactor sidebar resize handle to border-right pattern
+
+**Date**: 2026-05-04
+**Task**: Refactor sidebar resize handle to border-right pattern
+**Branch**: `feature/ui-improve`
+
+### Summary
+
+Replace 6px transparent flex resize-handle with sidebar border-right + absolutely-positioned drag zone, eliminating white gap between sidebar and content.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4d9f7fa` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

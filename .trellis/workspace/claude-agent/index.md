@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 47
+- **Total Sessions**: 48
 - **Last Active**: 2026-05-04
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1625 | Active |
+| `journal-1.md` | ~1658 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 48 | 2026-05-04 | Refactor sidebar resize handle to border-right pattern | `4d9f7fa` | `feature/ui-improve` |
 | 47 | 2026-05-04 | Add 6px thin themed scrollbar | `983e875` | `feature/ui-improve` |
 | 46 | 2026-05-04 | 调薄 ghost 按钮视觉体积 | `2ea3e3c` | `feature/ui-improve` |
 | 45 | 2026-05-04 | 侧边栏宽度可拖拽调整 | `f937828` | `feature/ui-improve` |
