@@ -1656,3 +1656,36 @@ Replace 6px transparent flex resize-handle with sidebar border-right + absolutel
 ### Next Steps
 
 - None - task complete
+
+
+## Session 49: Unify item-level border-radius to 4-6px
+
+**Date**: 2026-05-04
+**Task**: Unify item-level border-radius to 4-6px
+**Branch**: `feature/ui-improve`
+
+### Summary
+
+将所有条目级组件的圆角从散乱值(8/10/12/14px)统一到4-6px方正风格，容器级和pill/badge组件保持不变，更新关联测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2e1c4f1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
