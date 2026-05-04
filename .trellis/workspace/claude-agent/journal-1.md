@@ -1722,3 +1722,36 @@ Replace 6px transparent flex resize-handle with sidebar border-right + absolutel
 ### Next Steps
 
 - None - task complete
+
+
+## Session 51: Replace bottom bar icons with Lucide
+
+**Date**: 2026-05-05
+**Task**: Replace bottom bar icons with Lucide
+**Branch**: `feature/ui-improve`
+
+### Summary
+
+Replaced all 8 custom inline SVG icons in the bottom bar with Lucide icon components (CirclePlus, FolderPlus, ListPlus, Calendar, ArrowRightLeft, Search, Trash2, Ellipsis). Added lucide-react dependency with tree-shaking support. Kept existing BottomBarIconKey type and getBottomBarIconDefinition() interface unchanged.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6d68a0a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

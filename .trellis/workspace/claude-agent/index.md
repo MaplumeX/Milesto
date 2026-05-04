@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 50
-- **Last Active**: 2026-05-04
+- **Total Sessions**: 51
+- **Last Active**: 2026-05-05
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1724 | Active |
+| `journal-1.md` | ~1757 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 51 | 2026-05-05 | Replace bottom bar icons with Lucide | `6d68a0a` | `feature/ui-improve` |
 | 50 | 2026-05-04 | 项目条目显示所属领域 | `c2974d9` | `feature/ui-improve` |
 | 49 | 2026-05-04 | Unify item-level border-radius to 4-6px | `2e1c4f1` | `feature/ui-improve` |
 | 48 | 2026-05-04 | Refactor sidebar resize handle to border-right pattern | `4d9f7fa` | `feature/ui-improve` |
