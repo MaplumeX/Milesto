@@ -1590,3 +1590,36 @@ Diagnosed perceived right-edge white gap as the 28px .chat-toggle button claimin
 ### Next Steps
 
 - None - task complete
+
+
+## Session 47: Add 6px thin themed scrollbar
+
+**Date**: 2026-05-04
+**Task**: Add 6px thin themed scrollbar
+**Branch**: `feature/ui-improve`
+
+### Summary
+
+Added global custom scrollbar styles: 6px thin thumb with --scrollbar-thumb CSS variable for light/dark themes, ::-webkit-scrollbar for Chromium and scrollbar-width/scrollbar-color for Firefox. Tag-filter scrollbar hiding preserved.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `983e875` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
