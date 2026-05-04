@@ -1689,3 +1689,36 @@ Replace 6px transparent flex resize-handle with sidebar border-right + absolutel
 ### Next Steps
 
 - None - task complete
+
+
+## Session 50: 项目条目显示所属领域
+
+**Date**: 2026-05-04
+**Task**: 项目条目显示所属领域
+**Branch**: `feature/ui-improve`
+
+### Summary
+
+在 ProjectRow 中添加 area_title 显示，复用 task-project-affiliation 样式。DB 查询 LEFT JOIN areas 获取 area_title，ViewListProjectItem schema 新增 area_title 字段，ProjectViewRow 透传 showAreaAffiliation，AreaPage 传入 false 隐藏冗余显示。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c2974d9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
