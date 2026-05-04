@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/frontend/mixed-view-list-contracts.md", "reason": "view-list schema 和 DB 查询的契约约定，需要了解 project 查询模式"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "类型安全规范，确保 schema 变更遵循项目约定"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "组件编写规范，确保新 UI 元素符合组件约定"}

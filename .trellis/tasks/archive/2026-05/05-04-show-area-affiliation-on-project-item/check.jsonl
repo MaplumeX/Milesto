@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "验证 schema 变更和类型一致性"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "验证组件实现符合规范"}
