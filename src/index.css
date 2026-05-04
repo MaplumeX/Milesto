@@ -32,6 +32,7 @@
   --danger-border: rgba(160, 80, 60, 0.35);
   --danger-bg: rgba(240, 210, 190, 0.5);
   --danger-text: rgba(120, 50, 40, 0.9);
+  --scrollbar-thumb: rgba(52, 74, 103, 0.2);
   --ppc-color: #4A8DF8;
   --ppc-fill-partial: #4A8DF8;
   --completed-date-color: var(--ppc-color);
@@ -102,6 +103,7 @@ body {
     --danger-border: rgba(255, 130, 120, 0.25);
     --danger-bg: rgba(70, 20, 18, 0.55);
     --danger-text: rgba(255, 190, 180, 0.92);
+    --scrollbar-thumb: rgba(241, 233, 219, 0.15);
     --ppc-color: #5C9BFF;
     --ppc-fill-partial: #5C9BFF;
 
@@ -128,6 +130,25 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 *:focus,
