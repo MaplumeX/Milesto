@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend spec index for overall conventions"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Component patterns and style conventions"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "State management patterns for sidebar state"}
+{"file": ".trellis/spec/frontend/local-data-persistence.md", "reason": "Persistence patterns for sidebar width"}
