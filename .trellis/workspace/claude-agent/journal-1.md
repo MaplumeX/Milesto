@@ -1524,3 +1524,36 @@ Diagnosed perceived right-edge white gap as the 28px .chat-toggle button claimin
 ### Next Steps
 
 - None - task complete
+
+
+## Session 45: 侧边栏宽度可拖拽调整
+
+**Date**: 2026-05-04
+**Task**: 侧边栏宽度可拖拽调整
+**Branch**: `feature/ui-improve`
+
+### Summary
+
+实现侧边栏拖拽调整宽度功能：拖拽分隔线调整宽度、<40px吸附隐藏、左边缘4px展开区域、双击重置280px、宽度持久化到SidebarState、移除响应式断点
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f937828` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
