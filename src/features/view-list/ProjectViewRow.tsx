@@ -16,6 +16,7 @@ export function ProjectViewRow({
   onOpen,
   onComplete,
   onContextMenu,
+  showAreaAffiliation,
 }: {
   project: ViewListProjectItem
   titlePrefix?: ReactNode
@@ -28,6 +29,7 @@ export function ProjectViewRow({
   onOpen?: (projectId: string) => void
   onComplete?: (project: ViewListProjectItem) => void
   onContextMenu?: MouseEventHandler<HTMLDivElement>
+  showAreaAffiliation?: boolean
 }) {
   return (
     <ProjectRow
@@ -42,6 +44,7 @@ export function ProjectViewRow({
       onOpen={onOpen}
       onComplete={onComplete ? () => onComplete(project) : undefined}
       onContextMenu={onContextMenu}
+      showAreaAffiliation={showAreaAffiliation}
     />
   )
 }

@@ -13,6 +13,7 @@ export type ProjectRowProject = {
   done_count: number
   total_count: number
   area_id: string | null
+  area_title?: string | null
   scheduled_at: string | null
   due_at: string | null
   is_someday: boolean
@@ -34,6 +35,7 @@ export function ProjectRow({
   onComplete,
   onContextMenu,
   showOpenCount = true,
+  showAreaAffiliation = true,
 }: {
   project: ProjectRowProject
   dragHandle?: ReactNode
@@ -48,6 +50,7 @@ export function ProjectRow({
   onComplete?: (project: ProjectRowProject) => void
   onContextMenu?: MouseEventHandler<HTMLDivElement>
   showOpenCount?: boolean
+  showAreaAffiliation?: boolean
 }) {
   const { t } = useTranslation()
   const hasTitlePrefix = Boolean(titlePrefix)
@@ -145,6 +148,9 @@ export function ProjectRow({
               </span>
             ) : null}
           </span>
+          {showAreaAffiliation && project.area_id && project.area_title ? (
+            <span className="task-project-affiliation">{project.area_title}</span>
+          ) : null}
         </span>
       </button>
 

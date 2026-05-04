@@ -23,6 +23,7 @@ export const ViewListProjectItemSchema = z.object({
   notes: z.string(),
   status: ProjectStatusSchema,
   area_id: IdSchema.nullable(),
+  area_title: z.string().nullable().optional(),
   scheduled_at: LocalDateSchema.nullable(),
   is_someday: DbBoolSchema,
   due_at: LocalDateSchema.nullable(),

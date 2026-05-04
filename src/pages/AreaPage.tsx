@@ -366,6 +366,7 @@ export function AreaPage() {
                 onOpen={(projectId) => navigate(`/projects/${projectId}`)}
                 onComplete={handleCompleteProject}
                 onContextMenu={(event) => handleProjectContextMenu(event, p)}
+                showAreaAffiliation={false}
               />
             </li>
           ))}

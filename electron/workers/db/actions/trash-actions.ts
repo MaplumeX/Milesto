@@ -108,6 +108,7 @@ function trashProjectSelectColumns(): string {
     'p.notes',
     'p.status',
     'p.area_id',
+    'a.title AS area_title',
     'p.scheduled_at',
     'p.is_someday',
     'p.due_at',
@@ -161,6 +162,7 @@ function listTrashEntries(db: Database.Database) {
       `SELECT
              ${trashProjectSelectColumns()}
        FROM projects p
+       LEFT JOIN areas a ON a.id = p.area_id
        WHERE p.deleted_at IS NOT NULL
          AND p.purged_at IS NULL
        ORDER BY p.deleted_at DESC, p.title COLLATE NOCASE ASC, p.id ASC`

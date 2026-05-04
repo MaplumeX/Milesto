@@ -112,6 +112,7 @@ function projectSelectColumns(rankExpr?: string): string {
     'p.notes',
     'p.status',
     'p.area_id',
+    'a.title AS area_title',
     'p.scheduled_at',
     'p.is_someday',
     'p.due_at',
@@ -220,6 +221,7 @@ function listManualView(db: Database.Database, listId: string, taskWhere: string
       `SELECT
              ${projectSelectColumns('vp.rank')}
        FROM projects p
+       LEFT JOIN areas a ON a.id = p.area_id AND a.deleted_at IS NULL
        LEFT JOIN view_positions vp
          ON vp.list_id = @list_id AND vp.entity_type = 'project' AND vp.entity_id = p.id
        WHERE p.deleted_at IS NULL
@@ -251,6 +253,7 @@ export function createViewActions(db: Database.Database): Record<string, DbActio
           `SELECT
              ${projectSelectColumns()}
            FROM projects p
+           LEFT JOIN areas a ON a.id = p.area_id AND a.deleted_at IS NULL
            WHERE p.deleted_at IS NULL
              AND p.status = 'open'
              AND p.area_id = @area_id`
@@ -362,6 +365,7 @@ export function createViewActions(db: Database.Database): Record<string, DbActio
           `SELECT
              ${projectSelectColumns()}
            FROM projects p
+           LEFT JOIN areas a ON a.id = p.area_id AND a.deleted_at IS NULL
            WHERE p.deleted_at IS NULL
              AND p.status = 'open'
              AND p.scheduled_at IS NOT NULL
