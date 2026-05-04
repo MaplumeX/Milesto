@@ -1,0 +1,2 @@
+{"check":"npm run lint","expect":"pass"}
+{"check":"npm run build","expect":"pass"}
