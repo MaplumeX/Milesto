@@ -1839,6 +1839,9 @@ body {
   border: none;
   background: transparent;
   box-shadow: none;
+}
+
+.button-ghost:not(.content-bottom-action-button) {
   padding: 4px 8px;
   border-radius: 8px;
 }
