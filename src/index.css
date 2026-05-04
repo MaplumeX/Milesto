@@ -141,13 +141,56 @@ body {
 }
 
 .sidebar {
-  width: 280px;
-  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+  min-width: 0;
+  border-right: none;
   background: var(--sidebar-bg);
   backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow: hidden;
+}
+
+.sidebar-resize-handle {
+  position: relative;
+  flex: none;
+  width: 6px;
+  cursor: col-resize;
+  /* Invisible by default; separator line is drawn via ::before */
+  background: transparent;
+  z-index: 10;
+  /* Allow pointer events through to the handle even when sidebar is hidden */
+  user-select: none;
+}
+
+.sidebar-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: var(--border);
+  transition: background 120ms ease, width 120ms ease;
+}
+
+.sidebar-resize-handle:hover::before,
+.sidebar-resize-handle.is-dragging::before {
+  background: var(--muted);
+  width: 2px;
+  left: -1px;
+}
+
+.sidebar-reveal-zone {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  z-index: 10;
+  user-select: none;
 }
 
 .sidebar-top {
@@ -3063,18 +3106,12 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 }
 
 @media (max-width: 900px) {
-  .sidebar {
-    width: 240px;
-  }
   .detail {
     width: 360px;
   }
 }
 
 @media (max-width: 720px) {
-  .sidebar {
-    display: none;
-  }
   .page {
     padding: 18px;
   }

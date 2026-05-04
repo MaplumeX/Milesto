@@ -13,13 +13,14 @@ const GetLocaleInputSchema = z.object({})
 const SetLocaleInputSchema = z.object({ locale: z.unknown() })
 
 const SIDEBAR_COLLAPSED_AREA_IDS_KEY = 'sidebar.collapsedAreaIds'
+const SIDEBAR_WIDTH_KEY = 'sidebar.width'
 
 const THEME_PREFERENCE_KEY = 'theme.preference'
 const FONT_SIZE_STEP_KEY = 'fontSize.step'
 const AI_CONFIG_KEY = 'ai.config'
 
 const GetSidebarStateInputSchema = z.object({})
-const SetSidebarStateInputSchema = z.object({ collapsedAreaIds: z.unknown() })
+const SetSidebarStateInputSchema = z.object({ collapsedAreaIds: z.unknown(), width: z.unknown() })
 const SidebarCollapsedAreaIdsSchema = z.array(z.string())
 
 const GetThemePreferenceInputSchema = z.object({})
@@ -109,22 +110,32 @@ export function createSettingsActions(db: Database.Database): Record<string, DbA
         .prepare('SELECT value FROM app_settings WHERE key = ? LIMIT 1')
         .get(SIDEBAR_COLLAPSED_AREA_IDS_KEY) as { value?: unknown } | undefined
 
-      if (!row || typeof row.value !== 'string' || !row.value.trim()) {
-        return { ok: true, data: { collapsedAreaIds: [] } }
-      }
-
-      try {
-        const json = JSON.parse(row.value) as unknown
-        const idsParsed = SidebarCollapsedAreaIdsSchema.safeParse(json)
-        if (!idsParsed.success) {
-          return { ok: true, data: { collapsedAreaIds: [] } }
+      let collapsedAreaIds: string[] = []
+      if (row && typeof row.value === 'string' && row.value.trim()) {
+        try {
+          const json = JSON.parse(row.value) as unknown
+          const idsParsed = SidebarCollapsedAreaIdsSchema.safeParse(json)
+          if (idsParsed.success) {
+            collapsedAreaIds = Array.from(new Set(idsParsed.data.filter((id) => id.trim())))
+          }
+        } catch {
+          // keep default empty array
         }
-
-        const unique = Array.from(new Set(idsParsed.data.filter((id) => id.trim())))
-        return { ok: true, data: { collapsedAreaIds: unique } }
-      } catch {
-        return { ok: true, data: { collapsedAreaIds: [] } }
       }
+
+      const widthRow = db
+        .prepare('SELECT value FROM app_settings WHERE key = ? LIMIT 1')
+        .get(SIDEBAR_WIDTH_KEY) as { value?: unknown } | undefined
+
+      let width = 280
+      if (widthRow && typeof widthRow.value === 'string' && widthRow.value.trim()) {
+        const num = Number(widthRow.value)
+        if (Number.isFinite(num) && num >= 0) {
+          width = num
+        }
+      }
+
+      return { ok: true, data: { collapsedAreaIds, width } }
     },
 
     'settings.setSidebarState': (payload) => {
@@ -152,6 +163,9 @@ export function createSettingsActions(db: Database.Database): Record<string, DbA
         }
       }
 
+      const widthNum = Number(parsed.data.width)
+      const width = Number.isFinite(widthNum) && widthNum >= 0 ? widthNum : 280
+
       const collapsedAreaIds = Array.from(new Set(idsParsed.data.filter((id) => id.trim())))
       const updatedAt = nowIso()
 
@@ -167,10 +181,21 @@ export function createSettingsActions(db: Database.Database): Record<string, DbA
           value: JSON.stringify(collapsedAreaIds),
           updated_at: updatedAt,
         })
+        db.prepare(
+          `INSERT INTO app_settings (key, value, updated_at)
+           VALUES (@key, @value, @updated_at)
+           ON CONFLICT(key) DO UPDATE SET
+             value = excluded.value,
+             updated_at = excluded.updated_at`
+        ).run({
+          key: SIDEBAR_WIDTH_KEY,
+          value: String(width),
+          updated_at: updatedAt,
+        })
       })
       tx()
 
-      return { ok: true, data: { collapsedAreaIds } }
+      return { ok: true, data: { collapsedAreaIds, width } }
     },
 
     'settings.getThemePreference': (payload) => {

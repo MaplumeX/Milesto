@@ -64,6 +64,7 @@ export type SaveDialogResult = {
 
 export type SidebarState = {
   collapsedAreaIds: string[]
+  width: number
 }
 
 export type WindowApi = {

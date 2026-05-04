@@ -48,6 +48,9 @@ import {
 
 const PROJECT_CREATE_SECTION_EVENT = 'milesto:project.createSection'
 const CONTENT_BOTTOM_BAR_SWITCH_Y_PX = 10
+const SIDEBAR_DEFAULT_WIDTH = 280
+const SIDEBAR_SNAP_THRESHOLD = 40
+const SIDEBAR_TRANSITION_DURATION = '0.2s'
 const CONTENT_BOTTOM_BAR_SWITCH_ENTER = { duration: 0.16, ease: 'easeOut' as const }
 const CONTENT_BOTTOM_BAR_SWITCH_EXIT = { duration: 0.12, ease: 'easeOut' as const }
 
@@ -188,6 +191,13 @@ export function AppShell() {
   const [sidebarCounts, setSidebarCounts] = useState<{ inbox: number; today: number }>({ inbox: 0, today: 0 })
   const [collapsedAreaIds, setCollapsedAreaIds] = useState<string[]>([])
   const collapsedAreaIdsRef = useRef<string[]>(collapsedAreaIds)
+  const [sidebarWidth, setSidebarWidth] = useState<number>(SIDEBAR_DEFAULT_WIDTH)
+  const sidebarWidthRef = useRef(SIDEBAR_DEFAULT_WIDTH)
+  const [sidebarTransition, setSidebarTransition] = useState<string>('none')
+  const isDraggingSidebarRef = useRef(false)
+  const sidebarDragStartXRef = useRef(0)
+  const sidebarDragStartWidthRef = useRef(0)
+  const [isDraggingSidebar, setIsDraggingSidebar] = useState(false)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [openTaskId, setOpenTaskId] = useState<string | null>(null)
   const [createPopover, setCreatePopover] = useState<CreatePopover>(null)
@@ -215,6 +225,10 @@ export function AppShell() {
   useEffect(() => {
     collapsedAreaIdsRef.current = collapsedAreaIds
   }, [collapsedAreaIds])
+
+  useEffect(() => {
+    sidebarWidthRef.current = sidebarWidth
+  }, [sidebarWidth])
 
   useEffect(() => {
     const isSelfTest = new URL(window.location.href).searchParams.get('selfTest') === '1'
@@ -558,12 +572,88 @@ export function AppShell() {
       // Treat persisted state as untrusted; keep it trimmed + unique.
       const unique = Array.from(new Set(res.data.collapsedAreaIds.map((id) => id.trim()).filter(Boolean)))
       setCollapsedAreaIds(unique)
+
+      const width = res.data.width
+      if (typeof width === 'number' && width >= 0) {
+        setSidebarWidth(width)
+      }
     })()
 
     return () => {
       cancelled = true
     }
   }, [])
+
+  // --- Sidebar resize drag logic ---
+
+  const persistSidebarWidth = useCallback(async (width: number) => {
+    const prev = collapsedAreaIdsRef.current
+    const res = await window.api.settings.setSidebarState({ collapsedAreaIds: prev, width })
+    if (!res.ok) {
+      setSidebarError(`${res.error.code}: ${res.error.message}`)
+    }
+  }, [])
+
+  const startSidebarDrag = useCallback((startX: number, startWidth: number) => {
+    isDraggingSidebarRef.current = true
+    sidebarDragStartXRef.current = startX
+    sidebarDragStartWidthRef.current = startWidth
+    setIsDraggingSidebar(true)
+    setSidebarTransition('none')
+    document.body.style.userSelect = 'none'
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!isDraggingSidebarRef.current) return
+      const delta = e.clientX - sidebarDragStartXRef.current
+      const maxWidth = Math.floor(window.innerWidth * 0.4)
+      const next = Math.max(0, Math.min(sidebarDragStartWidthRef.current + delta, maxWidth))
+      setSidebarWidth(next)
+      sidebarWidthRef.current = next
+    }
+
+    const onPointerUp = () => {
+      if (!isDraggingSidebarRef.current) return
+      isDraggingSidebarRef.current = false
+      setIsDraggingSidebar(false)
+      document.body.style.userSelect = ''
+
+      const currentWidth = sidebarWidthRef.current
+      if (currentWidth < SIDEBAR_SNAP_THRESHOLD) {
+        setSidebarTransition(`width ${SIDEBAR_TRANSITION_DURATION} ease`)
+        setSidebarWidth(0)
+        sidebarWidthRef.current = 0
+        void persistSidebarWidth(0)
+      } else {
+        void persistSidebarWidth(currentWidth)
+      }
+
+      document.removeEventListener('pointermove', onPointerMove)
+      document.removeEventListener('pointerup', onPointerUp)
+    }
+
+    document.addEventListener('pointermove', onPointerMove)
+    document.addEventListener('pointerup', onPointerUp)
+  }, [persistSidebarWidth])
+
+  const handleResizeHandlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    startSidebarDrag(e.clientX, sidebarWidthRef.current)
+  }, [startSidebarDrag])
+
+  const handleRevealZonePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    startSidebarDrag(e.clientX, 0)
+  }, [startSidebarDrag])
+
+  const handleResizeHandleDoubleClick = useCallback(() => {
+    setSidebarTransition(`width ${SIDEBAR_TRANSITION_DURATION} ease`)
+    setSidebarWidth(SIDEBAR_DEFAULT_WIDTH)
+    void persistSidebarWidth(SIDEBAR_DEFAULT_WIDTH)
+  }, [persistSidebarWidth])
+
+  // --- End sidebar resize logic ---
 
   const [orderedAreaDragIds, setOrderedAreaDragIds] = useState<string[]>([])
   const orderedAreaDragIdsRef = useRef<string[]>(orderedAreaDragIds)
@@ -1560,7 +1650,20 @@ export function AppShell() {
     >
       <ContentScrollProvider scrollRef={contentScrollRef}>
       <div className="app-shell">
-        <aside className="sidebar" aria-label={t('aria.sidebar')}>
+        {sidebarWidth === 0 && !isDraggingSidebar ? (
+          <div
+            className="sidebar-reveal-zone"
+            onPointerDown={handleRevealZonePointerDown}
+          />
+        ) : null}
+        <aside
+          className="sidebar"
+          aria-label={t('aria.sidebar')}
+          style={{
+            width: sidebarWidth,
+            transition: sidebarTransition,
+          }}
+        >
         <div className="sidebar-top">
           <div className="app-title">Milesto</div>
         </div>
@@ -1628,7 +1731,7 @@ export function AppShell() {
                     setCollapsedAreaIds(next)
 
                     void (async () => {
-                      const res = await window.api.settings.setSidebarState({ collapsedAreaIds: next })
+                      const res = await window.api.settings.setSidebarState({ collapsedAreaIds: next, width: sidebarWidthRef.current })
                       if (res.ok) return
 
                       // If persistence fails, revert UI state and surface an error.
@@ -1692,6 +1795,14 @@ export function AppShell() {
           </div>
         </div>
       </aside>
+
+        {sidebarWidth > 0 || isDraggingSidebar ? (
+          <div
+            className={`sidebar-resize-handle${isDraggingSidebar ? ' is-dragging' : ''}`}
+            onPointerDown={handleResizeHandlePointerDown}
+            onDoubleClick={handleResizeHandleDoubleClick}
+          />
+        ) : null}
 
         <main className="content" aria-label={t('aria.content')}>
           <div className="content-grid">

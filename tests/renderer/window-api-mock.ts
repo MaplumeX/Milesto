@@ -33,7 +33,7 @@ export function createWindowApiMock(): WindowApi {
         async (locale) => ok({ locale, supportedLocales: ['en', 'zh-CN'] })
       ),
 
-      getSidebarState: vi.fn<WindowApi['settings']['getSidebarState']>(async () => ok({ collapsedAreaIds: [] })),
+      getSidebarState: vi.fn<WindowApi['settings']['getSidebarState']>(async () => ok({ collapsedAreaIds: [], width: 280 })),
       setSidebarState: vi.fn<WindowApi['settings']['setSidebarState']>(async (state) => ok(state)),
 
       getThemeState: vi.fn<WindowApi['settings']['getThemeState']>(

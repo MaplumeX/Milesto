@@ -250,6 +250,7 @@ const SetLocalePayloadSchema = z.object({ locale: z.unknown() })
 
 const SidebarStateSchema = z.object({
   collapsedAreaIds: z.array(z.string()),
+  width: z.number(),
 })
 const SidebarStateResultSchema = resultSchema(SidebarStateSchema)
 const SetSidebarStatePayloadSchema = z.object({ state: z.unknown() })
