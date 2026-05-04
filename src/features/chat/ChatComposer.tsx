@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../../components/Button'
 
 type ChatComposerProps = {
-  onSend: (content: string) => void
+  onSend: (content: string) => void | Promise<void>
   isLoading: boolean
   onAbort: () => void
   disabled?: boolean
@@ -16,14 +16,18 @@ export function ChatComposer({ onSend, isLoading, onAbort, disabled, disabledHin
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const trimmed = value.trim()
     if (!trimmed || isLoading || disabled) return
-    onSend(trimmed)
-    setValue('')
-    // Reset textarea height
-    const el = textareaRef.current
-    if (el) el.style.height = 'auto'
+    try {
+      await onSend(trimmed)
+      setValue('')
+      // Reset textarea height
+      const el = textareaRef.current
+      if (el) el.style.height = 'auto'
+    } catch {
+      // 保留输入内容，让用户重试
+    }
   }, [value, isLoading, disabled, onSend])
 
   const handleKeyDown = useCallback(

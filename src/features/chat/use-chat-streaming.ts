@@ -261,10 +261,10 @@ export function useChatStreaming(activeSessionId: string | null) {
   }, [clearDeltaBuffer, flushDeltaBuffer, scheduleFlush, setStreamingState])
 
   const sendMessage = useCallback(
-    async (content: string) => {
-      if (!activeSessionId) return ''
+    async (content: string, explicitSessionId?: string) => {
+      const sessionId = explicitSessionId ?? activeSessionId
+      if (!sessionId) return ''
 
-      const sessionId = activeSessionId
       setError(null)
       setConfirmRequest(null)
       setStreamingToolCalls([])

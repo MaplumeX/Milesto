@@ -64,14 +64,31 @@ export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
 
   const handleSend = useCallback(
     async (content: string) => {
-      if (!activeSessionId) return
+      let sessionId = activeSessionId
+      let createdSessionId: string | null = null
+      if (!sessionId) {
+        const session = await createSession(t('chat.newSessionDefault'))
+        if (!session) {
+          throw new Error('CREATE_SESSION_FAILED')
+        }
+        sessionId = session.id
+        createdSessionId = session.id
+        setActiveSessionId(sessionId)
+      }
       lastMessageIdRef.current = null
-      const messageId = await sendMessage(content)
+      const messageId = await sendMessage(content, sessionId)
       if (messageId) {
         lastMessageIdRef.current = messageId
+      } else if (createdSessionId) {
+        const msgRes = await window.api.chat.listMessages(createdSessionId)
+        if (msgRes.ok && msgRes.data.length === 0) {
+          await deleteSession(createdSessionId)
+          setActiveSessionId(null)
+        }
+        throw new Error('SEND_FAILED')
       }
     },
-    [activeSessionId, sendMessage]
+    [activeSessionId, createSession, deleteSession, sendMessage, t]
   )
 
   const handleAbort = useCallback(() => {

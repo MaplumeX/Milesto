@@ -46,7 +46,10 @@ export function ChatMessages({ messages, streamingDelta, isLoading, streamingToo
   return (
     <div ref={containerRef} className="chat-messages">
       {allMessages.length === 0 ? (
-        <div className="chat-empty">{t('chat.empty')}</div>
+        <div className="chat-empty">
+          <div className="chat-welcome-title">{t('chat.welcomeTitle')}</div>
+          <div className="chat-welcome-hint">{t('chat.welcomeHint')}</div>
+        </div>
       ) : (
         allMessages.map((msg) => (
           <ChatMessageBubble key={msg.id} message={msg} />

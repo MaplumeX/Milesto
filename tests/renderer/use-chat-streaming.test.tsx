@@ -88,6 +88,40 @@ function installChatEventHandlers(): ChatEventHandlers {
 }
 
 describe('useChatStreaming', () => {
+  it('sends message to an explicit session id bypassing active session', async () => {
+    api().chat.send = vi.fn<WindowApi['chat']['send']>(async () => ok({ messageId: RUN_A }))
+    api().chat.listMessages = vi.fn<WindowApi['chat']['listMessages']>(async () => ok([]))
+
+    const { result } = renderHook(() => useChatStreaming(null))
+
+    await act(async () => {
+      const messageId = await result.current.sendMessage('hello', SESSION_A)
+      expect(messageId).toBe(RUN_A)
+    })
+
+    expect(api().chat.send).toHaveBeenCalledWith(SESSION_A, 'hello')
+    expect(result.current.streaming).toMatchObject({
+      sessionId: SESSION_A,
+      messageId: RUN_A,
+      delta: '',
+      isLoading: true,
+    })
+  })
+
+  it('returns empty string when no active session and no explicit session id', async () => {
+    api().chat.send = vi.fn<WindowApi['chat']['send']>(async () => ok({ messageId: RUN_A }))
+    api().chat.listMessages = vi.fn<WindowApi['chat']['listMessages']>(async () => ok([]))
+
+    const { result } = renderHook(() => useChatStreaming(null))
+
+    await act(async () => {
+      const messageId = await result.current.sendMessage('hello')
+      expect(messageId).toBe('')
+    })
+
+    expect(api().chat.send).not.toHaveBeenCalled()
+  })
+
   it('ignores stale same-session events before the current message id is known', async () => {
     const handlers = installChatEventHandlers()
     let resolveSend: ((value: Awaited<ReturnType<WindowApi['chat']['send']>>) => void) | undefined

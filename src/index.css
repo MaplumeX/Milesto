@@ -3617,9 +3617,19 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 
 .chat-empty {
   text-align: center;
-  color: var(--muted);
-  font-size: 12px;
   padding: 40px 0;
+}
+
+.chat-welcome-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.chat-welcome-hint {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .chat-message {
