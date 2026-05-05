@@ -436,6 +436,8 @@ export function ProjectGroupedList({
   onAfterReorder,
   onNavigateOut,
   focusRegion,
+  focusRegionSource,
+  onFocusRegionChange,
 }: {
   projectId: string
   scope: EntityScope
@@ -450,6 +452,8 @@ export function ProjectGroupedList({
   onAfterReorder?: () => Promise<void>
   onNavigateOut?: (direction: 'up' | 'down') => void
   focusRegion?: 'active' | 'toggle' | 'done'
+  focusRegionSource?: 'keyboard' | 'mouse'
+  onFocusRegionChange?: (region: 'active' | 'toggle' | 'done', source: 'keyboard' | 'mouse') => void
 }) {
   const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId, requestCloseTask } = useTaskSelection()
@@ -935,12 +939,21 @@ export function ProjectGroupedList({
 
   // Respond to parent focus handoff (only on region transition, not on re-renders)
   const prevFocusRegionRef = useRef(focusRegion)
+  const focusRegionSourceRef = useRef(focusRegionSource)
+  focusRegionSourceRef.current = focusRegionSource
   useEffect(() => {
     const prev = prevFocusRegionRef.current
     prevFocusRegionRef.current = focusRegion
 
+    // Clear selectedRow when leaving the active region to avoid visual conflict
+    if (prev === 'active' && focusRegion !== 'active') {
+      setSelectedRow(null)
+    }
+
     if (focusRegion !== 'active') return
     if (prev === 'active') return
+    // When source is 'mouse', the click already placed focus on the element — skip focus steal
+    if (focusRegionSourceRef.current === 'mouse') return
     listboxRef.current?.focus()
   }, [focusRegion])
 
@@ -1302,6 +1315,17 @@ export function ProjectGroupedList({
     [selectTask]
   )
 
+  const onFocusRegionChangeRef = useRef(onFocusRegionChange)
+  onFocusRegionChangeRef.current = onFocusRegionChange
+
+  const handleTaskMouseSelect = useCallback(
+    (taskId: string) => {
+      selectTaskRow(taskId)
+      onFocusRegionChangeRef.current?.('active', 'mouse')
+    },
+    [selectTaskRow]
+  )
+
   return (
     <DndContext
       sensors={sensors}
@@ -1444,7 +1468,7 @@ export function ProjectGroupedList({
               const section = sectionById.get(sectionId)
               if (!section) return null
               const isEditing = sectionId === editingSectionId
-              const isSelected = selectedRowIndex === virtualRow.index
+              const isSelected = selectedRowIndex === virtualRow.index && focusRegion === 'active'
 
               return (
                 <ProjectGroupHeaderRow
@@ -1458,7 +1482,10 @@ export function ProjectGroupedList({
                   editTitleDraft={editTitleDraft}
                   setEditTitleDraft={setEditTitleDraft}
                   editTitleInputRef={setEditTitleInputEl}
-                  onSelectRow={() => selectRowByIndex(virtualRow.index)}
+                  onSelectRow={() => {
+                    selectRowByIndex(virtualRow.index)
+                    onFocusRegionChangeRef.current?.('active', 'mouse')
+                  }}
                   onEnterEdit={() => void enterSectionTitleEdit(sectionId)}
                   onCancelEdit={onCancelSectionTitleEdit}
                   onCommitTitle={(nextTitle) => void onCommitSectionTitle(sectionId, nextTitle)}
@@ -1488,7 +1515,7 @@ export function ProjectGroupedList({
 
             const t = row.task
             const isOpen = openTaskId === t.id
-            const isSelected = selectedTaskId === t.id
+            const isSelected = selectedTaskId === t.id && focusRegion === 'active'
             const isDragging = !isOpen && activeTaskId === t.id
             const containerId = containerByTaskId.get(t.id) ?? taskListIdProject(projectId, t.section_id)
             const containerItems = openItemsByContainer[containerId] ?? []
@@ -1527,7 +1554,7 @@ export function ProjectGroupedList({
                       <SortableContext id={containerId} items={containerItems} strategy={verticalListSortingStrategy}>
                         <SortableProjectTaskRow
                           task={t}
-                          onSelect={selectTaskRow}
+                          onSelect={handleTaskMouseSelect}
                           onOpen={(taskId) => void openTask(taskId)}
                           onToggleDone={(taskId, done) => void onToggleDone(taskId, done)}
                           onContextMenu={(event) => handleTaskContextMenu(event, t)}
@@ -1539,7 +1566,7 @@ export function ProjectGroupedList({
                       <TaskRow
                         task={t}
                         showProjectAffiliation={false}
-                        onSelect={selectTaskRow}
+                        onSelect={handleTaskMouseSelect}
                         onOpen={(taskId) => void openTask(taskId)}
                         onToggleDone={(taskId, done) => void onToggleDone(taskId, done)}
                         onContextMenu={(event) => handleTaskContextMenu(event, t)}

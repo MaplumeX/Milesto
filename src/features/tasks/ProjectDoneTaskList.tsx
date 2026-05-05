@@ -82,9 +82,11 @@ export function ProjectDoneTaskList({
   onToggleDone,
   onMutate,
   focusRegion,
+  focusRegionSource,
   initialFocusIndex,
   onNavigateOut,
   onEscCollapse,
+  onFocusRegionChange,
 }: {
   doneTasks: TaskListItem[]
   sections: ProjectSection[]
@@ -92,9 +94,11 @@ export function ProjectDoneTaskList({
   onToggleDone: (taskId: string, done: boolean) => Promise<void>
   onMutate?: () => Promise<void>
   focusRegion?: 'active' | 'toggle' | 'done'
+  focusRegionSource?: 'keyboard' | 'mouse'
   initialFocusIndex?: number | null
   onNavigateOut?: (direction: 'up' | 'down') => void
   onEscCollapse?: () => void
+  onFocusRegionChange?: (region: 'active' | 'toggle' | 'done', source: 'keyboard' | 'mouse') => void
 }) {
   const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId, requestCloseTask } = useTaskSelection()
@@ -277,9 +281,16 @@ export function ProjectDoneTaskList({
 
   // Respond to parent focus handoff (only on region transition, not on data changes)
   const prevFocusRegionRef = useRef(focusRegion)
+  const focusRegionSourceRef = useRef(focusRegionSource)
+  focusRegionSourceRef.current = focusRegionSource
   useEffect(() => {
     const prev = prevFocusRegionRef.current
     prevFocusRegionRef.current = focusRegion
+
+    // Clear selectedRow when leaving the done region to avoid visual conflict
+    if (prev === 'done' && focusRegion !== 'done') {
+      setSelectedRow(null)
+    }
 
     if (focusRegion !== 'done') return
     if (prev === 'done') return
@@ -292,7 +303,10 @@ export function ProjectDoneTaskList({
         const rowIdx = taskRowIndexById.get(targetTask.id)
         if (rowIdx != null) {
           selectRowByIndex(rowIdx)
-          listboxRef.current?.focus()
+          // When source is 'mouse', the click already placed focus on the element — skip focus steal
+          if (focusRegionSourceRef.current !== 'mouse') {
+            listboxRef.current?.focus()
+          }
           return
         }
       }
@@ -303,7 +317,10 @@ export function ProjectDoneTaskList({
       const row = rows[i]
       if (row?.type === 'task') {
         selectRowByIndex(i)
-        listboxRef.current?.focus()
+        // When source is 'mouse', the click already placed focus on the element — skip focus steal
+        if (focusRegionSourceRef.current !== 'mouse') {
+          listboxRef.current?.focus()
+        }
         return
       }
     }
@@ -407,7 +424,7 @@ export function ProjectDoneTaskList({
 
             if (row.type === 'header') {
               const section = row.section
-              const isSelected = selectedRowIndex === virtualRow.index
+              const isSelected = selectedRowIndex === virtualRow.index && focusRegion === 'done'
 
               return (
                 <li
@@ -459,7 +476,7 @@ export function ProjectDoneTaskList({
             const task = row.task
             const isOpen = openTaskId === task.id
             const titlePrefix = getDoneDatePrefix(task)
-            const isSelected = selectedTaskId === task.id
+            const isSelected = selectedTaskId === task.id && focusRegion === 'done'
 
             let liEl: HTMLLIElement | null = null
 
@@ -491,7 +508,10 @@ export function ProjectDoneTaskList({
                       task={task}
                       titlePrefix={titlePrefix}
                       projectAffiliationLabel={row.affiliationLabel}
-                      onSelect={selectTask}
+                      onSelect={(taskId) => {
+                        selectTask(taskId)
+                        onFocusRegionChange?.('done', 'mouse')
+                      }}
                       onOpen={(taskId) => void openTask(taskId)}
                       onToggleDone={(taskId, done) => {
                         if (done) return

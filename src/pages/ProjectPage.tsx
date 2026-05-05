@@ -107,7 +107,12 @@ export function ProjectPage() {
   const notesSyncedRef = useRef<{ projectId: string | null; notes: string }>({ projectId: null, notes: '' })
 
   const [isCompletedExpanded, setIsCompletedExpanded] = useState(false)
-  const [focusRegion, setFocusRegion] = useState<'active' | 'toggle' | 'done'>('active')
+  const [focusRegion, setFocusRegionState] = useState<'active' | 'toggle' | 'done'>('active')
+  const focusRegionSourceRef = useRef<'keyboard' | 'mouse'>('keyboard')
+  const setFocusRegion = useCallback((region: 'active' | 'toggle' | 'done', source: 'keyboard' | 'mouse' = 'keyboard') => {
+    focusRegionSourceRef.current = source
+    setFocusRegionState(region)
+  }, [])
   const [initialFocusIndex, setInitialFocusIndex] = useState<number | null>(null)
   const completedToggleRef = useRef<HTMLButtonElement | null>(null)
   const [menuState, setMenuState] = useState<ProjectMenuState>(null)
@@ -193,7 +198,7 @@ export function ProjectPage() {
     setInitialFocusIndex(null)
     consumedEditTitleRouteRef.current = null
     didInteractWithPageDuringEditTitleIntentRef.current = false
-  }, [pid, projectScope])
+  }, [pid, projectScope, setFocusRegion])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -688,6 +693,7 @@ export function ProjectPage() {
           }}
           onAfterReorder={refresh}
           focusRegion={focusRegion}
+          focusRegionSource={focusRegionSourceRef.current}
           onNavigateOut={(direction) => {
             if (direction === 'down' && hasCompletedContent) {
               setFocusRegion('toggle')
@@ -696,6 +702,7 @@ export function ProjectPage() {
               })
             }
           }}
+          onFocusRegionChange={setFocusRegion}
         />
 
         {hasCompletedContent ? (
@@ -772,6 +779,7 @@ export function ProjectPage() {
               if (doneRes.ok) setDoneTasks(doneRes.data)
             }}
             focusRegion={focusRegion}
+            focusRegionSource={focusRegionSourceRef.current}
             initialFocusIndex={initialFocusIndex}
             onNavigateOut={(direction) => {
               if (direction === 'up') {
@@ -796,6 +804,7 @@ export function ProjectPage() {
                 setFocusRegion('active')
               }
             }}
+            onFocusRegionChange={setFocusRegion}
           />
         ) : null}
 
