@@ -28,23 +28,15 @@ import {
   TagMenuIcon,
 } from '../components/popover-menu-icons'
 import { ProjectProgressControl } from '../features/projects/ProjectProgressControl'
-import { AnimatedTaskSlot } from '../features/tasks/AnimatedTaskSlot'
 import { ProjectGroupedList } from '../features/tasks/ProjectGroupedList'
+import { ProjectDoneTaskList } from '../features/tasks/ProjectDoneTaskList'
 import { TagFilter } from '../features/tasks/TagFilter'
 import { useTaskTagFilter } from '../features/tasks/use-task-tag-filter'
-import { TaskInlineEditorRow } from '../features/tasks/TaskInlineEditorRow'
-import { TaskRow } from '../features/tasks/TaskRow'
-import { useTaskSelection } from '../features/tasks/TaskSelectionContext'
-import { usePrefersReducedMotion } from '../features/tasks/dnd-drop-animation'
-import { buildProjectDoneTaskRows } from '../features/tasks/project-done-task-rows'
-import { useTaskContextMenu } from '../features/tasks/use-task-context-menu'
-import { useOptimisticTaskTitles } from '../features/tasks/use-optimistic-task-titles'
-import { useProjectSectionContextMenu } from '../features/tasks/use-project-section-context-menu'
 import { CalendarIcon, ClockIcon } from '../features/tasks/task-metadata-icons'
 import { MetaDateBadge } from '../features/tasks/MetaDateBadge'
 import { TagPicker } from '../features/tags/TagPicker'
 import { MarkdownNotes } from '../components/MarkdownNotes'
-import { formatLocalDate, formatMonthDay, parseLocalDate } from '../lib/dates'
+import { formatLocalDate, parseLocalDate } from '../lib/dates'
 import { getEntityScopeFromSearch } from '../lib/entity-scope'
 
 const PROJECT_CREATE_SECTION_EVENT = 'milesto:project.createSection'
@@ -115,6 +107,9 @@ export function ProjectPage() {
   const notesSyncedRef = useRef<{ projectId: string | null; notes: string }>({ projectId: null, notes: '' })
 
   const [isCompletedExpanded, setIsCompletedExpanded] = useState(false)
+  const [focusRegion, setFocusRegion] = useState<'active' | 'toggle' | 'done'>('active')
+  const [initialFocusIndex, setInitialFocusIndex] = useState<number | null>(null)
+  const completedToggleRef = useRef<HTMLButtonElement | null>(null)
   const [menuState, setMenuState] = useState<ProjectMenuState>(null)
   const menuButtonRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -194,6 +189,8 @@ export function ProjectPage() {
     setDoneTasks(null)
     setEditingSectionId(null)
     setIsEditingTitle(false)
+    setFocusRegion('active')
+    setInitialFocusIndex(null)
     consumedEditTitleRouteRef.current = null
     didInteractWithPageDuringEditTitleIntentRef.current = false
   }, [pid, projectScope])
@@ -690,14 +687,56 @@ export function ProjectPage() {
             }
           }}
           onAfterReorder={refresh}
+          focusRegion={focusRegion}
+          onNavigateOut={(direction) => {
+            if (direction === 'down' && hasCompletedContent) {
+              setFocusRegion('toggle')
+              window.requestAnimationFrame(() => {
+                completedToggleRef.current?.focus()
+              })
+            }
+          }}
         />
 
         {hasCompletedContent ? (
           <div className="sections-header">
             <Button
+              ref={completedToggleRef}
               variant="ghost"
-              className="completed-toggle"
+              className={`completed-toggle${focusRegion === 'toggle' ? ' is-selected' : ''}`}
+              aria-label={completedLabel}
               aria-expanded={isCompletedExpanded}
+              onKeyDown={(e) => {
+                if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== ' ') return
+                // Prevent the parent listbox from handling these keys
+                e.stopPropagation()
+
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  if (isCompletedExpanded && filteredDoneTasks && filteredDoneTasks.length > 0) {
+                    setFocusRegion('done')
+                    setInitialFocusIndex(0)
+                  }
+                  return
+                }
+
+                if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  setFocusRegion('active')
+                  return
+                }
+
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  const nextExpanded = !isCompletedExpanded
+                  setIsCompletedExpanded(nextExpanded)
+                  if (nextExpanded && filteredDoneTasks && filteredDoneTasks.length > 0) {
+                    setFocusRegion('done')
+                    setInitialFocusIndex(0)
+                  }
+                  return
+                }
+              }}
               onClick={() => {
                 const next = !isCompletedExpanded
                 setIsCompletedExpanded(next)
@@ -732,203 +771,35 @@ export function ProjectPage() {
               const doneRes = await window.api.task.listProjectDone(pid, projectScope)
               if (doneRes.ok) setDoneTasks(doneRes.data)
             }}
+            focusRegion={focusRegion}
+            initialFocusIndex={initialFocusIndex}
+            onNavigateOut={(direction) => {
+              if (direction === 'up') {
+                if (completedToggleRef.current) {
+                  setFocusRegion('toggle')
+                  window.requestAnimationFrame(() => {
+                    completedToggleRef.current?.focus()
+                  })
+                } else {
+                  setFocusRegion('active')
+                }
+              }
+            }}
+            onEscCollapse={() => {
+              setIsCompletedExpanded(false)
+              if (completedToggleRef.current) {
+                setFocusRegion('toggle')
+                window.requestAnimationFrame(() => {
+                  completedToggleRef.current?.focus()
+                })
+              } else {
+                setFocusRegion('active')
+              }
+            }}
           />
         ) : null}
 
       </div>
-    </>
-  )
-}
-
-type DoneAreaRow =
-  | { type: 'header'; section: ProjectSection }
-  | { type: 'task'; task: TaskListItem; affiliationLabel: string | null }
-
-function buildDoneAreaRows(
-  doneRows: ReturnType<typeof buildProjectDoneTaskRows>,
-  sections: ProjectSection[]
-): DoneAreaRow[] {
-  const result: DoneAreaRow[] = []
-  const sectionById = new Map(sections.map((section) => [section.id, section]))
-  const rowsBySectionId = new Map<string, typeof doneRows>()
-  const unsectionedRows: typeof doneRows = []
-
-  for (const row of doneRows) {
-    const sectionId = row.task.section_id
-    if (!sectionId || !sectionById.has(sectionId)) {
-      unsectionedRows.push(row)
-      continue
-    }
-
-    const sectionRows = rowsBySectionId.get(sectionId) ?? []
-    sectionRows.push(row)
-    rowsBySectionId.set(sectionId, sectionRows)
-  }
-
-  for (const row of unsectionedRows) {
-    result.push({ type: 'task', task: row.task, affiliationLabel: row.affiliationLabel })
-  }
-
-  for (const section of sections) {
-    const sectionRows = rowsBySectionId.get(section.id) ?? []
-    if (section.status === 'done') {
-      result.push({ type: 'header', section })
-    }
-
-    for (const row of sectionRows) {
-      result.push({ type: 'task', task: row.task, affiliationLabel: row.affiliationLabel })
-    }
-  }
-
-  return result
-}
-
-function ProjectDoneTaskList({
-  doneTasks,
-  sections,
-  scope,
-  onToggleDone,
-  onMutate,
-}: {
-  doneTasks: TaskListItem[]
-  sections: ProjectSection[]
-  scope: EntityScope
-  onToggleDone: (taskId: string, done: boolean) => Promise<void>
-  onMutate?: () => Promise<void>
-}) {
-  const { t } = useTranslation()
-  const { selectedTaskId, selectTask, openTask, openTaskId } = useTaskSelection()
-  const doneTasksWithOptimisticTitles = useOptimisticTaskTitles(doneTasks)
-  const prefersReducedMotion = usePrefersReducedMotion()
-  const { openTaskContextMenu, menuNode } = useTaskContextMenu({ scope })
-  const { openProjectSectionContextMenu, menuNode: sectionContextMenuNode } = useProjectSectionContextMenu({
-    scope,
-    onMutate: onMutate ?? (async () => {}),
-  })
-
-  function getDoneDatePrefix(task: TaskListItem): string | null {
-    const iso = task.completed_at ?? task.updated_at
-    const ms = Date.parse(iso)
-    if (!Number.isFinite(ms) || ms <= 0) return null
-    return formatMonthDay(new Date(ms))
-  }
-
-  const doneRows = buildProjectDoneTaskRows({
-    doneTasks: doneTasksWithOptimisticTitles,
-    sections,
-  })
-
-  const areaRows = buildDoneAreaRows(doneRows, sections)
-
-  const handleTaskContextMenu = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>, task: TaskListItem) => {
-      event.preventDefault()
-      event.stopPropagation()
-
-      const eventTarget = event.target
-      const restoreFocusEl =
-        eventTarget instanceof HTMLElement
-          ? eventTarget.closest<HTMLElement>('[data-task-focus-target="true"]') ??
-            event.currentTarget.querySelector<HTMLElement>('[data-task-focus-target="true"]') ??
-            event.currentTarget
-          : event.currentTarget.querySelector<HTMLElement>('[data-task-focus-target="true"]') ??
-            event.currentTarget
-
-      void openTaskContextMenu({
-        task,
-        scope,
-        anchorX: event.clientX,
-        anchorY: event.clientY,
-        restoreFocusEl,
-      })
-    },
-    [openTaskContextMenu, scope]
-  )
-
-  return (
-    <>
-      <ul className="task-list" role="list">
-        {areaRows.map((row) => {
-          if (row.type === 'header') {
-            const section = row.section
-            return (
-              <li key={`header-${section.id}`} className="project-group-header done-section-header">
-                <div className="project-group-left">
-                  <div className={`project-group-title${section.title.trim() ? '' : ' is-placeholder'}`}>
-                    {section.title.trim() ? section.title : t('section.untitled')}
-                  </div>
-                </div>
-                <div className="project-group-actions">
-                  <Button
-                    variant="ghost"
-                    className="project-group-menu-button"
-                    aria-label={t('aria.sectionActions')}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      openProjectSectionContextMenu({
-                        section,
-                        projectId: section.project_id,
-                        scope,
-                        anchorX: rect.left,
-                        anchorY: rect.bottom + 4,
-                        restoreFocusEl: e.currentTarget,
-                      })
-                    }}
-                  >
-                    ...
-                  </Button>
-                </div>
-              </li>
-            )
-          }
-
-          const task = row.task
-          const isOpen = openTaskId === task.id
-          const titlePrefix = getDoneDatePrefix(task)
-
-          return (
-            <li
-              key={task.id}
-              className={`task-row${isOpen ? ' is-open' : ' task-row-virtual'}${
-                task.status === 'done' ? ' is-done' : task.status === 'cancelled' ? ' is-cancelled' : ''
-              }${selectedTaskId === task.id ? ' is-selected' : ''}`}
-              data-task-id={task.id}
-            >
-              <AnimatedTaskSlot
-                isOpen={isOpen}
-                rowContent={
-                  <TaskRow
-                    task={task}
-                    titlePrefix={titlePrefix}
-                    projectAffiliationLabel={row.affiliationLabel}
-                    onSelect={selectTask}
-                    onOpen={(taskId) => void openTask(taskId)}
-                    onToggleDone={(taskId, done) => {
-                      if (done) return
-                      void onToggleDone(taskId, done)
-                    }}
-                    onContextMenu={(event) => handleTaskContextMenu(event, task)}
-                  />
-                }
-                editorContent={
-                  <TaskInlineEditorRow
-                    taskId={task.id}
-                    scope={scope}
-                    projectScope={scope}
-                    showProjectActions={false}
-                  />
-                }
-                onHeightChange={() => {}}
-                prefersReducedMotion={prefersReducedMotion}
-              />
-            </li>
-          )
-        })}
-      </ul>
-
-      {menuNode}
-      {sectionContextMenuNode}
     </>
   )
 }

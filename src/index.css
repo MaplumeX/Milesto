@@ -1180,6 +1180,12 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+.done-section-header.is-selected {
+  background: var(--wash);
+  border-radius: 10px;
+  border-bottom-color: transparent;
+}
+
 .done-section-header .project-group-title {
   opacity: 0.6;
 }
@@ -1809,6 +1815,11 @@ body {
 .completed-toggle:hover {
   background: transparent;
   border-color: var(--border);
+}
+
+.completed-toggle.is-selected {
+  background: var(--wash);
+  border-color: transparent;
 }
 
 .task-list {

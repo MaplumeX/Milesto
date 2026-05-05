@@ -434,6 +434,8 @@ export function ProjectGroupedList({
   onCommitSectionTitle,
   onToggleDone,
   onAfterReorder,
+  onNavigateOut,
+  focusRegion,
 }: {
   projectId: string
   scope: EntityScope
@@ -446,6 +448,8 @@ export function ProjectGroupedList({
   onCommitSectionTitle: (sectionId: string, title: string) => Promise<void>
   onToggleDone: (taskId: string, done: boolean) => Promise<void>
   onAfterReorder?: () => Promise<void>
+  onNavigateOut?: (direction: 'up' | 'down') => void
+  focusRegion?: 'active' | 'toggle' | 'done'
 }) {
   const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId, requestCloseTask } = useTaskSelection()
@@ -929,6 +933,17 @@ export function ProjectGroupedList({
   const [selectedRow, setSelectedRow] = useState<SelectedRow>(null)
   const pendingScrollTaskIdRef = useRef<string | null>(null)
 
+  // Respond to parent focus handoff (only on region transition, not on re-renders)
+  const prevFocusRegionRef = useRef(focusRegion)
+  useEffect(() => {
+    const prev = prevFocusRegionRef.current
+    prevFocusRegionRef.current = focusRegion
+
+    if (focusRegion !== 'active') return
+    if (prev === 'active') return
+    listboxRef.current?.focus()
+  }, [focusRegion])
+
   useLayoutEffect(() => {
     let cancelled = false
 
@@ -1086,6 +1101,9 @@ export function ProjectGroupedList({
   const lastSelectedIndexRef = useRef(0)
   useLayoutEffect(() => {
     if (!selectedTaskId) return
+    // When focus is outside the active list (e.g., in the completed-task area),
+    // skip fallback selection — the other list owns the selection.
+    if (focusRegion !== undefined && focusRegion !== 'active') return
 
     const idx = taskRowIndexById.get(selectedTaskId) ?? -1
     if (idx >= 0) {
@@ -1114,7 +1132,7 @@ export function ProjectGroupedList({
       selectTask(r.task.id)
       return
     }
-  }, [rows, selectedTaskId, selectTask, taskRowIndexById])
+  }, [focusRegion, rows, selectedTaskId, selectTask, taskRowIndexById])
 
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
@@ -1258,7 +1276,11 @@ export function ProjectGroupedList({
     const currentIndex = selectedRowIndex ?? -1
     const start = currentIndex < 0 ? (dir === 1 ? -1 : rows.length) : currentIndex
     const next = start + dir
-    if (next < 0 || next >= rows.length) return
+    if (next < 0 || next >= rows.length) {
+      if (next < 0) onNavigateOut?.('up')
+      if (next >= rows.length) onNavigateOut?.('down')
+      return
+    }
     selectRowByIndex(next)
   }
 
