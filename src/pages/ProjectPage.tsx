@@ -694,6 +694,7 @@ export function ProjectPage() {
           onAfterReorder={refresh}
           focusRegion={focusRegion}
           focusRegionSource={focusRegionSourceRef.current}
+          initialFocusIndex={initialFocusIndex}
           onNavigateOut={(direction) => {
             if (direction === 'down' && hasCompletedContent) {
               setFocusRegion('toggle')
@@ -729,6 +730,7 @@ export function ProjectPage() {
 
                 if (e.key === 'ArrowUp') {
                   e.preventDefault()
+                  setInitialFocusIndex(-1)
                   setFocusRegion('active')
                   return
                 }

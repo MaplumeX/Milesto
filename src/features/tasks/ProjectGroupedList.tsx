@@ -438,6 +438,7 @@ export function ProjectGroupedList({
   focusRegion,
   focusRegionSource,
   onFocusRegionChange,
+  initialFocusIndex,
 }: {
   projectId: string
   scope: EntityScope
@@ -454,6 +455,7 @@ export function ProjectGroupedList({
   focusRegion?: 'active' | 'toggle' | 'done'
   focusRegionSource?: 'keyboard' | 'mouse'
   onFocusRegionChange?: (region: 'active' | 'toggle' | 'done', source: 'keyboard' | 'mouse') => void
+  initialFocusIndex?: number | null
 }) {
   const { t } = useTranslation()
   const { selectedTaskId, selectTask, openTask, openTaskId, requestCloseTask } = useTaskSelection()
@@ -954,8 +956,17 @@ export function ProjectGroupedList({
     if (prev === 'active') return
     // When source is 'mouse', the click already placed focus on the element — skip focus steal
     if (focusRegionSourceRef.current === 'mouse') return
+
+    // Position selection based on initialFocusIndex (-1 = last row)
+    if (initialFocusIndex != null && rows.length > 0) {
+      const targetIndex = initialFocusIndex < 0 ? rows.length - 1 : initialFocusIndex
+      if (targetIndex < rows.length) {
+        selectRowByIndex(targetIndex)
+      }
+    }
+
     listboxRef.current?.focus()
-  }, [focusRegion])
+  }, [focusRegion]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useLayoutEffect(() => {
     let cancelled = false
@@ -1112,11 +1123,18 @@ export function ProjectGroupedList({
   }, [editingSectionId, sections])
 
   const lastSelectedIndexRef = useRef(0)
+  const prevFocusRegionForFallbackRef = useRef(focusRegion)
   useLayoutEffect(() => {
+    const justEnteredActive = prevFocusRegionForFallbackRef.current !== 'active' && focusRegion === 'active'
+    prevFocusRegionForFallbackRef.current = focusRegion
+
     if (!selectedTaskId) return
     // When focus is outside the active list (e.g., in the completed-task area),
     // skip fallback selection — the other list owns the selection.
     if (focusRegion !== undefined && focusRegion !== 'active') return
+    // When just entering the active region, the focusRegion effect handles positioning
+    // via initialFocusIndex — skip fallback to avoid overriding the targeted selection.
+    if (justEnteredActive) return
 
     const idx = taskRowIndexById.get(selectedTaskId) ?? -1
     if (idx >= 0) {
