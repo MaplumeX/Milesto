@@ -1,0 +1,2 @@
+{"file": "spec/frontend/component-guidelines.md", "reason": "图标组件迁移规范，Lucide 图标使用约定（size=\"1em\"、strokeWidth 等）"}
+{"file": "spec/frontend/directory-structure.md", "reason": "图标文件位置约定（sidebar-nav-icons.tsx, popover-menu-icons.tsx, task-metadata-icons.tsx）"}

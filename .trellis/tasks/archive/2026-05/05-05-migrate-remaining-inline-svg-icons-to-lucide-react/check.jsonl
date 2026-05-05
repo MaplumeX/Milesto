@@ -1,0 +1,1 @@
+{"file": "spec/frontend/quality-guidelines.md", "reason": "验证迁移后无遗漏内联 SVG、size prop 一致性、构建和测试通过"}
