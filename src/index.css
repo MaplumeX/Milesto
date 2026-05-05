@@ -3829,10 +3829,11 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 /* Chat Composer */
 .chat-composer {
   flex: none;
-  padding: 10px 12px;
+  min-height: var(--bottom-bar-height);
+  padding: 0 12px;
   border-top: 1px solid var(--border);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 8px;
   background: var(--content-edge-bg);
 }
