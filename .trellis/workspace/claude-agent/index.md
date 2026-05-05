@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 46
+- **Total Sessions**: 47
 - **Last Active**: 2026-05-05
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1594 | Active |
+| `journal-1.md` | ~1627 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 47 | 2026-05-05 | Fix ArrowUp from completed toggle skipping group | `0b04a65` | `feature/optimize-completed-task-display-in-project-area` |
 | 46 | 2026-05-05 | Fix project page focus visual conflict | `a3b6ce9`, `508aa06` | `feature/optimize-completed-task-display-in-project-area` |
 | 45 | 2026-05-05 | 优化项目界面已完成任务键盘导航与虚拟化 | `9ff000c`, `65cc2c3` | `feature/optimize-completed-task-display-in-project-area` |
 | 44 | 2026-05-03 | Float AI chat toggle so closed panel stops occupying a flex column | `2931b01` | `master` |

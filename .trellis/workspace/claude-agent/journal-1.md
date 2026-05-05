@@ -1592,3 +1592,36 @@ Diagnosed perceived right-edge white gap as the 28px .chat-toggle button claimin
 ### Next Steps
 
 - None - task complete
+
+
+## Session 47: Fix ArrowUp from completed toggle skipping group
+
+**Date**: 2026-05-05
+**Task**: Fix ArrowUp from completed toggle skipping group
+**Branch**: `feature/optimize-completed-task-display-in-project-area`
+
+### Summary
+
+Fixed keyboard navigation bug where pressing ArrowUp from completed toggle jumped to a task instead of the nearest group. Added initialFocusIndex prop to ProjectGroupedList and skip fallback selection when just entering active region.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0b04a65` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
