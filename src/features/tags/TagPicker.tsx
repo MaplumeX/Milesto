@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Search, Check, Plus } from 'lucide-react'
 
 import type { AppError } from '../../../shared/app-error'
 import type { Tag } from '../../../shared/schemas/tag'
@@ -138,10 +139,7 @@ export function TagPicker({
   return (
     <div className="tag-picker" onKeyDown={handleKeyDown}>
       <div className="tag-picker-input-wrap">
-        <svg className="tag-picker-input-icon" viewBox="0 0 16 16" fill="none" width="14" height="14" aria-hidden="true">
-          <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M11.5 11.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
+        <Search className="tag-picker-input-icon" size={14} />
         <input
           ref={inputRef}
           className="tag-picker-input"
@@ -188,17 +186,7 @@ export function TagPicker({
               >
                 <span className="tag-picker-title">{tag.title}</span>
                 <span className="tag-picker-check" aria-hidden="true">
-                  {isSelected ? (
-                    <svg viewBox="0 0 12 10" fill="none" width="12" height="10">
-                      <path
-                        d="M1 5L4.25 8.25L11 1.5"
-                        stroke="currentColor"
-                        strokeWidth="1.7"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  ) : null}
+                  {isSelected ? <Check size={12} /> : null}
                 </span>
               </button>
             </div>
@@ -213,9 +201,7 @@ export function TagPicker({
             onClick={() => void handleCreate()}
             disabled={isCreating}
           >
-            <svg className="tag-picker-create-icon" viewBox="0 0 12 12" fill="none" width="12" height="12" aria-hidden="true">
-              <path d="M6 2.5V9.5M2.5 6H9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+            <Plus className="tag-picker-create-icon" size={12} />
             <span className="tag-picker-create-label">
               {isCreating ? t('common.loading') : `${t('common.addTag')}「${query.trim()}」`}
             </span>

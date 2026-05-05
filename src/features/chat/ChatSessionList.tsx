@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Plus, Pencil, X } from 'lucide-react'
 
 import type { ChatSession } from '../../../shared/schemas/chat'
 
@@ -54,7 +55,7 @@ export function ChatSessionList({
         onClick={onCreate}
         aria-label={t('chat.newSession')}
       >
-        <span aria-hidden="true">+</span> {t('chat.newSession')}
+        <Plus size={14} aria-hidden="true" /> {t('chat.newSession')}
       </button>
 
       <div className="chat-session-items" role="listbox" aria-label={t('chat.sessions')}>
@@ -102,7 +103,7 @@ export function ChatSessionList({
                       }}
                       aria-label={t('common.rename')}
                     >
-                      <span aria-hidden="true">✎</span>
+                      <Pencil size={14} aria-hidden="true" />
                     </button>
                     <button
                       type="button"
@@ -113,7 +114,7 @@ export function ChatSessionList({
                       }}
                       aria-label={t('common.delete')}
                     >
-                      <span aria-hidden="true">×</span>
+                      <X size={14} aria-hidden="true" />
                     </button>
                   </div>
                 </>

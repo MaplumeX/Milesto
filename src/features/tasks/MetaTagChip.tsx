@@ -1,3 +1,5 @@
+import { X } from 'lucide-react'
+
 type MetaTagChipProps = {
   title: string
   onRemove: () => void
@@ -26,7 +28,7 @@ export function MetaTagChip({ title, onRemove, removeLabel, color }: MetaTagChip
           onRemove()
         }}
       >
-        ×
+        <X size={12} />
       </button>
     </span>
   )

@@ -1,4 +1,5 @@
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Folder, X } from 'lucide-react'
 import type { ForwardedRef, RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -597,7 +598,7 @@ function AreaMetaRow({
                 void onRemoveTag(tag.id)
               }}
             >
-              ×
+              <X size={12} />
             </button>
           </span>
         ))}
@@ -621,22 +622,7 @@ function AreaMetaRow({
 }
 
 function AreaTitleIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      width="1em"
-      height="1em"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.7}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3 7.5c0-1.1.9-2 2-2h5l2 2h7c1.1 0 2 .9 2 2v9c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2v-11z" />
-    </svg>
-  )
+  return <Folder size="1em" className={className} strokeWidth={1.7} />
 }
 
 const AreaMenu = forwardRef(function AreaMenu(

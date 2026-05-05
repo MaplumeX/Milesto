@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ForwardedRef, RefObject } from 'react'
 import { createPortal } from 'react-dom'
+import { X } from 'lucide-react'
 import { DayPicker } from 'react-day-picker'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -1021,7 +1022,7 @@ function ProjectMetaRow({
                   void onRemoveTag(tag.id)
                 }}
               >
-                ×
+                <X size={12} />
               </button>
             </span>
           ))}

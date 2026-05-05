@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
+import { Loader2, AlertTriangle, Check } from 'lucide-react'
 
 import type { ChatMessage } from '../../../shared/schemas/chat'
 import type { StreamingToolCall } from './use-chat-streaming'
@@ -126,11 +127,11 @@ function StreamingToolCallCard({ toolCall }: { toolCall: StreamingToolCall }) {
       </span>
     ) : toolCall.status === 'error' ? (
       <span className="chat-tool-status-icon chat-tool-status-error" aria-hidden="true">
-        ⚠
+        <AlertTriangle size={14} />
       </span>
     ) : (
       <span className="chat-tool-status-icon chat-tool-status-completed" aria-hidden="true">
-        ✓
+        <Check size={14} />
       </span>
     )
 
@@ -177,28 +178,5 @@ function StreamingToolCallCard({ toolCall }: { toolCall: StreamingToolCall }) {
 }
 
 function Spinner() {
-  return (
-    <svg className="chat-tool-spinner" viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true">
-      <circle
-        cx="8"
-        cy="8"
-        r="6"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeDasharray="28"
-        strokeDashoffset="8"
-      >
-        <animateTransform
-          attributeName="transform"
-          type="rotate"
-          from="0 8 8"
-          to="360 8 8"
-          dur="1s"
-          repeatCount="indefinite"
-        />
-      </circle>
-    </svg>
-  )
+  return <Loader2 size="1em" className="chat-tool-spinner" />
 }

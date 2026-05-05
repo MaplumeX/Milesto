@@ -1,4 +1,5 @@
 import type { ChangeEvent, CSSProperties, InputHTMLAttributes, ReactNode } from 'react'
+import { Check, X } from 'lucide-react'
 
 type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'children' | 'className' | 'style'> & {
   ariaLabel?: string
@@ -44,34 +45,9 @@ export function Checkbox({
         data-mark={mark}
         aria-hidden="true"
       >
-        <svg className="checkbox-control-mark" viewBox="0 0 12 10" fill="none">
-          {mark === 'x' ? (
-            <>
-              <path
-                d="M1.75 1.75L10.25 8.25"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M10.25 1.75L1.75 8.25"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </>
-          ) : (
-            <path
-              d="M1 5L4.25 8.25L11 1.5"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          )}
-        </svg>
+        <span className="checkbox-control-mark" aria-hidden="true">
+          {mark === 'x' ? <X strokeWidth={1.7} /> : <Check strokeWidth={1.7} />}
+        </span>
       </span>
       {children}
     </label>

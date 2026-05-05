@@ -1,4 +1,5 @@
 import type { ComponentType, MouseEvent } from 'react'
+import { X } from 'lucide-react'
 
 type MetaDateBadgeProps = {
   icon: ComponentType<{ className?: string; style?: React.CSSProperties }>
@@ -31,7 +32,7 @@ export function MetaDateBadge({ icon: Icon, value, iconColor, onClick, onClear, 
           onClear()
         }}
       >
-        ×
+        <X size={12} />
       </button>
     </span>
   )

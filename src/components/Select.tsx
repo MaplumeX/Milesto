@@ -1,4 +1,5 @@
 import * as RadixSelect from '@radix-ui/react-select'
+import { ChevronDown, Check } from 'lucide-react'
 
 interface SelectOption {
   label: string
@@ -31,9 +32,7 @@ export function Select({
       >
         <RadixSelect.Value />
         <RadixSelect.Icon className="select-icon">
-          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
-            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <ChevronDown size={10} strokeWidth={1.5} />
         </RadixSelect.Icon>
       </RadixSelect.Trigger>
       <RadixSelect.Portal>
@@ -43,9 +42,7 @@ export function Select({
               <RadixSelect.Item key={option.value} value={option.value} className="select-item">
                 <RadixSelect.ItemText>{option.label}</RadixSelect.ItemText>
                 <RadixSelect.ItemIndicator className="select-item-indicator">
-                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true">
-                    <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  <Check size={10} strokeWidth={1.5} />
                 </RadixSelect.ItemIndicator>
               </RadixSelect.Item>
             ))}

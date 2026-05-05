@@ -32,7 +32,7 @@ describe('SidebarNavItem', () => {
     expect(container.querySelector('.nav-item-icon')).toBeNull()
   })
 
-  it('keeps the today clock hands inside the dial', () => {
+  it('renders the today icon from lucide-react', () => {
     const { container } = render(
       <MemoryRouter>
         <SidebarNavItem to="/today" label="今天" iconKey="today" />
@@ -40,13 +40,10 @@ describe('SidebarNavItem', () => {
     )
 
     const todayIcon = container.querySelector<HTMLElement>('.nav-item-icon[data-nav-icon-key="today"]')
-    const handPath = todayIcon?.querySelector('path')
-
-    expect(handPath).not.toBeNull()
-    expect(handPath).toHaveAttribute('d', 'M12 8.5v3.5l2.75 1.75')
+    expect(todayIcon?.querySelector('svg')).not.toBeNull()
   })
 
-  it('renders the someday icon as a future anchor without the shaft crossing the baseline', () => {
+  it('renders the someday icon from lucide-react', () => {
     const { container } = render(
       <MemoryRouter>
         <SidebarNavItem to="/someday" label="某天" iconKey="someday" />
@@ -54,11 +51,6 @@ describe('SidebarNavItem', () => {
     )
 
     const somedayIcon = container.querySelector<HTMLElement>('.nav-item-icon[data-nav-icon-key="someday"]')
-    const paths = somedayIcon?.querySelectorAll('path')
-
-    expect(paths).toHaveLength(3)
-    expect(paths?.[0]).toHaveAttribute('d', 'M12 6.5v10.5')
-    expect(paths?.[1]).toHaveAttribute('d', 'M8.5 10 12 6.5 15.5 10')
-    expect(paths?.[2]).toHaveAttribute('d', 'M7.5 17h9')
+    expect(somedayIcon?.querySelector('svg')).not.toBeNull()
   })
 })

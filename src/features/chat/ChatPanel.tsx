@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { MessageSquare, X } from 'lucide-react'
 
 import { ChatComposer } from './ChatComposer'
 import { ChatMessages } from './ChatMessages'
@@ -157,7 +158,7 @@ export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
                       onClick={dismissError}
                       aria-label={t('common.close')}
                     >
-                      ×
+                      <X size={14} />
                     </button>
                   </div>
                 ) : null}
@@ -195,21 +196,7 @@ export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
 }
 
 function ChatIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      width="1em"
-      height="1em"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.7}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
-  )
+  return <MessageSquare size="1em" className={className} strokeWidth={1.7} />
 }
 
 function getFriendlyErrorMessage(code: string, t: (key: string) => string): string {

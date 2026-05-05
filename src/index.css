@@ -3814,8 +3814,13 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
   text-transform: lowercase;
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .chat-tool-spinner {
   display: block;
+  animation: spin 1s linear infinite;
 }
 
 .chat-tool-section + .chat-tool-section {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Check, X } from 'lucide-react'
 
 import type { Project } from '../../../shared/schemas/project'
 
@@ -275,38 +276,9 @@ function ProgressPie({
 }
 
 function CheckIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      width="1em"
-      height="1em"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.4}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M4.5 10.5l3.1 3.1L15.7 6" />
-    </svg>
-  )
+  return <Check size="1em" strokeWidth={2.4} />
 }
 
 function XIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      width="1em"
-      height="1em"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.4}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M5.5 5.5l9 9" />
-      <path d="M14.5 5.5l-9 9" />
-    </svg>
-  )
+  return <X size="1em" strokeWidth={2.4} />
 }
