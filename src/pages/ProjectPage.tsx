@@ -735,12 +735,7 @@ export function ProjectPage() {
 
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
-                  const nextExpanded = !isCompletedExpanded
-                  setIsCompletedExpanded(nextExpanded)
-                  if (nextExpanded && filteredDoneTasks && filteredDoneTasks.length > 0) {
-                    setFocusRegion('done')
-                    setInitialFocusIndex(0)
-                  }
+                  setIsCompletedExpanded(!isCompletedExpanded)
                   return
                 }
               }}
