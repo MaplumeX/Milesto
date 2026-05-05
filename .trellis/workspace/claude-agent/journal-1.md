@@ -1755,3 +1755,37 @@ Replaced all 8 custom inline SVG icons in the bottom bar with Lucide icon compon
 ### Next Steps
 
 - None - task complete
+
+
+## Session 52: Migrate remaining inline SVG icons to Lucide
+
+**Date**: 2026-05-05
+**Task**: Migrate remaining inline SVG icons to Lucide
+**Branch**: `feature/ui-improve`
+
+### Summary
+
+将项目中 30+ 个内联 SVG 图标和 Unicode 字符（×✎⚠✓）迁移到 lucide-react，统一图标来源。覆盖侧边栏导航、弹出菜单、任务元数据、各组件局部图标。Checkbox/Select 极小标记图标因 Lucide 24×24 viewBox 在 ≤10px 容器中偏移而回退为内联 SVG。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d5385ec` | (see git log) |
+| `f1e4420` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
