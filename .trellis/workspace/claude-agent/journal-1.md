@@ -1558,3 +1558,37 @@ Diagnosed perceived right-edge white gap as the 28px .chat-toggle button claimin
 ### Next Steps
 
 - None - task complete
+
+
+## Session 46: Fix project page focus visual conflict
+
+**Date**: 2026-05-05
+**Task**: Fix project page focus visual conflict
+**Branch**: `feature/optimize-completed-task-display-in-project-area`
+
+### Summary
+
+修复项目页面 is-selected 视觉冲突：添加渲染层 focusRegion 守卫实现严格互斥，子组件区域离开时清 selectedRow，鼠标点击同步 focusRegion 并通过 source 参数避免抢焦点，更新 cross-region navigation spec 补充互斥和 source 追踪模式
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a3b6ce9` | (see git log) |
+| `508aa06` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
