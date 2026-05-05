@@ -8,15 +8,33 @@ import type { ConfirmGate } from '../confirm-gate'
 export type TaskWriteToolCallbacks = {
   onBumpRevision: () => void
   confirmGate: ConfirmGate
+  aiContext?: {
+    sessionId: string
+    userMessageId: string
+    runMessageId: string
+  }
 }
 
 export function makeTaskWriteTools(db: DbWorkerClient, callbacks: TaskWriteToolCallbacks) {
   const { onBumpRevision, confirmGate } = callbacks
+  const requestMutation = (toolName: string, action: string, payload: unknown) => {
+    if (!callbacks.aiContext) return db.request(action, payload)
+    return db.request('aiChat.runMutation', {
+      context: {
+        session_id: callbacks.aiContext.sessionId,
+        user_message_id: callbacks.aiContext.userMessageId,
+        run_message_id: callbacks.aiContext.runMessageId,
+        tool_name: toolName,
+      },
+      action,
+      payload,
+    })
+  }
 
   return [
     tool(
       async ({ title, projectId, areaId, notes, scheduledAt, dueAt, isInbox, isSomeday }) => {
-        const result = await db.request('task.create', {
+        const result = await requestMutation('task_create', 'task.create', {
           title,
           project_id: projectId ?? null,
           area_id: areaId ?? null,
@@ -51,7 +69,7 @@ export function makeTaskWriteTools(db: DbWorkerClient, callbacks: TaskWriteToolC
 
     tool(
       async ({ id, title, notes, scheduledAt, dueAt, projectId, areaId, sectionId, isInbox, isSomeday }) => {
-        const result = await db.request('task.update', {
+        const result = await requestMutation('task_update', 'task.update', {
           id,
           title,
           notes,
@@ -90,7 +108,7 @@ export function makeTaskWriteTools(db: DbWorkerClient, callbacks: TaskWriteToolC
 
     tool(
       async ({ id, done }) => {
-        const result = await db.request('task.toggleDone', { id, done })
+        const result = await requestMutation('task_toggleDone', 'task.toggleDone', { id, done })
         if (result.ok) onBumpRevision()
         const data = result.ok ? (result.data as { title: string }) : null
         const description = data
@@ -110,7 +128,7 @@ export function makeTaskWriteTools(db: DbWorkerClient, callbacks: TaskWriteToolC
 
     tool(
       async ({ id }) => {
-        const result = await db.request('task.cancel', { id })
+        const result = await requestMutation('task_cancel', 'task.cancel', { id })
         if (result.ok) onBumpRevision()
         const data = result.ok ? (result.data as { title: string }) : null
         const description = data
@@ -129,7 +147,7 @@ export function makeTaskWriteTools(db: DbWorkerClient, callbacks: TaskWriteToolC
 
     tool(
       async ({ id }) => {
-        const result = await db.request('task.restore', { id })
+        const result = await requestMutation('task_restore', 'task.restore', { id })
         if (result.ok) onBumpRevision()
         const data = result.ok ? (result.data as { title: string }) : null
         const description = data
@@ -148,7 +166,7 @@ export function makeTaskWriteTools(db: DbWorkerClient, callbacks: TaskWriteToolC
 
     tool(
       async ({ id }) => {
-        const result = await db.request('task.convertToProject', { id })
+        const result = await requestMutation('task_convertToProject', 'task.convertToProject', { id })
         if (result.ok) onBumpRevision()
         const data = result.ok ? (result.data as { project: { id: string } }) : null
         const description = data
@@ -167,7 +185,7 @@ export function makeTaskWriteTools(db: DbWorkerClient, callbacks: TaskWriteToolC
 
     tool(
       async ({ taskId, tagIds }) => {
-        const result = await db.request('task.setTags', { task_id: taskId, tag_ids: tagIds })
+        const result = await requestMutation('task_setTags', 'task.setTags', { task_id: taskId, tag_ids: tagIds })
         if (result.ok) onBumpRevision()
         const description = result.ok
           ? `已设置任务标签（ID: ${taskId}）`
@@ -194,7 +212,7 @@ export function makeTaskWriteTools(db: DbWorkerClient, callbacks: TaskWriteToolC
         const approved = await confirmGate('task.delete', `删除任务 "${detailData.task.title}"`)
         if (!approved) return '用户拒绝删除任务。'
 
-        const result = await db.request('task.delete', { id })
+        const result = await requestMutation('task_delete', 'task.delete', { id })
         if (result.ok) onBumpRevision()
         const description = result.ok
           ? `已删除任务 "${detailData.task.title}"（已移至回收站）`

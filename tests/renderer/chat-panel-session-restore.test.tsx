@@ -171,6 +171,48 @@ describe('ChatPanel session restoration', () => {
     expect(input).toHaveValue('hello ai')
   })
 
+  it('shows rollback action, refreshes state, restores prompt, and reports conflicts', async () => {
+    api().settings.getAiConfig = vi.fn<WindowApi['settings']['getAiConfig']>(async () =>
+      ok({ baseUrl: '', apiKey: '', model: '', enabled: true })
+    )
+    api().chat.listSessions = vi.fn<WindowApi['chat']['listSessions']>(async () =>
+      ok([session(RECENT_SESSION, 'Recent chat', '2026-01-03T00:00:00.000Z')])
+    )
+    api().chat.listMessages = vi.fn<WindowApi['chat']['listMessages']>(async () =>
+      ok([message(RECENT_SESSION, 'revise this')])
+    )
+    api().chat.rollbackToMessage = vi.fn<WindowApi['chat']['rollbackToMessage']>(async () =>
+      ok({
+        restored_prompt: 'revise this',
+        deleted_message_count: 1,
+        reverted_effect_count: 0,
+        conflict_count: 1,
+        conflicts: [
+          {
+            table_name: 'tasks',
+            entity_id: 'task-1',
+            tool_name: 'task_update',
+            reason: 'changed later',
+          },
+        ],
+      })
+    )
+
+    render(<ChatPanel isOpen onToggle={vi.fn()} />)
+
+    await screen.findByText('revise this')
+    await userEvent.click(screen.getByRole('button', { name: 'chat.rollbackMessageAria' }))
+
+    await waitFor(() => {
+      expect(api().chat.rollbackToMessage).toHaveBeenCalledWith(
+        RECENT_SESSION,
+        `${RECENT_SESSION}-message`
+      )
+    })
+    expect(screen.getByRole('textbox')).toHaveValue('revise this')
+    expect(screen.getByText('chat.rollbackConflictSummary')).toBeInTheDocument()
+  })
+
   it('keeps disabled state when AI is not enabled and no sessions exist', async () => {
     api().settings.getAiConfig = vi.fn<WindowApi['settings']['getAiConfig']>(async () =>
       ok({ baseUrl: '', apiKey: '', model: '', enabled: false })

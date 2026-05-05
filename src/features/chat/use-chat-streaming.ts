@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ChatMessage, ChatSession } from '../../../shared/schemas/chat'
+import type { ChatMessage, ChatRollbackResult, ChatSession } from '../../../shared/schemas/chat'
 
 export type StreamingState = {
   sessionId: string | null
@@ -361,6 +361,41 @@ export function useChatStreaming(activeSessionId: string | null) {
     return true
   }, [clearDeltaBuffer, setStreamingState])
 
+  const rollbackToMessage = useCallback(async (
+    message: ChatMessage
+  ): Promise<ChatRollbackResult | null> => {
+    const sessionId = message.session_id
+    const running = streamingRef.current
+
+    if (running.sessionId === sessionId && running.messageId) {
+      await window.api.chat.abort(running.messageId)
+    }
+
+    const res = await window.api.chat.rollbackToMessage(sessionId, message.id)
+    if (!res.ok) {
+      setError({ code: res.error.code, message: res.error.message })
+      return null
+    }
+
+    clearDeltaBuffer()
+    setStreamingState((prev) => (prev.sessionId === sessionId ? IDLE_STREAMING : prev))
+    setStreamingToolCalls([])
+    setConfirmRequest((prev) => (prev?.sessionId === sessionId ? null : prev))
+    setError(null)
+
+    const messagesRes = await window.api.chat.listMessages(sessionId)
+    if (activeSessionIdRef.current === sessionId && messagesRes.ok) {
+      setMessages(messagesRes.data)
+    }
+
+    const sessionsRes = await window.api.chat.listSessions()
+    if (sessionsRes.ok) {
+      setSessions(sessionsRes.data)
+    }
+
+    return res.data
+  }, [clearDeltaBuffer, setStreamingState])
+
   const dismissError = useCallback(() => {
     setError(null)
   }, [])
@@ -385,6 +420,7 @@ export function useChatStreaming(activeSessionId: string | null) {
     createSession,
     renameSession,
     deleteSession,
+    rollbackToMessage,
     dismissError,
     dismissConfirm,
   }

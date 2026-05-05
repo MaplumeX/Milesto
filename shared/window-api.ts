@@ -4,7 +4,7 @@ import type { Locale } from './i18n/locale'
 import type { EntityScope } from './schemas/common'
 
 import type { Area, AreaCreateInput, AreaUpdateInput } from './schemas/area'
-import type { AiConfig, ChatMessage, ChatSession } from './schemas/chat'
+import type { AiConfig, ChatMessage, ChatRollbackResult, ChatSession } from './schemas/chat'
 import type {
   ChecklistItem,
   ChecklistItemCreateInput,
@@ -229,6 +229,7 @@ export type WindowApi = {
     renameSession(id: string, title: string): Promise<Result<ChatSession>>
     deleteSession(id: string): Promise<Result<{ deleted: boolean }>>
     listMessages(sessionId: string): Promise<Result<ChatMessage[]>>
+    rollbackToMessage(sessionId: string, messageId: string): Promise<Result<ChatRollbackResult>>
 
     // Streaming conversation (PR2)
     send(sessionId: string, content: string): Promise<Result<{ messageId: string }>>

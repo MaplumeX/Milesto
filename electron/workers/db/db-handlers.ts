@@ -14,10 +14,11 @@ import { createSettingsActions } from './actions/settings-actions'
 import { createTrashActions } from './actions/trash-actions'
 import { createSyncActions } from './actions/sync-actions'
 import { createViewActions } from './actions/view-actions'
+import { createAiChatActions } from './actions/ai-chat-actions'
 import type { DbActionHandler } from './actions/db-actions'
 
 export function buildDbHandlers(db: Database.Database): Record<string, DbActionHandler> {
-  return {
+  const handlers: Record<string, DbActionHandler> = {
     ...createDbActions(db),
     ...createSettingsActions(db),
     ...createTaskActions(db),
@@ -33,4 +34,6 @@ export function buildDbHandlers(db: Database.Database): Record<string, DbActionH
     ...createTrashActions(db),
     ...createSyncActions(db),
   }
+  Object.assign(handlers, createAiChatActions(db, handlers))
+  return handlers
 }

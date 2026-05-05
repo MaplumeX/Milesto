@@ -8,17 +8,21 @@ import {
   ChatMessageInsertInputSchema,
   ChatMessageListInputSchema,
   ChatMessageSchema,
+  ChatRollbackInputSchema,
+  ChatRollbackResultSchema,
   ChatSessionCreateInputSchema,
   ChatSessionIdInputSchema,
   ChatSessionRenameInputSchema,
   ChatSessionSchema,
 } from '../../../../shared/schemas/chat'
+import { rollbackAiChatEffects } from './ai-chat-actions'
 
 const ChatSessionListInputSchema = z.object({})
 
 // SQLite stores tool_calls as a JSON-encoded TEXT.
 // Helper to (de)serialize for the row<->schema boundary.
 type ChatMessageRow = {
+  row_order?: unknown
   id: unknown
   session_id: unknown
   role: unknown
@@ -226,15 +230,127 @@ export function createChatActions(db: Database.Database): Record<string, DbActio
 
       const rows = db
         .prepare(
-          `SELECT id, session_id, role, content, tool_calls, tool_call_id, created_at
+          `SELECT rowid AS row_order, id, session_id, role, content, tool_calls, tool_call_id, created_at
            FROM chat_messages
            WHERE session_id = ?
-           ORDER BY created_at ASC, id ASC`
+           ORDER BY created_at ASC, rowid ASC`
         )
         .all(parsed.data.session_id) as ChatMessageRow[]
 
       const messages = rows.map(rowToChatMessage)
       return { ok: true, data: messages }
+    },
+
+    'chat.rollbackToMessage': (payload) => {
+      const parsed = ChatRollbackInputSchema.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Invalid chat.rollbackToMessage payload.',
+            details: { issues: parsed.error.issues },
+          },
+        }
+      }
+
+      const tx = db.transaction(() => {
+        const sessionExists = db
+          .prepare('SELECT id FROM chat_sessions WHERE id = ?')
+          .get(parsed.data.session_id)
+        if (!sessionExists) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Chat session not found.',
+              details: { id: parsed.data.session_id },
+            },
+          }
+        }
+
+        const target = db
+          .prepare(
+            `SELECT rowid AS row_order, id, session_id, role, content, tool_calls, tool_call_id, created_at
+             FROM chat_messages
+             WHERE id = ? AND session_id = ?
+             LIMIT 1`
+          )
+          .get(parsed.data.message_id, parsed.data.session_id) as ChatMessageRow | undefined
+        if (!target) {
+          return {
+            ok: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Chat message not found.',
+              details: { id: parsed.data.message_id, session_id: parsed.data.session_id },
+            },
+          }
+        }
+
+        const targetMessage = rowToChatMessage(target)
+        const targetRowOrder = z.number().int().positive().parse(target.row_order)
+        if (targetMessage.role !== 'user') {
+          return {
+            ok: false as const,
+            error: {
+              code: 'VALIDATION_FAILED',
+              message: 'Rollback target must be a user message.',
+              details: { id: parsed.data.message_id, role: targetMessage.role },
+            },
+          }
+        }
+
+        const tailRows = db
+          .prepare(
+            `SELECT rowid AS row_order, id, session_id, role, content, tool_calls, tool_call_id, created_at
+             FROM chat_messages
+             WHERE session_id = ?
+               AND (created_at > ? OR (created_at = ? AND rowid >= ?))
+             ORDER BY created_at ASC, rowid ASC`
+          )
+          .all(
+            parsed.data.session_id,
+            targetMessage.created_at,
+            targetMessage.created_at,
+            targetRowOrder
+          ) as ChatMessageRow[]
+        const tailMessages = tailRows.map(rowToChatMessage)
+        const userMessageIds = tailMessages
+          .filter((message) => message.role === 'user')
+          .map((message) => message.id)
+
+        const rollbackEffects = rollbackAiChatEffects(db, userMessageIds, targetMessage.id)
+
+        const deleteRes = db
+          .prepare(
+            `DELETE FROM chat_messages
+             WHERE session_id = ?
+               AND (created_at > ? OR (created_at = ? AND rowid >= ?))`
+          )
+          .run(
+            parsed.data.session_id,
+            targetMessage.created_at,
+            targetMessage.created_at,
+            targetRowOrder
+          )
+
+        const updatedAt = nowIso()
+        db.prepare(
+          `UPDATE chat_sessions SET updated_at = @updated_at WHERE id = @id`
+        ).run({ id: parsed.data.session_id, updated_at: updatedAt })
+
+        const result = ChatRollbackResultSchema.parse({
+          restored_prompt: targetMessage.content,
+          deleted_message_count: deleteRes.changes,
+          reverted_effect_count: rollbackEffects.revertedEffectCount,
+          conflict_count: rollbackEffects.conflicts.length,
+          conflicts: rollbackEffects.conflicts,
+        })
+        return { ok: true as const, data: result }
+      })
+
+      return tx()
     },
 
     // PR2 will call this from the agent runtime to persist user/assistant/tool

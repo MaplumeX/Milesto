@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import type { ChatMessage, ChatRollbackConflict } from '../../../shared/schemas/chat'
+import { useConfirm } from '../../contexts/ConfirmDialogContext'
 import { ChatComposer } from './ChatComposer'
 import { ChatMessages } from './ChatMessages'
 import { ChatSessionList } from './ChatSessionList'
@@ -14,8 +16,11 @@ type ChatPanelProps = {
 
 export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
   const { t } = useTranslation()
+  const confirm = useConfirm()
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [aiEnabled, setAiEnabled] = useState<boolean | null>(null)
+  const [draftRestore, setDraftRestore] = useState<{ revision: number; value: string } | undefined>()
+  const [rollbackConflicts, setRollbackConflicts] = useState<ChatRollbackConflict[]>([])
   const lastMessageIdRef = useRef<string | null>(null)
 
   const {
@@ -31,6 +36,7 @@ export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
     createSession,
     renameSession,
     deleteSession,
+    rollbackToMessage,
     dismissError,
   } = useChatStreaming(activeSessionId)
 
@@ -109,6 +115,34 @@ export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
     [activeSessionId, deleteSession]
   )
 
+  const handleRollbackMessage = useCallback(
+    async (message: ChatMessage) => {
+      if (message.role !== 'user') return
+
+      const userMessages = messages.filter((m) => m.role === 'user')
+      const latestUserMessage = userMessages[userMessages.length - 1] ?? null
+      if (latestUserMessage && latestUserMessage.id !== message.id) {
+        const approved = await confirm({
+          message: t('chat.rollbackConfirm'),
+          variant: 'danger',
+          confirmText: t('chat.rollbackMessage'),
+        })
+        if (!approved) return
+      }
+
+      const result = await rollbackToMessage(message)
+      if (!result) return
+
+      lastMessageIdRef.current = null
+      setDraftRestore((prev) => ({
+        revision: (prev?.revision ?? 0) + 1,
+        value: result.restored_prompt,
+      }))
+      setRollbackConflicts(result.conflicts)
+    },
+    [confirm, messages, rollbackToMessage, t]
+  )
+
   const handleApproveConfirm = useCallback(() => {
     if (confirmRequest) {
       void respondConfirm(confirmRequest.messageId, true)
@@ -179,11 +213,28 @@ export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
                   </div>
                 ) : null}
 
+                {rollbackConflicts.length > 0 ? (
+                  <div className="chat-rollback-conflicts">
+                    <div className="chat-rollback-conflicts-message">
+                      {t('chat.rollbackConflictSummary', { count: rollbackConflicts.length })}
+                    </div>
+                    <button
+                      type="button"
+                      className="chat-error-dismiss"
+                      onClick={() => setRollbackConflicts([])}
+                      aria-label={t('common.close')}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : null}
+
                 <ChatMessages
                   messages={messages}
                   streamingDelta={streamingDelta}
                   isLoading={isLoading}
                   streamingToolCalls={streamingToolCalls}
+                  onRollbackMessage={handleRollbackMessage}
                 />
 
                 <ChatComposer
@@ -192,6 +243,7 @@ export function ChatPanel({ isOpen, onToggle }: ChatPanelProps) {
                   onAbort={handleAbort}
                   disabled={disabled}
                   disabledHint={disabledHint}
+                  draftRestore={draftRestore}
                 />
               </div>
             </div>

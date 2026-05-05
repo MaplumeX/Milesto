@@ -69,6 +69,29 @@ export const ChatMessageInsertInputSchema = z.object({
 })
 export type ChatMessageInsertInput = z.infer<typeof ChatMessageInsertInputSchema>
 
+export const ChatRollbackInputSchema = z.object({
+  session_id: IdSchema,
+  message_id: IdSchema,
+})
+export type ChatRollbackInput = z.infer<typeof ChatRollbackInputSchema>
+
+export const ChatRollbackConflictSchema = z.object({
+  table_name: z.string(),
+  entity_id: z.string(),
+  tool_name: z.string(),
+  reason: z.string(),
+})
+export type ChatRollbackConflict = z.infer<typeof ChatRollbackConflictSchema>
+
+export const ChatRollbackResultSchema = z.object({
+  restored_prompt: z.string(),
+  deleted_message_count: z.number().int().nonnegative(),
+  reverted_effect_count: z.number().int().nonnegative(),
+  conflict_count: z.number().int().nonnegative(),
+  conflicts: z.array(ChatRollbackConflictSchema),
+})
+export type ChatRollbackResult = z.infer<typeof ChatRollbackResultSchema>
+
 // AI provider configuration. ⚠️ apiKey is stored plaintext in app_settings for
 // this iteration — explicit acknowledged risk in the PRD; the next iteration
 // will switch to safeStorage. Do NOT silently encrypt here.
