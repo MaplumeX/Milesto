@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 44
-- **Last Active**: 2026-05-03
+- **Total Sessions**: 45
+- **Last Active**: 2026-05-05
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1526 | Active |
+| `journal-1.md` | ~1560 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 45 | 2026-05-05 | 优化项目界面已完成任务键盘导航与虚拟化 | `9ff000c`, `65cc2c3` | `feature/optimize-completed-task-display-in-project-area` |
 | 44 | 2026-05-03 | Float AI chat toggle so closed panel stops occupying a flex column | `2931b01` | `master` |
 | 43 | 2026-05-03 | AI工具调用用户感知 | `23a8e94` | `master` |
 | 42 | 2026-05-03 | Fix AI chat session persistence | `13c6237`, `f01a13f`, `82ec621` | `master` |

@@ -1524,3 +1524,37 @@ Diagnosed perceived right-edge white gap as the 28px .chat-toggle button claimin
 ### Next Steps
 
 - None - task complete
+
+
+## Session 45: 优化项目界面已完成任务键盘导航与虚拟化
+
+**Date**: 2026-05-05
+**Task**: 优化项目界面已完成任务键盘导航与虚拟化
+**Branch**: `feature/optimize-completed-task-display-in-project-area`
+
+### Summary
+
+为项目页面已完成任务区域添加键盘导航（ArrowUp/Down/Enter/Space/Esc）和虚拟化渲染。抽取ProjectDoneTaskList为独立组件，实现focusRegion跨区域焦点协调，修复两个列表共享TaskSelectionContext导致的选中态互相覆盖问题。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9ff000c` | (see git log) |
+| `65cc2c3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
