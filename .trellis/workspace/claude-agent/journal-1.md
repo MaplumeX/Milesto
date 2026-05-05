@@ -1557,3 +1557,36 @@ Diagnosed perceived right-edge white gap as the 28px .chat-toggle button claimin
 ### Next Steps
 
 - None - task complete
+
+
+## Session 46: AI chat rollback with side-effect journal
+
+**Date**: 2026-05-05
+**Task**: AI chat rollback with side-effect journal
+**Branch**: `feature/ai-chat-ui-optimization`
+
+### Summary
+
+Implemented AI chat rollback with composer restore, DB-backed AI mutation journaling, partial side-effect rollback conflict handling, UI conflict feedback, tests, and persistence spec updates.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `36d4d62` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 45
-- **Last Active**: 2026-05-04
+- **Total Sessions**: 46
+- **Last Active**: 2026-05-05
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1559 | Active |
+| `journal-1.md` | ~1592 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 46 | 2026-05-05 | AI chat rollback with side-effect journal | `36d4d62` | `feature/ai-chat-ui-optimization` |
 | 45 | 2026-05-04 | AI 对话零会话直接输入即创建会话 | `a31775d` | `feature/ai-chat-ui-optimization` |
 | 44 | 2026-05-03 | Float AI chat toggle so closed panel stops occupying a flex column | `2931b01` | `master` |
 | 43 | 2026-05-03 | AI工具调用用户感知 | `23a8e94` | `master` |
