@@ -1590,3 +1590,36 @@ Implemented AI chat rollback with composer restore, DB-backed AI mutation journa
 ### Next Steps
 
 - None - task complete
+
+
+## Session 47: AI对话底栏与其他界面对齐
+
+**Date**: 2026-05-05
+**Task**: AI对话底栏与其他界面对齐
+**Branch**: `feature/ai-chat-ui-optimization`
+
+### Summary
+
+修复chat-composer底栏高度与其他界面不一致的问题：添加min-height:var(--bottom-bar-height)，去掉垂直padding，改align-items为center，使单行输入时高度56px与content-bottom-bar/sidebar-bottom齐平，多行时自适应增长。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `47ca98a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
