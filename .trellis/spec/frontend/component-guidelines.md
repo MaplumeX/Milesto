@@ -170,6 +170,43 @@ useEffect(() => {
 }, [focusRegion, initialFocusIndex, selectRowByIndex, rows])
 ```
 
+### Visual mutual exclusion via render guards
+
+`is-selected` must appear on **exactly one element** at a time. Because
+`selectedTaskId` (global) and `selectedRow` (local) are retained across
+`focusRegion` transitions, a render guard is required:
+
+```tsx
+// Task row: guard with focusRegion
+const isSelected = selectedTaskId === t.id && focusRegion === 'active'
+
+// Group header: guard with focusRegion
+const isSelected = selectedRowIndex === index && focusRegion === 'active'
+```
+
+Additionally, each child list clears its local `selectedRow` when the region
+leaves, inside the same `prevFocusRegionRef` effect:
+
+```tsx
+if (prevRef.current === 'active' && focusRegion !== 'active') {
+  setSelectedRow(null)
+}
+```
+
+This avoids clearing `selectedTaskId` (which would affect sidebar and other
+consumers) while ensuring group/section headers lose their highlight.
+
+### Mouse click → focusRegion sync with source tracking
+
+Mouse clicks on task/group rows must sync `focusRegion` so the toggle button
+doesn't retain `is-selected`. However, the `prevFocusRegionRef` effect that
+auto-focuses the listbox should **not** fire for mouse-originated region changes
+(the click already placed focus on the clicked element).
+
+Solution: `setFocusRegion(region, source)` where `source` is `'keyboard'` or
+`'mouse'`. The parent stores source in a ref and passes it to children. Children
+skip `listboxRef.current?.focus()` when `focusRegionSource === 'mouse'`.
+
 ### Toggle button as navigation bridge
 
 When a collapsible section sits between two lists, the toggle button acts as a
