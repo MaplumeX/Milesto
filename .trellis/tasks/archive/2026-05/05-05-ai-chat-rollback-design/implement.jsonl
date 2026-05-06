@@ -1,0 +1,13 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend pre-development checklist and scoped guideline index for chat UI changes."}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Chat rollback controls need accessible icon/button behavior and component conventions."}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Rollback must refresh DB-backed chat/domain state and keep transient streaming state consistent."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Rollback crosses shared schemas, window API, preload, renderer, and DB worker boundaries."}
+{"file": ".trellis/spec/frontend/local-data-persistence.md", "reason": "Chat persistence and local DB behavior are central to message tail rollback."}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Renderer/main/preload boundary, accessibility, and verification expectations."}
+{"file": ".trellis/spec/server/index.md", "reason": "Server/DB-side guideline index for backend-style persistence changes."}
+{"file": ".trellis/spec/server/error-handling.md", "reason": "Rollback and conflict results must use typed Result/AppError patterns."}
+{"file": ".trellis/spec/server/sync-protocol.md", "reason": "AI side-effect rollback must behave as fresh compensating writes under sync semantics."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Feature spans UI, IPC, DB worker, AI runtime, domain actions, and sync."}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Mutation journal helpers should reuse existing DB/action patterns instead of duplicating ad hoc logic."}
+{"file": ".trellis/tasks/05-05-ai-chat-rollback-design/research/chat-rollback-ux-patterns.md", "reason": "Product/UX research for rollback, edit, regenerate, and branch trade-offs."}
+{"file": ".trellis/tasks/05-05-ai-chat-rollback-design/research/tool-side-effect-rollback.md", "reason": "Technical research and recommendation for AI tool side-effect rollback via DB mutation journal."}

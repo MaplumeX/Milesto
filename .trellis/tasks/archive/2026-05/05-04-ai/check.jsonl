@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/ai-agent-setup.md", "reason": "Verify chat IPC contracts remain intact after sendMessage signature change and zero-session creation flow."}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Verify ChatMessages component changes follow frontend guidelines."}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "Verify useChatStreaming hook changes follow hook guidelines."}
+{"file": ".trellis/tasks/05-04-ai/prd.md", "reason": "AC1–AC7 checklist from PRD."}

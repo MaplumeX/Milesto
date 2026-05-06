@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 52
+- **Total Sessions**: 58
 - **Last Active**: 2026-05-05
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1791 | Active |
+| `journal-1.md` | ~1900 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,12 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 58 | 2026-05-05 | Fix ArrowUp from completed toggle skipping group | `0b04a65` | `feature/optimize-completed-task-display-in-project-area` |
+| 57 | 2026-05-05 | Fix project page focus visual conflict | `a3b6ce9`, `508aa06` | `feature/optimize-completed-task-display-in-project-area` |
+| 56 | 2026-05-05 | 优化项目界面已完成任务键盘导航与虚拟化 | `9ff000c`, `65cc2c3` | `feature/optimize-completed-task-display-in-project-area` |
+| 55 | 2026-05-05 | AI对话底栏与其他界面对齐 | `47ca98a` | `feature/ai-chat-ui-optimization` |
+| 54 | 2026-05-05 | AI chat rollback with side-effect journal | `36d4d62` | `feature/ai-chat-ui-optimization` |
+| 53 | 2026-05-04 | AI 对话零会话直接输入即创建会话 | `a31775d` | `feature/ai-chat-ui-optimization` |
 | 52 | 2026-05-05 | Migrate remaining inline SVG icons to Lucide | `d5385ec`, `f1e4420` | `feature/ui-improve` |
 | 51 | 2026-05-05 | Replace bottom bar icons with Lucide | `6d68a0a` | `feature/ui-improve` |
 | 50 | 2026-05-04 | 项目条目显示所属领域 | `c2974d9` | `feature/ui-improve` |

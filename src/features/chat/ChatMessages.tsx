@@ -11,9 +11,16 @@ type ChatMessagesProps = {
   streamingDelta: string
   isLoading: boolean
   streamingToolCalls?: StreamingToolCall[]
+  onRollbackMessage?: (message: ChatMessage) => void
 }
 
-export function ChatMessages({ messages, streamingDelta, isLoading, streamingToolCalls = [] }: ChatMessagesProps) {
+export function ChatMessages({
+  messages,
+  streamingDelta,
+  isLoading,
+  streamingToolCalls = [],
+  onRollbackMessage,
+}: ChatMessagesProps) {
   const { t } = useTranslation()
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -47,10 +54,17 @@ export function ChatMessages({ messages, streamingDelta, isLoading, streamingToo
   return (
     <div ref={containerRef} className="chat-messages">
       {allMessages.length === 0 ? (
-        <div className="chat-empty">{t('chat.empty')}</div>
+        <div className="chat-empty">
+          <div className="chat-welcome-title">{t('chat.welcomeTitle')}</div>
+          <div className="chat-welcome-hint">{t('chat.welcomeHint')}</div>
+        </div>
       ) : (
         allMessages.map((msg) => (
-          <ChatMessageBubble key={msg.id} message={msg} />
+          <ChatMessageBubble
+            key={msg.id}
+            message={msg}
+            onRollbackMessage={msg.role === 'user' ? onRollbackMessage : undefined}
+          />
         ))
       )}
       {showStreamingToolCalls ? (
@@ -69,7 +83,14 @@ export function ChatMessages({ messages, streamingDelta, isLoading, streamingToo
   )
 }
 
-function ChatMessageBubble({ message }: { message: ChatMessage }) {
+function ChatMessageBubble({
+  message,
+  onRollbackMessage,
+}: {
+  message: ChatMessage
+  onRollbackMessage?: (message: ChatMessage) => void
+}) {
+  const { t } = useTranslation()
   const isUser = message.role === 'user'
   const isAssistant = message.role === 'assistant'
   const isTool = message.role === 'tool'
@@ -80,6 +101,17 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
       data-chat-role={message.role}
     >
       <div className="chat-message-bubble">
+        {isUser && onRollbackMessage ? (
+          <button
+            type="button"
+            className="chat-message-rollback"
+            onClick={() => onRollbackMessage(message)}
+            aria-label={t('chat.rollbackMessageAria', { content: message.content.slice(0, 40) })}
+            title={t('chat.rollbackMessage')}
+          >
+            <RollbackIcon aria-hidden="true" />
+          </button>
+        ) : null}
         {isTool ? (
           <ToolMessageContent message={message} />
         ) : isAssistant ? (
@@ -91,6 +123,25 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
         )}
       </div>
     </div>
+  )
+}
+
+function RollbackIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 16 16"
+      width="1em"
+      height="1em"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 4H2v4" />
+      <path d="M2.5 7A5.5 5.5 0 1 0 4 3.2L2 5" />
+    </svg>
   )
 }
 

@@ -1789,3 +1789,203 @@ Replaced all 8 custom inline SVG icons in the bottom bar with Lucide icon compon
 ### Next Steps
 
 - None - task complete
+
+
+## Session 53: AI 对话零会话直接输入即创建会话
+
+**Date**: 2026-05-04
+**Task**: AI 对话零会话直接输入即创建会话
+**Branch**: `feature/ai-chat-ui-optimization`
+
+### Summary
+
+实现 AI 面板零会话状态下直接输入发送即自动创建会话。包含：sendMessage 显式 sessionId 参数、零会话自动创建+回滚、ChatComposer 失败保留输入、欢迎引导界面、完整测试覆盖（18 测试通过）。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a31775d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 54: AI chat rollback with side-effect journal
+
+**Date**: 2026-05-05
+**Task**: AI chat rollback with side-effect journal
+**Branch**: `feature/ai-chat-ui-optimization`
+
+### Summary
+
+Implemented AI chat rollback with composer restore, DB-backed AI mutation journaling, partial side-effect rollback conflict handling, UI conflict feedback, tests, and persistence spec updates.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `36d4d62` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 55: AI对话底栏与其他界面对齐
+
+**Date**: 2026-05-05
+**Task**: AI对话底栏与其他界面对齐
+**Branch**: `feature/ai-chat-ui-optimization`
+
+### Summary
+
+修复chat-composer底栏高度与其他界面不一致的问题：添加min-height:var(--bottom-bar-height)，去掉垂直padding，改align-items为center，使单行输入时高度56px与content-bottom-bar/sidebar-bottom齐平，多行时自适应增长。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `47ca98a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 56: 优化项目界面已完成任务键盘导航与虚拟化
+
+**Date**: 2026-05-05
+**Task**: 优化项目界面已完成任务键盘导航与虚拟化
+**Branch**: `feature/optimize-completed-task-display-in-project-area`
+
+### Summary
+
+为项目页面已完成任务区域添加键盘导航（ArrowUp/Down/Enter/Space/Esc）和虚拟化渲染。抽取ProjectDoneTaskList为独立组件，实现focusRegion跨区域焦点协调，修复两个列表共享TaskSelectionContext导致的选中态互相覆盖问题。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9ff000c` | (see git log) |
+| `65cc2c3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 57: Fix project page focus visual conflict
+
+**Date**: 2026-05-05
+**Task**: Fix project page focus visual conflict
+**Branch**: `feature/optimize-completed-task-display-in-project-area`
+
+### Summary
+
+修复项目页面 is-selected 视觉冲突：添加渲染层 focusRegion 守卫实现严格互斥，子组件区域离开时清 selectedRow，鼠标点击同步 focusRegion 并通过 source 参数避免抢焦点，更新 cross-region navigation spec 补充互斥和 source 追踪模式
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a3b6ce9` | (see git log) |
+| `508aa06` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 58: Fix ArrowUp from completed toggle skipping group
+
+**Date**: 2026-05-05
+**Task**: Fix ArrowUp from completed toggle skipping group
+**Branch**: `feature/optimize-completed-task-display-in-project-area`
+
+### Summary
+
+Fixed keyboard navigation bug where pressing ArrowUp from completed toggle jumped to a task instead of the nearest group. Added initialFocusIndex prop to ProjectGroupedList and skip fallback selection when just entering active region.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0b04a65` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -61,6 +61,42 @@ function migrate(db: Database.Database) {
     `)
   }
 
+  function ensureAiChatJournalSchema() {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ai_chat_effect_batches (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        user_message_id TEXT NOT NULL,
+        run_message_id TEXT NOT NULL,
+        tool_name TEXT NOT NULL,
+        tool_call_id TEXT,
+        action TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        reverted_at TEXT,
+        rollback_chat_message_id TEXT,
+        FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_message_id) REFERENCES chat_messages(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS ai_chat_effect_rows (
+        id TEXT PRIMARY KEY,
+        batch_id TEXT NOT NULL,
+        order_index INTEGER NOT NULL,
+        table_name TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        before_json TEXT,
+        after_json TEXT,
+        operation TEXT NOT NULL,
+        FOREIGN KEY (batch_id) REFERENCES ai_chat_effect_batches(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_ai_chat_effect_batches_user_message
+        ON ai_chat_effect_batches(user_message_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_ai_chat_effect_rows_batch_order
+        ON ai_chat_effect_rows(batch_id, order_index);
+    `)
+  }
+
   if (userVersion < 1) {
     db.exec(`
       CREATE TABLE IF NOT EXISTS areas (
@@ -486,6 +522,12 @@ function migrate(db: Database.Database) {
     db.pragma('user_version = 12')
   }
 
+  if (userVersion < 13) {
+    // v13: AI chat tool mutation journal for side-effect rollback.
+    ensureAiChatJournalSchema()
+    db.pragma('user_version = 13')
+  }
+
   // Defensive: some environments may have user_version >= 12 but be missing
   // chat tables/indexes from a partially applied dev migration.
   if (!hasTable('chat_sessions') || !hasTable('chat_messages')) {
@@ -497,6 +539,10 @@ function migrate(db: Database.Database) {
       CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated
         ON chat_sessions(updated_at DESC);
     `)
+  }
+
+  if (!hasTable('ai_chat_effect_batches') || !hasTable('ai_chat_effect_rows')) {
+    ensureAiChatJournalSchema()
   }
 
   // Defensive: some dev environments may have an inconsistent schema

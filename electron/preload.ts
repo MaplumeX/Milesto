@@ -199,6 +199,8 @@ const api: WindowApi = {
     renameSession: (id, title) => invoke('db:chat.renameSession', { id, title }),
     deleteSession: (id) => invoke('db:chat.deleteSession', { id }),
     listMessages: (sessionId) => invoke('db:chat.listMessages', { session_id: sessionId }),
+    rollbackToMessage: (sessionId, messageId) =>
+      invoke('chat:rollbackToMessage', { session_id: sessionId, message_id: messageId }),
 
     send: (sessionId, content) => invoke('chat:send', { sessionId, content }),
     abort: (messageId) => invoke('chat:abort', { messageId }),
