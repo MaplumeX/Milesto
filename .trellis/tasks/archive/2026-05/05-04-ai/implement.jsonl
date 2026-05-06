@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/ai-agent-setup.md", "reason": "Chat streaming contract, IPC signatures, and renderer state contract — must be preserved when modifying sendMessage behavior and session creation flow."}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "ChatMessages zero-state component changes must follow component guidelines."}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "useChatStreaming hook changes must follow hook guidelines (signature stability, refs, etc.)."}
+{"file": ".trellis/tasks/05-04-ai/prd.md", "reason": "MVP requirements and acceptance criteria for this task."}

@@ -8,15 +8,33 @@ import type { ConfirmGate } from '../confirm-gate'
 export type ProjectToolCallbacks = {
   onBumpRevision: () => void
   confirmGate: ConfirmGate
+  aiContext?: {
+    sessionId: string
+    userMessageId: string
+    runMessageId: string
+  }
 }
 
 export function makeProjectTools(db: DbWorkerClient, callbacks: ProjectToolCallbacks) {
   const { onBumpRevision, confirmGate } = callbacks
+  const requestMutation = (toolName: string, action: string, payload: unknown) => {
+    if (!callbacks.aiContext) return db.request(action, payload)
+    return db.request('aiChat.runMutation', {
+      context: {
+        session_id: callbacks.aiContext.sessionId,
+        user_message_id: callbacks.aiContext.userMessageId,
+        run_message_id: callbacks.aiContext.runMessageId,
+        tool_name: toolName,
+      },
+      action,
+      payload,
+    })
+  }
 
   return [
     tool(
       async ({ title, areaId, notes, scheduledAt, dueAt, isSomeday }) => {
-        const result = await db.request('project.create', {
+        const result = await requestMutation('project_create', 'project.create', {
           title,
           area_id: areaId ?? null,
           notes: notes ?? '',
@@ -47,7 +65,7 @@ export function makeProjectTools(db: DbWorkerClient, callbacks: ProjectToolCallb
 
     tool(
       async ({ id, title, notes, areaId, scheduledAt, dueAt, isSomeday }) => {
-        const result = await db.request('project.update', {
+        const result = await requestMutation('project_update', 'project.update', {
           id,
           title,
           notes,
@@ -88,7 +106,7 @@ export function makeProjectTools(db: DbWorkerClient, callbacks: ProjectToolCallb
         const approved = await confirmGate('project.complete', `完成项目 "${detailData.project.title}"`)
         if (!approved) return '用户拒绝完成项目。'
 
-        const result = await db.request('project.complete', { id })
+        const result = await requestMutation('project_complete', 'project.complete', { id })
         if (result.ok) onBumpRevision()
         const data = result.ok ? (result.data as { tasks_completed: number }) : null
         const description = data
@@ -115,7 +133,7 @@ export function makeProjectTools(db: DbWorkerClient, callbacks: ProjectToolCallb
         const approved = await confirmGate('project.cancel', `取消项目 "${detailData.project.title}"`)
         if (!approved) return '用户拒绝取消项目。'
 
-        const result = await db.request('project.cancel', { id })
+        const result = await requestMutation('project_cancel', 'project.cancel', { id })
         if (result.ok) onBumpRevision()
         const data = result.ok ? (result.data as { tasks_completed: number }) : null
         const description = data
@@ -142,7 +160,7 @@ export function makeProjectTools(db: DbWorkerClient, callbacks: ProjectToolCallb
         const approved = await confirmGate('project.delete', `删除项目 "${detailData.project.title}"`)
         if (!approved) return '用户拒绝删除项目。'
 
-        const result = await db.request('project.delete', { id })
+        const result = await requestMutation('project_delete', 'project.delete', { id })
         if (result.ok) onBumpRevision()
         const description = result.ok
           ? `已删除项目 "${detailData.project.title}"（已移至回收站）`
@@ -160,7 +178,7 @@ export function makeProjectTools(db: DbWorkerClient, callbacks: ProjectToolCallb
 
     tool(
       async ({ projectId, tagIds }) => {
-        const result = await db.request('project.setTags', { project_id: projectId, tag_ids: tagIds })
+        const result = await requestMutation('project_setTags', 'project.setTags', { project_id: projectId, tag_ids: tagIds })
         if (result.ok) onBumpRevision()
         const description = result.ok
           ? `已设置项目标签（ID: ${projectId}）`
@@ -179,7 +197,7 @@ export function makeProjectTools(db: DbWorkerClient, callbacks: ProjectToolCallb
 
     tool(
       async ({ projectId, title }) => {
-        const result = await db.request('project.section.create', { project_id: projectId, title })
+        const result = await requestMutation('project_createSection', 'project.section.create', { project_id: projectId, title })
         if (result.ok) onBumpRevision()
         const data = result.ok ? (result.data as { id: string }) : null
         const description = data
@@ -199,7 +217,7 @@ export function makeProjectTools(db: DbWorkerClient, callbacks: ProjectToolCallb
 
     tool(
       async ({ id, title }) => {
-        const result = await db.request('project.section.rename', { id, title })
+        const result = await requestMutation('project_renameSection', 'project.section.rename', { id, title })
         if (result.ok) onBumpRevision()
         const description = result.ok
           ? `已重命名分区为 "${title}"（ID: ${id}）`
@@ -222,7 +240,7 @@ export function makeProjectTools(db: DbWorkerClient, callbacks: ProjectToolCallb
         const approved = await confirmGate('project.deleteSection', `删除项目分区（ID: ${id}）`)
         if (!approved) return '用户拒绝删除项目分区。'
 
-        const result = await db.request('project.section.delete', { id })
+        const result = await requestMutation('project_deleteSection', 'project.section.delete', { id })
         if (result.ok) onBumpRevision()
         const description = result.ok
           ? `已删除项目分区（ID: ${id}）`

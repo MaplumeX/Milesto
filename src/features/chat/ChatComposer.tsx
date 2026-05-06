@@ -1,29 +1,47 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '../../components/Button'
 
 type ChatComposerProps = {
-  onSend: (content: string) => void
+  onSend: (content: string) => void | Promise<void>
   isLoading: boolean
   onAbort: () => void
   disabled?: boolean
   disabledHint?: string
+  draftRestore?: {
+    revision: number
+    value: string
+  }
 }
 
-export function ChatComposer({ onSend, isLoading, onAbort, disabled, disabledHint }: ChatComposerProps) {
+export function ChatComposer({ onSend, isLoading, onAbort, disabled, disabledHint, draftRestore }: ChatComposerProps) {
   const { t } = useTranslation()
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const handleSend = useCallback(() => {
+  useEffect(() => {
+    if (!draftRestore) return
+    setValue(draftRestore.value)
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`
+    el.focus()
+  }, [draftRestore])
+
+  const handleSend = useCallback(async () => {
     const trimmed = value.trim()
     if (!trimmed || isLoading || disabled) return
-    onSend(trimmed)
-    setValue('')
-    // Reset textarea height
-    const el = textareaRef.current
-    if (el) el.style.height = 'auto'
+    try {
+      await onSend(trimmed)
+      setValue('')
+      // Reset textarea height
+      const el = textareaRef.current
+      if (el) el.style.height = 'auto'
+    } catch {
+      // 保留输入内容，让用户重试
+    }
   }, [value, isLoading, disabled, onSend])
 
   const handleKeyDown = useCallback(
