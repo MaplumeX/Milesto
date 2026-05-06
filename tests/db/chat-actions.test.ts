@@ -6,6 +6,7 @@ import path from 'node:path'
 
 import { initDb } from '../../electron/workers/db/db-bootstrap'
 import { createChatActions } from '../../electron/workers/db/actions/chat-actions'
+import { buildDbHandlers } from '../../electron/workers/db/db-handlers'
 import { createTestDb } from './db-test-helper'
 
 describe('chat actions', () => {
@@ -21,6 +22,12 @@ describe('chat actions', () => {
     const { db, cleanup } = await createTestDb()
     cleanupDb = cleanup
     return { db, actions: createChatActions(db) }
+  }
+
+  async function setupHandlers() {
+    const { db, cleanup } = await createTestDb()
+    cleanupDb = cleanup
+    return { db, actions: buildDbHandlers(db) }
   }
 
   it('keeps sessions and messages after reopening the same database file', async () => {
@@ -72,6 +79,8 @@ describe('chat actions', () => {
     }
 
     db.exec(`
+      DROP TABLE ai_chat_effect_rows;
+      DROP TABLE ai_chat_effect_batches;
       DROP TABLE chat_messages;
       DROP TABLE chat_sessions;
       PRAGMA user_version = 12;
@@ -304,6 +313,248 @@ describe('chat actions', () => {
     expect(res.ok).toBe(false)
     if (res.ok) return
     expect(res.error.code).toBe('NOT_FOUND')
+  })
+
+  it('rolls back a session-scoped message tail and returns the restored prompt', async () => {
+    const { actions } = await setup()
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+    const a = actions['chat.createSession']({ title: 'A' })
+    const b = actions['chat.createSession']({ title: 'B' })
+    expect(a.ok && b.ok).toBe(true)
+    if (!a.ok || !b.ok) return
+    const sessionA = (a.data as { id: string }).id
+    const sessionB = (b.data as { id: string }).id
+
+    const a1 = actions['chat.insertMessage']({ session_id: sessionA, role: 'user', content: 'keep' })
+    await sleep(2)
+    const a2 = actions['chat.insertMessage']({ session_id: sessionA, role: 'assistant', content: 'kept answer' })
+    await sleep(2)
+    const a3 = actions['chat.insertMessage']({ session_id: sessionA, role: 'user', content: 'revise me' })
+    await sleep(2)
+    const a4 = actions['chat.insertMessage']({ session_id: sessionA, role: 'assistant', content: 'remove me' })
+    const b1 = actions['chat.insertMessage']({ session_id: sessionB, role: 'user', content: 'other session' })
+    expect(a1.ok && a2.ok && a3.ok && a4.ok && b1.ok).toBe(true)
+    if (!a3.ok) return
+
+    const rollback = actions['chat.rollbackToMessage']({
+      session_id: sessionA,
+      message_id: (a3.data as { id: string }).id,
+    })
+    expect(rollback.ok).toBe(true)
+    if (!rollback.ok) return
+    expect(rollback.data).toEqual(expect.objectContaining({
+      restored_prompt: 'revise me',
+      deleted_message_count: 2,
+      conflict_count: 0,
+    }))
+
+    const listA = actions['chat.listMessages']({ session_id: sessionA })
+    const listB = actions['chat.listMessages']({ session_id: sessionB })
+    expect(listA.ok && listB.ok).toBe(true)
+    if (!listA.ok || !listB.ok) return
+    expect((listA.data as Array<{ content: string }>).map((m) => m.content)).toEqual(['keep', 'kept answer'])
+    expect((listB.data as Array<{ content: string }>).map((m) => m.content)).toEqual(['other session'])
+  })
+
+  it('rolls back same-timestamp messages by insertion order instead of id order', async () => {
+    const { actions, db } = await setup()
+
+    const created = actions['chat.createSession']({ title: 'Same timestamp' })
+    expect(created.ok).toBe(true)
+    if (!created.ok) return
+    const sessionId = (created.data as { id: string }).id
+    const sameTimestamp = '2026-01-01T00:00:00.000Z'
+
+    db.prepare(
+      `INSERT INTO chat_messages (id, session_id, role, content, tool_calls, tool_call_id, created_at)
+       VALUES (?, ?, ?, ?, NULL, NULL, ?)`
+    ).run('01999999-9999-7999-9000-000000000000', sessionId, 'user', 'keep', sameTimestamp)
+    db.prepare(
+      `INSERT INTO chat_messages (id, session_id, role, content, tool_calls, tool_call_id, created_at)
+       VALUES (?, ?, ?, ?, NULL, NULL, ?)`
+    ).run('01999999-9999-7999-ffff-000000000000', sessionId, 'user', 'revise me', sameTimestamp)
+    db.prepare(
+      `INSERT INTO chat_messages (id, session_id, role, content, tool_calls, tool_call_id, created_at)
+       VALUES (?, ?, ?, ?, NULL, NULL, ?)`
+    ).run('01999999-9999-7999-1000-000000000000', sessionId, 'assistant', 'remove me', sameTimestamp)
+
+    const rollback = actions['chat.rollbackToMessage']({
+      session_id: sessionId,
+      message_id: '01999999-9999-7999-ffff-000000000000',
+    })
+    expect(rollback.ok).toBe(true)
+    if (!rollback.ok) return
+    expect(rollback.data).toEqual(expect.objectContaining({
+      restored_prompt: 'revise me',
+      deleted_message_count: 2,
+    }))
+
+    const list = actions['chat.listMessages']({ session_id: sessionId })
+    expect(list.ok).toBe(true)
+    if (!list.ok) return
+    expect((list.data as Array<{ content: string }>).map((m) => m.content)).toEqual(['keep'])
+  })
+
+  it('returns typed errors for missing rollback session and message', async () => {
+    const { actions } = await setup()
+    const missingSession = actions['chat.rollbackToMessage']({
+      session_id: '01999999-9999-7999-9999-999999999991',
+      message_id: '01999999-9999-7999-9999-999999999992',
+    })
+    expect(missingSession.ok).toBe(false)
+    if (missingSession.ok) return
+    expect(missingSession.error.code).toBe('NOT_FOUND')
+
+    const created = actions['chat.createSession']({ title: 'A' })
+    expect(created.ok).toBe(true)
+    if (!created.ok) return
+    const missingMessage = actions['chat.rollbackToMessage']({
+      session_id: (created.data as { id: string }).id,
+      message_id: '01999999-9999-7999-9999-999999999993',
+    })
+    expect(missingMessage.ok).toBe(false)
+    if (missingMessage.ok) return
+    expect(missingMessage.error.code).toBe('NOT_FOUND')
+  })
+
+  it('journals AI-created task effects and soft-deletes them on chat rollback', async () => {
+    const { db, actions } = await setupHandlers()
+
+    const created = actions['chat.createSession']({ title: 'AI' })
+    expect(created.ok).toBe(true)
+    if (!created.ok) return
+    const sessionId = (created.data as { id: string }).id
+    const user = actions['chat.insertMessage']({ session_id: sessionId, role: 'user', content: 'create a task' })
+    expect(user.ok).toBe(true)
+    if (!user.ok) return
+    const userMessageId = (user.data as { id: string }).id
+
+    const mutation = actions['aiChat.runMutation']({
+      context: {
+        session_id: sessionId,
+        user_message_id: userMessageId,
+        run_message_id: 'run-1',
+        tool_name: 'task_create',
+      },
+      action: 'task.create',
+      payload: { title: 'AI task', notes: '', is_inbox: true },
+    })
+    expect(mutation.ok).toBe(true)
+    if (!mutation.ok) return
+    const taskId = (mutation.data as { id: string }).id
+
+    const journalCount = db
+      .prepare('SELECT COUNT(*) AS c FROM ai_chat_effect_rows')
+      .get() as { c: number }
+    expect(journalCount.c).toBeGreaterThan(0)
+
+    const rollback = actions['chat.rollbackToMessage']({ session_id: sessionId, message_id: userMessageId })
+    expect(rollback.ok).toBe(true)
+    if (!rollback.ok) return
+    expect(rollback.data).toEqual(expect.objectContaining({
+      reverted_effect_count: 1,
+      conflict_count: 0,
+    }))
+
+    const taskRow = db
+      .prepare('SELECT deleted_at FROM tasks WHERE id = ?')
+      .get(taskId) as { deleted_at: string | null }
+    expect(taskRow.deleted_at).toEqual(expect.any(String))
+  })
+
+  it('partially rolls back non-conflicting AI effects and reports later-edit conflicts', async () => {
+    const { db, actions } = await setupHandlers()
+
+    const created = actions['chat.createSession']({ title: 'AI' })
+    expect(created.ok).toBe(true)
+    if (!created.ok) return
+    const sessionId = (created.data as { id: string }).id
+    const user = actions['chat.insertMessage']({ session_id: sessionId, role: 'user', content: 'create tasks' })
+    expect(user.ok).toBe(true)
+    if (!user.ok) return
+    const userMessageId = (user.data as { id: string }).id
+
+    const createOne = actions['aiChat.runMutation']({
+      context: { session_id: sessionId, user_message_id: userMessageId, run_message_id: 'run-1', tool_name: 'task_create' },
+      action: 'task.create',
+      payload: { title: 'Rollback me', notes: '', is_inbox: true },
+    })
+    const createTwo = actions['aiChat.runMutation']({
+      context: { session_id: sessionId, user_message_id: userMessageId, run_message_id: 'run-1', tool_name: 'task_create' },
+      action: 'task.create',
+      payload: { title: 'Keep my edit', notes: '', is_inbox: true },
+    })
+    expect(createOne.ok && createTwo.ok).toBe(true)
+    if (!createOne.ok || !createTwo.ok) return
+    const rollbackTaskId = (createOne.data as { id: string }).id
+    const conflictTaskId = (createTwo.data as { id: string }).id
+
+    db.prepare(
+      `UPDATE tasks
+       SET title = 'Manual edit', updated_at = '2999-01-01T00:00:00.000Z'
+       WHERE id = ?`
+    ).run(conflictTaskId)
+
+    const rollback = actions['chat.rollbackToMessage']({ session_id: sessionId, message_id: userMessageId })
+    expect(rollback.ok).toBe(true)
+    if (!rollback.ok) return
+    expect(rollback.data).toEqual(expect.objectContaining({
+      reverted_effect_count: 1,
+      conflict_count: 1,
+    }))
+
+    const reverted = db
+      .prepare('SELECT deleted_at FROM tasks WHERE id = ?')
+      .get(rollbackTaskId) as { deleted_at: string | null }
+    const conflicted = db
+      .prepare('SELECT title, deleted_at FROM tasks WHERE id = ?')
+      .get(conflictTaskId) as { title: string; deleted_at: string | null }
+    expect(reverted.deleted_at).toEqual(expect.any(String))
+    expect(conflicted).toEqual({ title: 'Manual edit', deleted_at: null })
+  })
+
+  it('rolls back multiple AI effects on the same row without treating rollback timestamps as conflicts', async () => {
+    const { db, actions } = await setupHandlers()
+
+    const created = actions['chat.createSession']({ title: 'AI' })
+    expect(created.ok).toBe(true)
+    if (!created.ok) return
+    const sessionId = (created.data as { id: string }).id
+    const user = actions['chat.insertMessage']({ session_id: sessionId, role: 'user', content: 'create then edit' })
+    expect(user.ok).toBe(true)
+    if (!user.ok) return
+    const userMessageId = (user.data as { id: string }).id
+
+    const create = actions['aiChat.runMutation']({
+      context: { session_id: sessionId, user_message_id: userMessageId, run_message_id: 'run-1', tool_name: 'task_create' },
+      action: 'task.create',
+      payload: { title: 'First title', notes: '', is_inbox: true },
+    })
+    expect(create.ok).toBe(true)
+    if (!create.ok) return
+    const taskId = (create.data as { id: string }).id
+
+    const update = actions['aiChat.runMutation']({
+      context: { session_id: sessionId, user_message_id: userMessageId, run_message_id: 'run-1', tool_name: 'task_update' },
+      action: 'task.update',
+      payload: { id: taskId, title: 'Second title' },
+    })
+    expect(update.ok).toBe(true)
+
+    const rollback = actions['chat.rollbackToMessage']({ session_id: sessionId, message_id: userMessageId })
+    expect(rollback.ok).toBe(true)
+    if (!rollback.ok) return
+    expect(rollback.data).toEqual(expect.objectContaining({
+      reverted_effect_count: 2,
+      conflict_count: 0,
+    }))
+
+    const taskRow = db
+      .prepare('SELECT title, deleted_at FROM tasks WHERE id = ?')
+      .get(taskId) as { title: string; deleted_at: string | null }
+    expect(taskRow.title).toBe('First title')
+    expect(taskRow.deleted_at).toEqual(expect.any(String))
   })
 
   it('rejects invalid payloads with VALIDATION_FAILED', async () => {

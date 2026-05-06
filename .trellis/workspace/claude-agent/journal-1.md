@@ -1524,3 +1524,102 @@ Diagnosed perceived right-edge white gap as the 28px .chat-toggle button claimin
 ### Next Steps
 
 - None - task complete
+
+
+## Session 45: AI 对话零会话直接输入即创建会话
+
+**Date**: 2026-05-04
+**Task**: AI 对话零会话直接输入即创建会话
+**Branch**: `feature/ai-chat-ui-optimization`
+
+### Summary
+
+实现 AI 面板零会话状态下直接输入发送即自动创建会话。包含：sendMessage 显式 sessionId 参数、零会话自动创建+回滚、ChatComposer 失败保留输入、欢迎引导界面、完整测试覆盖（18 测试通过）。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a31775d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 46: AI chat rollback with side-effect journal
+
+**Date**: 2026-05-05
+**Task**: AI chat rollback with side-effect journal
+**Branch**: `feature/ai-chat-ui-optimization`
+
+### Summary
+
+Implemented AI chat rollback with composer restore, DB-backed AI mutation journaling, partial side-effect rollback conflict handling, UI conflict feedback, tests, and persistence spec updates.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `36d4d62` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 47: AI对话底栏与其他界面对齐
+
+**Date**: 2026-05-05
+**Task**: AI对话底栏与其他界面对齐
+**Branch**: `feature/ai-chat-ui-optimization`
+
+### Summary
+
+修复chat-composer底栏高度与其他界面不一致的问题：添加min-height:var(--bottom-bar-height)，去掉垂直padding，改align-items为center，使单行输入时高度56px与content-bottom-bar/sidebar-bottom齐平，多行时自适应增长。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `47ca98a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

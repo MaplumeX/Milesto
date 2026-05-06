@@ -1,0 +1,12 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Check agent should verify frontend guideline coverage for chat UI changes."}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Verify accessible rollback controls, composition, and CSS/component conventions."}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Verify rollback state refresh, stream clearing, and DB-backed state consistency."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Verify shared schemas/window API/preload/main types stay aligned."}
+{"file": ".trellis/spec/frontend/local-data-persistence.md", "reason": "Verify chat persistence and local data behavior."}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Verify tests, accessibility, and renderer/main boundary quality."}
+{"file": ".trellis/spec/server/index.md", "reason": "Check backend-style DB worker changes against server guidelines."}
+{"file": ".trellis/spec/server/error-handling.md", "reason": "Verify rollback errors/conflicts use typed Result/AppError shapes."}
+{"file": ".trellis/spec/server/sync-protocol.md", "reason": "Verify compensating rollback writes do not violate sync timestamp semantics."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Verify cross-layer data flow from UI through AI runtime and DB worker."}
+{"file": ".trellis/tasks/05-05-ai-chat-rollback-design/research/chat-rollback-ux-patterns.md", "reason": "Verify implementation matches selected rollback-and-composer-restore UX."}
+{"file": ".trellis/tasks/05-05-ai-chat-rollback-design/research/tool-side-effect-rollback.md", "reason": "Verify mutation journal and partial conflict behavior match researched design."}

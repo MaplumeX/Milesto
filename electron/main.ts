@@ -32,6 +32,8 @@ import {
   AiConfigSchema,
   ChatMessageListInputSchema,
   ChatMessageSchema,
+  ChatRollbackInputSchema,
+  ChatRollbackResultSchema,
   ChatSessionCreateInputSchema,
   ChatSessionIdInputSchema,
   ChatSessionRenameInputSchema,
@@ -1155,6 +1157,12 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     ChatMessageListInputSchema,
     z.array(ChatMessageSchema)
   )
+  handleDb(
+    'db:chat.rollbackToMessage',
+    'chat.rollbackToMessage',
+    ChatRollbackInputSchema,
+    ChatRollbackResultSchema
+  )
 
   // Chat streaming IPC handlers (PR2 + PR3)
   const ChatSendPayloadSchema = z.object({ sessionId: z.string().uuid(), content: z.string().min(1) })
@@ -1207,6 +1215,41 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
     }
 
     return ResultVoidSchema.parse(ok(undefined))
+  })
+
+  ipcMain.handle('chat:rollbackToMessage', async (event, payload) => {
+    const senderErr = ensureTrustedSender(event)
+    if (senderErr) return resultSchema(ChatRollbackResultSchema).parse(err(senderErr))
+
+    const parsedPayload = ChatRollbackInputSchema.safeParse(payload)
+    if (!parsedPayload.success) {
+      return resultSchema(ChatRollbackResultSchema).parse(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Invalid payload.',
+          details: { issues: parsedPayload.error.issues },
+        })
+      )
+    }
+
+    const rollbackRes = await dbWorker.request('chat.rollbackToMessage', parsedPayload.data)
+    if (!rollbackRes.ok) {
+      return resultSchema(ChatRollbackResultSchema).parse(err(rollbackRes.error))
+    }
+
+    const parsedResult = ChatRollbackResultSchema.safeParse(rollbackRes.data)
+    if (!parsedResult.success) {
+      return resultSchema(ChatRollbackResultSchema).parse(
+        err({
+          code: 'DB_INVALID_RETURN',
+          message: 'Invalid chat rollback result from DB.',
+          details: { issues: parsedResult.error.issues },
+        })
+      )
+    }
+
+    broadcastSyncDataChanged()
+    return resultSchema(ChatRollbackResultSchema).parse(ok(parsedResult.data))
   })
 
   ipcMain.handle('chat:send', async (event, payload) => {
@@ -1293,17 +1336,27 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
 
     // Persist the current user message after history is assembled. The runtime
     // appends the current HumanMessage itself, so history must not include it.
-    try {
-      await dbWorker.request('chat.insertMessage', {
-        session_id: sessionId,
-        role: 'user',
-        content,
-        tool_calls: null,
-        tool_call_id: null,
-      })
-    } catch (err) {
-      console.error('[chat] failed to persist user message:', err)
+    const userMessageRes = await dbWorker.request('chat.insertMessage', {
+      session_id: sessionId,
+      role: 'user',
+      content,
+      tool_calls: null,
+      tool_call_id: null,
+    })
+    if (!userMessageRes.ok) {
+      return ChatSendResultSchema.parse(err(userMessageRes.error))
     }
+    const parsedUserMessage = ChatMessageSchema.safeParse(userMessageRes.data)
+    if (!parsedUserMessage.success) {
+      return ChatSendResultSchema.parse(
+        err({
+          code: 'DB_INVALID_RETURN',
+          message: 'Invalid persisted user message from DB.',
+          details: { issues: parsedUserMessage.error.issues },
+        })
+      )
+    }
+    const persistedUserMessageId = parsedUserMessage.data.id
 
     let resolveRunConfirm: (messageId: string, approve: boolean) => boolean = () => false
     const runConfirmGate = createConfirmGate({
@@ -1322,10 +1375,20 @@ function registerIpcHandlers(dbWorker: DbWorkerClient) {
       ...makeTaskWriteTools(dbWorker, {
         onBumpRevision: broadcastSyncDataChanged,
         confirmGate: runConfirmGate.confirmGate,
+        aiContext: {
+          sessionId,
+          userMessageId: persistedUserMessageId,
+          runMessageId: messageId,
+        },
       }),
       ...makeProjectTools(dbWorker, {
         onBumpRevision: broadcastSyncDataChanged,
         confirmGate: runConfirmGate.confirmGate,
+        aiContext: {
+          sessionId,
+          userMessageId: persistedUserMessageId,
+          runMessageId: messageId,
+        },
       }),
       ...makeAreaTools(dbWorker),
       ...makeTagTools(dbWorker),

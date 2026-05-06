@@ -3617,9 +3617,19 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 
 .chat-empty {
   text-align: center;
-  color: var(--muted);
-  font-size: 12px;
   padding: 40px 0;
+}
+
+.chat-welcome-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.chat-welcome-hint {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .chat-message {
@@ -3645,6 +3655,7 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
   font-size: 13px;
   line-height: 1.5;
   word-break: break-word;
+  position: relative;
 }
 
 .chat-message.is-user .chat-message-bubble {
@@ -3670,6 +3681,37 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 
 .chat-message-text {
   white-space: pre-wrap;
+}
+
+.chat-message-rollback {
+  position: absolute;
+  left: -28px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  box-shadow: 0 1px 0 var(--shadow);
+}
+
+.chat-message.is-user:hover .chat-message-rollback,
+.chat-message-rollback:focus-visible {
+  opacity: 1;
+  border-color: var(--border);
+}
+
+.chat-message-rollback:hover {
+  color: var(--text);
+  background: var(--wash);
 }
 
 /* Tool message */
@@ -3787,10 +3829,11 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 /* Chat Composer */
 .chat-composer {
   flex: none;
-  padding: 10px 12px;
+  min-height: var(--bottom-bar-height);
+  padding: 0 12px;
   border-top: 1px solid var(--border);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 8px;
   background: var(--content-edge-bg);
 }
@@ -3872,6 +3915,25 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 
 .chat-error-dismiss:hover {
   background: var(--danger-border);
+}
+
+.chat-rollback-conflicts {
+  flex: none;
+  margin: 8px 12px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--wash);
+  color: var(--text);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chat-rollback-conflicts-message {
+  min-width: 0;
 }
 
 /* Chat Confirm Dialog */
