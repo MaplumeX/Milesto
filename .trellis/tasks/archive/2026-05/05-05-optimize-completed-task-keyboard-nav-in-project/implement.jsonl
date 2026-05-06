@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend spec index, references all guideline files"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Component structure, props conventions, accessibility patterns, CSS class conventions"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Requires virtualization for long task lists, keyboard-first accessibility, forbidden patterns"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "State ownership patterns — focusRegion state placement guidance"}

@@ -1623,3 +1623,104 @@ Implemented AI chat rollback with composer restore, DB-backed AI mutation journa
 ### Next Steps
 
 - None - task complete
+
+
+## Session 48: 优化项目界面已完成任务键盘导航与虚拟化
+
+**Date**: 2026-05-05
+**Task**: 优化项目界面已完成任务键盘导航与虚拟化
+**Branch**: `feature/optimize-completed-task-display-in-project-area`
+
+### Summary
+
+为项目页面已完成任务区域添加键盘导航（ArrowUp/Down/Enter/Space/Esc）和虚拟化渲染。抽取ProjectDoneTaskList为独立组件，实现focusRegion跨区域焦点协调，修复两个列表共享TaskSelectionContext导致的选中态互相覆盖问题。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9ff000c` | (see git log) |
+| `65cc2c3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 49: Fix project page focus visual conflict
+
+**Date**: 2026-05-05
+**Task**: Fix project page focus visual conflict
+**Branch**: `feature/optimize-completed-task-display-in-project-area`
+
+### Summary
+
+修复项目页面 is-selected 视觉冲突：添加渲染层 focusRegion 守卫实现严格互斥，子组件区域离开时清 selectedRow，鼠标点击同步 focusRegion 并通过 source 参数避免抢焦点，更新 cross-region navigation spec 补充互斥和 source 追踪模式
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a3b6ce9` | (see git log) |
+| `508aa06` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 50: Fix ArrowUp from completed toggle skipping group
+
+**Date**: 2026-05-05
+**Task**: Fix ArrowUp from completed toggle skipping group
+**Branch**: `feature/optimize-completed-task-display-in-project-area`
+
+### Summary
+
+Fixed keyboard navigation bug where pressing ArrowUp from completed toggle jumped to a task instead of the nearest group. Added initialFocusIndex prop to ProjectGroupedList and skip fallback selection when just entering active region.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0b04a65` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -128,6 +128,105 @@ import { Button } from '@/components/Button'
 
 ---
 
+## Cross-Region Keyboard Navigation
+
+When a page contains multiple independent virtualized lists that should form a
+single keyboard navigation space (e.g., active tasks → toggle → completed tasks),
+use the **focusRegion coordination pattern**:
+
+### Pattern: focusRegion + onNavigateOut + prevRef transition detection
+
+1. **Parent component** owns a `focusRegion` state (`'active' | 'toggle' | 'done'`, etc.)
+   and an `initialFocusIndex`.
+2. **Each child list** handles ArrowUp/Down internally and calls
+   `onNavigateOut('up' | 'down')` when it reaches a boundary.
+3. **Parent** shifts `focusRegion` and sets `initialFocusIndex` in response.
+4. **Child lists** use a `prevFocusRegionRef` to detect transitions and
+   restore focus only when the region *changes to them*, not on every re-render.
+
+### Why prevFocusRegionRef
+
+A naive effect that depends on `focusRegion`, `selectRowByIndex`, `rows`, etc.
+will fire on every data change, resetting focus to the first row and overriding
+the `lastSelectedIndexRef` fallback pattern used after Space-restore.
+
+```tsx
+// Correct: transition detection — fires once per region change
+const prevRef = useRef(focusRegion)
+useEffect(() => {
+  if (focusRegion === 'done' && prevRef.current !== 'done') {
+    selectRowByIndex(initialFocusIndex ?? 0)
+    listboxRef.current?.focus()
+  }
+  prevRef.current = focusRegion
+}, [focusRegion, initialFocusIndex])
+
+// Wrong: fires on every rows/selectRowByIndex change
+useEffect(() => {
+  if (focusRegion === 'done') {
+    selectRowByIndex(initialFocusIndex ?? 0)
+    listboxRef.current?.focus()
+  }
+}, [focusRegion, initialFocusIndex, selectRowByIndex, rows])
+```
+
+### Visual mutual exclusion via render guards
+
+`is-selected` must appear on **exactly one element** at a time. Because
+`selectedTaskId` (global) and `selectedRow` (local) are retained across
+`focusRegion` transitions, a render guard is required:
+
+```tsx
+// Task row: guard with focusRegion
+const isSelected = selectedTaskId === t.id && focusRegion === 'active'
+
+// Group header: guard with focusRegion
+const isSelected = selectedRowIndex === index && focusRegion === 'active'
+```
+
+Additionally, each child list clears its local `selectedRow` when the region
+leaves, inside the same `prevFocusRegionRef` effect:
+
+```tsx
+if (prevRef.current === 'active' && focusRegion !== 'active') {
+  setSelectedRow(null)
+}
+```
+
+This avoids clearing `selectedTaskId` (which would affect sidebar and other
+consumers) while ensuring group/section headers lose their highlight.
+
+### Mouse click → focusRegion sync with source tracking
+
+Mouse clicks on task/group rows must sync `focusRegion` so the toggle button
+doesn't retain `is-selected`. However, the `prevFocusRegionRef` effect that
+auto-focuses the listbox should **not** fire for mouse-originated region changes
+(the click already placed focus on the clicked element).
+
+Solution: `setFocusRegion(region, source)` where `source` is `'keyboard'` or
+`'mouse'`. The parent stores source in a ref and passes it to children. Children
+skip `listboxRef.current?.focus()` when `focusRegionSource === 'mouse'`.
+
+### Toggle button as navigation bridge
+
+When a collapsible section sits between two lists, the toggle button acts as a
+navigable "row" in the keyboard flow:
+
+- ArrowDown from the top list → toggle button gets focus
+- ArrowDown from toggle (expanded) → enter bottom list
+- ArrowUp from bottom list → toggle button gets focus
+- Enter/Space on toggle → expand/collapse; if expanding, auto-focus first row
+- Esc inside bottom list → collapse and return to toggle
+- Collapsed + ArrowDown on toggle → stop (no implicit expand)
+
+### Reference implementation
+
+- `ProjectPage.tsx` — focusRegion state + coordination callbacks
+- `ProjectGroupedList.tsx` — `onNavigateOut` prop + boundary detection
+- `ProjectDoneTaskList.tsx` — keyboard nav + virtualization + prevRef transition
+
+---
+
 ## Examples
 
 ### Example: shared primitive extends native props carefully (`src/components/Checkbox.tsx`)

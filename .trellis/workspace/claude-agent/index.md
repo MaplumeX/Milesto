@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 47
+- **Total Sessions**: 50
 - **Last Active**: 2026-05-05
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1625 | Active |
+| `journal-1.md` | ~1680 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,9 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 50 | 2026-05-05 | Fix ArrowUp from completed toggle skipping group | `0b04a65` | `feature/optimize-completed-task-display-in-project-area` |
+| 49 | 2026-05-05 | Fix project page focus visual conflict | `a3b6ce9`, `508aa06` | `feature/optimize-completed-task-display-in-project-area` |
+| 48 | 2026-05-05 | 优化项目界面已完成任务键盘导航与虚拟化 | `9ff000c`, `65cc2c3` | `feature/optimize-completed-task-display-in-project-area` |
 | 47 | 2026-05-05 | AI对话底栏与其他界面对齐 | `47ca98a` | `feature/ai-chat-ui-optimization` |
 | 46 | 2026-05-05 | AI chat rollback with side-effect journal | `36d4d62` | `feature/ai-chat-ui-optimization` |
 | 45 | 2026-05-04 | AI 对话零会话直接输入即创建会话 | `a31775d` | `feature/ai-chat-ui-optimization` |
