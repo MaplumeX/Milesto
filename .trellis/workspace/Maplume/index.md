@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 2
-- **Last Active**: 2026-04-09
+- **Total Sessions**: 3
+- **Last Active**: 2026-06-02
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~92 | Active |
+| `journal-1.md` | ~126 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 3 | 2026-06-02 | Replace inline SVG icons with lucide-react | `16b3b2d`, `18766c9` | `Feat/replace-icon-system` |
 | 2 | 2026-04-09 | Repair Trellis Codex detection and restore lint baseline | `456f2a1` | `master` |
 | 1 | 2026-04-07 | Bootstrap frontend guidelines | `2bc8a40` |
 <!-- @@@/auto:session-history -->
