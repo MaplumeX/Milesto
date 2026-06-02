@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 3
+- **Total Sessions**: 4
 - **Last Active**: 2026-06-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~126 | Active |
+| `journal-1.md` | ~161 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 4 | 2026-06-02 | Redesign settings dialog with sidebar navigation | `fa62084`, `f1247a5`, `826d980` | `Feat/redesign-settings-component` |
 | 3 | 2026-06-02 | Replace inline SVG icons with lucide-react | `16b3b2d`, `18766c9` | `Feat/replace-icon-system` |
 | 2 | 2026-04-09 | Repair Trellis Codex detection and restore lint baseline | `456f2a1` | `master` |
 | 1 | 2026-04-07 | Bootstrap frontend guidelines | `2bc8a40` |

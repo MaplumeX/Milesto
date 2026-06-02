@@ -116,8 +116,8 @@ export function SyncSettingsPanel() {
         </div>
       ) : null}
 
-      <section className="settings-section">
-        <div className="settings-section-title">{t('settings.syncStatus')}</div>
+      <div className="settings-section-title">{t('settings.syncStatus')}</div>
+      <div className="settings-card">
         <div className="settings-row settings-row-stack">
           <div className="settings-row-label">
             <span className={getStatusDotClass()} />
@@ -129,10 +129,10 @@ export function SyncSettingsPanel() {
             </div>
           ) : null}
         </div>
-      </section>
+      </div>
 
-      <section className="settings-section">
-        <div className="settings-section-title">{t('settings.syncTab')}</div>
+      <div className="settings-section-title">{t('settings.syncTab')}</div>
+      <div className="settings-card">
         <div className="settings-row settings-row-stack">
           <label className="settings-row-label" htmlFor="sync-server-url">
             {t('settings.syncServerUrl')}
@@ -186,7 +186,7 @@ export function SyncSettingsPanel() {
             )}
           </div>
         </div>
-      </section>
+      </div>
     </div>
   )
 }

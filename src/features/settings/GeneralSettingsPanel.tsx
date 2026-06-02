@@ -101,6 +101,29 @@ export function GeneralSettingsPanel() {
     return value === 'en' ? t('settings.languageEnglish') : t('settings.languageChinese')
   }
 
+  function handleThemeChange(preference: ThemePreference) {
+    const parsed = ThemePreferenceSchema.safeParse(preference)
+    if (!parsed.success) return
+
+    void (async () => {
+      const res = await window.api.settings.setThemePreference(parsed.data)
+      if (!res.ok) {
+        setError(res.error)
+        return
+      }
+
+      setError(null)
+      setThemePreference(res.data.preference)
+      setEffectiveTheme(res.data.effectiveTheme)
+    })()
+  }
+
+  const themeOptions: { value: ThemePreference; label: string }[] = [
+    { value: 'light', label: t('settings.themeLight') },
+    { value: 'dark', label: t('settings.themeDark') },
+    { value: 'system', label: t('settings.themeSystem') },
+  ]
+
   return (
     <div className="settings-panel">
       {error ? (
@@ -110,8 +133,8 @@ export function GeneralSettingsPanel() {
         </div>
       ) : null}
 
-      <section className="settings-section">
-        <div className="settings-section-title">{t('settings.language')}</div>
+      <div className="settings-section-title">{t('settings.language')}</div>
+      <div className="settings-card">
         <div className="settings-row">
           <div className="settings-row-label">{t('settings.language')}</div>
           <div className="settings-row-control">
@@ -140,10 +163,10 @@ export function GeneralSettingsPanel() {
             />
           </div>
         </div>
-      </section>
+      </div>
 
-      <section className="settings-section">
-        <div className="settings-section-title">{t('settings.theme')}</div>
+      <div className="settings-section-title">{t('settings.theme')}</div>
+      <div className="settings-card">
         <div className="settings-row">
           <div className="settings-row-label">
             {t('settings.theme')}
@@ -154,38 +177,26 @@ export function GeneralSettingsPanel() {
             </div>
           </div>
           <div className="settings-row-control">
-            <Select
-              aria-label={t('settings.theme')}
-              value={themePreference}
-              data-testid="settings-theme-select"
-              options={[
-                { value: 'system', label: t('settings.themeSystem') },
-                { value: 'light', label: t('settings.themeLight') },
-                { value: 'dark', label: t('settings.themeDark') },
-              ]}
-              onValueChange={(value) => {
-                const parsed = ThemePreferenceSchema.safeParse(value)
-                if (!parsed.success) return
-
-                void (async () => {
-                  const res = await window.api.settings.setThemePreference(parsed.data)
-                  if (!res.ok) {
-                    setError(res.error)
-                    return
-                  }
-
-                  setError(null)
-                  setThemePreference(res.data.preference)
-                  setEffectiveTheme(res.data.effectiveTheme)
-                })()
-              }}
-            />
+            <div className="settings-segmented" data-testid="settings-theme-select" role="radiogroup" aria-label={t('settings.theme')}>
+              {themeOptions.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={themePreference === value}
+                  className={`settings-segmented-btn${themePreference === value ? ' settings-segmented-btn--active' : ''}`}
+                  onClick={() => handleThemeChange(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      <section className="settings-section">
-        <div className="settings-section-title">{t('settings.appearance')}</div>
+      <div className="settings-section-title">{t('settings.appearance')}</div>
+      <div className="settings-card">
         <div className="settings-row">
           <div className="settings-row-label">{t('settings.fontSize')}</div>
           <div className="settings-row-control settings-font-size-control">
@@ -234,10 +245,10 @@ export function GeneralSettingsPanel() {
             <span className="settings-font-size-bound">{t('settings.fontSizeEndpointLarge')}</span>
           </div>
         </div>
-      </section>
+      </div>
 
-      <section className="settings-section">
-        <div className="settings-section-title">{t('settings.data')}</div>
+      <div className="settings-section-title">{t('settings.data')}</div>
+      <div className="settings-card">
         <div className="settings-row">
           <div className="settings-row-label">{t('settings.export')}</div>
           <div className="settings-row-control">
@@ -314,10 +325,10 @@ export function GeneralSettingsPanel() {
             </div>
           </div>
         ) : null}
-      </section>
+      </div>
 
-      <section className="settings-section">
-        <div className="settings-section-title">{t('settings.about')}</div>
+      <div className="settings-section-title">{t('settings.about')}</div>
+      <div className="settings-card">
         <div className="settings-row">
           <div className="settings-row-label">{t('settings.version')}</div>
           <div className="settings-row-control mono">{version}</div>
@@ -339,7 +350,7 @@ export function GeneralSettingsPanel() {
             </Button>
           </div>
         </div>
-      </section>
+      </div>
     </div>
   )
 }

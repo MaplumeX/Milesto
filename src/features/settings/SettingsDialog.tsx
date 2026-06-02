@@ -1,9 +1,18 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Settings, Cloud, type LucideIcon } from 'lucide-react'
 
 import { GeneralSettingsPanel } from './GeneralSettingsPanel'
 import { SyncSettingsPanel } from './SyncSettingsPanel'
+
+type SettingsTab = 'general' | 'sync'
+
+const SIDEBAR_ITEMS: { key: SettingsTab; Icon: LucideIcon }[] = [
+  { key: 'general', Icon: Settings },
+  { key: 'sync', Icon: Cloud },
+]
 
 const FOCUSABLE_SELECTOR = [
   'button:not([disabled])',
@@ -24,6 +33,13 @@ function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
   })
 }
 
+const panelTransition = {
+  initial: { opacity: 0, x: 8 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -8 },
+  transition: { duration: 0.15 },
+}
+
 export function SettingsDialog({
   isOpen,
   onClose,
@@ -35,7 +51,8 @@ export function SettingsDialog({
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const titleId = useId()
-  const [activeTab, setActiveTab] = useState<'general' | 'sync'>('general')
+  const tabPanelId = useId()
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
 
   useEffect(() => {
     if (!isOpen) return
@@ -137,30 +154,43 @@ export function SettingsDialog({
           </button>
         </div>
 
-        <div className="settings-dialog-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'general'}
-            className={`settings-dialog-tab ${activeTab === 'general' ? 'settings-dialog-tab--active' : ''}`}
-            onClick={() => setActiveTab('general')}
-          >
-            {t('settings.generalTab')}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'sync'}
-            className={`settings-dialog-tab ${activeTab === 'sync' ? 'settings-dialog-tab--active' : ''}`}
-            onClick={() => setActiveTab('sync')}
-          >
-            {t('settings.syncTab')}
-          </button>
-        </div>
-
         <div className="settings-dialog-body">
-          <div className="settings-dialog-panel">
-            {activeTab === 'general' ? <GeneralSettingsPanel /> : <SyncSettingsPanel />}
+          <nav className="settings-sidebar" aria-label={t('settings.title')}>
+            <div className="settings-sidebar-nav" role="tablist">
+              {SIDEBAR_ITEMS.map(({ key, Icon }, index) => (
+                <motion.button
+                  key={key}
+                  id={`settings-tab-${key}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === key}
+                  aria-controls={tabPanelId}
+                  data-active={activeTab === key}
+                  className={`settings-sidebar-item${activeTab === key ? ' settings-sidebar-item--active' : ''}`}
+                  onClick={() => setActiveTab(key)}
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.15, delay: index * 0.05 }}
+                >
+                  <Icon size={16} strokeWidth={1.8} />
+                  <span>{key === 'general' ? t('settings.generalTab') : t('settings.syncTab')}</span>
+                </motion.button>
+              ))}
+            </div>
+          </nav>
+
+          <div className="settings-content" role="tabpanel" id={tabPanelId} aria-labelledby={`settings-tab-${activeTab}`}>
+            <AnimatePresence mode="wait">
+              {activeTab === 'general' ? (
+                <motion.div key="general" {...panelTransition}>
+                  <GeneralSettingsPanel />
+                </motion.div>
+              ) : (
+                <motion.div key="sync" {...panelTransition}>
+                  <SyncSettingsPanel />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
