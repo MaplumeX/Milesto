@@ -1629,6 +1629,7 @@ export function AppShell() {
                   activeProjectDragId={activeProjectId}
                   areaById={areaById}
                   projectById={projectById}
+                  projectProgressById={sidebarProjectProgress}
                 />
               </DragOverlay>,
               document.body
@@ -2169,11 +2170,13 @@ function SidebarDragOverlay({
   activeProjectDragId,
   areaById,
   projectById,
+  projectProgressById,
 }: {
   activeAreaDragId: string | null
   activeProjectDragId: string | null
   areaById: Map<string, Area>
   projectById: Map<string, Project>
+  projectProgressById: Record<string, { done_count: number; total_count: number }>
 }) {
   const { t } = useTranslation()
   if (activeAreaDragId) {
@@ -2191,9 +2194,16 @@ function SidebarDragOverlay({
     const projectId = projectIdFromProjectDragId(activeProjectDragId)
     const project = projectId ? projectById.get(projectId) : null
     if (!project) return null
+    const progress = projectId ? projectProgressById[projectId] : undefined
     return (
-      <div className="sidebar-dnd-overlay" aria-hidden="true">
-        {project.title.trim() ? project.title : t('project.untitled')}
+      <div className="sidebar-dnd-overlay sidebar-dnd-overlay--project" aria-hidden="true">
+        <ProjectProgressIndicator
+          status={project.status}
+          doneCount={progress?.done_count ?? 0}
+          totalCount={progress?.total_count ?? 0}
+          size="list"
+        />
+        <span>{project.title.trim() ? project.title : t('project.untitled')}</span>
       </div>
     )
   }
