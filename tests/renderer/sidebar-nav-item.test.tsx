@@ -43,7 +43,8 @@ describe('SidebarNavItem', () => {
     const handPath = todayIcon?.querySelector('path')
 
     expect(handPath).not.toBeNull()
-    expect(handPath).toHaveAttribute('d', 'M12 8.5v3.5l2.75 1.75')
+    // Lucide Clock uses "M12 6v6l4 2" for its hands
+    expect(handPath).toHaveAttribute('d', 'M12 6v6l4 2')
   })
 
   it('renders the someday icon as a future anchor without the shaft crossing the baseline', () => {
@@ -56,9 +57,10 @@ describe('SidebarNavItem', () => {
     const somedayIcon = container.querySelector<HTMLElement>('.nav-item-icon[data-nav-icon-key="someday"]')
     const paths = somedayIcon?.querySelectorAll('path')
 
+    // Lucide ArrowUpFromLine: arrowhead "m18 9-6-6-6 6", shaft "M12 3v14", baseline "M5 21h14"
     expect(paths).toHaveLength(3)
-    expect(paths?.[0]).toHaveAttribute('d', 'M12 6.5v10.5')
-    expect(paths?.[1]).toHaveAttribute('d', 'M8.5 10 12 6.5 15.5 10')
-    expect(paths?.[2]).toHaveAttribute('d', 'M7.5 17h9')
+    expect(paths?.[0]).toHaveAttribute('d', 'm18 9-6-6-6 6')
+    expect(paths?.[1]).toHaveAttribute('d', 'M12 3v14')
+    expect(paths?.[2]).toHaveAttribute('d', 'M5 21h14')
   })
 })

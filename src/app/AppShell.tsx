@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'framer-motion'
+import { Folder, ChevronDown } from 'lucide-react'
 
 import { Button } from '../components/Button'
 import {
@@ -1775,44 +1776,6 @@ function SidebarContainerTailDropZone({
   return <div ref={setNodeRef} className="sidebar-tail-dropzone" aria-hidden="true" />
 }
 
-function SidebarFolderIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      width="1em"
-      height="1em"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.7}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3 7.5c0-1.1.9-2 2-2h5l2 2h7c1.1 0 2 .9 2 2v9c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2v-11z" />
-    </svg>
-  )
-}
-
-function SidebarChevronIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 20 20"
-      width="1em"
-      height="1em"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M5 8l5 5 5-5" />
-    </svg>
-  )
-}
-
 function SortableSidebarProjectNavItem({
   project,
   indent,
@@ -2054,7 +2017,7 @@ function SortableSidebarAreaGroup({
       <div className="nav-area-header">
         {editingAreaId === area.id ? (
           <div className={`nav-item nav-area-row${currentPathname === `/areas/${area.id}` ? ' is-active' : ''}`}>
-            <SidebarFolderIcon className="nav-area-icon" />
+            <Folder strokeWidth={1.7} className="nav-area-icon" />
             <input
               ref={titleEdit.inputRef}
               className="sidebar-row-title-input nav-area-label"
@@ -2101,7 +2064,7 @@ function SortableSidebarAreaGroup({
             }}
             onContextMenu={onAreaContextMenu ? (event) => onAreaContextMenu(event, area) : undefined}
           >
-            <SidebarFolderIcon className="nav-area-icon" />
+            <Folder strokeWidth={1.7} className="nav-area-icon" />
             <span className="nav-area-label">{displayAreaTitle}</span>
           </NavLink>
         )}
@@ -2127,7 +2090,7 @@ function SortableSidebarAreaGroup({
             onToggleCollapsed()
           }}
         >
-          <SidebarChevronIcon className="nav-area-collapse-icon" />
+          <ChevronDown size={16} className="nav-area-collapse-icon" />
         </button>
       </div>
 
