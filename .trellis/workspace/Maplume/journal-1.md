@@ -124,3 +124,38 @@ Replaced ~40 hand-authored inline SVG icons across 4 icon definition modules (si
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: Redesign settings dialog with sidebar navigation
+
+**Date**: 2026-06-02
+**Task**: Redesign settings dialog with sidebar navigation
+**Branch**: `Feat/redesign-settings-component`
+
+### Summary
+
+Redesigned settings from flat tabs to sidebar+content layout with framer-motion transitions, segmented theme control, and grouped card sections. Updated component guidelines spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fa62084` | (see git log) |
+| `f1247a5` | (see git log) |
+| `826d980` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
