@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Verify component structure, CSS class naming, and accessibility patterns match convention"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Quality gates — ensure lint, typecheck, ARIA labels, keyboard navigation, and test coverage"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Verify zod schema usage and type safety for all settings-related data and IPC calls"}
+{"file": ".trellis/tasks/06-02-redesign-settings-component/prd.md", "reason": "Check against PRD acceptance criteria — sidebar layout, segmented control, animations, dark mode, preserved functionality"}

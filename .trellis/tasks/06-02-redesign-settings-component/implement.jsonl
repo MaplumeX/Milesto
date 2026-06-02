@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Component patterns, styling conventions, and naming rules for the frontend layer"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Quality checklist — lint, typecheck, accessibility, and test standards the settings must meet"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend spec index — quick reference for all frontend conventions"}
+{"file": ".trellis/tasks/06-02-redesign-settings-component/prd.md", "reason": "The task PRD — requirements, acceptance criteria, and technical approach for the redesign"}
