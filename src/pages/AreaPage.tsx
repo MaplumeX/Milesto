@@ -3,6 +3,7 @@ import type { ForwardedRef, RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { Folder } from 'lucide-react'
 
 import type { AppError } from '../../shared/app-error'
 import { isClosedProjectStatus } from '../../shared/schemas/common'
@@ -434,7 +435,7 @@ export function AreaPage() {
       <TaskList
         title={
           <span className="area-title">
-            <AreaTitleIcon className="area-title-icon" />
+            <Folder strokeWidth={1.7} className="area-title-icon" />
             <span className="area-title-main">
               {area ? (
                 isEditingTitle ? (
@@ -616,25 +617,6 @@ function AreaMetaRow({
         ) : null}
       </div>
     </div>
-  )
-}
-
-function AreaTitleIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      width="1em"
-      height="1em"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.7}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3 7.5c0-1.1.9-2 2-2h5l2 2h7c1.1 0 2 .9 2 2v9c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2v-11z" />
-    </svg>
   )
 }
 

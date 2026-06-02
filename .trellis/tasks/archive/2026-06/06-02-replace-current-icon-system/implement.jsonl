@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/06-02-replace-current-icon-system/prd.md", "reason": "Full requirements, icon mapping, acceptance criteria, and technical approach"}
+{"file": ".trellis/tasks/06-02-replace-current-icon-system/research/lucide-react.md", "reason": "Icon-by-icon mapping to Lucide, API details, strokeWidth strategy, missing icon caveats"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Component conventions to follow when rewriting icon definition modules"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "File placement conventions for icon modules"}

@@ -90,3 +90,37 @@ Fixed Trellis Codex platform detection, completed the v0.4.0-beta.9 migration ta
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: Replace inline SVG icons with lucide-react
+
+**Date**: 2026-06-02
+**Task**: Replace inline SVG icons with lucide-react
+**Branch**: `Feat/replace-icon-system`
+
+### Summary
+
+Replaced ~40 hand-authored inline SVG icons across 4 icon definition modules (sidebar-nav-icons, bottom-bar-icons, popover-menu-icons, task-metadata-icons) and 2 inline files (AppShell, AreaPage) with lucide-react components. Added LucideProvider at app root with size=1em. ConvertMenuIcon remains custom (no Lucide equivalent). Non-24x24 viewBox icons untouched. Updated component-guidelines spec with icon system conventions.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `16b3b2d` | (see git log) |
+| `18766c9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
