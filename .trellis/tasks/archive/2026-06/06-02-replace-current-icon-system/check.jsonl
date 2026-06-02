@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/06-02-replace-current-icon-system/prd.md", "reason": "Verify acceptance criteria: all icon modules migrated, LucideProvider added, ConvertMenuIcon kept custom"}
+{"file": ".trellis/tasks/06-02-replace-current-icon-system/research/lucide-react.md", "reason": "Verify correct Lucide icon names used per mapping table"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Verify component patterns follow project conventions"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Verify quality standards met"}
