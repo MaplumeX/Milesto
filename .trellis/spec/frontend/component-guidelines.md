@@ -215,3 +215,109 @@ type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'child
   tabIndex={-1}
 >
 ```
+
+---
+
+## Dialog Layout Patterns
+
+### Sidebar + Content Dialog
+
+For dialogs with multiple sections (e.g., settings), use a left sidebar for navigation
+and a right content panel instead of flat horizontal tabs. This matches macOS System Settings
+and scales better when sections are added.
+
+**Structure**:
+- Sidebar: `<nav>` with `role="tablist"`, containing `role="tab"` items (icon + label)
+- Content: `role="tabpanel"` with `id`/`aria-labelledby` linked to the active tab
+- Each tab must have `aria-controls` pointing to the tabpanel's `id`
+
+```tsx
+<nav className="settings-sidebar" aria-label={t('settings.title')}>
+  <div className="settings-sidebar-nav" role="tablist">
+    {items.map(({ key, Icon }) => (
+      <motion.button
+        key={key}
+        id={`settings-tab-${key}`}
+        role="tab"
+        aria-selected={activeTab === key}
+        aria-controls={tabPanelId}
+        onClick={() => setActiveTab(key)}
+      >
+        <Icon size={16} strokeWidth={1.8} />
+        <span>{t(key)}</span>
+      </motion.button>
+    ))}
+  </div>
+</nav>
+
+<div role="tabpanel" id={tabPanelId} aria-labelledby={`settings-tab-${activeTab}`}>
+  <AnimatePresence mode="wait">
+    {/* active panel content with motion.div */}
+  </AnimatePresence>
+</div>
+```
+
+**CSS**: Sidebar gets `border-right: 1px solid var(--border)` and a tinted background
+(`var(--wash)`). Active item uses `var(--glass)` background pill. Content panel has
+`overflow-y: auto` and its own padding.
+
+**Accessibility gotcha**: The WAI-ARIA tabs pattern requires `role="tablist"` as the
+parent container, and bidirectional `id`/`aria-controls`/`aria-labelledby` links between
+`tab` and `tabpanel`. Without these, screen readers cannot associate the navigation with
+the content.
+
+### Panel Transitions with framer-motion
+
+Use `AnimatePresence mode="wait"` for panel switches to ensure the exiting panel
+completes before the entering panel starts:
+
+```tsx
+const panelTransition = {
+  initial: { opacity: 0, x: 8 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -8 },
+  transition: { duration: 0.15 },
+}
+
+<AnimatePresence mode="wait">
+  <motion.div key={activeTab} {...panelTransition}>
+    <PanelContent />
+  </motion.div>
+</AnimatePresence>
+```
+
+For staggered sidebar entrance, each `motion.button` gets a `delay: index * 0.05`
+transition. Keep durations under 200ms to avoid feeling sluggish.
+
+### Segmented Control
+
+For small mutually-exclusive choices (e.g., Light / Dark / Auto theme), use an inline
+segmented control instead of a dropdown Select. Use `role="radiogroup"` with
+`role="radio"` + `aria-checked` for accessibility:
+
+```tsx
+<div className="settings-segmented" role="radiogroup" aria-label={t('settings.theme')}>
+  {options.map(({ value, label }) => (
+    <button
+      key={value}
+      type="button"
+      role="radio"
+      aria-checked={current === value}
+      className={`settings-segmented-btn${current === value ? ' settings-segmented-btn--active' : ''}`}
+      onClick={() => handleChange(value)}
+    >
+      {label}
+    </button>
+  ))}
+</div>
+```
+
+**CSS**: Container has `border: 1px solid var(--border)`, `border-radius: 8px`,
+`overflow: hidden`. Active button inverts: `background: var(--text)`, `color: var(--bg)`.
+Adjacent buttons get `border-left: 1px solid var(--border)`.
+
+### Grouped Card Sections
+
+Settings rows should be wrapped in bordered cards (`border: 1px solid var(--border)`,
+`border-radius: 12px`, `background: var(--panel)`) instead of flat row dividers. The
+section title (uppercase, 10px, `var(--muted)`) sits above the card, not inside it.
