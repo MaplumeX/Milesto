@@ -1952,6 +1952,12 @@ body {
   white-space: nowrap;
 }
 
+.sidebar-dnd-overlay--project {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .task-dnd-overlay {
   border-radius: 10px;
   background: var(--paper);
@@ -2566,19 +2572,22 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
   opacity: 0.6;
 }
 
-.sidebar .project-progress-control {
+.sidebar .project-progress-control,
+.sidebar-dnd-overlay--project .project-progress-control {
   border-color: rgba(15, 23, 42, 0.32);
   color: var(--text);
   --ppc-fill-partial: rgba(15, 23, 42, 0.32);
 }
 
-.sidebar .project-progress-control.is-done {
+.sidebar .project-progress-control.is-done,
+.sidebar-dnd-overlay--project .project-progress-control.is-done {
   border-color: transparent;
   background: var(--text);
   color: var(--bg);
 }
 
-.sidebar .project-progress-control.is-done .project-progress-fill {
+.sidebar .project-progress-control.is-done .project-progress-fill,
+.sidebar-dnd-overlay--project .project-progress-control.is-done .project-progress-fill {
   fill: var(--text);
 }
 
@@ -2598,7 +2607,8 @@ button.project-progress-control:hover:not(:disabled):not(.is-done):not(.is-cance
 }
 
 @media (prefers-color-scheme: dark) {
-  .sidebar .project-progress-control {
+  .sidebar .project-progress-control,
+  .sidebar-dnd-overlay--project .project-progress-control {
     border-color: rgba(255, 255, 255, 0.30);
     --ppc-fill-partial: rgba(255, 255, 255, 0.30);
   }
