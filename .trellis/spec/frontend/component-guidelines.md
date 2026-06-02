@@ -86,6 +86,54 @@ flex stretch). Reuse them whenever you add hover-only affordances to a flex row.
 - Class names are semantic (`nav-item`, `palette-item`, `content-bottom-action-button`) instead of utility-first.
 - Icon wrappers typically set `aria-hidden="true"` and rely on the outer control for the accessible name.
 
+### Icon System
+
+The project uses `lucide-react` for UI icons. All 24x24 viewBox icons should use Lucide components rather than hand-authored inline SVGs.
+
+**Library**: `lucide-react` (tree-shakeable named imports only — never `import *`)
+
+**Global config**: `LucideProvider` in `App.tsx` sets `size="1em"` app-wide. Individual icons can override via the `size` prop.
+
+```tsx
+// App.tsx
+import { LucideProvider } from 'lucide-react'
+
+<LucideProvider size={"1em" as unknown as number}>
+  <App />
+</LucideProvider>
+```
+
+> **Gotcha**: `LucideConfig.size` is typed as `number` but accepts strings at runtime. Use `as unknown as number` when passing `"1em"`.
+
+**Import pattern**:
+
+```tsx
+// Good — tree-shakeable named import
+import { Inbox, Clock, Trash2 } from 'lucide-react'
+
+// Bad — defeats tree-shaking
+import * as icons from 'lucide-react'
+```
+
+**Usage patterns in this project**:
+
+1. **Dictionary-based** (sidebar-nav-icons, bottom-bar-icons): Lucide components are stored as `ReactNode` in lookup objects, keyed by string. Accessor functions retrieve them by key.
+
+2. **Named re-exports** (task-metadata-icons): Lucide icons wrapped in functions accepting `{ className?: string }` for API compatibility.
+
+3. **Direct exports** (popover-menu-icons): Named functions returning Lucide components with specific `strokeWidth` props.
+
+**strokeWidth conventions**:
+- Sidebar / bottom bar icons: `strokeWidth={1.8}`
+- Popover menu icons: `strokeWidth={1.9}`
+- Task metadata icons: Lucide default (2), except `ChevronDownIcon` at `strokeWidth={2.2}`
+
+**CSS class note**: Lucide auto-adds `lucide` and `lucide-<kebab-name>` classes to every `<svg>` element. If CSS selectors target SVGs by tag name only, these extra classes are harmless. If styling relies on specific class absence, verify after migration.
+
+**Non-24x24 icons remain custom**: Checkbox (12x10), Select (10x10), TagPicker (16x16 / 12x12), and ProjectProgressControl (arc with strokeWidth=2.4) use viewboxes incompatible with Lucide and must stay as hand-authored inline SVGs.
+
+**Icons without Lucide equivalents**: `ConvertMenuIcon` (two overlapping rectangles + arrow) has no Lucide match and remains a custom inline SVG with a local `PopoverMenuIcon` wrapper.
+
 ### Button Component
 
 Use the shared `Button` primitive instead of handwriting `<button>` elements with `.button` / `.button-ghost` / `.button-danger` classes.
