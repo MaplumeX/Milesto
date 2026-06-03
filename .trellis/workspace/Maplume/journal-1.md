@@ -159,3 +159,36 @@ Redesigned settings from flat tabs to sidebar+content layout with framer-motion 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 5: Area drag overlay with collapse/expand animation
+
+**Date**: 2026-06-03
+**Task**: Area drag overlay with collapse/expand animation
+**Branch**: `Feat/sidebar-area-drag-overlay`
+
+### Summary
+
+Sidebar area drag overlay now shows Folder icon + title (matching normal row). Projects animate closed when drag starts and animate open when drag ends. Added collapsingAreaIds/expandingAreaIds state, CSS keyframe animations, and onAnimationEnd cleanup.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3bfeefd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
