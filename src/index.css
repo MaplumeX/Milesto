@@ -1958,6 +1958,62 @@ body {
   gap: 6px;
 }
 
+.sidebar-dnd-overlay--area {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 650;
+}
+
+.sidebar-dnd-overlay--area > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.sidebar-area-projects--collapsing {
+  overflow: hidden;
+  animation: sidebar-area-collapse 150ms ease-out forwards;
+}
+
+@keyframes sidebar-area-collapse {
+  from {
+    max-height: 300px;
+    opacity: 1;
+  }
+  to {
+    max-height: 0;
+    opacity: 0;
+  }
+}
+
+.sidebar-area-projects--expanding {
+  overflow: hidden;
+  animation: sidebar-area-expand 150ms ease-out forwards;
+}
+
+@keyframes sidebar-area-expand {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 300px;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-area-projects--collapsing {
+    animation: none;
+    max-height: 0;
+    opacity: 0;
+  }
+  .sidebar-area-projects--expanding {
+    animation: none;
+  }
+}
+
 .task-dnd-overlay {
   border-radius: 10px;
   background: var(--paper);

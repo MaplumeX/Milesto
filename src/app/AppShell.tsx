@@ -562,6 +562,9 @@ export function AppShell() {
 
   const [activeAreaId, setActiveAreaId] = useState<string | null>(null)
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
+  const [collapsingAreaIds, setCollapsingAreaIds] = useState<string[]>([])
+  const [expandingAreaIds, setExpandingAreaIds] = useState<string[]>([])
+  const dragStartWasCollapsedRef = useRef(false)
 
   const prefersReducedMotion = usePrefersReducedMotion()
   const dropAnimation = useMemo(() => getTaskDropAnimationConfig(prefersReducedMotion), [prefersReducedMotion])
@@ -1114,6 +1117,18 @@ export function AppShell() {
       setActiveAreaId(activeId)
       setActiveProjectId(null)
       areaOrderSnapshotRef.current = [...orderedAreaDragIdsRef.current]
+
+      const areaId = areaIdFromAreaDragId(activeId)
+      const wasCollapsed = areaId ? collapsedAreaIdsRef.current.includes(areaId) : false
+      dragStartWasCollapsedRef.current = wasCollapsed
+      setCollapsingAreaIds([])
+
+      if (areaId && !wasCollapsed) {
+        const next = [...collapsedAreaIdsRef.current, areaId]
+        setCollapsedAreaIds(next)
+        setCollapsingAreaIds([areaId])
+      }
+
       return
     }
 
@@ -1243,6 +1258,19 @@ export function AppShell() {
     if (dragType === 'area') {
       scheduleClearActiveAreaIdAfterDrop(activeId)
       scheduleEnableClicksAfterDrop()
+      setCollapsingAreaIds([])
+
+      // If the area was expanded before drag, show expand animation
+      if (!dragStartWasCollapsedRef.current && activeId) {
+        const areaId = areaIdFromAreaDragId(activeId)
+        if (areaId) {
+          setCollapsedAreaIds((prev) => prev.filter((id) => id !== areaId))
+          setExpandingAreaIds([areaId])
+        }
+      } else {
+        // Area was collapsed before drag — just restore collapsed state
+        // (no expand animation needed)
+      }
 
       const snapshot = areaOrderSnapshotRef.current
       areaOrderSnapshotRef.current = null
@@ -1333,8 +1361,19 @@ export function AppShell() {
   function handleDragCancel() {
     cancelPendingDropTimers()
     suppressClickRef.current = false
+    const activeAreaDragId = activeAreaId
     setActiveAreaId(null)
     setActiveProjectId(null)
+    setCollapsingAreaIds([])
+
+    // If the area was expanded before drag, show expand animation
+    if (!dragStartWasCollapsedRef.current && activeAreaDragId) {
+      const areaId = areaIdFromAreaDragId(activeAreaDragId)
+      if (areaId) {
+        setCollapsedAreaIds((prev) => prev.filter((id) => id !== areaId))
+        setExpandingAreaIds([areaId])
+      }
+    }
     lastDraftSignatureRef.current = null
     dragStartContainerRef.current = null
 
@@ -1600,6 +1639,16 @@ export function AppShell() {
                   suppressClickRef={suppressClickRef}
                   projectProgressById={sidebarProjectProgress}
                   isCollapsed={collapsedAreaIds.includes(area.id)}
+                  isCollapsing={collapsingAreaIds.includes(area.id)}
+                  isExpanding={expandingAreaIds.includes(area.id)}
+                  onAnimationEnd={() => {
+                    if (collapsingAreaIds.includes(area.id)) {
+                      setCollapsingAreaIds((prev) => prev.filter((id) => id !== area.id))
+                    }
+                    if (expandingAreaIds.includes(area.id)) {
+                      setExpandingAreaIds((prev) => prev.filter((id) => id !== area.id))
+                    }
+                  }}
                   onToggleCollapsed={() => {
                     const prev = collapsedAreaIdsRef.current
                     const nextSet = new Set(prev)
@@ -1957,7 +2006,10 @@ function SortableSidebarAreaGroup({
   suppressClickRef,
   projectProgressById,
   isCollapsed,
+  isCollapsing,
+  isExpanding,
   onToggleCollapsed,
+  onAnimationEnd,
   onAreaContextMenu,
   onProjectContextMenu,
 }: {
@@ -1974,7 +2026,10 @@ function SortableSidebarAreaGroup({
   suppressClickRef: React.MutableRefObject<boolean>
   projectProgressById: Record<string, { done_count: number; total_count: number }>
   isCollapsed: boolean
+  isCollapsing: boolean
+  isExpanding: boolean
   onToggleCollapsed: () => void
+  onAnimationEnd?: () => void
   onAreaContextMenu?: (event: React.MouseEvent<HTMLAnchorElement>, area: Area) => void
   onProjectContextMenu?: (event: React.MouseEvent<HTMLAnchorElement>, project: Project) => void
 }) {
@@ -2003,6 +2058,13 @@ function SortableSidebarAreaGroup({
   const hasAreaTitle = area.title.trim().length > 0
   const displayAreaTitle = hasAreaTitle ? area.title : t('area.untitled')
 
+  const showProjects = !isCollapsed || isCollapsing || isExpanding
+  const projectsClassName = isCollapsing
+    ? 'sidebar-area-projects--collapsing'
+    : isExpanding
+      ? 'sidebar-area-projects--expanding'
+      : undefined
+
   return (
     <div
       ref={setGroupNodeRef}
@@ -2012,10 +2074,12 @@ function SortableSidebarAreaGroup({
       style={{
         transform: DndCss.Transform.toString(transform),
         transition,
-        visibility: isHiddenForOverlay ? 'hidden' : undefined,
       }}
     >
-      <div className="nav-area-header">
+      <div
+        className="nav-area-header"
+        style={{ visibility: isHiddenForOverlay ? 'hidden' : undefined }}
+      >
         {editingAreaId === area.id ? (
           <div className={`nav-item nav-area-row${currentPathname === `/areas/${area.id}` ? ' is-active' : ''}`}>
             <Folder strokeWidth={1.7} className="nav-area-icon" />
@@ -2095,8 +2159,8 @@ function SortableSidebarAreaGroup({
         </button>
       </div>
 
-      {!isCollapsed ? (
-        <>
+      {showProjects ? (
+        <div className={projectsClassName} onAnimationEnd={onAnimationEnd}>
           <SortableContext items={projectDragIds} strategy={verticalListSortingStrategy}>
             {projectDragIds.map((pDragId) => {
               const projectId = projectIdFromProjectDragId(pDragId)
@@ -2119,8 +2183,7 @@ function SortableSidebarAreaGroup({
               )
             })}
           </SortableContext>
-
-        </>
+        </div>
       ) : null}
 
       <SidebarContainerTailDropZone containerId={containerId} />
@@ -2147,8 +2210,9 @@ function SidebarDragOverlay({
     const area = areaId ? areaById.get(areaId) : null
     if (!area) return null
     return (
-      <div className="sidebar-dnd-overlay" aria-hidden="true">
-        {area.title.trim() ? area.title : t('area.untitled')}
+      <div className="sidebar-dnd-overlay sidebar-dnd-overlay--area" aria-hidden="true">
+        <Folder strokeWidth={1.7} size={16} className="nav-area-icon" />
+        <span>{area.title.trim() ? area.title : t('area.untitled')}</span>
       </div>
     )
   }
